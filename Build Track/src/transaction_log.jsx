@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 
 const navItems = [
   { label: "Dashboard", icon: "⊞" },
-  { label: "Log",       icon: "🕐" },
-  { label: "Projects",  icon: "📋" },
+  { label: "Voice",     icon: "🎤" },
+  { label: "Workers",   icon: "👥" },
+  { label: "Log",       icon: "📋" },
+  { label: "Projects",  icon: "💼" },
+  { label: "Reports",   icon: "📊" },
   { label: "Settings",  icon: "⚙️" },
 ];
 

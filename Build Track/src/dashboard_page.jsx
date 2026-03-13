@@ -35,9 +35,7 @@ const stats = [
   { label: "Active Workers", value: "156",      change: "↓ 2.4% from last week",   up: false, icon: "👥" },
 ];
 
-/* ── BuildTrack Logo Icon ── */
-function LogoIcon({ size = 32 }) {
-  const scale = size / 36;
+function LogoIcon({ size = 38 }) {
   return (
     <div style={{
       width: size, height: size,
@@ -47,26 +45,13 @@ function LogoIcon({ size = 32 }) {
       boxShadow: "0 3px 8px rgba(234,88,12,0.35)",
       flexShrink: 0,
     }}>
-      <svg
-        width={size * 0.72}
-        height={size * 0.72}
-        viewBox="0 0 36 36"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Main building body */}
-        <rect x="6" y="10" width="24" height="22" rx="2" fill="white" />
-        {/* Roof */}
+      <svg width={size * 0.72} height={size * 0.72} viewBox="0 0 36 36" fill="none">
+        <rect x="6"  y="10" width="24" height="22" rx="2" fill="white" />
         <polygon points="18,2 32,11 4,11" fill="white" />
-        {/* Top-left window */}
         <rect x="9"  y="15" width="5" height="5" rx="1" fill="#ea580c" />
-        {/* Top-right window */}
         <rect x="22" y="15" width="5" height="5" rx="1" fill="#ea580c" />
-        {/* Bottom-left window */}
         <rect x="9"  y="23" width="5" height="5" rx="1" fill="#ea580c" />
-        {/* Bottom-right window */}
         <rect x="22" y="23" width="5" height="5" rx="1" fill="#ea580c" />
-        {/* Door */}
         <rect x="14" y="24" width="8" height="8" rx="1" fill="#ea580c" />
       </svg>
     </div>
@@ -90,110 +75,112 @@ export default function BuildTrackDashboard() {
   }, []);
 
   return (
-    <div style={{ display: "flex", width: "100vw", height: "100vh", fontFamily: "'Segoe UI', sans-serif", background: "#f5f5f5", overflow: "hidden" }}>
+    <div style={{ display: "flex", width: "100vw", height: "100vh", fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8", overflow: "hidden" }}>
 
       {/* Overlay */}
       {sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100 }} />
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
       )}
 
       {/* ── Sidebar ── */}
-      <aside style={{
-        width: 210, height: "100%", background: "#fff",
+      <div style={{
+        width: 235, background: "#fff",
         display: "flex", flexDirection: "column",
-        padding: "24px 16px", gap: 8,
-        borderRight: "1px solid #f0f0f0", flexShrink: 0,
-        overflowY: "auto", zIndex: 110,
+        borderRight: "1px solid #ebebeb", flexShrink: 0, zIndex: 50,
         position: isMobile ? "fixed" : "relative",
-        top: 0, left: 0, bottom: 0,
+        top: 0, left: 0, bottom: 0, height: "100%",
         transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none",
-        transition: "transform 0.25s ease",
+        transition: "transform 0.3s ease", overflowY: "auto",
       }}>
 
-        {/* ── Logo (replaced) ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-          <LogoIcon size={36} />
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a1a", lineHeight: 1.1 }}>BuildTrack</div>
-            <div style={{ fontSize: 10, color: "#999", letterSpacing: "0.08em", fontWeight: 600 }}>MANAGEMENT</div>
+        {/* Logo */}
+        <div style={{ padding: "22px 20px 18px", borderBottom: "1px solid #f0f0f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <LogoIcon size={38} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a1a", lineHeight: 1.1 }}>BuildTrack</div>
+              <div style={{ fontSize: 10, color: "#999", letterSpacing: "0.1em", fontWeight: 600 }}>MANAGEMENT</div>
+            </div>
           </div>
         </div>
 
-        {/* Nav Items */}
-        {navItems.map((item) => (
-          <button key={item.label}
-            onClick={() => { setActiveNav(item.label); setSidebarOpen(false); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 14px", borderRadius: 10, border: "none",
-              cursor: "pointer", textAlign: "left", width: "100%",
-              background: activeNav === item.label ? "#ea580c" : "transparent",
-              color:      activeNav === item.label ? "#fff"    : "#555",
-              fontWeight: activeNav === item.label ? 600       : 400,
-              fontSize: 14, transition: "all 0.15s",
-            }}>
-            <span>{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
+        {/* Nav */}
+        <div style={{ padding: "12px", flex: 1 }}>
+          {navItems.map((item) => (
+            <button key={item.label}
+              onClick={() => { setActiveNav(item.label); setSidebarOpen(false); }}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer",
+                background: activeNav === item.label ? "#fff5f0" : "transparent",
+                color:      activeNav === item.label ? "#ea580c" : "#555",
+                fontWeight: activeNav === item.label ? 600 : 400,
+                fontSize: 14, marginBottom: 2, transition: "all 0.15s", textAlign: "left",
+              }}>
+              <span>{item.icon}</span>{item.label}
+            </button>
+          ))}
 
-        {/* New Project */}
-        <button style={{
-          width: "100%", padding: "12px 0", marginTop: "auto",
-          background: "#ea580c", color: "#fff",
-          border: "none", borderRadius: 12,
-          fontWeight: 600, fontSize: 14, cursor: "pointer",
-        }}>
-          + New Project
-        </button>
-      </aside>
+          {/* New Project Button */}
+          <button style={{
+            width: "100%", padding: "12px 0", marginTop: 16,
+            background: "#ea580c", color: "#fff",
+            border: "none", borderRadius: 12,
+            fontWeight: 600, fontSize: 14, cursor: "pointer",
+          }}>
+            + New Project
+          </button>
+        </div>
+
+        {/* User */}
+        <div style={{ padding: "16px", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#fdba74", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>Alex Thorne</div>
+              <div style={{ fontSize: 11, color: "#888" }}>Project Manager</div>
+            </div>
+          </div>
+          <span style={{ color: "#aaa", fontSize: 16, cursor: "pointer" }}>⋮</span>
+        </div>
+      </div>
 
       {/* ── Main ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
-        {/* Header */}
+        {/* Header — FIXED: removed duplicate search + Alex avatar */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 20px", background: "#fff",
-          borderBottom: "1px solid #f0f0f0",
+          padding: "16px 24px", background: "#fff",
+          borderBottom: "1px solid #ebebeb",
           flexWrap: "wrap", gap: 12, flexShrink: 0,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {isMobile && (
               <button onClick={() => setSidebarOpen(v => !v)}
-                style={{ display: "flex", flexDirection: "column", gap: 4, background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                <span style={{ width: 22, height: 2, background: "#333", borderRadius: 2, display: "block" }} />
-                <span style={{ width: 22, height: 2, background: "#333", borderRadius: 2, display: "block" }} />
-                <span style={{ width: 22, height: 2, background: "#333", borderRadius: 2, display: "block" }} />
-              </button>
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 0 }}>☰</button>
             )}
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0 }}>Dashboard Overview</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1a1a1a", margin: 0 }}>Dashboard Overview</h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", borderRadius: 10, padding: "8px 12px", gap: 8 }}>
-              <span style={{ color: "#aaa" }}>🔍</span>
+          {/* ── Right side: search + bell only ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, padding: "8px 14px", gap: 8 }}>
+              <span style={{ color: "#aaa", fontSize: 14 }}>🔍</span>
               <input placeholder="Search..." style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, color: "#555", width: isMobile ? 80 : 120 }} />
             </div>
             <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}>🔔</div>
-            {!isMobile && (
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>Alex Thorne</div>
-                <div style={{ fontSize: 11, color: "#888" }}>Project Manager</div>
-              </div>
-            )}
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#fdba74", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#ea580c", fontSize: 15 }}>A</div>
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* Stat Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
             {stats.map((card) => (
-              <div key={card.label} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              <div key={card.label} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", border: "1px solid #ebebeb" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <span style={{ fontSize: 12, color: "#777", fontWeight: 500 }}>{card.label}</span>
                   <span style={{ fontSize: 18 }}>{card.icon}</span>
@@ -205,7 +192,7 @@ export default function BuildTrackDashboard() {
           </div>
 
           {/* Weekly Performance */}
-          <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)", border: "1px solid #ebebeb" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>Weekly Performance</div>
@@ -233,7 +220,7 @@ export default function BuildTrackDashboard() {
           </div>
 
           {/* Recent Project Activity */}
-          <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)", border: "1px solid #ebebeb" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>Recent Project Activity</h2>
               <span style={{ fontSize: 12, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View all</span>
@@ -243,12 +230,14 @@ export default function BuildTrackDashboard() {
             {!isNarrow && (
               <div>
                 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.2fr", padding: "6px 0", borderBottom: "1px solid #f0f0f0", marginBottom: 4 }}>
-                  {["PROJECT NAME","MANAGER","STATUS","BUDGET","PROGRESS"].map(col => (
-                    <div key={col} style={{ fontSize: 10, fontWeight: 600, color: "#aaa", letterSpacing: "0.05em" }}>{col}</div>
+                  {["PROJECT NAME", "MANAGER", "STATUS", "BUDGET", "PROGRESS"].map(col => (
+                    <div key={col} style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em" }}>{col}</div>
                   ))}
                 </div>
                 {projects.map((p) => (
-                  <div key={p.name} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.2fr", padding: "12px 0", borderBottom: "1px solid #f9f9f9", alignItems: "center" }}>
+                  <div key={p.name} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.2fr", padding: "12px 0", borderBottom: "1px solid #f9f9f9", alignItems: "center" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#fafafa"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ width: 30, height: 30, background: "#fff5f0", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{p.icon}</div>
                       <span style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{p.name}</span>
@@ -298,8 +287,8 @@ export default function BuildTrackDashboard() {
             )}
           </div>
 
-        </div>{/* /body */}
-      </div>{/* /main */}
+        </div>
+      </div>
     </div>
   );
 }
