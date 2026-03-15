@@ -34,51 +34,64 @@ export default function Sidebar() {
         borderRight: "1px solid #eee",
         padding: "24px 16px",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        height: "100vh",
+        boxSizing: "border-box",
+        flexShrink: 0,
       }}
     >
-      {/* Logo */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-        <LogoIcon />
-        <div>
-          <div style={{ fontWeight: 700 }}>BuildTrack</div>
-          <div style={{ fontSize: 10, color: "#999" }}>MANAGEMENT</div>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      {navItems.map((item) => (
-        <NavLink
-          key={item.label}
-          to={item.path}
-          style={({ isActive }) => ({
-            padding: "10px 14px",
-            borderRadius: 10,
-            textDecoration: "none",
-            display: "flex",
-            gap: 10,
-            color: isActive ? "#fff" : "#555",
-            background: isActive ? "#ea580c" : "transparent",
-            marginBottom: 4
-          })}
-        >
-          {item.icon} {item.label}
-        </NavLink>
-      ))}
-
-      {/* User */}
-        <div style={{ padding: "16px", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: "50%",
-            background: "#fdba74", overflow: "hidden",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, flexShrink: 0,
-          }}>👤</div>
+      {/* ── Logo + Navigation wrapped together ── */}
+      <div>
+        {/* Logo */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+          <LogoIcon />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>Rajesh Kumar</div>
-            <div style={{ fontSize: 11, color: "#888" }}>Site Supervisor</div>
+            <div style={{ fontWeight: 700 }}>BuildTrack</div>
+            <div style={{ fontSize: 10, color: "#999" }}>MANAGEMENT</div>
           </div>
         </div>
+
+        {/* Navigation */}
+        {navItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.path}
+            style={({ isActive }) => ({
+              padding: "10px 14px",
+              borderRadius: 10,
+              textDecoration: "none",
+              display: "flex",
+              gap: 10,
+              color: isActive ? "#fff" : "#555",
+              background: isActive ? "#ea580c" : "transparent",
+              marginBottom: 4,
+            })}
+          >
+            {item.icon} {item.label}
+          </NavLink>
+        ))}
+      </div>
+
+      {/* ── User Profile — pushed to bottom with marginTop: auto ── */}
+      <div style={{
+        marginTop: "auto",
+        padding: "16px 0 0",
+        borderTop: "1px solid #f0f0f0",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: "50%",
+          background: "#fdba74", overflow: "hidden",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 18, flexShrink: 0,
+        }}>👤</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>Rajesh Kumar</div>
+          <div style={{ fontSize: 11, color: "#888" }}>Site Supervisor</div>
+        </div>
+      </div>
     </aside>
   );
 }

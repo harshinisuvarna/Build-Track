@@ -1,4 +1,9 @@
+// src/screens/voice_assistant.jsx
+// FIX: navigate("/manual") → navigate("/manualentry")
+// That's the only change. Route in App.jsx is /manualentry, not /manual.
+
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const recentEntries = [
   { worker: "Suresh - Masonry",   time: "10 mins ago", category: "WAGES",   catBg: "#dbeafe", catColor: "#1e40af", amount: "₹1,200",    income: false },
@@ -8,9 +13,9 @@ const recentEntries = [
 
 const categories = ["Wages", "Expense", "Income", "Materials"];
 
-/* ── BuildTrack Logo Icon ── */
-
 export default function VoiceAssistantPage() {
+  const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
   const [listening,   setListening]   = useState(true);
@@ -34,15 +39,22 @@ export default function VoiceAssistantPage() {
   }, []);
 
   return (
-    <div style={{ display: "flex", width: "100vw", height: "100vh", fontFamily: "'Segoe UI', sans-serif", background: "#faf9f7", overflow: "hidden" }}>
+    <div style={{
+      display: "flex",
+      width: "100%",
+      height: "100vh",
+      fontFamily: "'Segoe UI', sans-serif",
+      background: "#faf9f7",
+      overflow: "hidden",
+      flex: 1,
+      minWidth: 0,
+    }}>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
       )}
 
-      {/* ── Main ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
         {/* Top Bar */}
@@ -57,7 +69,10 @@ export default function VoiceAssistantPage() {
               style={{ border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#555", width: "100%" }} />
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-            <button style={{ padding: "10px 20px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+            {/* ✅ FIX: was navigate("/manual"), now navigate("/manualentry") */}
+            <button
+              onClick={() => navigate("/manualentry")}
+              style={{ padding: "10px 20px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
               📝 Manual Entry
             </button>
             <div style={{ width: 38, height: 38, background: "#fff5f0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, border: "1px solid #fde4d0" }}>🔔</div>
@@ -65,7 +80,12 @@ export default function VoiceAssistantPage() {
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px", display: "flex", flexDirection: "column", gap: 28, alignItems: "center" }}>
+        <div style={{
+          flex: 1, overflowY: "auto",
+          padding: "32px 24px",
+          display: "flex", flexDirection: "column", gap: 28, alignItems: "center",
+          boxSizing: "border-box", width: "100%",
+        }}>
 
           {/* Mic Button */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
@@ -206,8 +226,8 @@ export default function VoiceAssistantPage() {
             </div>
           </div>
 
-        </div>{/* /body */}
-      </div>{/* /main */}
+        </div>
+      </div>
     </div>
   );
 }

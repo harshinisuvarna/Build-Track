@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const transactionTypes = ["Wages", "Expense", "Income", "Materials"];
 const workerOptions    = ["Select worker (Optional)", "Rahul Sharma", "Amit Kumar", "Suresh G.", "Ravi S.", "Priya K."];
 const projectOptions   = ["Select project site", "Skyline Tower", "Green Valley", "City Center", "Ocean Front Estate"];
 
-/* ── BuildTrack Logo Icon ── */
-
 export default function ManualEntryPage() {
-  const [activeNav,   setActiveNav]   = useState("Voice Assistant");
+  const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
   const [txType,      setTxType]      = useState("");
@@ -42,15 +42,22 @@ export default function ManualEntryPage() {
   };
 
   return (
-    <div style={{ display: "flex", width: "100vw", height: "100vh", fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8", overflow: "hidden" }}>
+    <div style={{
+      display: "flex",
+      width: "100%",       // ← was "100vw" — caused offset beside sidebar
+      height: "100vh",
+      fontFamily: "'Segoe UI', sans-serif",
+      background: "#f7f7f8",
+      overflow: "hidden",
+      flex: 1,             // ← fills space beside sidebar
+      minWidth: 0,         // ← prevents flex overflow
+    }}>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
       )}
 
-      {/* ── Main ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
         {/* Top Bar */}
@@ -65,12 +72,15 @@ export default function ManualEntryPage() {
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Log a transaction manually</p>
             </div>
           </div>
-          <button style={{
-            padding: "9px 18px", background: "#fff", color: "#555",
-            border: "1px solid #e5e5e5", borderRadius: 10,
-            fontWeight: 600, fontSize: 13, cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap",
-          }}>
+          {/* ✅ Navigates back to /voice */}
+          <button
+            onClick={() => navigate("/voice")}
+            style={{
+              padding: "9px 18px", background: "#fff", color: "#555",
+              border: "1px solid #e5e5e5", borderRadius: 10,
+              fontWeight: 600, fontSize: 13, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap",
+            }}>
             ← Back to Voice Assistant
           </button>
         </div>
@@ -172,11 +182,14 @@ export default function ManualEntryPage() {
                 }}>
                   💾 Save Entry
                 </button>
-                <button style={{
-                  padding: "14px 0", background: "#fff", color: "#555",
-                  border: "1px solid #e5e5e5", borderRadius: 12,
-                  fontWeight: 600, fontSize: 15, cursor: "pointer",
-                }}>
+                {/* ✅ Cancel also goes back to /voice */}
+                <button
+                  onClick={() => navigate("/voice")}
+                  style={{
+                    padding: "14px 0", background: "#fff", color: "#555",
+                    border: "1px solid #e5e5e5", borderRadius: 12,
+                    fontWeight: 600, fontSize: 15, cursor: "pointer",
+                  }}>
                   Cancel
                 </button>
               </div>
@@ -186,7 +199,14 @@ export default function ManualEntryPage() {
             <div style={{ background: "#fff9f5", border: "1px solid #fed7aa", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 12 }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff5f0", border: "1px solid #fde4d0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>💡</div>
               <p style={{ margin: 0, fontSize: 13, color: "#666", lineHeight: 1.6 }}>
-                <strong style={{ color: "#ea580c" }}>Tip:</strong> Use <span style={{ color: "#ea580c", fontWeight: 600, textDecoration: "underline", cursor: "pointer" }}>Voice Assistant</span> for even faster entry logging. Just say "Paid worker Amit 500 for cement work".
+                <strong style={{ color: "#ea580c" }}>Tip:</strong> Use{" "}
+                {/* ✅ Tip link also goes back to /voice */}
+                <span
+                  onClick={() => navigate("/voice")}
+                  style={{ color: "#ea580c", fontWeight: 600, textDecoration: "underline", cursor: "pointer" }}>
+                  Voice Assistant
+                </span>{" "}
+                for even faster entry logging. Just say "Paid worker Amit 500 for cement work".
               </p>
             </div>
 

@@ -28,6 +28,7 @@ const projects = [
   { name: "Metro Bridge Hub",        icon: "🏛️", manager: "Emma W.",  initials: "EW", status: "In Progress", statusColor: "#d1fae5", statusText: "#065f46", budget: "₹1.2M",     progress: 12,  barColor: "#ea580c" },
 ];
 
+// ── CHANGE 1: recentActivity stays here, no longer rendered beside the chart ──
 const recentActivity = [
   { icon: "💰", text: "Payment of ₹18,000 released to Raj Patel",  time: "2m ago" },
   { icon: "📋", text: 'New project "Harbor Phase 2" created',       time: "1h ago" },
@@ -45,7 +46,11 @@ export default function DashboardPage() {
   const isDesktop = width >= 1100;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+    <div style={{
+      display: "flex", flexDirection: "column",
+      height: "100vh", overflow: "hidden",
+      flex: 1, minWidth: 0, width: "100%",
+    }}>
 
       {/* ── Topbar ── */}
       <div style={{
@@ -114,7 +119,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stat cards */}
+        {/* Stat cards — unchanged */}
         <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr 1fr" : "repeat(4,1fr)", gap: "clamp(10px,1.5vw,16px)" }}>
           {stats.map(card => (
             <div
@@ -137,70 +142,55 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Chart + Activity */}
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 320px" : "1fr", gap: "clamp(12px,2vw,20px)" }}>
-
-          {/* Area chart */}
-          <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(16px,2vw,24px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-              <div>
-                <div style={{ fontSize: "clamp(14px,1.4vw,16px)", fontWeight: 700, color: "#1a1a1a" }}>Weekly Performance</div>
-                <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>Revenue vs Expenses — Last 7 Days</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹84,000</div>
-                <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>▲ +10.5% growth</div>
-              </div>
+        {/* ── CHANGE 2: Chart now spans full width — Recent Activity card REMOVED ── */}
+        <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(16px,2vw,24px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: "clamp(14px,1.4vw,16px)", fontWeight: 700, color: "#1a1a1a" }}>Weekly Performance</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>Revenue vs Expenses — Last 7 Days</div>
             </div>
-            <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
-              {[["Revenue", "#ea580c"], ["Expenses", "#6366f1"]].map(([l, c]) => (
-                <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
-                  <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>{l}</span>
-                </div>
-              ))}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹84,000</div>
+              <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>▲ +10.5% growth</div>
             </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={weeklyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#ea580c" stopOpacity={0.22} />
-                    <stop offset="95%" stopColor="#ea580c" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#bbb", fontSize: 11 }} />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: 12 }}
-                  formatter={(v, name) => [`₹${v.toLocaleString("en-IN")}`, name === "revenue" ? "Revenue" : "Expenses"]}
-                />
-                <Area type="monotone" dataKey="revenue"  stroke="#ea580c" strokeWidth={2.5} fill="url(#gRev)" dot={false} />
-                <Area type="monotone" dataKey="expenses" stroke="#6366f1" strokeWidth={2}   fill="url(#gExp)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
-
-          {/* Recent Activity */}
-          <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(16px,2vw,20px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a", marginBottom: 14 }}>Recent Activity</div>
-            {recentActivity.map((a, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 0", borderBottom: i < recentActivity.length - 1 ? "1px solid #f5f5f5" : "none" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "#f7f7f8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{a.icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>{a.text}</div>
-                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{a.time}</div>
-                </div>
+          <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
+            {[["Revenue", "#ea580c"], ["Expenses", "#6366f1"]].map(([l, c]) => (
+              <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
+                <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>{l}</span>
               </div>
             ))}
           </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={weeklyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#ea580c" stopOpacity={0.22} />
+                  <stop offset="95%" stopColor="#ea580c" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#bbb", fontSize: 11 }} />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: 12 }}
+                formatter={(v, name) => [`₹${v.toLocaleString("en-IN")}`, name === "revenue" ? "Revenue" : "Expenses"]}
+              />
+              <Area type="monotone" dataKey="revenue"  stroke="#ea580c" strokeWidth={2.5} fill="url(#gRev)" dot={false} />
+              <Area type="monotone" dataKey="expenses" stroke="#6366f1" strokeWidth={2}   fill="url(#gExp)" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Projects table */}
+        {/* ── CHANGE 3: "Recent Project Activity" section now contains BOTH
+              the activity feed (above) AND the projects table (below) ── */}
         <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
+
+          {/* Card header — unchanged */}
           <div style={{ padding: "clamp(14px,2vw,20px)", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Project Activity</div>
@@ -215,6 +205,28 @@ export default function DashboardPage() {
             </span>
           </div>
 
+          {/* ── Activity feed — same item styles as the old sidebar card ── */}
+          <div style={{ padding: "4px clamp(14px,2vw,20px) 0" }}>
+            {recentActivity.map((a, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 12,
+                  padding: "11px 0",
+                  borderBottom: "1px solid #f5f5f5",  // always divider — table follows below
+                }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "#f7f7f8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                  {a.icon}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>{a.text}</div>
+                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{a.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Projects table — unchanged, now sits below the activity feed ── */}
           {!isNarrow ? (
             <div style={{ padding: "0 clamp(14px,2vw,20px)" }}>
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.4fr 80px", padding: "10px 4px", borderBottom: "1px solid #f0f0f0" }}>
@@ -281,7 +293,8 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
+
+        </div>{/* end Recent Project Activity card */}
 
       </div>{/* end scroll */}
     </div>

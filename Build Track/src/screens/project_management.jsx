@@ -71,24 +71,20 @@ const allProjects = [
 ];
 
 const tabs = [
-  { label: "All Projects", count: 12 },
-  { label: "Active",       count: 8  },
-  { label: "Review Needed",count: 2  },
-  { label: "Completed",    count: 24 },
+  { label: "All Projects",  count: 12 },
+  { label: "Active",        count: 8  },
+  { label: "Review Needed", count: 2  },
+  { label: "Completed",     count: 24 },
 ];
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
-  const [activeTab,   setActiveTab]   = useState("All Projects");
-  const [search,      setSearch]      = useState("");
+  const [isMobile,  setIsMobile]  = useState(window.innerWidth < 768);
+  const [activeTab, setActiveTab] = useState("All Projects");
+  const [search,    setSearch]    = useState("");
 
   useEffect(() => {
-    const onResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) setSidebarOpen(false);
-    };
+    const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -104,141 +100,145 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div style={{ display: "flex", width: "100vw", height: "100vh", fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8", overflow: "hidden" }}>
+    /* ── Root: width 100% instead of 100vw, minHeight instead of fixed height ── */
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      width: "100%",
+      minHeight: "100vh",
+      fontFamily: "'Segoe UI', sans-serif",
+      background: "#f7f7f8",
+    }}>
 
-      {/* Overlay */}
-      {sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
-      )}
-
-      {/* ── Main ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-
-        {/* Top Bar */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #ebebeb", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {isMobile && (
-              <button onClick={() => setSidebarOpen(true)}
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 0 }}>☰</button>
-            )}
-            <div>
-              <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>Active Projects</h1>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Monitor construction progress and financial health across all sites.</p>
-            </div>
+      {/* ── Top Bar ── */}
+      <div style={{
+        background: "#fff", borderBottom: "1px solid #ebebeb",
+        padding: "16px 24px", display: "flex", alignItems: "center",
+        justifyContent: "space-between", gap: 12, flexWrap: "wrap", flexShrink: 0,
+      }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>Active Projects</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Monitor construction progress and financial health across all sites.</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, padding: "9px 14px", gap: 8 }}>
+            <span style={{ color: "#aaa" }}>🔍</span>
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search projects..."
+              style={{ border: "none", outline: "none", fontSize: 13, color: "#555", background: "transparent", width: isMobile ? 100 : 180 }}
+            />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, padding: "9px 14px", gap: 8 }}>
-              <span style={{ color: "#aaa" }}>🔍</span>
-              <input
-                value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search projects..."
-                style={{ border: "none", outline: "none", fontSize: 13, color: "#555", background: "transparent", width: isMobile ? 100 : 180 }}
-              />
-            </div>
-            <button style={{
+          {/* ── Wired to /newproject (matches App.jsx route) ── */}
+          <button
+            onClick={() => navigate("/newproject")}
+            style={{
               padding: "10px 20px", background: "#ea580c", color: "#fff",
               border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13,
               cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+            }}
+          >
+            + New Project
+          </button>
+        </div>
+      </div>
+
+      {/* ── Tabs ── */}
+      <div style={{
+        background: "#fff", borderBottom: "1px solid #ebebeb",
+        padding: "0 24px", display: "flex", gap: 4, flexShrink: 0,
+      }}>
+        {tabs.map((t) => (
+          <button key={t.label} onClick={() => setActiveTab(t.label)}
+            style={{
+              padding: "14px 4px", marginRight: 20,
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 14, fontWeight: activeTab === t.label ? 600 : 400,
+              color: activeTab === t.label ? "#ea580c" : "#777",
+              borderBottom: activeTab === t.label ? "2.5px solid #ea580c" : "2.5px solid transparent",
+              transition: "all 0.15s", whiteSpace: "nowrap",
             }}>
-              + New Project
-            </button>
-          </div>
-        </div>
+            {t.label} ({t.count})
+          </button>
+        ))}
+      </div>
 
-        {/* Tabs */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #ebebeb", padding: "0 24px", display: "flex", gap: 4, flexShrink: 0 }}>
-          {tabs.map((t) => (
-            <button key={t.label} onClick={() => setActiveTab(t.label)}
-              style={{
-                padding: "14px 4px", marginRight: 20,
-                background: "none", border: "none", cursor: "pointer",
-                fontSize: 14, fontWeight: activeTab === t.label ? 600 : 400,
-                color: activeTab === t.label ? "#ea580c" : "#777",
-                borderBottom: activeTab === t.label ? "2.5px solid #ea580c" : "2.5px solid transparent",
-                transition: "all 0.15s", whiteSpace: "nowrap",
-              }}>
-              {t.label} ({t.count})
-            </button>
-          ))}
-        </div>
+      {/* ── Body ── */}
+      <div style={{ flex: 1, padding: "20px 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
+          {filtered.map((p) => (
+            <div key={p.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
-            {filtered.map((p) => (
-              <div key={p.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
-
-                {/* Card Header */}
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
-                  <img src={p.image} alt={p.name}
-                    style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
-                    onError={e => { e.target.style.display = "none"; }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                      <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>{p.name}</span>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: p.statusBg, color: p.statusColor, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{p.status}</span>
-                    </div>
-                    <div style={{ fontSize: 13, color: "#777" }}>Manager: <span style={{ color: "#444", fontWeight: 500 }}>{p.manager}</span></div>
+              {/* Card Header */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
+                <img src={p.image} alt={p.name}
+                  style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+                  onError={e => { e.target.style.display = "none"; }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>{p.name}</span>
+                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: p.statusBg, color: p.statusColor, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{p.status}</span>
                   </div>
-                  <span style={{ color: "#ccc", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>⋮</span>
+                  <div style={{ fontSize: 13, color: "#777" }}>Manager: <span style={{ color: "#444", fontWeight: 500 }}>{p.manager}</span></div>
                 </div>
+                <span style={{ color: "#ccc", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>⋮</span>
+              </div>
 
-                {/* Progress */}
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Project Progress</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#ea580c" }}>{p.progress}%</span>
-                  </div>
-                  <div style={{ height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4, transition: "width 0.4s ease" }} />
-                  </div>
+              {/* Progress */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Project Progress</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#ea580c" }}>{p.progress}%</span>
                 </div>
-
-                {/* Budget Row */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18, background: "#fafafa", borderRadius: 10, padding: "12px 14px" }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>TOTAL BUDGET</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{p.budget}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>SPENT SO FAR</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{p.spent}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>REMAINING</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#16a34a" }}>{p.remaining}</div>
-                  </div>
+                <div style={{ height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4, transition: "width 0.4s ease" }} />
                 </div>
+              </div>
 
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                  onClick={() => navigate("/managesite")} 
+              {/* Budget Row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18, background: "#fafafa", borderRadius: 10, padding: "12px 14px" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>TOTAL BUDGET</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{p.budget}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>SPENT SO FAR</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{p.spent}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>REMAINING</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#16a34a" }}>{p.remaining}</div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={() => navigate("/managesite")}
                   style={{
                     flex: 1, padding: "12px 0", background: "#1a1a1a", color: "#fff",
                     border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14,
                     cursor: "pointer", transition: "background 0.15s",
                   }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#333"}
-                    onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}>
-                    Manage Site
-                  </button>
-                  <button style={{
-                    width: 44, height: 44, background: "#fff", border: "1px solid #e5e5e5",
-                    borderRadius: 10, cursor: "pointer", fontSize: 16,
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}>
-                    📄
-                  </button>
-                </div>
-
+                  onMouseEnter={e => e.currentTarget.style.background = "#333"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}>
+                  Manage Site
+                </button>
+                <button style={{
+                  width: 44, height: 44, background: "#fff", border: "1px solid #e5e5e5",
+                  borderRadius: 10, cursor: "pointer", fontSize: 16,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  📄
+                </button>
               </div>
-            ))}
-          </div>
+
+            </div>
+          ))}
         </div>
       </div>
+
     </div>
   );
 }

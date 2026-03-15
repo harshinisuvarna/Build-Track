@@ -11,6 +11,7 @@ import Settings from "./screens/settings_page"
 import NewProject from "./screens/add_new_project";
 import NewWorker from "./screens/add_new_worker";
 import ManageSite from "./screens/managesite_dashboard";
+import ManualEntryPage from "./screens/manual_entry";
 
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/newproject" element={<NewProject />} />
           <Route path="/newworker" element={<NewWorker />} />
           <Route path="/managesite" element={<ManageSite />} />
+          <Route path="/manualentry" element={<ManualEntryPage />} />
         </Route>
       </Routes>
   );
