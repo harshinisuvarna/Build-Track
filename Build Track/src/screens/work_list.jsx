@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
 
-const navItems = [
-  { label: "Dashboard", icon: "⊞" },
-  { label: "Voice",     icon: "🎤" },
-  { label: "Workers",   icon: "👥" },
-  { label: "Log",       icon: "📋" },
-  { label: "Projects",  icon: "💼" },
-  { label: "Reports",   icon: "📊" },
-  { label: "Settings",  icon: "⚙️" },
-];
-
 const allWorkers = [
-  { id: "#BT-2024-001", name: "John Doe",      initials: "JD", role: "Foreman",      status: "Active",   wages: "₹4,500.00" },
+  { id: "#BT-2024-001", name: "John Doe",       initials: "JD", role: "Foreman",      status: "Active",   wages: "₹4,500.00" },
   { id: "#BT-2024-042", name: "Jane Smith",     initials: "JS", role: "Electrician",  status: "Active",   wages: "₹3,800.00" },
   { id: "#BT-2024-118", name: "Mike Ross",      initials: "MR", role: "Laborer",      status: "Inactive", wages: "₹2,200.00" },
   { id: "#BT-2024-002", name: "Harvey Specter", initials: "HS", role: "Site Manager", status: "Active",   wages: "₹6,000.00" },
@@ -25,7 +15,7 @@ const allWorkers = [
   { id: "#BT-2024-044", name: "Nina Dobrev",    initials: "ND", role: "Inspector",    status: "Active",   wages: "₹4,700.00" },
 ];
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 7;
 
 const avatarColors = {
   JD: "#fff5f0", JS: "#fff5f0", MR: "#fff0f0", HS: "#fff5f0",
@@ -36,32 +26,7 @@ const avatarText = {
   MR: "#dc2626", DP: "#dc2626", KH: "#dc2626",
 };
 
-/* ── BuildTrack Logo Icon ── */
-function LogoIcon({ size = 38 }) {
-  return (
-    <div style={{
-      width: size, height: size,
-      background: "linear-gradient(145deg, #f97316, #ea580c)",
-      borderRadius: size * 0.25,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      boxShadow: "0 3px 8px rgba(234,88,12,0.35)",
-      flexShrink: 0,
-    }}>
-      <svg width={size * 0.72} height={size * 0.72} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="6"  y="10" width="24" height="22" rx="2" fill="white" />
-        <polygon points="18,2 32,11 4,11" fill="white" />
-        <rect x="9"  y="15" width="5" height="5" rx="1" fill="#ea580c" />
-        <rect x="22" y="15" width="5" height="5" rx="1" fill="#ea580c" />
-        <rect x="9"  y="23" width="5" height="5" rx="1" fill="#ea580c" />
-        <rect x="22" y="23" width="5" height="5" rx="1" fill="#ea580c" />
-        <rect x="14" y="24" width="8" height="8" rx="1" fill="#ea580c" />
-      </svg>
-    </div>
-  );
-}
-
 export default function WorkerDirectory() {
-  const [activeNav,   setActiveNav]   = useState("Workers");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filter,      setFilter]      = useState("All Workers");
   const [search,      setSearch]      = useState("");
@@ -102,59 +67,6 @@ export default function WorkerDirectory() {
         <div onClick={() => setSidebarOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
       )}
-
-      {/* ── Sidebar ── */}
-      <div style={{
-        width: 235, background: "#fff",
-        display: "flex", flexDirection: "column",
-        borderRight: "1px solid #ebebeb", flexShrink: 0, zIndex: 50,
-        position: isMobile ? "fixed" : "relative",
-        top: 0, left: 0, bottom: 0, height: "100%",
-        transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none",
-        transition: "transform 0.3s ease", overflowY: "auto",
-      }}>
-
-        {/* ── Logo (replaced) ── */}
-        <div style={{ padding: "22px 20px 18px", borderBottom: "1px solid #f0f0f0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <LogoIcon size={38} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a1a", lineHeight: 1.1 }}>BuildTrack</div>
-              <div style={{ fontSize: 10, color: "#999", letterSpacing: "0.1em", fontWeight: 600 }}>MANAGEMENT</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <div style={{ padding: "12px", flex: 1 }}>
-          {navItems.map((item) => (
-            <button key={item.label}
-              onClick={() => { setActiveNav(item.label); setSidebarOpen(false); }}
-              style={{
-                width: "100%", display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer",
-                background: activeNav === item.label ? "#fff5f0" : "transparent",
-                color:      activeNav === item.label ? "#ea580c" : "#555",
-                fontWeight: activeNav === item.label ? 600 : 400,
-                fontSize: 14, marginBottom: 2, transition: "all 0.15s", textAlign: "left",
-              }}>
-              <span>{item.icon}</span>{item.label}
-            </button>
-          ))}
-        </div>
-
-        {/* User */}
-        <div style={{ padding: "16px", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#fdba74", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>Alex Foreman</div>
-              <div style={{ fontSize: 11, color: "#888" }}>Admin Account</div>
-            </div>
-          </div>
-          <span style={{ color: "#aaa", fontSize: 16, cursor: "pointer" }}>⋮</span>
-        </div>
-      </div>
 
       {/* ── Main ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
