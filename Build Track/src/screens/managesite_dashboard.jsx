@@ -9,11 +9,11 @@ const personnel = [
 ];
 
 const activityLog = [
-  { icon: "📦", title: "Material Delivery",  desc: "120 bags of cement delivered to site",    time: "2 hours ago", color: "#dbeafe", tcolor: "#1e40af" },
-  { icon: "👷", title: "Worker Check-in",    desc: "42 workers checked in for morning shift", time: "4 hours ago", color: "#dcfce7", tcolor: "#166534" },
-  { icon: "⚠️", title: "Safety Inspection", desc: "Phase 3 safety audit completed — passed", time: "Yesterday",   color: "#fef9c3", tcolor: "#854d0e" },
-  { icon: "💰", title: "Payment Processed",  desc: "Labour payroll ₹3.2L disbursed",          time: "2 days ago",  color: "#dcfce7", tcolor: "#166534" },
-  { icon: "📋", title: "Milestone Update",   desc: "Structural Framing Phase 3 at 65%",       time: "3 days ago",  color: "#f3e8ff", tcolor: "#6b21a8" },
+  { icon: "📦", title: "Material Delivery",  desc: "120 bags of cement delivered to site",    time: "2 hours ago", color: "#dbeafe" },
+  { icon: "👷", title: "Worker Check-in",    desc: "42 workers checked in for morning shift", time: "4 hours ago", color: "#dcfce7" },
+  { icon: "⚠️", title: "Safety Inspection", desc: "Phase 3 safety audit completed — passed", time: "Yesterday",   color: "#fef9c3" },
+  { icon: "💰", title: "Payment Processed",  desc: "Labour payroll ₹3.2L disbursed",          time: "2 days ago",  color: "#dcfce7" },
+  { icon: "📋", title: "Milestone Update",   desc: "Structural Framing Phase 3 at 65%",       time: "3 days ago",  color: "#f3e8ff" },
 ];
 
 const milestones = [
@@ -24,9 +24,21 @@ const milestones = [
   { label: "Finishing & Handover", done: false, phase: 5 },
 ];
 
+// ── Project data for this site (passed to edit form) ── ← NEW
+const projectData = {
+  id: 1,
+  name: "Skyline Tower",
+  location: "Mumbai, Sector 42",
+  manager: "Rajesh Kumar",
+  budget: "12,45,00,000",
+  startDate: "2023-05-01",
+  scope: "Commercial complex — structural framing phase currently in progress.",
+  progress: 65,
+  status: "ON TRACK",
+};
+
 export default function ManageSitePage() {
   const navigate = useNavigate();
-
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [search,   setSearch]   = useState("");
 
@@ -37,7 +49,6 @@ export default function ManageSitePage() {
   }, []);
 
   return (
-    /* ── Root: width 100% + minHeight instead of fixed height + overflow:hidden ── */
     <div style={{
       display: "flex", flexDirection: "column",
       width: "100%", minHeight: "100vh",
@@ -51,13 +62,7 @@ export default function ManageSitePage() {
         justifyContent: "space-between", gap: 12, flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#888" }}>
-          {/* Breadcrumb — Projects navigates back ── */}
-          <span
-            onClick={() => navigate("/projects")}
-            style={{ color: "#ea580c", cursor: "pointer", fontWeight: 500 }}
-          >
-            Projects
-          </span>
+          <span onClick={() => navigate("/projects")} style={{ color: "#ea580c", cursor: "pointer", fontWeight: 500 }}>Projects</span>
           <span>›</span>
           <span style={{ color: "#1a1a1a", fontWeight: 600 }}>Skyline Tower</span>
         </div>
@@ -75,10 +80,8 @@ export default function ManageSitePage() {
       {/* ── Body ── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-        {/* ── Hero Card ── */}
+        {/* Hero Card */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
-
-          {/* Site Image */}
           <div style={{ position: "relative", flexShrink: 0 }}>
             <img
               src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=320&fit=crop"
@@ -88,11 +91,14 @@ export default function ManageSitePage() {
             <span style={{ position: "absolute", top: 14, left: 14, padding: "5px 14px", background: "#dcfce7", color: "#166534", fontSize: 12, fontWeight: 700, borderRadius: 6, letterSpacing: "0.04em" }}>ON TRACK</span>
           </div>
 
-          {/* Project Info */}
           <div style={{ flex: 1, padding: "24px 28px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
               <h2 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1a1a1a" }}>Skyline Tower</h2>
-              <button style={{ padding: "8px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+              {/* ── Edit Details → /newproject with project data as state ── ← CHANGED */}
+              <button
+                onClick={() => navigate("/newproject", { state: { editProject: projectData } })}
+                style={{ padding: "8px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+              >
                 ✏️ Edit Details
               </button>
             </div>
@@ -100,7 +106,6 @@ export default function ManageSitePage() {
               <span>📍</span> Mumbai, Sector 42 · Commercial Complex
             </div>
 
-            {/* Progress */}
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#444" }}>Project Completion</span>
@@ -112,7 +117,6 @@ export default function ManageSitePage() {
               <div style={{ fontSize: 12, color: "#888" }}>Current Phase: Structural Framing (Phase 3 of 5)</div>
             </div>
 
-            {/* Phase Milestones */}
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               {milestones.map((m) => (
                 <div key={m.phase} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -127,7 +131,7 @@ export default function ManageSitePage() {
           </div>
         </div>
 
-        {/* ── Financial + Personnel Row ── */}
+        {/* Financial + Personnel Row */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr", gap: 16 }}>
 
           {/* Financial Breakdown */}
@@ -136,7 +140,6 @@ export default function ManageSitePage() {
               <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Financial Breakdown</span>
               <span style={{ fontSize: 12, color: "#aaa" }}>All figures in ₹</span>
             </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
               <div style={{ background: "#fafafa", borderRadius: 10, padding: "12px 14px", border: "1px solid #f0f0f0" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 6 }}>TOTAL BUDGET</div>
@@ -154,16 +157,9 @@ export default function ManageSitePage() {
                 <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4, fontWeight: 600 }}>Within Projections</div>
               </div>
             </div>
-
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Expense categories</span>
-              {/* View Detail Report → transaction log ── */}
-              <span
-                onClick={() => navigate("/transaction")}
-                style={{ fontSize: 12, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}
-              >
-                View Detail Report
-              </span>
+              <span onClick={() => navigate("/transaction")} style={{ fontSize: 12, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View Detail Report</span>
             </div>
             {[
               { label: "Materials",       amount: "₹4.2Cr spent", pct: 78, color: "#f97316" },
@@ -188,13 +184,10 @@ export default function ManageSitePage() {
               <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Active Personnel</span>
               <span style={{ padding: "4px 12px", background: "#fff5f0", color: "#ea580c", fontSize: 12, fontWeight: 700, borderRadius: 6, border: "1px solid #fde4d0" }}>42 On-Site</span>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
               {personnel.map((p) => (
                 <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "#fff5f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#ea580c", flexShrink: 0 }}>
-                    {p.initials}
-                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "#fff5f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#ea580c", flexShrink: 0 }}>{p.initials}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: "#888" }}>{p.role}</div>
@@ -202,7 +195,6 @@ export default function ManageSitePage() {
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", flexShrink: 0 }} />
                 </div>
               ))}
-
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#888", flexShrink: 0 }}>+38</div>
                 <div style={{ flex: 1 }}>
@@ -211,28 +203,17 @@ export default function ManageSitePage() {
                 </div>
               </div>
             </div>
-
-            {/* ── Manage All Personnel → /workers ── */}
-            <button
-              onClick={() => navigate("/workers")}
-              style={{ marginTop: 18, width: "100%", padding: "12px 0", background: "#f5f5f5", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer" }}
-            >
+            <button onClick={() => navigate("/workers")} style={{ marginTop: 18, width: "100%", padding: "12px 0", background: "#f5f5f5", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               Manage All Personnel
             </button>
           </div>
         </div>
 
-        {/* ── Recent Site Activity ── */}
+        {/* Recent Site Activity */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "20px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Recent Site Activity</span>
-            {/* ── View History → /transaction ── */}
-            <span
-              onClick={() => navigate("/transaction")}
-              style={{ fontSize: 13, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}
-            >
-              View History
-            </span>
+            <span onClick={() => navigate("/transaction")} style={{ fontSize: 13, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View History</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {activityLog.map((a, i) => (

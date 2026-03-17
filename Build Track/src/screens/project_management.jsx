@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const allProjects = [
+const initialProjects = [
   {
     id: 1,
     name: "Skyline Tower",
@@ -79,15 +79,26 @@ const tabs = [
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const [isMobile,  setIsMobile]  = useState(window.innerWidth < 768);
-  const [activeTab, setActiveTab] = useState("All Projects");
-  const [search,    setSearch]    = useState("");
+
+  // ── Projects in state so deletes reflect immediately ── ← NEW
+  const [allProjects, setAllProjects] = useState(initialProjects);
+  const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
+  const [activeTab,   setActiveTab]   = useState("All Projects");
+  const [search,      setSearch]      = useState("");
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // ── Delete handler ── ← NEW
+  const handleDelete = (projectId, projectName) => {
+    const confirmed = window.confirm(`Are you sure you want to delete "${projectName}"?`);
+    if (confirmed) {
+      setAllProjects(prev => prev.filter(p => p.id !== projectId));
+    }
+  };
 
   const filtered = allProjects.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -100,7 +111,6 @@ export default function ProjectsPage() {
   });
 
   return (
-    /* ── Root: width 100% instead of 100vw, minHeight instead of fixed height ── */
     <div style={{
       display: "flex",
       flexDirection: "column",
@@ -129,7 +139,6 @@ export default function ProjectsPage() {
               style={{ border: "none", outline: "none", fontSize: 13, color: "#555", background: "transparent", width: isMobile ? 100 : 180 }}
             />
           </div>
-          {/* ── Wired to /newproject (matches App.jsx route) ── */}
           <button
             onClick={() => navigate("/newproject")}
             style={{
@@ -225,17 +234,30 @@ export default function ProjectsPage() {
                   onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}>
                   Manage Site
                 </button>
-                <button style={{
-                  width: 44, height: 44, background: "#fff", border: "1px solid #e5e5e5",
-                  borderRadius: 10, cursor: "pointer", fontSize: 16,
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
-                  📄
+
+                {/* ── Delete button — icon changed 📄 → 🗑️, onClick added ── ← CHANGED */}
+                <button
+                  onClick={() => handleDelete(p.id, p.name)}
+                  style={{
+                    width: 44, height: 44, background: "#fff5f5", border: "1px solid #fee2e2",
+                    borderRadius: 10, cursor: "pointer", fontSize: 16,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}
+                  title="Delete project"
+                >
+                  🗑️
                 </button>
               </div>
 
             </div>
           ))}
+
+          {/* Empty state when all projects deleted or none match search */}
+          {filtered.length === 0 && (
+            <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
+              No projects found.
+            </div>
+          )}
         </div>
       </div>
 

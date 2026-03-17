@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const trades        = ["Select Trade", "Mason", "Carpenter", "Electrician", "Plumber", "Welder", "Painter", "General Labor", "Site Engineer", "Supervisor"];
 const paymentCycles = ["Weekly", "Bi-Weekly", "Monthly"];
@@ -9,6 +9,12 @@ const TOPBAR_H = 72;
 
 export default function AddNewWorkerPage() {
   const navigate = useNavigate();
+  const location = useLocation();                                    // ← NEW
+
+  // ── Detect edit mode from route state passed by worker_list.jsx ── ← NEW
+  const editWorker = location.state?.editWorker || null;
+  const isEditMode = Boolean(editWorker);
+
   const [isMobile,     setIsMobile]     = useState(window.innerWidth < 768);
   const [fullName,     setFullName]     = useState("");
   const [trade,        setTrade]        = useState("Select Trade");
@@ -19,9 +25,9 @@ export default function AddNewWorkerPage() {
   const [paymentCycle, setPaymentCycle] = useState("Weekly");
   const [dragOver,     setDragOver]     = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [documents,    setDocuments]    = useState([]);   // ← NEW
+  const [documents,    setDocuments]    = useState([]);
 
-  const docInputRef = useRef(null);                       // ← NEW
+  const docInputRef = useRef(null);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -29,12 +35,35 @@ export default function AddNewWorkerPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Handle document upload ── ← NEW
+  // ── Pre-fill form when in edit mode ── ← NEW
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    // Map worker list fields to form fields
+    setFullName(editWorker.name || "");
+
+    // Map role from worker list to trade dropdown — use exact match or fall back to first option
+    const matchedTrade = trades.find(t => t.toLowerCase() === editWorker.role?.toLowerCase());
+    setTrade(matchedTrade || "Select Trade");
+
+    // Extract numeric wage value from formatted string e.g. "₹4,500.00" → "4500"
+    const rawWage = editWorker.wages
+      ? editWorker.wages.replace(/[₹,]/g, "").trim()
+      : "800";
+    setDailyWage(rawWage);
+
+    // Map status — "Active" / "Inactive" map directly; "On Leave" is a third option
+    const matchedStatus = statusOptions.find(s => s.toLowerCase() === editWorker.status?.toLowerCase());
+    setStatus(matchedStatus || "Active");
+
+    // mobile, joiningDate, paymentCycle not available in worker list data — leave as defaults
+  }, [isEditMode]);                                                  // ← run once on mount
+
   const handleDocumentUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       setDocuments(prev => [...prev, file]);
-      e.target.value = ""; // reset so same file can be re-added if needed
+      e.target.value = "";
     }
   };
 
@@ -66,7 +95,6 @@ export default function AddNewWorkerPage() {
     boxShadow: "0 1px 6px rgba(0,0,0,0.04)",
   };
 
-  // Helper: icon per file type
   const docIcon = (name) => {
     if (name.endsWith(".pdf")) return "📄";
     if (name.match(/\.(jpg|jpeg|png)$/i)) return "🖼️";
@@ -97,9 +125,13 @@ export default function AddNewWorkerPage() {
               ← Worker Directory
             </span>
             <span>/</span>
-            <span style={{ color: "#555" }}>Add New Worker</span>
+            {/* ── Breadcrumb label changes based on mode ── ← NEW */}
+            <span style={{ color: "#555" }}>{isEditMode ? "Edit Worker" : "Add New Worker"}</span>
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a1a" }}>Add New Worker</h1>
+          {/* ── Page title changes based on mode ── ← NEW */}
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a1a" }}>
+            {isEditMode ? `Edit Worker — ${editWorker.name}` : "Add New Worker"}
+          </h1>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button
@@ -108,8 +140,9 @@ export default function AddNewWorkerPage() {
           >
             Cancel
           </button>
+          {/* ── Save button label changes based on mode ── ← NEW */}
           <button style={{ padding: "10px 22px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.3)" }}>
-            Save Worker
+            {isEditMode ? "Update Worker" : "Save Worker"}
           </button>
         </div>
       </div>
@@ -208,9 +241,15 @@ export default function AddNewWorkerPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Worker ID</label>
-                  <input value="BT-2024-089" readOnly
-                    style={{ ...inputStyle, background: "#f9f9f9", color: "#aaa", cursor: "default" }} />
-                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 5 }}>Auto-generated system ID</div>
+                  {/* ── Show actual worker ID in edit mode ── ← NEW */}
+                  <input
+                    value={isEditMode ? editWorker.id.replace("#", "") : "BT-2024-089"}
+                    readOnly
+                    style={{ ...inputStyle, background: "#f9f9f9", color: "#aaa", cursor: "default" }}
+                  />
+                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 5 }}>
+                    {isEditMode ? "Existing worker ID" : "Auto-generated system ID"}
+                  </div>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
@@ -260,9 +299,8 @@ export default function AddNewWorkerPage() {
               </div>
             </div>
 
-            {/* Additional Documents ── with upload functionality */}
+            {/* Additional Documents */}
             <div style={{ ...sectionCard, border: "1px dashed #d1d5db", background: "#fafafa" }}>
-              {/* Hidden file input */}
               <input
                 ref={docInputRef}
                 type="file"
@@ -270,41 +308,23 @@ export default function AddNewWorkerPage() {
                 style={{ display: "none" }}
                 onChange={handleDocumentUpload}
               />
-
               <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 10, background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📄</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a", marginBottom: 4 }}>Additional Documents</div>
                   <div style={{ fontSize: 12, color: "#888", marginBottom: 14 }}>Upload Aadhar Card, PAN, or certifications (Optional)</div>
-
-                  {/* Uploaded document list ← NEW */}
                   {documents.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
                       {documents.map((doc, i) => (
-                        <div key={i} style={{
-                          display: "flex", alignItems: "center", gap: 10,
-                          background: "#fff", border: "1px solid #e5e5e5",
-                          borderRadius: 8, padding: "8px 12px",
-                        }}>
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, padding: "8px 12px" }}>
                           <span style={{ fontSize: 16 }}>{docIcon(doc.name)}</span>
-                          <span style={{ flex: 1, fontSize: 13, color: "#333", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {doc.name}
-                          </span>
-                          <span style={{ fontSize: 11, color: "#aaa", whiteSpace: "nowrap" }}>
-                            {(doc.size / 1024).toFixed(1)} KB
-                          </span>
-                          <button
-                            onClick={() => removeDocument(i)}
-                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#aaa", padding: 0, lineHeight: 1, flexShrink: 0 }}
-                          >
-                            ✕
-                          </button>
+                          <span style={{ flex: 1, fontSize: 13, color: "#333", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</span>
+                          <span style={{ fontSize: 11, color: "#aaa", whiteSpace: "nowrap" }}>{(doc.size / 1024).toFixed(1)} KB</span>
+                          <button onClick={() => removeDocument(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#aaa", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
                         </div>
                       ))}
                     </div>
                   )}
-
-                  {/* Add Document button ← triggers file input */}
                   <button
                     onClick={() => docInputRef.current.click()}
                     style={{ padding: "8px 18px", background: "#fff", border: "1px solid #ea580c", borderRadius: 8, color: "#ea580c", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
@@ -326,8 +346,9 @@ export default function AddNewWorkerPage() {
           >
             Discard Changes
           </button>
+          {/* ── Bottom save button label also changes ── ← NEW */}
           <button style={{ padding: "12px 28px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(234,88,12,0.3)" }}>
-            Save Worker Profile
+            {isEditMode ? "Update Worker Profile" : "Save Worker Profile"}
           </button>
         </div>
 

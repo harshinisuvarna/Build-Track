@@ -28,7 +28,6 @@ const projects = [
   { name: "Metro Bridge Hub",        icon: "🏛️", manager: "Emma W.",  initials: "EW", status: "In Progress", statusColor: "#d1fae5", statusText: "#065f46", budget: "₹1.2M",     progress: 12,  barColor: "#ea580c" },
 ];
 
-// ── CHANGE 1: recentActivity stays here, no longer rendered beside the chart ──
 const recentActivity = [
   { icon: "💰", text: "Payment of ₹18,000 released to Raj Patel",  time: "2m ago" },
   { icon: "📋", text: 'New project "Harbor Phase 2" created',       time: "1h ago" },
@@ -72,12 +71,6 @@ export default function DashboardPage() {
           </h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {!isNarrow && (
-            <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, padding: "8px 14px", gap: 8 }}>
-              <span style={{ color: "#aaa", fontSize: 14 }}>🔍</span>
-              <input placeholder="Search..." style={{ border: "none", outline: "none", fontSize: 13, color: "#555", background: "transparent", width: 140 }} />
-            </div>
-          )}
           <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer" }}>🔔</div>
           <div style={{ width: 36, height: 36, background: "#f5f5f5", border: "2px solid #e5e5e5", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#888", cursor: "pointer" }}>?</div>
         </div>
@@ -119,7 +112,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stat cards — unchanged */}
+        {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr 1fr" : "repeat(4,1fr)", gap: "clamp(10px,1.5vw,16px)" }}>
           {stats.map(card => (
             <div
@@ -142,7 +135,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* ── CHANGE 2: Chart now spans full width — Recent Activity card REMOVED ── */}
+        {/* Chart */}
         <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(16px,2vw,24px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
             <div>
@@ -186,11 +179,10 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* ── CHANGE 3: "Recent Project Activity" section now contains BOTH
-              the activity feed (above) AND the projects table (below) ── */}
+        {/* Recent Project Activity */}
         <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
 
-          {/* Card header — unchanged */}
+          {/* Card header */}
           <div style={{ padding: "clamp(14px,2vw,20px)", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Project Activity</div>
@@ -205,28 +197,35 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          {/* ── Activity feed — same item styles as the old sidebar card ── */}
-          <div style={{ padding: "4px clamp(14px,2vw,20px) 0" }}>
+          {/* FIX 2: Activity feed — no border on last item, proper padding, bigger text */}
+          <div style={{ padding: "4px clamp(14px,2vw,20px) 8px" }}>
             {recentActivity.map((a, i) => (
               <div
                 key={i}
                 style={{
                   display: "flex", alignItems: "flex-start", gap: 12,
-                  padding: "11px 0",
-                  borderBottom: "1px solid #f5f5f5",  // always divider — table follows below
+                  padding: "12px 0",
+                  borderBottom: i < recentActivity.length - 1 ? "1px solid #f5f5f5" : "none",
                 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "#f7f7f8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: "#f7f7f8", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 16, flexShrink: 0,
+                }}>
                   {a.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>{a.text}</div>
+                  <div style={{ fontSize: 13, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>
+                    {a.text}
+                  </div>
                   <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{a.time}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* ── Projects table — unchanged, now sits below the activity feed ── */}
+          {/* Projects table */}
           {!isNarrow ? (
             <div style={{ padding: "0 clamp(14px,2vw,20px)" }}>
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.4fr 80px", padding: "10px 4px", borderBottom: "1px solid #f0f0f0" }}>

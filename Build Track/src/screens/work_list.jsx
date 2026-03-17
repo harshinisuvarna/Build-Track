@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const allWorkers = [
+const initialWorkers = [
   { id: "#BT-2024-001", name: "John Doe",       initials: "JD", role: "Foreman",      status: "Active",   wages: "₹4,500.00" },
   { id: "#BT-2024-042", name: "Jane Smith",     initials: "JS", role: "Electrician",  status: "Active",   wages: "₹3,800.00" },
   { id: "#BT-2024-118", name: "Mike Ross",      initials: "MR", role: "Laborer",      status: "Inactive", wages: "₹2,200.00" },
@@ -29,12 +29,15 @@ const avatarText = {
 
 export default function WorkerDirectory() {
   const navigate = useNavigate();
+
+  // ── Workers stored in state so deletes reflect immediately ── ← NEW
+  const [allWorkers,  setAllWorkers]  = useState(initialWorkers);
   const [filter,      setFilter]      = useState("All Workers");
   const [search,      setSearch]      = useState("");
   const [page,        setPage]        = useState(1);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
-  const [showFilters, setShowFilters] = useState(false);   // ← NEW
-  const filterRef = useRef(null);                          // ← NEW (close on outside click)
+  const [showFilters, setShowFilters] = useState(false);
+  const filterRef = useRef(null);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -42,7 +45,6 @@ export default function WorkerDirectory() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Close filter dropdown when clicking outside  ← NEW
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) {
@@ -67,10 +69,24 @@ export default function WorkerDirectory() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated  = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleFilter = (f) => { setFilter(f); setPage(1); setShowFilters(false); };  // ← closes dropdown after pick
+  const handleFilter = (f) => { setFilter(f); setPage(1); setShowFilters(false); };
   const handleSearch = (e) => { setSearch(e.target.value); setPage(1); };
 
-  // ── Export CSV ── ← NEW
+  // ── Edit: navigate to /newworker with worker data as route state ── ← NEW
+  const handleEdit = (worker) => {
+    navigate("/newworker", { state: { editWorker: worker } });
+  };
+
+  // ── Delete: confirm then remove from list ── ← NEW
+  const handleDelete = (workerId) => {
+    const confirmed = window.confirm("Are you sure you want to delete this worker?");
+    if (confirmed) {
+      setAllWorkers(prev => prev.filter(w => w.id !== workerId));
+      // Reset to page 1 if current page becomes empty after delete
+      setPage(1);
+    }
+  };
+
   const exportWorkers = () => {
     const header = "Name,Role,Status,Total Wages\n";
     const rows   = filtered.map(w => `${w.name},${w.role},${w.status},${w.wages}`).join("\n");
@@ -124,8 +140,6 @@ export default function WorkerDirectory() {
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
-
-            {/* ── Filters button + dropdown ── */}
             <div ref={filterRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -139,8 +153,6 @@ export default function WorkerDirectory() {
               >
                 ≡ Filters
               </button>
-
-              {/* Dropdown panel */}
               {showFilters && (
                 <div style={{
                   position: "absolute", top: "calc(100% + 8px)", right: 0,
@@ -177,7 +189,6 @@ export default function WorkerDirectory() {
               )}
             </div>
 
-            {/* ── Export button ── */}
             <button
               onClick={exportWorkers}
               style={{ padding: "8px 14px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#555", display: "flex", alignItems: "center", gap: 6 }}
@@ -240,12 +251,27 @@ export default function WorkerDirectory() {
                     <td style={{ padding: "14px 20px", fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{w.wages}</td>
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ display: "flex", gap: 10 }}>
-                        <button style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e5e5", background: "#fff", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✏️</button>
-                        <button style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e5e5", background: "#fff", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>👁️</button>
+                        {/* ── Edit → navigate to /newworker with worker state ── ← CHANGED */}
+                        <button
+                          onClick={() => handleEdit(w)}
+                          style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e5e5", background: "#fff", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+                          title="Edit worker"
+                        >✏️</button>
+                        {/* ── Delete → confirm then remove ── ← CHANGED (was 👁️) */}
+                        <button
+                          onClick={() => handleDelete(w.id)}
+                          style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+                          title="Delete worker"
+                        >🗑️</button>
                       </div>
                     </td>
                   </tr>
                 ))}
+                {paginated.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>No workers found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
@@ -273,8 +299,18 @@ export default function WorkerDirectory() {
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{w.wages}</div>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e5e5e5", background: "#fff", cursor: "pointer", fontSize: 13 }}>✏️</button>
-                      <button style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e5e5e5", background: "#fff", cursor: "pointer", fontSize: 13 }}>👁️</button>
+                      {/* ── Edit ── ← CHANGED */}
+                      <button
+                        onClick={() => handleEdit(w)}
+                        style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e5e5e5", background: "#fff", cursor: "pointer", fontSize: 13 }}
+                        title="Edit worker"
+                      >✏️</button>
+                      {/* ── Delete ── ← CHANGED (was 👁️) */}
+                      <button
+                        onClick={() => handleDelete(w.id)}
+                        style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", cursor: "pointer", fontSize: 13 }}
+                        title="Delete worker"
+                      >🗑️</button>
                     </div>
                   </div>
                 </div>
@@ -286,7 +322,7 @@ export default function WorkerDirectory() {
         {/* Pagination */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <span style={{ fontSize: 13, color: "#888" }}>
-            Showing {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filtered.length)}–{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} workers
+            Showing {filtered.length === 0 ? 0 : Math.min((page - 1) * ITEMS_PER_PAGE + 1, filtered.length)}–{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} workers
           </span>
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const managers = [
   "Select Manager",
@@ -13,18 +13,23 @@ const managers = [
 const TOPBAR_H = 65;
 
 export default function NewProjectPage() {
-  const navigate = useNavigate();
-  const fileInputRef = useRef(null);                         // ← NEW
+  const navigate     = useNavigate();
+  const location     = useLocation();                              // ← NEW
+  const fileInputRef = useRef(null);
+
+  // ── Detect edit mode from route state passed by managesite_dashboard.jsx ── ← NEW
+  const editProject = location.state?.editProject || null;
+  const isEditMode  = Boolean(editProject);
 
   const [isMobile,     setIsMobile]     = useState(() => window.innerWidth < 768);
   const [projectName,  setProjectName]  = useState("");
-  const [location,     setLocation]     = useState("");
+  const [loc,          setLoc]          = useState("");
   const [manager,      setManager]      = useState("Select Manager");
   const [budget,       setBudget]       = useState("");
   const [startDate,    setStartDate]    = useState("");
   const [scope,        setScope]        = useState("");
   const [dragOver,     setDragOver]     = useState(false);
-  const [sitePhoto,    setSitePhoto]    = useState(null);    // ← NEW: stores uploaded file preview
+  const [sitePhoto,    setSitePhoto]    = useState(null);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -32,7 +37,19 @@ export default function NewProjectPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Handle file selected from input or drop ── ← NEW
+  // ── Pre-fill form when in edit mode ── ← NEW
+  useEffect(() => {
+    if (!isEditMode) return;
+    setProjectName(editProject.name        || "");
+    setLoc(        editProject.location    || "");
+    setBudget(     editProject.budget      || "");
+    setStartDate(  editProject.startDate   || "");
+    setScope(      editProject.scope       || "");
+    // Match manager from dropdown list
+    const matched = managers.find(m => m === editProject.manager);
+    setManager(matched || "Select Manager");
+  }, [isEditMode]);
+
   const handlePhotoFile = (file) => {
     if (file && file.type.startsWith("image/")) {
       setSitePhoto(URL.createObjectURL(file));
@@ -59,12 +76,9 @@ export default function NewProjectPage() {
 
   return (
     <div style={{
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      minHeight: "100vh",
-      fontFamily: "'Segoe UI', sans-serif",
-      background: "#f7f7f8",
+      display: "flex", flexDirection: "column",
+      width: "100%", minHeight: "100vh",
+      fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8",
     }}>
 
       {/* ── Top Bar ── */}
@@ -79,7 +93,7 @@ export default function NewProjectPage() {
           <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Create and manage your construction projects</p>
         </div>
         <button
-          onClick={() => navigate("/projects")}
+          onClick={() => navigate(isEditMode ? "/managesite" : "/projects")}
           style={{
             padding: "9px 18px", background: "#fff", color: "#555",
             border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600,
@@ -87,17 +101,16 @@ export default function NewProjectPage() {
             alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0,
           }}
         >
-          ← Back to Projects
+          {/* ── Back button label changes based on mode ── ← NEW */}
+          {isEditMode ? "← Back to Site" : "← Back to Projects"}
         </button>
       </div>
 
       {/* ── Scrollable Body ── */}
       <div style={{
-        flex: 1,
-        overflowY: "auto", overflowX: "hidden",
+        flex: 1, overflowY: "auto", overflowX: "hidden",
         WebkitOverflowScrolling: "touch",
-        padding: "24px 24px 60px",
-        boxSizing: "border-box",
+        padding: "24px 24px 60px", boxSizing: "border-box",
       }}>
 
         {/* Breadcrumb */}
@@ -109,14 +122,20 @@ export default function NewProjectPage() {
             Projects
           </span>
           <span>›</span>
-          <span style={{ color: "#444", fontWeight: 500 }}>Create New Project</span>
+          {/* ── Breadcrumb label changes based on mode ── ← NEW */}
+          <span style={{ color: "#444", fontWeight: 500 }}>
+            {isEditMode ? `Edit — ${editProject.name}` : "Create New Project"}
+          </span>
         </div>
 
         {/* Form Card */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "28px 32px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", maxWidth: 860, margin: "0 auto" }}>
 
           <div style={{ marginBottom: 28 }}>
-            <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>Project Information</h2>
+            {/* ── Card title changes based on mode ── ← NEW */}
+            <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>
+              {isEditMode ? "Edit Project Information" : "Project Information"}
+            </h2>
             <p style={{ margin: 0, fontSize: 13, color: "#888" }}>Initialize your construction project by providing core details and tracking parameters.</p>
           </div>
 
@@ -133,7 +152,7 @@ export default function NewProjectPage() {
               <label style={labelStyle}>Site Location</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#aaa" }}>📍</span>
-                <input value={location} onChange={e => setLocation(e.target.value)}
+                <input value={loc} onChange={e => setLoc(e.target.value)}
                   placeholder="Mumbai, MH"
                   style={{ ...inputStyle, paddingLeft: 34 }} />
               </div>
@@ -170,11 +189,9 @@ export default function NewProjectPage() {
             </div>
           </div>
 
-          {/* ── Site Photo — now clickable + drag-drop works ── */}
+          {/* Site Photo */}
           <div style={{ marginBottom: 24 }}>
             <label style={labelStyle}>Site Photo</label>
-
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -182,45 +199,27 @@ export default function NewProjectPage() {
               style={{ display: "none" }}
               onChange={e => handlePhotoFile(e.target.files[0])}
             />
-
             <div
-              onClick={() => fileInputRef.current.click()}          // ← click opens picker
+              onClick={() => fileInputRef.current.click()}
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={e => {
-                e.preventDefault();
-                setDragOver(false);
-                handlePhotoFile(e.dataTransfer.files[0]);           // ← drop works
-              }}
+              onDrop={e => { e.preventDefault(); setDragOver(false); handlePhotoFile(e.dataTransfer.files[0]); }}
               style={{
                 border: `2px dashed ${dragOver ? "#ea580c" : "#e5e5e5"}`,
                 borderRadius: 12, padding: sitePhoto ? 0 : "36px 20px",
                 background: dragOver ? "#fff5f0" : "#fafafa",
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
                 cursor: "pointer", transition: "all 0.2s",
-                overflow: "hidden", minHeight: 140,
-                justifyContent: "center",
+                overflow: "hidden", minHeight: 140, justifyContent: "center",
               }}
             >
               {sitePhoto ? (
-                /* Preview uploaded image */
                 <div style={{ position: "relative", width: "100%" }}>
-                  <img
-                    src={sitePhoto}
-                    alt="Site preview"
-                    style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block", borderRadius: 10 }}
-                  />
+                  <img src={sitePhoto} alt="Site preview" style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block", borderRadius: 10 }} />
                   <button
                     onClick={e => { e.stopPropagation(); setSitePhoto(null); }}
-                    style={{
-                      position: "absolute", top: 10, right: 10,
-                      background: "rgba(0,0,0,0.55)", color: "#fff",
-                      border: "none", borderRadius: 6, padding: "4px 10px",
-                      fontSize: 12, cursor: "pointer", fontWeight: 600,
-                    }}
-                  >
-                    ✕ Remove
-                  </button>
+                    style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}
+                  >✕ Remove</button>
                 </div>
               ) : (
                 <>
@@ -243,21 +242,13 @@ export default function NewProjectPage() {
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
           </div>
 
-          {/* ── Buttons ── */}
+          {/* ── Buttons — label changes based on mode ── ← NEW */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <button
               onClick={() => {
-                // Basic validation before saving
-                if (!projectName.trim()) {
-                  alert("Please enter a project name.");
-                  return;
-                }
-                if (manager === "Select Manager") {
-                  alert("Please select a manager.");
-                  return;
-                }
-                // Navigate back to projects after save
-                navigate("/projects");
+                if (!projectName.trim()) { alert("Please enter a project name."); return; }
+                if (manager === "Select Manager") { alert("Please select a manager."); return; }
+                navigate(isEditMode ? "/managesite" : "/projects");
               }}
               style={{
                 padding: "14px 0", background: "#ea580c", color: "#fff",
@@ -266,10 +257,10 @@ export default function NewProjectPage() {
                 boxShadow: "0 4px 14px rgba(234,88,12,0.3)",
               }}
             >
-              💾 Create Project
+              {isEditMode ? "💾 Update Project" : "💾 Create Project"}
             </button>
             <button
-              onClick={() => navigate("/projects")}
+              onClick={() => navigate(isEditMode ? "/managesite" : "/projects")}
               style={{
                 padding: "14px 0", background: "#fff", color: "#555",
                 border: "1px solid #e5e5e5", borderRadius: 12, fontWeight: 600, fontSize: 15, cursor: "pointer",
