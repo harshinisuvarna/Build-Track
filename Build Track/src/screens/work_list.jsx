@@ -11,9 +11,41 @@ import { workerAPI } from "../api";
 
 const ITEMS_PER_PAGE = 7;
 
+const API_BASE = "http://localhost:5000";
+
 // Generate initials from name
 const getInitials = (name = "") =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+// Worker avatar: photo if available, else initials
+function WorkerAvatar({ worker, size = 38, borderRadius = 10, fontSize = 13 }) {
+  const avatarColors = ["#ea580c", "#0ea5e9", "#16a34a", "#7c3aed", "#db2777"];
+  let hash = 0;
+  for (const c of (worker.name || "")) hash = c.charCodeAt(0) + hash;
+  const color = avatarColors[hash % avatarColors.length];
+
+  return worker.photo ? (
+    <img
+      src={`${API_BASE}/uploads/${worker.photo}`}
+      alt={worker.name}
+      style={{
+        width: size, height: size, borderRadius,
+        objectFit: "cover", flexShrink: 0,
+        border: "2px solid #f0f0f0",
+      }}
+      onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+    />
+  ) : (
+    <div style={{
+      width: size, height: size, borderRadius,
+      background: "#fff5f0", display: "flex",
+      alignItems: "center", justifyContent: "center",
+      fontSize, fontWeight: 700, color, flexShrink: 0,
+    }}>
+      {getInitials(worker.name)}
+    </div>
+  );
+}
 
 export default function WorkerDirectory() {
   const navigate = useNavigate();
@@ -106,13 +138,6 @@ export default function WorkerDirectory() {
   };
 
   // ── Shared styles ─────────────────────────────────────────────────────────
-  const avatarBg   = () => "#fff5f0";
-  const avatarColor = (name) => {
-    const colors = ["#ea580c", "#0ea5e9", "#16a34a", "#7c3aed", "#db2777"];
-    let hash = 0;
-    for (const c of name) hash = c.charCodeAt(0) + hash;
-    return colors[hash % colors.length];
-  };
 
   return (
     <div style={{
@@ -264,9 +289,7 @@ export default function WorkerDirectory() {
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: 10, background: avatarBg(), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: avatarColor(w.name) }}>
-                          {getInitials(w.name)}
-                        </div>
+                        <WorkerAvatar worker={w} size={38} borderRadius={10} fontSize={13} />
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{w.name}</div>
                           <div style={{ fontSize: 11, color: "#aaa" }}>{w.displayId}</div>
@@ -315,9 +338,7 @@ export default function WorkerDirectory() {
               {paginated.map((w) => (
                 <div key={w._id} style={{ border: "1px solid #f0f0f0", borderRadius: 12, padding: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: avatarBg(), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: avatarColor(w.name) }}>
-                      {getInitials(w.name)}
-                    </div>
+                    <WorkerAvatar worker={w} size={38} borderRadius={10} fontSize={13} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{w.name}</div>
                       <div style={{ fontSize: 11, color: "#aaa" }}>{w.displayId}</div>

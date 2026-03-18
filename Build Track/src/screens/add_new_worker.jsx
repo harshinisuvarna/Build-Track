@@ -25,7 +25,8 @@ export default function AddNewWorkerPage() {
   const [dailyWage,    setDailyWage]    = useState("800");
   const [paymentCycle, setPaymentCycle] = useState("Weekly");
   const [dragOver,     setDragOver]     = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);  // blob URL for display
+  const [photoFile,    setPhotoFile]    = useState(null);  // actual File object to upload
   const [documents,    setDocuments]    = useState([]);
   const [saving,       setSaving]       = useState(false);
   const [serverErr,    setServerErr]    = useState("");
@@ -51,6 +52,9 @@ export default function AddNewWorkerPage() {
     setPaymentCycle(editWorker.paymentCycle || "Weekly");
     if (editWorker.joiningDate)
       setJoiningDate(new Date(editWorker.joiningDate).toISOString().split("T")[0]);
+    // Show existing photo from backend
+    if (editWorker.photo)
+      setPhotoPreview(`http://localhost:5000/uploads/${editWorker.photo}`);
   }, [isEditMode]);
 
   // ── Save / Update handler ─────────────────────────────────────────────────
@@ -62,20 +66,21 @@ export default function AddNewWorkerPage() {
     setServerErr("");
     setSaving(true);
     try {
-      const payload = {
-        name:        fullName.trim(),
-        trade:       trade === "Select Trade" ? "General Labor" : trade,
-        mobile,
-        joiningDate: joiningDate || null,
-        status,
-        dailyWage:   Number(dailyWage),
-        paymentCycle,
-      };
+      // ── Build FormData so image file is included in the request ─────────────
+      const form = new FormData();
+      form.append("name",         fullName.trim());
+      form.append("trade",        trade === "Select Trade" ? "General Labor" : trade);
+      form.append("mobile",       mobile);
+      form.append("joiningDate",  joiningDate || "");
+      form.append("status",       status);
+      form.append("dailyWage",    dailyWage);
+      form.append("paymentCycle", paymentCycle);
+      if (photoFile) form.append("photo", photoFile);   // ← attach image file
 
       if (isEditMode) {
-        await workerAPI.update(editWorker._id, payload);
+        await workerAPI.update(editWorker._id, form);
       } else {
-        await workerAPI.create(payload);
+        await workerAPI.create(form);
       }
 
       navigate("/workers");
@@ -223,11 +228,14 @@ export default function AddNewWorkerPage() {
                   <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>JPG, PNG or WEBP. Max 2MB.</div>
                 </div>
                 <label style={{ width: "100%", padding: "10px 0", textAlign: "center", border: "1px solid #ea580c", borderRadius: 10, color: "#ea580c", fontWeight: 600, fontSize: 14, cursor: "pointer", background: "#fff5f0", boxSizing: "border-box" }}>
-                  Choose File
+                  {photoPreview ? "Change Photo" : "Choose File"}
                   <input type="file" accept="image/*" style={{ display: "none" }}
                     onChange={e => {
                       const file = e.target.files[0];
-                      if (file) setPhotoPreview(URL.createObjectURL(file));
+                      if (file) {
+                        setPhotoFile(file);                            // ← store File object
+                        setPhotoPreview(URL.createObjectURL(file));    // ← local preview
+                      }
                     }} />
                 </label>
               </div>
