@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { authAPI } from "../api";
 
 function LogoIcon({ size = 36 }) {
   return (
@@ -54,6 +56,7 @@ const ShieldIcon = () => (
 );
 
 export default function SignUpPage() {
+  const navigate = useNavigate();
   const [vw,           setVw]           = useState(window.innerWidth);
   const [fullName,     setFullName]      = useState("");
   const [email,        setEmail]         = useState("");
@@ -67,6 +70,7 @@ export default function SignUpPage() {
   const [passFocus,    setPassFocus]     = useState(false);
   const [confirmFocus, setConfirmFocus]  = useState(false);
   const [errors,       setErrors]        = useState({});
+  const [serverErr,    setServerErr]     = useState("");
 
   useEffect(() => {
     const update = () => setVw(window.innerWidth);
@@ -91,7 +95,7 @@ export default function SignUpPage() {
     return e;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length) {
       setErrors(e);
@@ -100,8 +104,27 @@ export default function SignUpPage() {
       return;
     }
     setErrors({});
+    setServerErr("");
     setLoading(true);
-    setTimeout(() => setLoading(false), 1800);
+    try {
+      const { data } = await authAPI.register({
+        name:     fullName.trim(),
+        email:    email.trim(),
+        password,
+      });
+      // Save token and user — same keys as login
+      localStorage.setItem("bt_token", data.token);
+      localStorage.setItem("bt_user",  JSON.stringify(data.user));
+      // Go to dashboard
+      window.location.href = "/";
+    } catch (err) {
+      const msg = err.response?.data?.message || "Something went wrong. Please try again.";
+      setServerErr(msg);
+      setShake(true);
+      setTimeout(() => setShake(false), 420);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputWrap = (focused, hasErr) => ({
@@ -203,6 +226,13 @@ export default function SignUpPage() {
             Start your 14-day free trial. No credit card required.
           </p>
         </div>
+
+        {/* Server error banner */}
+        {serverErr && (
+          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#991b1b" }}>
+            ⚠️ {serverErr}
+          </div>
+        )}
 
         <div style={{ animation: shake ? "btShake 0.42s ease" : "none" }}>
           <style>{`
@@ -324,7 +354,7 @@ export default function SignUpPage() {
         <div style={{ textAlign: "center", marginTop: fs(28) }}>
           <p style={{ margin: "0 0 10px", fontSize: fs(13), color: "#888" }}>
             Already have an account?{" "}
-            <span style={{ color: "#ea580c", fontWeight: 700, cursor: "pointer" }}>Log in</span>
+            <span style={{ color: "#ea580c", fontWeight: 700, cursor: "pointer" }} onClick={() => navigate("/login")}>Log in</span>
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: fs(11), color: "#ccc" }}>
             <span style={{ cursor: "pointer" }}>Privacy policy</span>
@@ -350,7 +380,7 @@ export default function SignUpPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <span style={{ fontSize: 14, color: "#888", display: isMobile ? "none" : "inline" }}>Already have an account?</span>
-          <button style={{ padding: "8px 18px", background: "#fff5f0", color: "#ea580c", border: "1.5px solid #ea580c", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+          <button onClick={() => navigate("/login")} style={{ padding: "8px 18px", background: "#fff5f0", color: "#ea580c", border: "1.5px solid #ea580c", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
             Log In
           </button>
         </div>

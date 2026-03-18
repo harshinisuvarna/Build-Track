@@ -1,6 +1,15 @@
-import { useState, useEffect } from "react";
+// src/pages/login_page.jsx
+// CONNECTED TO BACKEND:
+//  • Calls POST /api/auth/login with email + password
+//  • Stores JWT in localStorage as "bt_token"
+//  • Stores user object as "bt_user"
+//  • Redirects to "/" (dashboard) on success
+//  • Shows exact error message from server on failure
 
-/* ── Icons ── */
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { authAPI } from "../api";
+
 const EyeOpen = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -35,6 +44,8 @@ const features = [
 ];
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+
   const [email,      setEmail]      = useState("");
   const [password,   setPassword]   = useState("");
   const [showPass,   setShowPass]   = useState(false);
@@ -42,45 +53,60 @@ export default function LoginPage() {
   const [shake,      setShake]      = useState(false);
   const [emailErr,   setEmailErr]   = useState("");
   const [passErr,    setPassErr]    = useState("");
+  const [serverErr,  setServerErr]  = useState(""); // ← real API errors shown here
   const [emailFocus, setEmailFocus] = useState(false);
   const [passFocus,  setPassFocus]  = useState(false);
-  const [vw,         setVw]         = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
+  const [vw,         setVw]         = useState(window.innerWidth);
+
+  // If already logged in, skip straight to dashboard
+  useEffect(() => {
+    if (localStorage.getItem("bt_token")) navigate("/", { replace: true });
+  }, []);
 
   useEffect(() => {
     const update = () => setVw(window.innerWidth);
     window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
-    };
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   const isMobile  = vw < 640;
-  const isTablet  = vw >= 640 && vw < 1024;
   const isDesktop = vw >= 1024;
 
   const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
+  // ── Main login handler ──────────────────────────────────────────────────────
   const handleLogin = async () => {
+    // Client-side validation first
     let valid = true;
+    setEmailErr(""); setPassErr(""); setServerErr("");
+
     if (!validateEmail(email)) { setEmailErr("Please enter a valid email address."); valid = false; }
     if (password.length < 6)   { setPassErr("Password must be at least 6 characters."); valid = false; }
     if (!valid) { setShake(true); setTimeout(() => setShake(false), 420); return; }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      const res  = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setPassErr(data.message || "Login failed"); setLoading(false); return; }
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user",  JSON.stringify(data.user));
-      window.location.href = "/dashboard";
-    } catch { setPassErr("Server error. Try again."); }
-    setLoading(false);
+      const { data } = await authAPI.login({ email, password });
+
+      // Persist token + user for the session
+      localStorage.setItem("bt_token", data.token);
+      localStorage.setItem("bt_user",  JSON.stringify(data.user));
+
+      // Hard navigate so App.jsx re-evaluates the auth guard
+      window.location.href = "/";
+    } catch (err) {
+      const msg = err.response?.data?.message || "Something went wrong. Try again.";
+      // 401 → credentials, anything else → general error banner
+      if (err.response?.status === 401) {
+        setPassErr(msg);
+      } else {
+        setServerErr(msg);
+      }
+      setShake(true);
+      setTimeout(() => setShake(false), 420);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -89,14 +115,12 @@ export default function LoginPage() {
     return () => window.removeEventListener("keydown", h);
   }, [email, password]);
 
+  // ── Styles ──────────────────────────────────────────────────────────────────
   const inputStyle = (focused, hasErr) => ({
-    width: "100%",
-    boxSizing: "border-box",
+    width: "100%", boxSizing: "border-box",
     padding: "13px 16px",
     border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#ea580c" : "#e8e8e8"}`,
-    borderRadius: 10,
-    fontSize: 14.5,
-    color: "#111",
+    borderRadius: 10, fontSize: 14.5, color: "#111",
     background: focused ? "#fff" : "#fafafa",
     outline: "none",
     fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
@@ -110,68 +134,89 @@ export default function LoginPage() {
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { margin: 0; }
-
     @keyframes btShake  { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
     @keyframes btSpin   { to { transform: rotate(360deg); } }
     @keyframes btFadeUp { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
     @keyframes slideUp  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-
+    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
     .bt-left  { animation: fadeIn 0.55s ease both; }
     .bt-right { animation: slideUp 0.5s cubic-bezier(.22,.68,0,1.2) 0.1s both; }
-
-    .bt-feature { display: flex; align-items: center; gap: 16px; transition: transform 0.18s; }
+    .bt-feature { display:flex; align-items:center; gap:16px; transition:transform 0.18s; }
     .bt-feature:hover { transform: translateX(5px); }
-
     .bt-btn-primary {
-      width: 100%; padding: 15px 0;
-      background: #ea580c; color: #fff;
-      border: none; border-radius: 10px;
-      font-size: 14px; font-weight: 700; letter-spacing: 0.1em;
-      cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif;
-      box-shadow: 0 6px 22px rgba(234,88,12,0.30);
-      transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width:100%; padding:15px 0;
+      background:#ea580c; color:#fff;
+      border:none; border-radius:10px;
+      font-size:14px; font-weight:700; letter-spacing:0.1em;
+      cursor:pointer; font-family:'DM Sans',system-ui,sans-serif;
+      box-shadow:0 6px 22px rgba(234,88,12,0.30);
+      transition:background 0.18s,transform 0.12s,box-shadow 0.18s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
     }
-    .bt-btn-primary:hover:not(:disabled) { background: #c2410c; box-shadow: 0 8px 28px rgba(234,88,12,0.38); transform: translateY(-1px); }
-    .bt-btn-primary:active:not(:disabled) { transform: scale(0.98); }
-    .bt-btn-primary:disabled { background: #f97316; cursor: not-allowed; }
-
+    .bt-btn-primary:hover:not(:disabled) { background:#c2410c; box-shadow:0 8px 28px rgba(234,88,12,0.38); transform:translateY(-1px); }
+    .bt-btn-primary:disabled { background:#f97316; cursor:not-allowed; }
     .bt-btn-social {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 11px 14px;
-      border: 1.5px solid #ebebeb; border-radius: 10px;
-      background: #fff; color: #333;
-      font-size: 13.5px; font-weight: 600;
-      cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif;
-      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:11px 14px; border:1.5px solid #ebebeb; border-radius:10px;
+      background:#fff; color:#333; font-size:13.5px; font-weight:600;
+      cursor:pointer; font-family:'DM Sans',system-ui,sans-serif;
+      transition:background 0.15s,border-color 0.15s,transform 0.1s;
     }
-    .bt-btn-social:hover  { background: #f5f5f5; border-color: #d0d0d0; transform: translateY(-1px); }
-    .bt-btn-social:active { transform: scale(0.98); }
-
-    .bt-link-orange { color: #ea580c; font-weight: 700; cursor: pointer; transition: color 0.15s; }
-    .bt-link-orange:hover { color: #c2410c; text-decoration: underline; }
-
-    .bt-footer-link { color: #c0ccd8; cursor: pointer; font-size: 11.5px; transition: color 0.15s; }
-    .bt-footer-link:hover { color: #94a3b8; }
+    .bt-btn-social:hover { background:#f5f5f5; border-color:#d0d0d0; transform:translateY(-1px); }
+    .bt-link-orange { color:#ea580c; font-weight:700; cursor:pointer; transition:color 0.15s; }
+    .bt-link-orange:hover { color:#c2410c; text-decoration:underline; }
+    .bt-footer-link { color:#c0ccd8; cursor:pointer; font-size:11.5px; transition:color 0.15s; }
+    .bt-footer-link:hover { color:#94a3b8; }
   `;
 
-  /* ── Shared form fields (used in both desktop right panel and mobile view) ── */
+  // ── Form ────────────────────────────────────────────────────────────────────
   const FormFields = (
     <div style={{ animation: shake ? "btShake 0.42s ease" : "none" }}>
+
+      {/* Server-level error banner */}
+      {serverErr && (
+        <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#991b1b", animation: "btFadeUp 0.2s ease" }}>
+          ⚠️ {serverErr}
+        </div>
+      )}
+
+      {/* Email */}
       <div style={{ marginBottom: 18 }}>
-        <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#475569", marginBottom: 7, letterSpacing: "0.09em", textTransform: "uppercase" }}>Email address</label>
-        <input type="email" value={email} onChange={e => { setEmail(e.target.value); setEmailErr(""); }} onFocus={() => setEmailFocus(true)} onBlur={() => setEmailFocus(false)} placeholder="name@company.com" autoComplete="email" style={inputStyle(emailFocus, !!emailErr)} />
+        <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#475569", marginBottom: 7, letterSpacing: "0.09em", textTransform: "uppercase" }}>
+          Email address
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={e => { setEmail(e.target.value); setEmailErr(""); setServerErr(""); }}
+          onFocus={() => setEmailFocus(true)}
+          onBlur={() => setEmailFocus(false)}
+          placeholder="name@company.com"
+          autoComplete="email"
+          style={inputStyle(emailFocus, !!emailErr)}
+        />
         {emailErr && <p style={{ margin: "5px 0 0", fontSize: 12, color: "#dc2626", animation: "btFadeUp 0.2s ease" }}>{emailErr}</p>}
       </div>
 
+      {/* Password */}
       <div style={{ marginBottom: 10 }}>
-        <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#475569", marginBottom: 7, letterSpacing: "0.09em", textTransform: "uppercase" }}>Password</label>
+        <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#475569", marginBottom: 7, letterSpacing: "0.09em", textTransform: "uppercase" }}>
+          Password
+        </label>
         <div style={{ position: "relative" }}>
-          <input type={showPass ? "text" : "password"} value={password} onChange={e => { setPassword(e.target.value); setPassErr(""); }} onFocus={() => setPassFocus(true)} onBlur={() => setPassFocus(false)} placeholder="••••••••" autoComplete="current-password" style={{ ...inputStyle(passFocus, !!passErr), paddingRight: 46 }} />
-          <button onClick={() => setShowPass(v => !v)} style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", alignItems: "center", lineHeight: 0, transition: "color 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.color = "#64748b"}
-            onMouseLeave={e => e.currentTarget.style.color = "#94a3b8"}>
+          <input
+            type={showPass ? "text" : "password"}
+            value={password}
+            onChange={e => { setPassword(e.target.value); setPassErr(""); setServerErr(""); }}
+            onFocus={() => setPassFocus(true)}
+            onBlur={() => setPassFocus(false)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            style={{ ...inputStyle(passFocus, !!passErr), paddingRight: 46 }}
+          />
+          <button
+            onClick={() => setShowPass(v => !v)}
+            style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", alignItems: "center", lineHeight: 0 }}>
             {showPass ? <EyeClosed /> : <EyeOpen />}
           </button>
         </div>
@@ -182,8 +227,11 @@ export default function LoginPage() {
         <span className="bt-link-orange" style={{ fontSize: 13 }}>Forgot password?</span>
       </div>
 
+      {/* Sign In button */}
       <button className="bt-btn-primary" onClick={handleLogin} disabled={loading}>
-        {loading && <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "btSpin 0.7s linear infinite" }} />}
+        {loading && (
+          <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "btSpin 0.7s linear infinite" }} />
+        )}
         {loading ? "Signing in…" : "SIGN IN"}
       </button>
 
@@ -194,14 +242,27 @@ export default function LoginPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
-        {[{ label: "Google", Icon: GoogleIcon }, { label: "GitHub", Icon: GitHubIcon }].map(({ label, Icon }) => (
-          <button key={label} className="bt-btn-social"><Icon /> {label}</button>
-        ))}
+        {/* Google — redirects browser to backend, which redirects to Google */}
+        <button
+          className="bt-btn-social"
+          onClick={() => { window.location.href = "http://localhost:5000/api/auth/google"; }}
+        >
+          <GoogleIcon /> Google
+        </button>
+
+        {/* GitHub — redirects browser to backend, which redirects to GitHub */}
+        <button
+          className="bt-btn-social"
+          onClick={() => { window.location.href = "http://localhost:5000/api/auth/github"; }}
+        >
+          <GitHubIcon /> GitHub
+        </button>
       </div>
 
       <div style={{ textAlign: "center" }}>
         <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "#94a3b8" }}>
-          Don't have an account?{" "}<span className="bt-link-orange">Sign up free</span>
+          Don't have an account?{" "}
+          <span className="bt-link-orange" onClick={() => navigate("/signup")}>Sign up free</span>
         </p>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           <span className="bt-footer-link">Privacy policy</span>
@@ -214,69 +275,37 @@ export default function LoginPage() {
     </div>
   );
 
-  /* ── Root ── */
   return (
     <>
       <style>{css}</style>
 
       {isDesktop ? (
-        /*
-         * DESKTOP — TRUE 50 / 50 GRID
-         * Using CSS grid with "1fr 1fr" guarantees both columns are
-         * always exactly half the viewport. No flex-shrink, no maxWidth
-         * on the panels themselves can break this.
-         */
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",   /* ← the one line that enforces 50/50 */
-          width: "100vw",
-          height: "100vh",
-          overflow: "hidden",
-          fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
-        }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", width: "100vw", height: "100vh", overflow: "hidden", fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
 
-          {/* ── LEFT: Branding ── */}
-          <div className="bt-left" style={{
-            background: "linear-gradient(150deg, #0f172a 0%, #1e293b 55%, #0c1f3f 100%)",
-            display: "flex", flexDirection: "column",
-            justifyContent: "center", alignItems: "flex-start",
-            padding: "0 72px",
-            position: "relative", overflow: "hidden",
-            height: "100vh",
-          }}>
-            {/* Orbs */}
-            <div style={{ position:"absolute", top:-120, right:-120, width:380, height:380, borderRadius:"50%", background:"radial-gradient(circle, rgba(234,88,12,0.15) 0%, transparent 70%)", pointerEvents:"none" }} />
-            <div style={{ position:"absolute", bottom:-100, left:-100, width:320, height:320, borderRadius:"50%", background:"radial-gradient(circle, rgba(234,88,12,0.09) 0%, transparent 70%)", pointerEvents:"none" }} />
-            {/* Right-edge accent line */}
-            <div style={{ position:"absolute", top:0, right:0, width:1, height:"100%", background:"linear-gradient(to bottom, transparent, rgba(234,88,12,0.3), transparent)", pointerEvents:"none" }} />
+          {/* ── Left branding panel ── */}
+          <div className="bt-left" style={{ background: "linear-gradient(150deg,#0f172a 0%,#1e293b 55%,#0c1f3f 100%)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "0 72px", position: "relative", overflow: "hidden", height: "100vh" }}>
+            <div style={{ position: "absolute", top: -120, right: -120, width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle,rgba(234,88,12,0.15) 0%,transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -100, left: -100, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle,rgba(234,88,12,0.09) 0%,transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: 0, right: 0, width: 1, height: "100%", background: "linear-gradient(to bottom,transparent,rgba(234,88,12,0.3),transparent)", pointerEvents: "none" }} />
 
-            {/* Logo */}
             <div style={{ marginBottom: 52 }}>
-              <div style={{ fontFamily:"'Syne', sans-serif", fontSize: 48, fontWeight: 800, letterSpacing: "-2px", lineHeight: 1, marginBottom: 10 }}>
-                <span style={{ color: "#fff" }}>Build</span>
-                <span style={{ color: "#ea580c" }}>Track</span>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 48, fontWeight: 800, letterSpacing: "-2px", lineHeight: 1, marginBottom: 10 }}>
+                <span style={{ color: "#fff" }}>Build</span><span style={{ color: "#ea580c" }}>Track</span>
               </div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>
-                Construction management platform
-              </p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>Construction management platform</p>
             </div>
 
-            {/* Headline */}
-            <h2 style={{ fontFamily:"'Syne', sans-serif", margin: "0 0 14px", fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.18, maxWidth: 400 }}>
-              Build smarter.<br />
-              <span style={{ color: "#ea580c" }}>Track everything.</span>
+            <h2 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 14px", fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.18, maxWidth: 400 }}>
+              Build smarter.<br /><span style={{ color: "#ea580c" }}>Track everything.</span>
             </h2>
             <p style={{ margin: "0 0 52px", fontSize: 15, color: "rgba(255,255,255,0.5)", maxWidth: 380, lineHeight: 1.75 }}>
               From site management to financial reporting — everything your construction team needs, in one place.
             </p>
 
-            {/* Features */}
             <div style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%", maxWidth: 400 }}>
               {features.map((f, i) => (
                 <div key={f.title} className="bt-feature" style={{ animation: `slideUp 0.5s cubic-bezier(.22,.68,0,1.2) ${0.25 + i * 0.08}s both` }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 11, flexShrink: 0, background: "rgba(234,88,12,0.13)", border: "1px solid rgba(234,88,12,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                    {f.icon}
-                  </div>
+                  <div style={{ width: 44, height: 44, borderRadius: 11, flexShrink: 0, background: "rgba(234,88,12,0.13)", border: "1px solid rgba(234,88,12,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{f.icon}</div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{f.title}</div>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>{f.desc}</div>
@@ -286,36 +315,29 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* ── RIGHT: Login form ── */}
-          <div className="bt-right" style={{
-            background: "#fff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            height: "100vh", overflowY: "auto",
-          }}>
-            {/* Content box — maxWidth here is fine; it only constrains the *content*, not the column */}
+          {/* ── Right form panel ── */}
+          <div className="bt-right" style={{ background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", overflowY: "auto" }}>
             <div style={{ width: "100%", maxWidth: 440, padding: "48px 56px" }}>
               <div style={{ marginBottom: 30 }}>
-                <h1 style={{ fontFamily:"'Syne', sans-serif", margin: "0 0 7px", fontSize: 28, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
+                <h1 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 7px", fontSize: 28, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
                 <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Sign in to your BuildTrack account</p>
               </div>
               {FormFields}
             </div>
           </div>
-
         </div>
       ) : (
-        /* ── MOBILE / TABLET ── */
-        <div style={{ minHeight: "100vh", background: "#fff", display: "flex", alignItems: isTablet ? "center" : "flex-start", justifyContent: "center", padding: isMobile ? "40px 24px" : "48px", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif" }}>
-          <div style={{ width: "100%", maxWidth: isTablet ? 480 : "100%" }}>
+        /* ── Mobile / Tablet ── */
+        <div style={{ minHeight: "100vh", background: "#fff", display: "flex", alignItems: isDesktop ? "center" : "flex-start", justifyContent: "center", padding: isMobile ? "40px 24px" : "48px", fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
+          <div style={{ width: "100%", maxWidth: 480 }}>
             <div style={{ textAlign: "center", marginBottom: 40 }}>
-              <div style={{ fontFamily:"'Syne', sans-serif", fontSize: 40, fontWeight: 800, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 8 }}>
-                <span style={{ color: "#0f172a" }}>Build</span>
-                <span style={{ color: "#ea580c" }}>Track</span>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 40, fontWeight: 800, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 8 }}>
+                <span style={{ color: "#0f172a" }}>Build</span><span style={{ color: "#ea580c" }}>Track</span>
               </div>
               <p style={{ fontSize: 12.5, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>Construction management</p>
             </div>
             <div style={{ marginBottom: 28 }}>
-              <h1 style={{ fontFamily:"'Syne', sans-serif", margin: "0 0 7px", fontSize: 26, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
+              <h1 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 7px", fontSize: 26, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
               <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Sign in to your BuildTrack account</p>
             </div>
             {FormFields}
