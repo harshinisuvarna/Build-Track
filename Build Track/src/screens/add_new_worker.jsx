@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { workerAPI } from "../api";
 
 const trades        = ["Select Trade", "Mason", "Carpenter", "Electrician", "Plumber", "Welder", "Painter", "General Labor", "Site Engineer", "Supervisor"];
 const paymentCycles = ["Weekly", "Bi-Weekly", "Monthly"];
@@ -26,6 +27,8 @@ export default function AddNewWorkerPage() {
   const [dragOver,     setDragOver]     = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [documents,    setDocuments]    = useState([]);
+  const [saving,       setSaving]       = useState(false);
+  const [serverErr,    setServerErr]    = useState("");
 
   const docInputRef = useRef(null);
 
@@ -35,29 +38,53 @@ export default function AddNewWorkerPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Pre-fill form when in edit mode ── ← NEW
+  // ── Pre-fill form when in edit mode ──────────────────────────────────────
   useEffect(() => {
     if (!isEditMode) return;
-
-    // Map worker list fields to form fields
     setFullName(editWorker.name || "");
-
-    // Map role from worker list to trade dropdown — use exact match or fall back to first option
-    const matchedTrade = trades.find(t => t.toLowerCase() === editWorker.role?.toLowerCase());
+    const matchedTrade = trades.find(t => t.toLowerCase() === editWorker.trade?.toLowerCase());
     setTrade(matchedTrade || "Select Trade");
-
-    // Extract numeric wage value from formatted string e.g. "₹4,500.00" → "4500"
-    const rawWage = editWorker.wages
-      ? editWorker.wages.replace(/[₹,]/g, "").trim()
-      : "800";
-    setDailyWage(rawWage);
-
-    // Map status — "Active" / "Inactive" map directly; "On Leave" is a third option
+    setDailyWage(String(editWorker.dailyWage || "800"));
     const matchedStatus = statusOptions.find(s => s.toLowerCase() === editWorker.status?.toLowerCase());
     setStatus(matchedStatus || "Active");
+    setMobile(editWorker.mobile || "");
+    setPaymentCycle(editWorker.paymentCycle || "Weekly");
+    if (editWorker.joiningDate)
+      setJoiningDate(new Date(editWorker.joiningDate).toISOString().split("T")[0]);
+  }, [isEditMode]);
 
-    // mobile, joiningDate, paymentCycle not available in worker list data — leave as defaults
-  }, [isEditMode]);                                                  // ← run once on mount
+  // ── Save / Update handler ─────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!fullName.trim()) { setServerErr("Worker name is required."); return; }
+    if (trade === "Select Trade") { setServerErr("Please select a trade."); return; }
+    if (!dailyWage || isNaN(Number(dailyWage))) { setServerErr("Enter a valid daily wage."); return; }
+
+    setServerErr("");
+    setSaving(true);
+    try {
+      const payload = {
+        name:        fullName.trim(),
+        trade:       trade === "Select Trade" ? "General Labor" : trade,
+        mobile,
+        joiningDate: joiningDate || null,
+        status,
+        dailyWage:   Number(dailyWage),
+        paymentCycle,
+      };
+
+      if (isEditMode) {
+        await workerAPI.update(editWorker._id, payload);
+      } else {
+        await workerAPI.create(payload);
+      }
+
+      navigate("/workers");
+    } catch (err) {
+      setServerErr(err.response?.data?.message || "Something went wrong. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDocumentUpload = (e) => {
     const file = e.target.files[0];
@@ -141,7 +168,8 @@ export default function AddNewWorkerPage() {
             Cancel
           </button>
           {/* ── Save button label changes based on mode ── ← NEW */}
-          <button style={{ padding: "10px 22px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.3)" }}>
+          <button onClick={handleSave} disabled={saving}
+            style={{ padding: "10px 22px", background: saving ? "#f97316" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.3)", display: "flex", alignItems: "center", gap: 8 }}>
             {isEditMode ? "Update Worker" : "Save Worker"}
           </button>
         </div>
@@ -153,6 +181,13 @@ export default function AddNewWorkerPage() {
         WebkitOverflowScrolling: "touch",
         padding: "20px 24px 60px", boxSizing: "border-box",
       }}>
+
+        {/* Error banner */}
+        {serverErr && (
+          <div style={{ maxWidth: 1100, margin: "0 auto 16px", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#991b1b" }}>
+            ⚠️ {serverErr}
+          </div>
+        )}
 
         <div style={{
           display: "grid",
@@ -346,10 +381,13 @@ export default function AddNewWorkerPage() {
           >
             Discard Changes
           </button>
-          {/* ── Bottom save button label also changes ── ← NEW */}
-          <button style={{ padding: "12px 28px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(234,88,12,0.3)" }}>
-            {isEditMode ? "Update Worker Profile" : "Save Worker Profile"}
+          <button onClick={handleSave} disabled={saving}
+            style={{ padding: "12px 28px", background: saving ? "#f97316" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 14px rgba(234,88,12,0.3)", display: "flex", alignItems: "center", gap: 8 }}
+          >
+            {saving && <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
+            {saving ? "Saving…" : isEditMode ? "Update Worker Profile" : "Save Worker Profile"}
           </button>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
 
       </div>
