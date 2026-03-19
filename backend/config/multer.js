@@ -24,13 +24,14 @@ const storage = multer.diskStorage({
   },
 });
 
-// ── File type filter — images only ───────────────────────────────────────────
+// ── File type filter — images + PDFs (for worker documents) ─────────────────
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp|gif/;
-  const extOk   = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mimeOk  = allowed.test(file.mimetype);
+  const allowedExt  = /jpeg|jpg|png|webp|gif|pdf/;
+  const allowedMime = /image\/jpeg|image\/png|image\/webp|image\/gif|application\/pdf/;
+  const extOk   = allowedExt.test(path.extname(file.originalname).toLowerCase());
+  const mimeOk  = allowedMime.test(file.mimetype);
   if (extOk && mimeOk) return cb(null, true);
-  cb(new Error("Only image files are allowed (jpg, png, webp, gif)"));
+  cb(new Error("Only image files (jpg, png, webp, gif) or PDF documents are allowed"));
 };
 
 const upload = multer({

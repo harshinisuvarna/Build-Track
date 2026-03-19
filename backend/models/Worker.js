@@ -55,24 +55,57 @@ const workerSchema = new mongoose.Schema(
       default: "Weekly",
     },
 
+    // Auto-generated e.g. BT-2026-001
+    displayId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+
     // Filename only — e.g. "1711000000000-123.jpg"
     // Full URL served as: http://localhost:5000/uploads/{photo}
     photo: {
       type: String,
       default: null,
     },
+
+    documents: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 
-// Virtual: auto-generate a display ID like BT-2024-001
-workerSchema.virtual("displayId").get(function () {
-  const year = new Date(this.createdAt).getFullYear();
-  const seq  = String(this._id).slice(-3).toUpperCase();
-  return `#BT-${year}-${seq}`;
+// Generate displayId on create (per-user sequence per year)
+workerSchema.pre("save", async function () {
+  if (this.displayId) return;
+  if (!this.isNew) return;
+  if (!this.createdBy) return;
+
+  const year = new Date().getFullYear();
+  const prefix = `BT-${year}-`;
+  const Worker = mongoose.model("Worker");
+
+  const count = await Worker.countDocuments({
+    createdBy: this.createdBy,
+    displayId: { $regex: `^${prefix}` },
+  });
+
+  this.displayId = `${prefix}${String(count + 1).padStart(3, "0")}`;
 });
 
-// Include virtuals in JSON output
-workerSchema.set("toJSON", { virtuals: true });
+// Ensure API always returns some displayId for legacy documents
+workerSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    if (!ret.displayId) {
+      const year = ret.createdAt ? new Date(ret.createdAt).getFullYear() : new Date().getFullYear();
+      const seq = String(ret._id || "").slice(-3).toUpperCase();
+      ret.displayId = `BT-${year}-${seq || "000"}`;
+    }
+    delete ret.__v;
+    return ret;
+  },
+});
 
 module.exports = mongoose.model("Worker", workerSchema);

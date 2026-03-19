@@ -5,7 +5,17 @@ const path        = require("path");
 const fs          = require("fs");
 const Worker      = require("../models/Worker");
 const { protect } = require("../middleware/auth");
-const upload      = require("../config/multer");
+const multer      = require("multer");
+
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    // e.g. 1711000000000-worker.jpg
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
 
 // All routes below require a valid JWT
 router.use(protect);
@@ -89,9 +99,11 @@ router.get("/:id", async (req, res) => {
 
 
 // ─── CREATE WORKER ───────────────────────────────────────────────────────────
-// POST /api/workers
-// Accepts multipart/form-data (with optional photo file)
-router.post("/", upload.single("photo"), async (req, res) => {
+// Supports both POST /api/workers and POST /api/workers/add
+const createHandler = async (req, res) => {
+  console.log("WORKER ROUTE HIT (CREATE)");
+  console.log("BODY:", req.body);
+  console.log("FILES:", req.files);
   try {
     const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
 
@@ -100,6 +112,9 @@ router.post("/", upload.single("photo"), async (req, res) => {
 
     if (!dailyWage && dailyWage !== "0")
       return res.status(400).json({ message: "Daily wage is required" });
+
+    const photo = req.files?.photo?.[0]?.filename || null;
+    const documents = req.files?.documents?.map((file) => file.filename) || [];
 
     const worker = await Worker.create({
       createdBy:   req.user._id,
@@ -110,11 +125,11 @@ router.post("/", upload.single("photo"), async (req, res) => {
       status:      status || "Active",
       dailyWage:   Number(dailyWage) || 0,
       paymentCycle: paymentCycle || "Weekly",
-      photo:       req.file ? req.file.filename : null,  // ← save filename only
+      photo: photo,
+      documents,
     });
 
     res.status(201).json({ message: "Worker added successfully", worker });
-
   } catch (err) {
     console.error("Create worker error:", err);
     if (err.name === "ValidationError") {
@@ -123,57 +138,73 @@ router.post("/", upload.single("photo"), async (req, res) => {
     }
     res.status(500).json({ message: "Failed to create worker" });
   }
-});
+};
+
+router.post("/", upload.any(), createHandler);
+router.post("/add", upload.any(), createHandler);
 
 
 // ─── UPDATE WORKER ───────────────────────────────────────────────────────────
 // PUT /api/workers/:id
-// Accepts multipart/form-data (with optional new photo)
-router.put("/:id", upload.single("photo"), async (req, res) => {
-  try {
-    const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
+// Accepts multipart/form-data (with optional new photo + documents)
+router.put(
+  "/:id",
+  upload.any(), // final attempt at flexibility
+  async (req, res) => {
+    console.log("WORKER ROUTE HIT (PUT /:id)");
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+    try {
+      const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
 
-    // Build update object
-    const updateData = {
-      name:        name?.trim(),
-      trade,
-      mobile,
-      joiningDate,
-      status,
-      dailyWage:   Number(dailyWage),
-      paymentCycle,
-    };
+      // Build update object
+      const updateData = {
+        name:        name?.trim(),
+        trade,
+        mobile,
+        joiningDate,
+        status,
+        dailyWage:   Number(dailyWage),
+        paymentCycle,
+      };
 
-    // If a new photo was uploaded, delete the old one and save the new filename
-    if (req.file) {
-      // Delete old photo file from disk if it exists
-      const existing = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
-      if (existing?.photo) {
-        const oldPath = path.join(__dirname, "../uploads", existing.photo);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      console.log("FILES:", req.files);
+      const photoFile = req.files?.photo?.[0] || null;
+      const newDocuments = req.files?.documents?.map((file) => file.filename) || [];
+
+      // If a new photo was uploaded, delete the old one and save the new filename
+      if (photoFile) {
+        const existing = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
+        if (existing?.photo) {
+          const oldPath = path.join(__dirname, "../uploads", existing.photo);
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+        updateData.photo = photoFile.filename;
       }
-      updateData.photo = req.file.filename;
+
+      if (newDocuments.length > 0) {
+        updateData.documents = newDocuments;
+      }
+
+      const worker = await Worker.findOneAndUpdate(
+        { _id: req.params.id, createdBy: req.user._id },
+        updateData,
+        { new: true, runValidators: true }
+      );
+
+      if (!worker) return res.status(404).json({ message: "Worker not found" });
+
+      res.json({ message: "Worker updated", worker });
+    } catch (err) {
+      console.error("Update worker error:", err);
+      if (err.name === "ValidationError") {
+        const msg = Object.values(err.errors).map((e) => e.message).join(", ");
+        return res.status(400).json({ message: msg });
+      }
+      res.status(500).json({ message: "Failed to update worker" });
     }
-
-    const worker = await Worker.findOneAndUpdate(
-      { _id: req.params.id, createdBy: req.user._id },
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    if (!worker) return res.status(404).json({ message: "Worker not found" });
-
-    res.json({ message: "Worker updated", worker });
-
-  } catch (err) {
-    console.error("Update worker error:", err);
-    if (err.name === "ValidationError") {
-      const msg = Object.values(err.errors).map((e) => e.message).join(", ");
-      return res.status(400).json({ message: msg });
-    }
-    res.status(500).json({ message: "Failed to update worker" });
   }
-});
+);
 
 
 // ─── DELETE WORKER ───────────────────────────────────────────────────────────
@@ -187,6 +218,14 @@ router.delete("/:id", async (req, res) => {
     if (worker.photo) {
       const photoPath = path.join(__dirname, "../uploads", worker.photo);
       if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
+    }
+
+    // Delete documents from disk too
+    if (Array.isArray(worker.documents) && worker.documents.length > 0) {
+      for (const doc of worker.documents) {
+        const docPath = path.join(__dirname, "../uploads", doc);
+        if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
+      }
     }
 
     res.json({ message: "Worker deleted" });

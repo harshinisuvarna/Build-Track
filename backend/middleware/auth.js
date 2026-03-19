@@ -1,7 +1,3 @@
-// backend/middleware/auth.js
-// Drop this in front of any route that needs a logged-in user.
-// Usage: router.get("/protected", protect, handler)
-
 const jwt  = require("jsonwebtoken");
 const User = require("../models/User");
 

@@ -14,7 +14,7 @@ router.use(protect);
 // Helper: run multer, catch MulterError cleanly
 const runUpload = (req, res) =>
   new Promise((resolve, reject) => {
-    upload.single("photo")(req, res, (err) => {
+    upload.any()(req, res, (err) => {
       if (err instanceof multer.MulterError) {
         reject(Object.assign(err, { status: 400 }));
       } else if (err) {
@@ -92,7 +92,7 @@ router.post("/", async (req, res) => {
       scope:       scope     || "",
       status:      status    || "Active",
       progress:    Number(progress) || 0,
-      photo:       req.file ? req.file.filename : null,
+      photo:       req.files?.find(f => f.fieldname === "photo")?.filename || null,
     });
 
     res.status(201).json({ message: "Project created", project });
@@ -111,6 +111,7 @@ router.post("/", async (req, res) => {
 // ─── UPDATE PROJECT ──────────────────────────────────────────────────────────
 // PUT /api/projects/:id   (multipart/form-data, optional new photo)
 router.put("/:id", async (req, res) => {
+  console.log("PROJECT ROUTE HIT (PUT /:id)");
   // Run multer first
   try { await runUpload(req, res); }
   catch (uploadErr) {
@@ -131,14 +132,15 @@ router.put("/:id", async (req, res) => {
       progress:  Number(progress),
     };
 
-    if (req.file) {
+    const photoFile = req.files?.find(f => f.fieldname === "photo");
+    if (photoFile) {
       // Delete old photo from disk
       const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
       if (existing?.photo) {
         const oldPath = path.join(__dirname, "../uploads", existing.photo);
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
-      updateData.photo = req.file.filename;
+      updateData.photo = photoFile.filename;
     }
 
     const project = await Project.findOneAndUpdate(
