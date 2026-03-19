@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
 
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
+
 function LogoIcon({ size = 36 }) {
   return (
     <div style={{
@@ -96,6 +101,11 @@ export default function SignUpPage() {
   };
 
   const handleSubmit = async () => {
+    console.log("[SIGNUP] Clicked", {
+      email,
+      apiOrigin: API_ORIGIN,
+      viteApiUrl: import.meta.env.VITE_API_URL,
+    });
     const e = validate();
     if (Object.keys(e).length) {
       setErrors(e);
@@ -107,17 +117,29 @@ export default function SignUpPage() {
     setServerErr("");
     setLoading(true);
     try {
+      console.log("[SIGNUP] Request payload:", { name: fullName.trim(), email: email.trim(), passwordLen: password.length });
       const { data } = await authAPI.register({
         name:     fullName.trim(),
         email:    email.trim(),
         password,
       });
+      console.log("SIGNUP RESPONSE:", data);
       // Save token and user — same keys as login
       localStorage.setItem("bt_token", data.token);
       localStorage.setItem("bt_user",  JSON.stringify(data.user));
       // Go to dashboard
-      window.location.href = "/";
+      console.log("[SIGNUP] Saved token?", {
+        hasToken: Boolean(localStorage.getItem("bt_token")),
+      });
+      window.location.assign("/");
     } catch (err) {
+      console.error("[SIGNUP] Error:", {
+        message: err?.message,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: err?.config?.url,
+        baseURL: err?.config?.baseURL,
+      });
       const msg = err.response?.data?.message || "Something went wrong. Please try again.";
       setServerErr(msg);
       setShake(true);
@@ -326,7 +348,7 @@ export default function SignUpPage() {
           </div>
 
           {/* Submit */}
-          <button onClick={handleSubmit} disabled={loading}
+          <button type="button" onClick={handleSubmit} disabled={loading}
             style={{
               width: "100%", padding: `${fs(16)}px 0`,
               background: loading ? "#f97316" : "#ea580c",

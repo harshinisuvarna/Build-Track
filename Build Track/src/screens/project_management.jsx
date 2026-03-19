@@ -1,87 +1,32 @@
+// src/screens/project_management.jsx
+// Fetches real projects from GET /api/projects
+// Delete calls DELETE /api/projects/:id
+// Edit navigates to /newproject with state
+
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate }         from "react-router-dom";
+import { projectAPI }          from "../api";
 
-const initialProjects = [
-  {
-    id: 1,
-    name: "Skyline Tower",
-    manager: "Rajesh Kumar",
-    status: "ON TRACK",
-    statusBg: "#dcfce7", statusColor: "#166534",
-    progress: 75,
-    budget: "₹12.5 Cr", spent: "₹9.2 Cr", remaining: "₹3.3 Cr",
-    image: "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=120&h=120&fit=crop",
-    tab: "Active",
-  },
-  {
-    id: 2,
-    name: "Green Valley Phase II",
-    manager: "Ananya Singh",
-    status: "IN PROGRESS",
-    statusBg: "#fef9c3", statusColor: "#854d0e",
-    progress: 42,
-    budget: "₹8.4 Cr", spent: "₹3.1 Cr", remaining: "₹5.3 Cr",
-    image: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=120&h=120&fit=crop",
-    tab: "Active",
-  },
-  {
-    id: 3,
-    name: "Harbor Bridge Renovation",
-    manager: "David Wilson",
-    status: "REVIEW NEEDED",
-    statusBg: "#fee2e2", statusColor: "#991b1b",
-    progress: 15,
-    budget: "₹4.2 Cr", spent: "₹0.8 Cr", remaining: "₹3.4 Cr",
-    image: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=120&h=120&fit=crop",
-    tab: "Review Needed",
-  },
-  {
-    id: 4,
-    name: "Lotus Plaza Mall",
-    manager: "Vikram Roy",
-    status: "ON TRACK",
-    statusBg: "#dcfce7", statusColor: "#166534",
-    progress: 92,
-    budget: "₹25.0 Cr", spent: "₹23.5 Cr", remaining: "₹1.5 Cr",
-    image: "https://images.unsplash.com/photo-1555636222-cae831e670b3?w=120&h=120&fit=crop",
-    tab: "Active",
-  },
-  {
-    id: 5,
-    name: "Sunset Villas",
-    manager: "Mike R.",
-    status: "COMPLETED",
-    statusBg: "#e0e7ff", statusColor: "#3730a3",
-    progress: 100,
-    budget: "₹4.1 Cr", spent: "₹4.1 Cr", remaining: "₹0 Cr",
-    image: "https://images.unsplash.com/photo-1448630360428-65456885c650?w=120&h=120&fit=crop",
-    tab: "Completed",
-  },
-  {
-    id: 6,
-    name: "Metro Bridge Hub",
-    manager: "Emma W.",
-    status: "IN PROGRESS",
-    statusBg: "#fef9c3", statusColor: "#854d0e",
-    progress: 12,
-    budget: "₹18.0 Cr", spent: "₹2.1 Cr", remaining: "₹15.9 Cr",
-    image: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=120&h=120&fit=crop",
-    tab: "Active",
-  },
-];
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "").replace(/\/api$/, "");
 
-const tabs = [
-  { label: "All Projects",  count: 12 },
-  { label: "Active",        count: 8  },
-  { label: "Review Needed", count: 2  },
-  { label: "Completed",     count: 24 },
-];
+const STATUS_STYLE = {
+  Active:         { bg: "#dcfce7", color: "#166534", label: "ACTIVE" },
+  Completed:      { bg: "#e0e7ff", color: "#3730a3", label: "COMPLETED" },
+  "On Hold":      { bg: "#fef9c3", color: "#854d0e", label: "ON HOLD" },
+  "Review Needed":{ bg: "#fee2e2", color: "#991b1b", label: "REVIEW NEEDED" },
+};
+
+const TABS = ["All Projects", "Active", "Review Needed", "Completed"];
+
+const FALLBACK_IMG = "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=120&h=120&fit=crop";
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
 
-  // ── Projects in state so deletes reflect immediately ── ← NEW
-  const [allProjects, setAllProjects] = useState(initialProjects);
+  const [allProjects, setAllProjects] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState("");
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
   const [activeTab,   setActiveTab]   = useState("All Projects");
   const [search,      setSearch]      = useState("");
@@ -92,30 +37,76 @@ export default function ProjectsPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Delete handler ── ← NEW
-  const handleDelete = (projectId, projectName) => {
-    const confirmed = window.confirm(`Are you sure you want to delete "${projectName}"?`);
-    if (confirmed) {
-      setAllProjects(prev => prev.filter(p => p.id !== projectId));
+  // ── Fetch from backend ────────────────────────────────────────────────────
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const { data } = await projectAPI.getAll();
+      setAllProjects(data.projects || []);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Unknown error";
+      setError(status ? `Failed to load projects (${status}): ${msg}` : `Failed to load projects: ${msg}`);
+      console.error("Failed to load projects:", {
+        message: err?.message,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: err?.config?.url,
+        baseURL: err?.config?.baseURL,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => { fetchProjects(); }, []);
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const handleDelete = async (projectId, projectName) => {
+    if (!window.confirm(`Delete "${projectName}"?`)) return;
+    try {
+      await projectAPI.delete(projectId);
+      setAllProjects(prev => prev.filter(p => p._id !== projectId));
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete project.");
+    }
+  };
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+  const handleEdit = (project) => {
+    navigate("/newproject", { state: { editProject: project } });
+  };
+
+  // ── Filter ────────────────────────────────────────────────────────────────
   const filtered = allProjects.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-                        p.manager.toLowerCase().includes(search.toLowerCase());
-    if (activeTab === "All Projects")  return matchSearch;
-    if (activeTab === "Active")        return matchSearch && p.tab === "Active";
-    if (activeTab === "Review Needed") return matchSearch && p.tab === "Review Needed";
-    if (activeTab === "Completed")     return matchSearch && p.tab === "Completed";
+    const q = search.toLowerCase();
+    const matchSearch =
+      p.projectName.toLowerCase().includes(q) ||
+      (p.location || "").toLowerCase().includes(q) ||
+      (p.manager  || "").toLowerCase().includes(q);
+    if (activeTab === "All Projects")   return matchSearch;
+    if (activeTab === "Active")         return matchSearch && p.status === "Active";
+    if (activeTab === "Review Needed")  return matchSearch && p.status === "Review Needed";
+    if (activeTab === "Completed")      return matchSearch && p.status === "Completed";
     return matchSearch;
   });
 
+  // Tab counts
+  const counts = {
+    "All Projects":   allProjects.length,
+    "Active":         allProjects.filter(p => p.status === "Active").length,
+    "Review Needed":  allProjects.filter(p => p.status === "Review Needed").length,
+    "Completed":      allProjects.filter(p => p.status === "Completed").length,
+  };
+
   return (
     <div style={{
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      minHeight: "100vh",
+      display: "flex", flexDirection: "column",
+      width: "100%", minHeight: "100vh",
       fontFamily: "'Segoe UI', sans-serif",
       background: "#f7f7f8",
     }}>
@@ -128,7 +119,9 @@ export default function ProjectsPage() {
       }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>Active Projects</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Monitor construction progress and financial health across all sites.</p>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>
+            {loading ? "Loading…" : `${allProjects.length} project${allProjects.length !== 1 ? "s" : ""} total`}
+          </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: 10, padding: "9px 14px", gap: 8 }}>
@@ -157,108 +150,144 @@ export default function ProjectsPage() {
         background: "#fff", borderBottom: "1px solid #ebebeb",
         padding: "0 24px", display: "flex", gap: 4, flexShrink: 0,
       }}>
-        {tabs.map((t) => (
-          <button key={t.label} onClick={() => setActiveTab(t.label)}
+        {TABS.map((t) => (
+          <button key={t} onClick={() => setActiveTab(t)}
             style={{
               padding: "14px 4px", marginRight: 20,
               background: "none", border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: activeTab === t.label ? 600 : 400,
-              color: activeTab === t.label ? "#ea580c" : "#777",
-              borderBottom: activeTab === t.label ? "2.5px solid #ea580c" : "2.5px solid transparent",
+              fontSize: 14, fontWeight: activeTab === t ? 600 : 400,
+              color: activeTab === t ? "#ea580c" : "#777",
+              borderBottom: activeTab === t ? "2.5px solid #ea580c" : "2.5px solid transparent",
               transition: "all 0.15s", whiteSpace: "nowrap",
             }}>
-            {t.label} ({t.count})
+            {t} ({counts[t]})
           </button>
         ))}
       </div>
 
       {/* ── Body ── */}
       <div style={{ flex: 1, padding: "20px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
-          {filtered.map((p) => (
-            <div key={p.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
 
-              {/* Card Header */}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
-                <img src={p.image} alt={p.name}
-                  style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
-                  onError={e => { e.target.style.display = "none"; }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>{p.name}</span>
-                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: p.statusBg, color: p.statusColor, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{p.status}</span>
+        {/* Error banner */}
+        {error && (
+          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", color: "#991b1b", fontSize: 13, marginBottom: 16 }}>
+            ⚠️ {error}
+          </div>
+        )}
+
+        {loading && (
+          <div style={{ textAlign: "center", padding: 48, color: "#aaa", fontSize: 14 }}>
+            Loading projects…
+          </div>
+        )}
+
+        {!loading && (
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
+            {filtered.map((p) => {
+              const st = STATUS_STYLE[p.status] || STATUS_STYLE["Active"];
+              const imgSrc = p.photo
+                ? `${API_ORIGIN}/uploads/${p.photo}`
+                : FALLBACK_IMG;
+
+              return (
+                <div key={p._id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
+
+                  {/* Card Header */}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
+                    <img src={imgSrc} alt={p.projectName}
+                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+                      onError={e => { e.target.src = FALLBACK_IMG; }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                        <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>{p.projectName}</span>
+                        <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: st.bg, color: st.color, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                          {st.label}
+                        </span>
+                      </div>
+                      {p.manager && (
+                        <div style={{ fontSize: 13, color: "#777" }}>Manager: <span style={{ color: "#444", fontWeight: 500 }}>{p.manager}</span></div>
+                      )}
+                      {p.location && (
+                        <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>📍 {p.location}</div>
+                      )}
+                    </div>
+                    {/* Edit icon */}
+                    <span
+                      onClick={() => handleEdit(p)}
+                      style={{ color: "#ccc", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
+                      title="Edit project"
+                    >✏️</span>
                   </div>
-                  <div style={{ fontSize: 13, color: "#777" }}>Manager: <span style={{ color: "#444", fontWeight: 500 }}>{p.manager}</span></div>
+
+                  {/* Progress */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Project Progress</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#ea580c" }}>{p.progress || 0}%</span>
+                    </div>
+                    <div style={{ height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ width: `${p.progress || 0}%`, height: "100%", background: "#ea580c", borderRadius: 4, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+
+                  {/* Budget */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18, background: "#fafafa", borderRadius: 10, padding: "12px 14px" }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>TOTAL BUDGET</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                        {p.budget ? `₹${Number(p.budget).toLocaleString("en-IN")}` : "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>START DATE</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>
+                        {p.startDate ? new Date(p.startDate).toLocaleDateString("en-IN") : "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={() => navigate("/managesite", { state: { project: p } })}
+                      style={{
+                        flex: 1, padding: "12px 0", background: "#1a1a1a", color: "#fff",
+                        border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14,
+                        cursor: "pointer", transition: "background 0.15s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#333"}
+                      onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}
+                    >
+                      Manage Site
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p._id, p.projectName)}
+                      style={{
+                        width: 44, height: 44, background: "#fff5f5", border: "1px solid #fee2e2",
+                        borderRadius: 10, cursor: "pointer", fontSize: 16,
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}
+                      title="Delete project"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+
                 </div>
-                <span style={{ color: "#ccc", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>⋮</span>
+              );
+            })}
+
+            {/* Empty state */}
+            {filtered.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", padding: 48, textAlign: "center", color: "#aaa", fontSize: 14 }}>
+                {allProjects.length === 0
+                  ? 'No projects yet. Click "+ New Project" to get started.'
+                  : "No projects match your search."}
               </div>
-
-              {/* Progress */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Project Progress</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#ea580c" }}>{p.progress}%</span>
-                </div>
-                <div style={{ height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4, transition: "width 0.4s ease" }} />
-                </div>
-              </div>
-
-              {/* Budget Row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18, background: "#fafafa", borderRadius: 10, padding: "12px 14px" }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>TOTAL BUDGET</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{p.budget}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>SPENT SO FAR</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{p.spent}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 4 }}>REMAINING</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#16a34a" }}>{p.remaining}</div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={() => navigate("/managesite")}
-                  style={{
-                    flex: 1, padding: "12px 0", background: "#1a1a1a", color: "#fff",
-                    border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14,
-                    cursor: "pointer", transition: "background 0.15s",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#333"}
-                  onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}>
-                  Manage Site
-                </button>
-
-                {/* ── Delete button — icon changed 📄 → 🗑️, onClick added ── ← CHANGED */}
-                <button
-                  onClick={() => handleDelete(p.id, p.name)}
-                  style={{
-                    width: 44, height: 44, background: "#fff5f5", border: "1px solid #fee2e2",
-                    borderRadius: 10, cursor: "pointer", fontSize: 16,
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}
-                  title="Delete project"
-                >
-                  🗑️
-                </button>
-              </div>
-
-            </div>
-          ))}
-
-          {/* Empty state when all projects deleted or none match search */}
-          {filtered.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
-              No projects found.
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
     </div>

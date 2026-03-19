@@ -11,7 +11,8 @@ import { workerAPI } from "../api";
 
 const ITEMS_PER_PAGE = 7;
 
-const API_BASE = "http://localhost:5000";
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "").replace(/\/api$/, "");
 
 // Generate initials from name
 const getInitials = (name = "") =>
@@ -26,7 +27,7 @@ function WorkerAvatar({ worker, size = 38, borderRadius = 10, fontSize = 13 }) {
 
   return worker.photo ? (
     <img
-      src={`${API_BASE}/uploads/${worker.photo}`}
+      src={`${API_ORIGIN}/uploads/${worker.photo}`}
       alt={worker.name}
       style={{
         width: size, height: size, borderRadius,
@@ -68,8 +69,19 @@ export default function WorkerDirectory() {
       const { data } = await workerAPI.getAll();
       setAllWorkers(data.workers || []);
     } catch (err) {
-      setError("Failed to load workers. Make sure the backend is running.");
-      console.error(err);
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Unknown error";
+      setError(status ? `Failed to load workers (${status}): ${msg}` : `Failed to load workers: ${msg}`);
+      console.error("Failed to load workers:", {
+        message: err?.message,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: err?.config?.url,
+        baseURL: err?.config?.baseURL,
+      });
     } finally {
       setLoading(false);
     }

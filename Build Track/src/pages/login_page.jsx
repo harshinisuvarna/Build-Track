@@ -10,6 +10,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
 
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
+
 const EyeOpen = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -75,7 +80,14 @@ export default function LoginPage() {
   const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   // ── Main login handler ──────────────────────────────────────────────────────
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    console.log("[LOGIN] Clicked", {
+      email,
+      apiOrigin: API_ORIGIN,
+      viteApiUrl: import.meta.env.VITE_API_URL,
+    });
+
     // Client-side validation first
     let valid = true;
     setEmailErr(""); setPassErr(""); setServerErr("");
@@ -86,19 +98,34 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
+      console.log("[LOGIN] Request payload:", { email, passwordLen: password.length });
       const { data } = await authAPI.login({ email, password });
+
+      console.log("LOGIN RESPONSE:", data);
 
       // Persist token + user for the session
       localStorage.setItem("bt_token", data.token);
       localStorage.setItem("bt_user",  JSON.stringify(data.user));
 
-      // Hard navigate so App.jsx re-evaluates the auth guard
-      window.location.href = "/";
+      console.log("[LOGIN] Saved token?", {
+        hasToken: Boolean(localStorage.getItem("bt_token")),
+      });
+
+      // Hard navigate so `RequireAuth` definitely re-evaluates
+      window.location.assign("/");
     } catch (err) {
+      console.error("[LOGIN] Error:", {
+        message: err?.message,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: err?.config?.url,
+        baseURL: err?.config?.baseURL,
+      });
       const msg = err.response?.data?.message || "Something went wrong. Try again.";
       // 401 → credentials, anything else → general error banner
       if (err.response?.status === 401) {
         setPassErr(msg);
+        setServerErr(msg);
       } else {
         setServerErr(msg);
       }
@@ -109,11 +136,7 @@ export default function LoginPage() {
     }
   };
 
-  useEffect(() => {
-    const h = (e) => { if (e.key === "Enter") handleLogin(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [email, password]);
+  // (Enter key handled by <form onSubmit>)
 
   // ── Styles ──────────────────────────────────────────────────────────────────
   const inputStyle = (focused, hasErr) => ({
@@ -215,6 +238,7 @@ export default function LoginPage() {
             style={{ ...inputStyle(passFocus, !!passErr), paddingRight: 46 }}
           />
           <button
+            type="button"
             onClick={() => setShowPass(v => !v)}
             style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", alignItems: "center", lineHeight: 0 }}>
             {showPass ? <EyeClosed /> : <EyeOpen />}
@@ -228,7 +252,7 @@ export default function LoginPage() {
       </div>
 
       {/* Sign In button */}
-      <button className="bt-btn-primary" onClick={handleLogin} disabled={loading}>
+      <button type="submit" className="bt-btn-primary" disabled={loading}>
         {loading && (
           <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "btSpin 0.7s linear infinite" }} />
         )}
@@ -245,7 +269,8 @@ export default function LoginPage() {
         {/* Google — redirects browser to backend, which redirects to Google */}
         <button
           className="bt-btn-social"
-          onClick={() => { window.location.href = "http://localhost:5000/api/auth/google"; }}
+          type="button"
+          onClick={() => { window.location.href = `${API_ORIGIN}/api/auth/google`; }}
         >
           <GoogleIcon /> Google
         </button>
@@ -253,7 +278,8 @@ export default function LoginPage() {
         {/* GitHub — redirects browser to backend, which redirects to GitHub */}
         <button
           className="bt-btn-social"
-          onClick={() => { window.location.href = "http://localhost:5000/api/auth/github"; }}
+          type="button"
+          onClick={() => { window.location.href = `${API_ORIGIN}/api/auth/github`; }}
         >
           <GitHubIcon /> GitHub
         </button>
@@ -262,7 +288,17 @@ export default function LoginPage() {
       <div style={{ textAlign: "center" }}>
         <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "#94a3b8" }}>
           Don't have an account?{" "}
-          <span className="bt-link-orange" onClick={() => navigate("/signup")}>Sign up free</span>
+          <button
+            type="button"
+            className="bt-link-orange"
+            onClick={() => {
+              console.log("[LOGIN] Clicked Sign up free → navigating to /signup");
+              navigate("/signup");
+            }}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#ea580c", fontWeight: 700 }}
+          >
+            Sign up free
+          </button>
         </p>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           <span className="bt-footer-link">Privacy policy</span>
@@ -322,7 +358,7 @@ export default function LoginPage() {
                 <h1 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 7px", fontSize: 28, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
                 <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Sign in to your BuildTrack account</p>
               </div>
-              {FormFields}
+              <form onSubmit={handleLogin}>{FormFields}</form>
             </div>
           </div>
         </div>
@@ -340,7 +376,7 @@ export default function LoginPage() {
               <h1 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 7px", fontSize: 26, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
               <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Sign in to your BuildTrack account</p>
             </div>
-            {FormFields}
+            <form onSubmit={handleLogin}>{FormFields}</form>
           </div>
         </div>
       )}
