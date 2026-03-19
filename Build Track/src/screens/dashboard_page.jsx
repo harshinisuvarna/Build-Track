@@ -1,48 +1,64 @@
-// src/pages/dashboard_page.jsx
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { dashboardAPI } from "../api";
 
 const TOPBAR_H = 65;
 
-const weeklyData = [
-  { day: "MON", revenue: 3200, expenses: 1800 },
-  { day: "TUE", revenue: 5800, expenses: 2100 },
-  { day: "WED", revenue: 4900, expenses: 2400 },
-  { day: "THU", revenue: 4200, expenses: 1900 },
-  { day: "FRI", revenue: 2100, expenses: 1200 },
-  { day: "SAT", revenue: 7800, expenses: 3100 },
-  { day: "SUN", revenue: 5200, expenses: 2200 },
-];
-
-const stats = [
-  { label: "Total Income",   value: "₹45,200", change: "+12.5%", up: true,  icon: "📈", bg: "#f0fdf4" },
-  { label: "Expenses",       value: "₹12,800", change: "+5.2%",  up: false, icon: "📉", bg: "#fff5f5" },
-  { label: "Net Profit",     value: "₹32,400", change: "+18.1%", up: true,  icon: "💳", bg: "#fff7ed" },
-  { label: "Active Workers", value: "156",      change: "-2.4%",  up: false, icon: "👥", bg: "#f5f3ff" },
-];
-
-const projects = [
-  { name: "Skyline Residences",      icon: "🏢", manager: "John D.",  initials: "JD", status: "In Progress", statusColor: "#d1fae5", statusText: "#065f46", budget: "₹2,40,000", progress: 75,  barColor: "#ea580c" },
-  { name: "Steel Foundry Expansion", icon: "🏗️", manager: "Sarah L.", initials: "SL", status: "On Hold",     statusColor: "#fef9c3", statusText: "#854d0e", budget: "₹89,000",   progress: 32,  barColor: "#eab308" },
-  { name: "Sunset Villas",           icon: "🏠", manager: "Mike R.",  initials: "MR", status: "Completed",   statusColor: "#dcfce7", statusText: "#166534", budget: "₹4,12,000", progress: 100, barColor: "#16a34a" },
-  { name: "Metro Bridge Hub",        icon: "🏛️", manager: "Emma W.",  initials: "EW", status: "In Progress", statusColor: "#d1fae5", statusText: "#065f46", budget: "₹1.2M",     progress: 12,  barColor: "#ea580c" },
-];
-
-const recentActivity = [
-  { icon: "💰", text: "Payment of ₹18,000 released to Raj Patel",  time: "2m ago" },
-  { icon: "📋", text: 'New project "Harbor Phase 2" created',       time: "1h ago" },
-  { icon: "👷", text: "3 workers checked in at Skyline Residences", time: "3h ago" },
-  { icon: "⚠️", text: "Budget overrun alert on Steel Foundry",      time: "5h ago" },
-  { icon: "✅", text: "Sunset Villas marked as Completed",          time: "1d ago" },
-];
-
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const isMobile = false;
-  const width = window.innerWidth;
+  const [dashData, setDashData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
+  const width = window.innerWidth;
   const isNarrow  = width < 640;
-  const isDesktop = width >= 1100;
+
+  useEffect(() => {
+    let isMounted = true;
+    dashboardAPI.getSummary()
+      .then(({ data }) => {
+        if (isMounted) {
+          setDashData(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("Dashboard load error:", err);
+          setError("Failed to load dashboard data");
+          setLoading(false);
+        }
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#888" }}>
+        Loading Dashboard...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: 40, color: "#dc2626", textAlign: "center" }}>
+        <h3>Error</h3>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()} style={{ padding: "8px 16px", borderRadius: 8, background: "#ea580c", color: "#fff", border: "none", cursor: "pointer" }}>Retry</button>
+      </div>
+    );
+  }
+
+  const { stats: s, weeklyChart, recentProjects, recentActivity } = dashData;
+
+  const statCards = [
+    { label: "Total Income",   value: `₹${s.totalIncome.toLocaleString("en-IN")}`, change: "Real-time", up: true,  icon: "📈", bg: "#f0fdf4" },
+    { label: "Expenses",       value: `₹${s.totalExpenses.toLocaleString("en-IN")}`, change: "Real-time",  up: false, icon: "📉", bg: "#fff5f5" },
+    { label: "Net Profit",     value: `₹${s.netProfit.toLocaleString("en-IN")}`, change: "Real-time", up: true,  icon: "💳", bg: "#fff7ed" },
+    { label: "Active Workers", value: s.activeWorkers.toString(),      change: "Currently Active",  up: true, icon: "👥", bg: "#f5f3ff" },
+  ];
 
   return (
     <div style={{
@@ -59,13 +75,7 @@ export default function DashboardPage() {
         justifyContent: "space-between", gap: 12, overflow: "hidden",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          {isMobile && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, padding: 0, flexShrink: 0, color: "#555" }}>
-              ☰
-            </button>
-          )}
+
           <h1 style={{ margin: 0, fontSize: "clamp(16px,2vw,20px)", fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap" }}>
             Dashboard Overview
           </h1>
@@ -114,7 +124,7 @@ export default function DashboardPage() {
 
         {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr 1fr" : "repeat(4,1fr)", gap: "clamp(10px,1.5vw,16px)" }}>
-          {stats.map(card => (
+          {statCards.map(card => (
             <div
               key={card.label}
               style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(14px,2vw,20px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", gap: 10, transition: "transform 0.2s,box-shadow 0.2s" }}
@@ -129,7 +139,7 @@ export default function DashboardPage() {
                 <span style={{ fontSize: "clamp(10px,1vw,12px)", fontWeight: 700, color: card.up ? "#16a34a" : "#dc2626", background: card.up ? "#f0fdf4" : "#fff5f5", padding: "2px 8px", borderRadius: 20 }}>
                   {card.up ? "▲" : "▼"} {card.change}
                 </span>
-                <span style={{ fontSize: "clamp(10px,1vw,12px)", color: "#aaa" }}>vs last period</span>
+                <span style={{ fontSize: "clamp(10px,1vw,12px)", color: "#aaa" }}>info</span>
               </div>
             </div>
           ))}
@@ -143,8 +153,8 @@ export default function DashboardPage() {
               <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>Revenue vs Expenses — Last 7 Days</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹84,000</div>
-              <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>▲ +10.5% growth</div>
+              <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹{s.totalIncome.toLocaleString("en-IN")}</div>
+              <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>Current Period Data</div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
@@ -156,7 +166,7 @@ export default function DashboardPage() {
             ))}
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={weeklyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={weeklyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#ea580c" stopOpacity={0.22} />
@@ -186,7 +196,7 @@ export default function DashboardPage() {
           <div style={{ padding: "clamp(14px,2vw,20px)", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Project Activity</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{projects.length} active projects this month</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{recentProjects.length} active projects this month</div>
             </div>
             <span
               onClick={() => navigate("/projects")}
@@ -213,13 +223,13 @@ export default function DashboardPage() {
                   alignItems: "center", justifyContent: "center",
                   fontSize: 16, flexShrink: 0,
                 }}>
-                  {a.icon}
+                  {a.type === "Income" ? "💰" : "📉"}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>
-                    {a.text}
+                    {a.title}
                   </div>
-                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{a.time}</div>
+                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{new Date(a.date).toLocaleDateString()}</div>
                 </div>
               </div>
             ))}
@@ -233,28 +243,28 @@ export default function DashboardPage() {
                   <div key={col} style={{ fontSize: 10, fontWeight: 700, color: "#bbb", letterSpacing: "0.08em" }}>{col}</div>
                 ))}
               </div>
-              {projects.map((p, idx) => (
+              {recentProjects.map((p, idx) => (
                 <div
-                  key={p.name}
+                  key={p._id}
                   onClick={() => navigate("/projects")}
-                  style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.4fr 80px", padding: "14px 4px", borderBottom: idx < projects.length - 1 ? "1px solid #f5f5f5" : "none", alignItems: "center", borderRadius: 8, transition: "background 0.15s", cursor: "pointer" }}
+                  style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.4fr 80px", padding: "14px 4px", borderBottom: idx < recentProjects.length - 1 ? "1px solid #f5f5f5" : "none", alignItems: "center", borderRadius: 8, transition: "background 0.15s", cursor: "pointer" }}
                   onMouseEnter={e => e.currentTarget.style.background = "#fafafa"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, background: "#fff5f0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>{p.icon}</div>
-                    <span style={{ fontWeight: 600, fontSize: "clamp(12px,1.2vw,14px)", color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                    <div style={{ width: 32, height: 32, background: "#fff5f0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🏢</div>
+                    <span style={{ fontWeight: 600, fontSize: "clamp(12px,1.2vw,14px)", color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.projectName}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e0e7ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#4338ca", flexShrink: 0 }}>{p.initials}</div>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e0e7ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#4338ca", flexShrink: 0 }}>{p.manager?.charAt(0) || "U"}</div>
                     <span style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap" }}>{p.manager}</span>
                   </div>
                   <div>
-                    <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: p.statusColor, color: p.statusText, whiteSpace: "nowrap" }}>{p.status}</span>
+                    <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#fef9c3", color: "#854d0e", whiteSpace: "nowrap" }}>{p.status}</span>
                   </div>
-                  <div style={{ fontSize: 13, color: "#333", fontWeight: 600 }}>{p.budget}</div>
+                  <div style={{ fontSize: 13, color: "#333", fontWeight: 600 }}>₹{p.budget?.toLocaleString("en-IN")}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ flex: 1, height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${p.progress}%`, height: "100%", background: p.barColor, borderRadius: 4, transition: "width 1s ease" }} />
+                      <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4, transition: "width 1s ease" }} />
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#555", minWidth: 30 }}>{p.progress}%</span>
                   </div>
@@ -266,27 +276,27 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div style={{ padding: "clamp(12px,2vw,16px)", display: "flex", flexDirection: "column", gap: 10 }}>
-              {projects.map(p => (
+              {recentProjects.map(p => (
                 <div
-                  key={p.name}
+                  key={p._id}
                   onClick={() => navigate("/projects")}
                   style={{ border: "1px solid #ebebeb", borderRadius: 14, padding: 14, cursor: "pointer", transition: "box-shadow 0.2s" }}
                   onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
                   onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 36, height: 36, background: "#fff5f0", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{p.icon}</div>
+                    <div style={{ width: 36, height: 36, background: "#fff5f0", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏢</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.projectName}</div>
                       <div style={{ fontSize: 11, color: "#888" }}>{p.manager}</div>
                     </div>
-                    <span style={{ padding: "3px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: p.statusColor, color: p.statusText, whiteSpace: "nowrap" }}>{p.status}</span>
+                    <span style={{ padding: "3px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#fef9c3", color: "#854d0e", whiteSpace: "nowrap" }}>{p.status}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, color: "#888" }}>Budget: <strong style={{ color: "#333" }}>{p.budget}</strong></span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: p.barColor }}>{p.progress}%</span>
+                    <span style={{ fontSize: 12, color: "#888" }}>Budget: <strong style={{ color: "#333" }}>₹{p.budget?.toLocaleString("en-IN")}</strong></span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#ea580c" }}>{p.progress}%</span>
                   </div>
                   <div style={{ height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ width: `${p.progress}%`, height: "100%", background: p.barColor, borderRadius: 4 }} />
+                    <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4 }} />
                   </div>
                 </div>
               ))}

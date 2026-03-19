@@ -74,4 +74,14 @@ export const transactionAPI = {
   delete:  (id)     => api.delete(`/transactions/${id}`),
 };
 
+// ── Dashboard ──────────────────────────────────────────────────────────────
+export const dashboardAPI = {
+  getSummary: () => api.get("/dashboard/summary"),
+};
+
+// ── Reports ──────────────────────────────────────────────────────────────
+export const reportAPI = {
+  getFinancial: (params) => api.get("/reports/financial", { params }),
+};
+
 export default api;

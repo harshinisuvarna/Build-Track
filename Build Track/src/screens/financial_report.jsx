@@ -1,13 +1,5 @@
-// src/screens/financial_report.jsx
-// IMPROVEMENTS vs previous version:
-//  1. Calendar header has BOTH a month dropdown AND a year dropdown — no more clicking arrows
-//  2. Year list spans 2020–2030, click to jump instantly
-//  3. "Last Month" is fully dynamic — always computes the actual previous calendar month
-//  4. Default selected month + date range = current real month/year (not hardcoded 2023)
-//  5. Month selector dropdown also includes an inline year switcher
-//  6. Everything else (layout, colors, card styles) is identical
-
 import { useState, useRef, useEffect } from "react";
+import { reportAPI } from "../api";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTH_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -19,7 +11,6 @@ const THIS_YEAR    = now.getFullYear();
 const THIS_MONTH   = now.getMonth();   // 0-indexed
 
 function lastMonthOf(year, month) {
-  // Returns { year, month } of the previous calendar month
   return month === 0
     ? { year: year - 1, month: 11 }
     : { year, month: month - 1 };
@@ -27,7 +18,7 @@ function lastMonthOf(year, month) {
 function fullMonthRange(year, month) {
   return {
     start: new Date(year, month, 1),
-    end:   new Date(year, month + 1, 0),   // last day of month
+    end:   new Date(year, month + 1, 0),
   };
 }
 function formatShortDate(d) {
@@ -45,34 +36,6 @@ function inRange(d, s, e) { return s && e && d > s && d < e; }
 function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function firstDayOf(y, m)  { return new Date(y, m, 1).getDay(); }
 
-// ── Mock data factory (returns different figures per month) ───────────────────
-function makeData(year, month) {
-  // Seed deterministic-ish numbers from year+month so each month looks different
-  const seed   = (year * 12 + month) % 17;
-  const income = 350000 + seed * 8700;
-  const expend = 160000 + seed * 2400;
-  const profit = income - expend;
-  const margin = ((profit / income) * 100).toFixed(1);
-  const comp   = Math.min(98, 82 + (seed % 12));
-  return {
-    title:    `${MONTH_NAMES[month]} ${year} Analysis`,
-    metrics: [
-      { label:"TOTAL INCOME",  value:`₹${income.toLocaleString("en-IN")}.00`, sub:"+12.4% vs last period", subColor:"#16a34a", dot:"#16a34a" },
-      { label:"EXPENDITURES",  value:`₹${expend.toLocaleString("en-IN")}.00`, sub:"+4.2% increased costs",  subColor:"#ea580c", dot:"#ef4444" },
-      { label:"NET PROFIT",    value:`₹${profit.toLocaleString("en-IN")}.00`, sub:`${margin}% Margin`,       subColor:"#6b7280", dot:"#ea580c", valueColor:"#ea580c" },
-    ],
-    compliance: comp,
-    note: comp >= 90
-      ? `You are ahead of the projected budget target for the Skyline Project by ${(comp-89).toFixed(1)}%.`
-      : `Slightly below the projected budget target for ${MONTH_NAMES[month]}.`,
-    workers: [
-      { name:"Marcus Chen",   role:"Lead Carpenter",  initials:"MC", avatar:"#2d3748", project:"HARBOR HEIGHTS", projectBg:"#e0e7ff", projectColor:"#3730a3", hours:"168h", rate:"₹45.00", payout:"₹7,560.00" },
-      { name:"Sarah Jenkins", role:"Electrician",     initials:"SJ", avatar:"#1a3a3a", project:"SKYLINE TOWER",  projectBg:"#dcfce7", projectColor:"#15803d", hours:"160h", rate:"₹52.00", payout:"₹8,320.00" },
-      { name:"Oscar Valdez",  role:"General Labor",   initials:"OV", avatar:"#4b5563", project:"OAK RESIDENCE",  projectBg:"#fef9c3", projectColor:"#854d0e", hours:"182h", rate:"₹28.00", payout:"₹5,096.00" },
-      { name:"Priya Nair",    role:"Site Supervisor", initials:"PN", avatar:"#374151", project:"HARBOR HEIGHTS", projectBg:"#e0e7ff", projectColor:"#3730a3", hours:"174h", rate:"₹60.00", payout:"₹10,440.00" },
-    ],
-  };
-}
 
 // ── Mini Calendar with month+year dropdowns in header ────────────────────────
 function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
@@ -206,19 +169,21 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function FinancialReportPage() {
 
-  // ── Default to CURRENT month/year ─────────────────────────────────────────
+  // ── Date states ───────────────────────────────────────────────────────────
   const [selYear,  setSelYear]  = useState(THIS_YEAR);
   const [selMonth, setSelMonth] = useState(THIS_MONTH);
 
-  // Month dropdown UI
+  // ── Data states ───────────────────────────────────────────────────────────
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [showMonthDrop, setShowMonthDrop] = useState(false);
-  const [dropYear,      setDropYear]      = useState(THIS_YEAR); // year shown in month-dropdown
+  const [dropYear,      setDropYear]      = useState(THIS_YEAR);
   const monthDropRef = useRef(null);
 
-  // Date range — default = full current month
   const initRange = fullMonthRange(THIS_YEAR, THIS_MONTH);
   const [rangeStart,   setRangeStart]   = useState(initRange.start);
   const [rangeEnd,     setRangeEnd]     = useState(initRange.end);
@@ -231,7 +196,27 @@ export default function FinancialReportPage() {
 
   const [search, setSearch] = useState("");
 
-  // Close dropdowns on outside click
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setError("");
+    reportAPI.getFinancial({ year: selYear, month: selMonth })
+      .then(({ data }) => {
+        if (isMounted) {
+          setReportData(data);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          console.error("Report load error:", err);
+          setError("Failed to load report data");
+          setLoading(false);
+        }
+      });
+    return () => { isMounted = false; };
+  }, [selYear, selMonth]);
+
   useEffect(() => {
     function handle(e) {
       if (monthDropRef.current && !monthDropRef.current.contains(e.target)) setShowMonthDrop(false);
@@ -241,12 +226,35 @@ export default function FinancialReportPage() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  if (loading && !reportData) {
+    return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#888" }}>Loading Report...</div>;
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: 40, color: "#dc2626", textAlign: "center" }}>
+        <h3>Error</h3>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()} style={{ padding: "8px 16px", borderRadius: 8, background: "#ea580c", color: "#fff", border: "none", cursor: "pointer" }}>Retry</button>
+      </div>
+    );
+  }
+
+  const { income = 0, expenses = 0, profit = 0, compliance = 0, workers = [] } = reportData || {};
+
+  const margin = income > 0 ? ((profit / income) * 100).toFixed(1) : "0.0";
+  const metrics = [
+    { label:"TOTAL INCOME",  value:`₹${income.toLocaleString("en-IN")}.00`, sub:"Real-time data", subColor:"#16a34a", dot:"#16a34a" },
+    { label:"EXPENDITURES",  value:`₹${expenses.toLocaleString("en-IN")}.00`, sub:"Updated hourly",  subColor:"#ea580c", dot:"#ef4444" },
+    { label:"NET PROFIT",    value:`₹${profit.toLocaleString("en-IN")}.00`, sub:`${margin}% Margin`, subColor:"#6b7280", dot:"#ea580c", valueColor:"#ea580c" },
+  ];
+
   const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`;
   const rangeLabel = formatRangeLabel(rangeStart, rangeEnd);
-  const data       = makeData(selYear, selMonth);
-  const filtered   = data.workers.filter(w =>
+
+  const filtered = workers.filter(w =>
     w.name.toLowerCase().includes(search.toLowerCase()) ||
-    w.project.toLowerCase().includes(search.toLowerCase())
+    (w.trade && w.trade.toLowerCase().includes(search.toLowerCase()))
   );
 
   // ── Apply a month selection (shared by month-dropdown & last-month btn) ───
@@ -302,7 +310,7 @@ export default function FinancialReportPage() {
         {/* Page heading */}
         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:16, marginBottom:24 }}>
           <div>
-            <h2 style={{ margin:"0 0 6px", fontSize:"clamp(24px,3vw,34px)", fontWeight:900, color:"#111", letterSpacing:"-0.5px" }}>{data.title}</h2>
+            <h2 style={{ margin:"0 0 6px", fontSize:"clamp(24px,3vw,34px)", fontWeight:900, color:"#111", letterSpacing:"-0.5px" }}>{monthLabel} Analysis</h2>
             <p style={{ margin:0, fontSize:14, color:"#888", maxWidth:340, lineHeight:1.5 }}>Reporting period performance and labor expenditure overview.</p>
           </div>
           <button style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)" }}>
@@ -404,25 +412,25 @@ export default function FinancialReportPage() {
 
         {/* Metrics + Compliance */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1.15fr", gap:16, marginBottom:24 }}>
-          {data.metrics.map(m=>(
+          {metrics.map(m=>(
             <div key={m.label} style={{ background:"#fff", borderRadius:16, border:"1px solid #ebebeb", padding:"24px 22px", boxShadow:"0 1px 6px rgba(0,0,0,0.04)", display:"flex", flexDirection:"column", gap:10 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <div style={{ width:9, height:9, borderRadius:"50%", background:m.dot, flexShrink:0 }} />
                 <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em" }}>{m.label}</span>
               </div>
               <div style={{ fontSize:"clamp(18px,2vw,26px)", fontWeight:800, color:m.valueColor||"#111", letterSpacing:"-0.5px" }}>{m.value}</div>
-              <div style={{ fontSize:12, color:m.subColor, fontWeight:600 }}>{m.label!=="NET PROFIT"&&"↗ "}{m.sub}</div>
+              <div style={{ fontSize:12, color:m.subColor, fontWeight:600 }}>{m.sub}</div>
             </div>
           ))}
           <div style={{ background:"#ea580c", borderRadius:16, padding:"24px 22px", display:"flex", flexDirection:"column", gap:12, boxShadow:"0 4px 20px rgba(234,88,12,0.3)" }}>
             <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", letterSpacing:"0.08em" }}>OVERALL COMPLIANCE</div>
             <div style={{ fontSize:"clamp(28px,3vw,38px)", fontWeight:900, color:"#fff", letterSpacing:"-1px", lineHeight:1 }}>
-              {data.compliance}%<br /><span style={{ fontSize:"clamp(22px,2.5vw,30px)" }}>Compliance</span>
+              {compliance.toFixed(1)}%<br /><span style={{ fontSize:"clamp(22px,2.5vw,30px)" }}>Compliance</span>
             </div>
             <div style={{ height:8, background:"rgba(255,255,255,0.25)", borderRadius:4, overflow:"hidden" }}>
-              <div style={{ width:`${data.compliance}%`, height:"100%", background:"#fff", borderRadius:4, transition:"width 0.4s ease" }} />
+              <div style={{ width:`${compliance}%`, height:"100%", background:"#fff", borderRadius:4, transition:"width 0.4s ease" }} />
             </div>
-            <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.85)", lineHeight:1.5 }}>{data.note}</p>
+            <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.85)", lineHeight:1.5 }}>Budget adherence for {monthLabel}.</p>
           </div>
         </div>
 
@@ -463,21 +471,21 @@ export default function FinancialReportPage() {
             ))}
           </div>
           {filtered.map((w,i)=>(
-            <div key={w.name}
+            <div key={i}
               style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"18px 24px", borderBottom:i<filtered.length-1?"1px solid #f5f5f5":"none", alignItems:"center", transition:"background 0.15s" }}
               onMouseEnter={e=>e.currentTarget.style.background="#fafafa"}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <div style={{ width:40, height:40, borderRadius:"50%", background:w.avatar, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>{w.initials}</div>
+                <div style={{ width:40, height:40, borderRadius:"50%", background:"#2d3748", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>{w.name?.charAt(0)}</div>
                 <div>
                   <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{w.name}</div>
-                  <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{w.role}</div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{w.trade}</div>
                 </div>
               </div>
-              <div><span style={{ padding:"4px 10px", background:w.projectBg, color:w.projectColor, borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{w.project}</span></div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.hours}</div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.rate}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{w.payout}</div>
+              <div><span style={{ padding:"4px 10px", background:"#e0e7ff", color:"#3730a3", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{w.project || "Various"}</span></div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>26d</div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>₹{w.dailyWage || 0}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>₹{w.estimatedMonthlyPayout?.toLocaleString("en-IN")}</div>
               <div><button style={{ background:"none", border:"none", color:"#ea580c", fontWeight:700, fontSize:12, cursor:"pointer", letterSpacing:"0.04em" }}>DETAILS</button></div>
             </div>
           ))}

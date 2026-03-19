@@ -1,59 +1,73 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-const transactions = [
-  { date: "Oct 24, 2023", description: "Rahul Sharma - Daily Wage",        category: "Wages",    project: "Skyline Tower",     amount: -1200  },
-  { date: "Oct 23, 2023", description: "Cement Procurement (50 Bags)",     category: "Expenses", project: "Green Valley",       amount: -45000 },
-  { date: "Oct 22, 2023", description: "Client Advance Payment",           category: "Income",   project: "Skyline Tower",     amount: 150000 },
-  { date: "Oct 21, 2023", description: "Amit Kumar - Overtime",            category: "Wages",    project: "City Center",        amount: -800   },
-  { date: "Oct 20, 2023", description: "TMT Steel Rods (2 Tons)",          category: "Expenses", project: "Green Valley",       amount: -32000 },
-  { date: "Oct 19, 2023", description: "Site Survey Fees",                 category: "Expenses", project: "Ocean Front Estate", amount: -15000 },
-  { date: "Oct 18, 2023", description: "Lumber Supply",                    category: "Expenses", project: "Skyline Tower",     amount: -8500  },
-  { date: "Oct 17, 2023", description: "Maintenance Bonus - All Workers",  category: "Wages",    project: "City Center",        amount: -22000 },
-  { date: "Oct 16, 2023", description: "Milestone 1 Payment",              category: "Income",   project: "Green Valley",       amount: 280000 },
-  { date: "Oct 15, 2023", description: "Suresh G. - Daily Wage",           category: "Wages",    project: "Skyline Tower",     amount: -1200  },
-  { date: "Oct 14, 2023", description: "Plumbing Materials",               category: "Expenses", project: "Ocean Front Estate", amount: -9800  },
-  { date: "Oct 13, 2023", description: "Phase 2 Client Payment",           category: "Income",   project: "City Center",        amount: 200000 },
-  { date: "Oct 12, 2023", description: "Ravi S. - Daily Wage",             category: "Wages",    project: "Green Valley",       amount: -1100  },
-  { date: "Oct 11, 2023", description: "Electrical Wiring Supply",         category: "Expenses", project: "Skyline Tower",     amount: -18500 },
-  { date: "Oct 10, 2023", description: "Priya K. - Overtime",              category: "Wages",    project: "City Center",        amount: -950   },
-];
+import { transactionAPI } from "../api";
 
 const ITEMS_PER_PAGE = 10;
 
 const categoryStyle = {
   Wages:    { bg: "#fce7f3", color: "#9d174d" },
-  Expenses: { bg: "#fef3c7", color: "#92400e" },
+  Expense:  { bg: "#fef3c7", color: "#92400e" },
   Income:   { bg: "#dcfce7", color: "#166534" },
+  Materials: { bg: "#e0e7ff", color: "#3730a3" },
 };
 
 export default function TransactionLog() {
   const navigate = useNavigate();
 
-  const [filter,   setFilter]   = useState("All");
-  const [search,   setSearch]   = useState("");
-  const [page,     setPage]     = useState(1);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  const fetchTransactions = () => {
+    setLoading(true);
+    transactionAPI.getAll()
+      .then(({ data }) => {
+        setTransactions(data.transactions || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Tx load error:", err);
+        setError("Failed to load transactions");
+        setLoading(false);
+      });
+  };
+
   useEffect(() => {
+    fetchTransactions();
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+    try {
+      await transactionAPI.delete(id);
+      fetchTransactions();
+    } catch (err) {
+      alert("Failed to delete transaction");
+    }
+  };
+
   const filtered = transactions.filter((t) => {
+    const desc = t.title || "";
+    const proj = t.project || "";
     const matchSearch =
-      t.description.toLowerCase().includes(search.toLowerCase()) ||
-      t.project.toLowerCase().includes(search.toLowerCase());
-    if (filter !== "All") return matchSearch && t.category === filter;
+      desc.toLowerCase().includes(search.toLowerCase()) ||
+      proj.toLowerCase().includes(search.toLowerCase());
+    if (filter !== "All") return matchSearch && t.type === filter;
     return matchSearch;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated  = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const monthlyIncome   = transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const monthlyExpenses = transactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const monthlyIncome   = transactions.filter(t => t.type === "Income").reduce((s, t) => s + t.amount, 0);
+  const monthlyExpenses = transactions.filter(t => t.type !== "Income").reduce((s, t) => s + t.amount, 0);
   const netBalance      = monthlyIncome - monthlyExpenses;
 
   const fmt = (n) => "₹ " + Math.abs(n).toLocaleString("en-IN");
@@ -134,7 +148,7 @@ export default function TransactionLog() {
         {/* Filter + Search Row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            {["All", "Wages", "Expenses", "Income"].map((f) => (
+            {["All", "Wages", "Expense", "Income", "Materials"].map((f) => (
               <button key={f} onClick={() => { setFilter(f); setPage(1); }}
                 style={{
                   padding: "7px 16px", borderRadius: 20, border: "1.5px solid",
@@ -182,26 +196,31 @@ export default function TransactionLog() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  {["DATE", "DESCRIPTION", "TRANSACTION TYPE", "PROJECT", "AMOUNT (₹)"].map((col, i) => (
-                    <th key={col} style={{ padding: "13px 20px", textAlign: i === 4 ? "right" : "left", fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em" }}>{col}</th>
+                  {["DATE", "DESCRIPTION", "TRANSACTION TYPE", "PROJECT", "AMOUNT (₹)", ""].map((col, i) => (
+                    <th key={col} style={{ padding: "13px 20px", textAlign: i === 4 ? "right" : i === 5 ? "right" : "left", fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em" }}>{col}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {paginated.length === 0 ? (
-                  <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>No entries found</td></tr>
+                {loading ? (
+                  <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>Loading...</td></tr>
+                ) : paginated.length === 0 ? (
+                  <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>No entries found</td></tr>
                 ) : paginated.map((t, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f9f9f9" }}
+                  <tr key={t._id} style={{ borderBottom: "1px solid #f9f9f9" }}
                     onMouseEnter={e => e.currentTarget.style.background = "#fafafa"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "#666", whiteSpace: "nowrap" }}>{t.date}</td>
-                    <td style={{ padding: "14px 20px", fontSize: 14, color: "#1a1a1a", fontWeight: 500 }}>{t.description}</td>
+                    <td style={{ padding: "14px 20px", fontSize: 13, color: "#666", whiteSpace: "nowrap" }}>{new Date(t.date).toLocaleDateString()}</td>
+                    <td style={{ padding: "14px 20px", fontSize: 14, color: "#1a1a1a", fontWeight: 500 }}>{t.title}</td>
                     <td style={{ padding: "14px 20px" }}>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: categoryStyle[t.category].bg, color: categoryStyle[t.category].color }}>{t.category}</span>
+                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: categoryStyle[t.type]?.bg || "#f5f5f5", color: categoryStyle[t.type]?.color || "#555" }}>{t.type}</span>
                     </td>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>{t.project}</td>
-                    <td style={{ padding: "14px 20px", textAlign: "right", fontSize: 14, fontWeight: 700, color: t.amount > 0 ? "#16a34a" : "#dc2626" }}>
-                      {t.amount > 0 ? "+" : ""}{t.amount.toLocaleString("en-IN")}
+                    <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>{t.project || "N/A"}</td>
+                    <td style={{ padding: "14px 20px", textAlign: "right", fontSize: 14, fontWeight: 700, color: t.type === "Income" ? "#16a34a" : "#dc2626" }}>
+                      {t.type === "Income" ? "+" : "-"}{t.amount.toLocaleString("en-IN")}
+                    </td>
+                    <td style={{ padding: "14px 20px", textAlign: "right" }}>
+                      <button onClick={() => handleDelete(t._id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 12 }}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -212,22 +231,25 @@ export default function TransactionLog() {
           {/* Mobile Cards */}
           {isMobile && (
             <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-              {paginated.length === 0 ? (
+              {loading ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>Loading...</div>
+              ) : paginated.length === 0 ? (
                 <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>No entries found</div>
               ) : paginated.map((t, i) => (
-                <div key={i} style={{ border: "1px solid #f0f0f0", borderRadius: 12, padding: 14 }}>
+                <div key={t._id} style={{ border: "1px solid #f0f0f0", borderRadius: 12, padding: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a", marginBottom: 2 }}>{t.description}</div>
-                      <div style={{ fontSize: 11, color: "#aaa" }}>{t.date}</div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a", marginBottom: 2 }}>{t.title}</div>
+                      <div style={{ fontSize: 11, color: "#aaa" }}>{new Date(t.date).toLocaleDateString()}</div>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: t.amount > 0 ? "#16a34a" : "#dc2626" }}>
-                      {t.amount > 0 ? "+" : ""}{t.amount.toLocaleString("en-IN")}
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.type === "Income" ? "#16a34a" : "#dc2626" }}>
+                      {t.type === "Income" ? "+" : "-"}{t.amount.toLocaleString("en-IN")}
                     </div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: categoryStyle[t.category].bg, color: categoryStyle[t.category].color }}>{t.category}</span>
-                    <span style={{ fontSize: 12, color: "#666" }}>{t.project}</span>
+                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: categoryStyle[t.type]?.bg || "#f5f5f5", color: categoryStyle[t.type]?.color || "#555" }}>{t.type}</span>
+                    <button onClick={() => handleDelete(t._id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 11 }}>Delete</button>
+                    <span style={{ fontSize: 12, color: "#666" }}>{t.project || "N/A"}</span>
                   </div>
                 </div>
               ))}

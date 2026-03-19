@@ -10,11 +10,9 @@ const TOPBAR_H = 72;
 
 export default function AddNewWorkerPage() {
   const navigate = useNavigate();
-  const location = useLocation();                                    // ← NEW
-
-  // ── Detect edit mode from route state passed by worker_list.jsx ── ← NEW
+  const location = useLocation();
   const editWorker = location.state?.editWorker || null;
-  const isEditMode = Boolean(editWorker);
+  const isEditMode = !!editWorker;
 
   const [isMobile,     setIsMobile]     = useState(window.innerWidth < 768);
   const [fullName,     setFullName]     = useState("");
@@ -39,23 +37,24 @@ export default function AddNewWorkerPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Pre-fill form when in edit mode ──────────────────────────────────────
+  // ── Pre-fill when in edit mode (data from route state) ───────────────────
   useEffect(() => {
     if (!isEditMode) return;
-    setFullName(editWorker.name || "");
-    const matchedTrade = trades.find(t => t.toLowerCase() === editWorker.trade?.toLowerCase());
+    setFullName(editWorker?.name || "");
+    const matchedTrade = trades.find(t => t.toLowerCase() === editWorker?.trade?.toLowerCase());
     setTrade(matchedTrade || "Select Trade");
-    setDailyWage(String(editWorker.dailyWage || "800"));
-    const matchedStatus = statusOptions.find(s => s.toLowerCase() === editWorker.status?.toLowerCase());
+    setDailyWage(String(editWorker?.dailyWage ?? "800"));
+    const matchedStatus = statusOptions.find(s => s.toLowerCase() === editWorker?.status?.toLowerCase());
     setStatus(matchedStatus || "Active");
-    setMobile(editWorker.mobile || "");
-    setPaymentCycle(editWorker.paymentCycle || "Weekly");
-    if (editWorker.joiningDate)
+    setMobile(editWorker?.mobile || "");
+    setPaymentCycle(editWorker?.paymentCycle || "Weekly");
+    if (editWorker?.joiningDate) {
       setJoiningDate(new Date(editWorker.joiningDate).toISOString().split("T")[0]);
-    // Show existing photo from backend
-    if (editWorker.photo)
+    }
+    if (editWorker?.photo) {
       setPhotoPreview(`http://localhost:5000/uploads/${editWorker.photo}`);
-  }, [isEditMode]);
+    }
+  }, [isEditMode, editWorker]);
 
   // ── Save / Update handler ─────────────────────────────────────────────────
   const handleSave = async () => {
@@ -77,7 +76,11 @@ export default function AddNewWorkerPage() {
       form.append("paymentCycle", paymentCycle);
       if (photoFile) form.append("photo", photoFile);   // ← attach image file
 
-      if (isEditMode) {
+      documents.forEach((doc) => {
+        form.append("documents", doc);
+      });
+
+      if (isEditMode && editWorker?._id) {
         await workerAPI.update(editWorker._id, form);
       } else {
         await workerAPI.create(form);
@@ -162,7 +165,7 @@ export default function AddNewWorkerPage() {
           </div>
           {/* ── Page title changes based on mode ── ← NEW */}
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a1a" }}>
-            {isEditMode ? `Edit Worker — ${editWorker.name}` : "Add New Worker"}
+            {isEditMode ? `Edit Worker${editWorker?.name ? " — " + editWorker.name : ""}` : "Add New Worker"}
           </h1>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -284,9 +287,13 @@ export default function AddNewWorkerPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Worker ID</label>
-                  {/* ── Show actual worker ID in edit mode ── ← NEW */}
+                  {/* ── Show actual worker ID in edit mode (from route state) ── */}
                   <input
-                    value={isEditMode ? editWorker.id.replace("#", "") : "BT-2024-089"}
+                    value={
+                      isEditMode
+                        ? (editWorker?.displayId || editWorker?._id || "").toString()
+                        : "Auto-generated on save"
+                    }
                     readOnly
                     style={{ ...inputStyle, background: "#f9f9f9", color: "#aaa", cursor: "default" }}
                   />
