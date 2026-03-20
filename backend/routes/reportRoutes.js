@@ -14,7 +14,7 @@ router.get("/financial", async (req, res) => {
     const { year, month } = req.query;
     const userId = req.user._id;
 
-    if (!year || !month) return res.status(400).json({ message: "Year and month are required" });
+    if (!year || month === undefined || month === "") return res.status(400).json({ message: "Year and month are required" });
 
     const startDate = new Date(year, month, 1, 0, 0, 0, 0);
     const endDate = new Date(year, parseInt(month) + 1, 1, 0, 0, 0, 0);
@@ -32,7 +32,8 @@ router.get("/financial", async (req, res) => {
       .reduce((sum, t) => sum + t.amount, 0);
     const profit = income - expenses;
     const totalVolume = income + expenses;
-    const compliance = totalVolume > 0 ? Math.min(100, Math.max(0, (income / totalVolume) * 100)) : 0;
+    // When no expenditures, adherence to budget is fully intact (100%).
+    const compliance = totalVolume > 0 ? Math.min(100, Math.max(0, (income / totalVolume) * 100)) : 100;
 
     const workersRecords = await Worker.find({ createdBy: userId });
     const workers = workersRecords.map((w) => ({
@@ -61,7 +62,7 @@ router.get("/financial/export-csv", async (req, res) => {
     const { year, month } = req.query;
     const userId = req.user._id;
 
-    if (!year || !month) return res.status(400).json({ message: "Year and month are required" });
+    if (!year || month === undefined || month === "") return res.status(400).json({ message: "Year and month are required" });
 
     const startDate = new Date(year, month, 1, 0, 0, 0, 0);
     const endDate = new Date(year, parseInt(month) + 1, 1, 0, 0, 0, 0);
@@ -102,7 +103,7 @@ router.get("/financial/export-pdf", async (req, res) => {
     const { year, month } = req.query;
     const userId = req.user._id;
 
-    if (!year || !month) return res.status(400).json({ message: "Year and month are required" });
+    if (!year || month === undefined || month === "") return res.status(400).json({ message: "Year and month are required" });
 
     const startDate = new Date(year, month, 1, 0, 0, 0, 0);
     const endDate = new Date(year, parseInt(month) + 1, 1, 0, 0, 0, 0);
@@ -116,7 +117,7 @@ router.get("/financial/export-pdf", async (req, res) => {
     const expenses = transactions.filter(t => t.type !== "Income").reduce((s, t) => s + t.amount, 0);
     const profit = income - expenses;
     const totalVolume = income + expenses;
-    const compliance = totalVolume > 0 ? Math.min(100, Math.max(0, (income / totalVolume) * 100)) : 0;
+    const compliance = totalVolume > 0 ? Math.min(100, Math.max(0, (income / totalVolume) * 100)) : 100;
 
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthName = monthNames[parseInt(month)] || "Unknown";
@@ -142,7 +143,9 @@ router.get("/financial/export-pdf", async (req, res) => {
     transactions.forEach(t => {
       const date = new Date(t.date).toLocaleDateString("en-IN");
       const sign = t.type === "Income" ? "+" : "-";
-      report += `  ${date}  ${sign}₹${t.amount.toLocaleString("en-IN")}  ${t.type.padEnd(10)}  ${t.title}\n`;
+      const typeString = t.type ? t.type.padEnd(10) : "Unknown   ";
+      const titleString = t.title || "";
+      report += `  ${date}  ${sign}₹${t.amount.toLocaleString("en-IN")}  ${typeString}  ${titleString}\n`;
     });
     report += "\n";
 
