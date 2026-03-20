@@ -101,7 +101,7 @@ export default function DashboardPage() {
               Dashboard Overview
             </h2>
             <p style={{ margin: 0, fontSize: "clamp(12px,1.2vw,14px)", color: "#888" }}>
-              Welcome back, Alex. Here's what's happening today.
+              Welcome back, {(() => { try { return JSON.parse(localStorage.getItem("bt_user"))?.name?.split(" ")[0] || "there"; } catch { return "there"; } })()}. Here's what's happening today.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

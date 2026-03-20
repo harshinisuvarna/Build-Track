@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { transactionAPI } from "../api";
 
 const recentEntries = [
   { worker: "Suresh - Masonry",   time: "10 mins ago", category: "WAGES",   catBg: "#dbeafe", catColor: "#1e40af", amount: "₹1,200",    income: false },
@@ -23,6 +24,9 @@ export default function VoiceAssistantPage() {
   const [category,    setCategory]    = useState("Wages");
   const [amount,      setAmount]      = useState("1,200");
   const [pulse,       setPulse]       = useState(true);
+  const [voiceSaving, setVoiceSaving] = useState(false);
+  const [voiceSuccess, setVoiceSuccess] = useState("");
+  const [voiceError,  setVoiceError]  = useState("");
 
   useEffect(() => {
     const onResize = () => {
@@ -160,11 +164,41 @@ export default function VoiceAssistantPage() {
               </div>
             </div>
 
-            <button style={{ width: "100%", padding: "16px 0", background: "#ea580c", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 14px rgba(234,88,12,0.3)", marginBottom: 12 }}>
-              ✅ Confirm & Finalize Entry
+            <button
+              onClick={async () => {
+                setVoiceError(""); setVoiceSuccess("");
+                if (!worker.trim() || !amount) { setVoiceError("Worker and amount are required."); return; }
+                const numAmount = Number(amount.replace(/,/g, ""));
+                if (!numAmount || numAmount <= 0) { setVoiceError("Enter a valid amount."); return; }
+                try {
+                  setVoiceSaving(true);
+                  await transactionAPI.create({
+                    title: `${category} - ${worker}`,
+                    amount: numAmount,
+                    type: category,
+                    worker: worker,
+                    date: new Date().toISOString(),
+                    notes: "Entered via Voice Assistant",
+                  });
+                  setVoiceSuccess("Entry saved successfully!");
+                  setWorker(""); setAmount(""); setCategory("Wages");
+                  setTimeout(() => setVoiceSuccess(""), 3000);
+                } catch (err) {
+                  setVoiceError(err.response?.data?.message || "Failed to save entry.");
+                } finally {
+                  setVoiceSaving(false);
+                }
+              }}
+              disabled={voiceSaving}
+              style={{ width: "100%", padding: "16px 0", background: voiceSaving ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: voiceSaving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 14px rgba(234,88,12,0.3)", marginBottom: 12 }}>
+              {voiceSaving ? "⏳ Saving…" : "✅ Confirm & Finalize Entry"}
             </button>
+            {voiceSuccess && <div style={{ textAlign: "center", padding: "8px 0", color: "#166534", fontSize: 13, fontWeight: 600 }}>✅ {voiceSuccess}</div>}
+            {voiceError && <div style={{ textAlign: "center", padding: "8px 0", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>⚠️ {voiceError}</div>}
             <div style={{ textAlign: "center" }}>
-              <button style={{ background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 }}>
+              <button
+                onClick={() => { setWorker(""); setCategory("Wages"); setAmount(""); setVoiceError(""); setVoiceSuccess(""); }}
+                style={{ background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 }}>
                 Discard & Try Again
               </button>
             </div>

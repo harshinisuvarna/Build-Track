@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { transactionAPI } from "../api";
+import { Toast, ConfirmDialog } from "../components/Toast";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -21,6 +22,9 @@ export default function TransactionLog() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [toast, setToast] = useState({ msg: "", type: "info" });
+  const [confirmDlg, setConfirmDlg] = useState(null);
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   const fetchTransactions = () => {
     setLoading(true);
@@ -43,14 +47,23 @@ export default function TransactionLog() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
-    try {
-      await transactionAPI.delete(id);
-      fetchTransactions();
-    } catch (err) {
-      alert("Failed to delete transaction");
-    }
+  const handleDelete = (id) => {
+    const tx = transactions.find(t => t._id === id);
+    setConfirmDlg({
+      message: `Delete transaction "${tx?.title || 'this entry'}"?`,
+      danger: true,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setConfirmDlg(null);
+        try {
+          await transactionAPI.delete(id);
+          fetchTransactions();
+          setToast({ msg: "Transaction deleted.", type: "success" });
+        } catch (err) {
+          setToast({ msg: "Failed to delete transaction.", type: "error" });
+        }
+      },
+    });
   };
 
   const filtered = transactions.filter((t) => {
@@ -104,6 +117,17 @@ export default function TransactionLog() {
       background: "#f7f7f8",
       overflow: "hidden",
     }}>
+      {/* Toast + Confirm Dialog */}
+      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+      {confirmDlg && (
+        <ConfirmDialog
+          message={confirmDlg.message}
+          danger={confirmDlg.danger}
+          confirmLabel={confirmDlg.confirmLabel}
+          onConfirm={confirmDlg.onConfirm}
+          onCancel={() => setConfirmDlg(null)}
+        />
+      )}
 
       {/* ── Top Bar (fixed height, never scrolls) ── */}
       <div style={{

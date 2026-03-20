@@ -6,9 +6,10 @@
 //   • GET  /api/transactions    → loads and displays recent entries list
 //   • DELETE /api/transactions/:id → removes an entry
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { workerAPI, projectAPI, transactionAPI } from "../api";
+import { Toast, ConfirmDialog } from "../components/Toast";
 
 const transactionTypes = ["Wages", "Expense", "Income", "Materials"];
 
@@ -45,6 +46,9 @@ export default function ManualEntryPage() {
   // ── Transactions list ─────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState([]);
   const [txLoading,    setTxLoading]    = useState(true);
+  const [toast,        setToast]        = useState({ msg: "", type: "info" });
+  const [confirmDlg,   setConfirmDlg]   = useState(null);
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -113,14 +117,23 @@ export default function ManualEntryPage() {
   };
 
   // ── Delete transaction ────────────────────────────────────────────────────
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this entry?")) return;
-    try {
-      await transactionAPI.delete(id);
-      setTransactions(prev => prev.filter(t => t._id !== id));
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete entry.");
-    }
+  const handleDelete = (id) => {
+    const tx = transactions.find(t => t._id === id);
+    setConfirmDlg({
+      message: `Delete "${tx?.title || 'this entry'}"?`,
+      danger: true,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setConfirmDlg(null);
+        try {
+          await transactionAPI.delete(id);
+          setTransactions(prev => prev.filter(t => t._id !== id));
+          setToast({ msg: "Entry deleted.", type: "success" });
+        } catch (err) {
+          setToast({ msg: err.response?.data?.message || "Failed to delete entry.", type: "error" });
+        }
+      },
+    });
   };
 
   // ── Shared styles ─────────────────────────────────────────────────────────
@@ -147,6 +160,17 @@ export default function ManualEntryPage() {
       fontFamily: "'Segoe UI', sans-serif",
       background: "#f7f7f8", overflow: "hidden", flex: 1, minWidth: 0,
     }}>
+      {/* Toast + Confirm Dialog */}
+      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+      {confirmDlg && (
+        <ConfirmDialog
+          message={confirmDlg.message}
+          danger={confirmDlg.danger}
+          confirmLabel={confirmDlg.confirmLabel}
+          onConfirm={confirmDlg.onConfirm}
+          onCancel={() => setConfirmDlg(null)}
+        />
+      )}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 

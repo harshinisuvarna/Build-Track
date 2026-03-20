@@ -1,5 +1,11 @@
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { navItems } from "../navItems";
+
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
 
 /* ── BuildTrack Logo Icon ── */
 function LogoIcon({ size = 38 }) {
@@ -26,6 +32,26 @@ function LogoIcon({ size = 38 }) {
 }
 
 export default function Sidebar() {
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem("bt_user");
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  useEffect(() => {
+    const syncUser = () => {
+      const stored = localStorage.getItem("bt_user");
+      if (stored) setUser(JSON.parse(stored));
+    };
+    window.addEventListener("userUpdated", syncUser);
+    return () => window.removeEventListener("userUpdated", syncUser);
+  }, []);
+
+  const photoUrl = user?.profilePhoto
+    ? (user.profilePhoto.startsWith("http")
+      ? user.profilePhoto
+      : `${API_ORIGIN}/uploads/${user.profilePhoto}`)
+    : null;
+
   return (
     <aside
       style={{
@@ -43,10 +69,10 @@ export default function Sidebar() {
       {/* ── Logo + Navigation wrapped together ── */}
       <div>
         {/* Logo */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <LogoIcon />
           <div>
-            <div style={{ fontWeight: 700 }}>BuildTrack</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#1a1a1a" }}>BuildTrack</div>
             <div style={{ fontSize: 10, color: "#999" }}>MANAGEMENT</div>
           </div>
         </div>
@@ -86,10 +112,19 @@ export default function Sidebar() {
           background: "#fdba74", overflow: "hidden",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 18, flexShrink: 0,
-        }}>👤</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>Rajesh Kumar</div>
-          <div style={{ fontSize: 11, color: "#888" }}>Site Supervisor</div>
+        }}>
+          {photoUrl
+            ? <img src={photoUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : "👤"
+          }
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {user?.name || "User"}
+          </div>
+          <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {user?.role || "Site Supervisor"}
+          </div>
         </div>
       </div>
     </aside>

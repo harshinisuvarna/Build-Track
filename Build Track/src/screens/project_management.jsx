@@ -3,9 +3,10 @@
 // Delete calls DELETE /api/projects/:id
 // Edit navigates to /newproject with state
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate }         from "react-router-dom";
 import { projectAPI }          from "../api";
+import { Toast, ConfirmDialog } from "../components/Toast";
 
 const API_ORIGIN =
   (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "").replace(/\/api$/, "");
@@ -30,6 +31,9 @@ export default function ProjectsPage() {
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
   const [activeTab,   setActiveTab]   = useState("All Projects");
   const [search,      setSearch]      = useState("");
+  const [toast,       setToast]       = useState({ msg: "", type: "info" });
+  const [confirmDlg,  setConfirmDlg]  = useState(null);
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -66,14 +70,22 @@ export default function ProjectsPage() {
   useEffect(() => { fetchProjects(); }, []);
 
   // ── Delete ────────────────────────────────────────────────────────────────
-  const handleDelete = async (projectId, projectName) => {
-    if (!window.confirm(`Delete "${projectName}"?`)) return;
-    try {
-      await projectAPI.delete(projectId);
-      setAllProjects(prev => prev.filter(p => p._id !== projectId));
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete project.");
-    }
+  const handleDelete = (projectId, projectName) => {
+    setConfirmDlg({
+      message: `Delete "${projectName}"? This action cannot be undone.`,
+      danger: true,
+      confirmLabel: "Delete Project",
+      onConfirm: async () => {
+        setConfirmDlg(null);
+        try {
+          await projectAPI.delete(projectId);
+          setAllProjects(prev => prev.filter(p => p._id !== projectId));
+          setToast({ msg: `"${projectName}" deleted successfully.`, type: "success" });
+        } catch (err) {
+          setToast({ msg: err.response?.data?.message || "Failed to delete project.", type: "error" });
+        }
+      },
+    });
   };
 
   // ── Edit ──────────────────────────────────────────────────────────────────
@@ -110,6 +122,17 @@ export default function ProjectsPage() {
       fontFamily: "'Segoe UI', sans-serif",
       background: "#f7f7f8",
     }}>
+      {/* Toast + Confirm Dialog */}
+      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+      {confirmDlg && (
+        <ConfirmDialog
+          message={confirmDlg.message}
+          danger={confirmDlg.danger}
+          confirmLabel={confirmDlg.confirmLabel}
+          onConfirm={confirmDlg.onConfirm}
+          onCancel={() => setConfirmDlg(null)}
+        />
+      )}
 
       {/* ── Top Bar ── */}
       <div style={{

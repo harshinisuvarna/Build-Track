@@ -5,9 +5,10 @@
 //  • Edit navigates to /newworker with worker state (handled by add_new_worker.jsx)
 //  • All requests include JWT automatically via api/index.js interceptor
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { workerAPI } from "../api";
+import { Toast, ConfirmDialog } from "../components/Toast";
 
 const ITEMS_PER_PAGE = 7;
 
@@ -59,7 +60,10 @@ export default function WorkerDirectory() {
   const [page,        setPage]        = useState(1);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
   const [showFilters, setShowFilters] = useState(false);
+  const [toast,       setToast]       = useState({ msg: "", type: "info" });
+  const [confirmDlg,  setConfirmDlg]  = useState(null);
   const filterRef = useRef(null);
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   // ── Fetch workers from backend ─────────────────────────────────────────────
   const fetchWorkers = async () => {
@@ -128,15 +132,24 @@ export default function WorkerDirectory() {
   };
 
   // ── Delete: confirm → call API → remove from list ─────────────────────────
-  const handleDelete = async (workerId) => {
-    if (!window.confirm("Are you sure you want to delete this worker?")) return;
-    try {
-      await workerAPI.delete(workerId);
-      setAllWorkers((prev) => prev.filter((w) => w._id !== workerId));
-      setPage(1);
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete worker.");
-    }
+  const handleDelete = (workerId) => {
+    const worker = allWorkers.find(w => w._id === workerId);
+    setConfirmDlg({
+      message: `Delete "${worker?.name || 'this worker'}"? This action cannot be undone.`,
+      danger: true,
+      confirmLabel: "Delete Worker",
+      onConfirm: async () => {
+        setConfirmDlg(null);
+        try {
+          await workerAPI.delete(workerId);
+          setAllWorkers((prev) => prev.filter((w) => w._id !== workerId));
+          setPage(1);
+          setToast({ msg: `"${worker?.name || 'Worker'}" deleted successfully.`, type: "success" });
+        } catch (err) {
+          setToast({ msg: err.response?.data?.message || "Failed to delete worker.", type: "error" });
+        }
+      },
+    });
   };
 
   const exportWorkers = () => {
@@ -158,6 +171,17 @@ export default function WorkerDirectory() {
       fontFamily: "'Segoe UI', sans-serif",
       background: "#f7f7f8", overflow: "hidden",
     }}>
+      {/* Toast + Confirm Dialog */}
+      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+      {confirmDlg && (
+        <ConfirmDialog
+          message={confirmDlg.message}
+          danger={confirmDlg.danger}
+          confirmLabel={confirmDlg.confirmLabel}
+          onConfirm={confirmDlg.onConfirm}
+          onCancel={() => setConfirmDlg(null)}
+        />
+      )}
 
       {/* Top Bar */}
       <div style={{

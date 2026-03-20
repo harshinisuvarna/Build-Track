@@ -42,9 +42,15 @@ api.interceptors.response.use(
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authAPI = {
-  login:    (data) => api.post("/auth/login",    data),
-  register: (data) => api.post("/auth/register", data),
-  me:       ()     => api.get("/auth/me"),
+  login:          (data) => api.post("/auth/login",    data),
+  register:       (data) => api.post("/auth/register", data),
+  me:             ()     => api.get("/auth/me"),
+  forgotPassword: (data) => api.post("/auth/forgot-password", data),
+  resetPassword:  (data) => api.post("/auth/reset-password",  data),
+  changePassword: (data) => api.put("/auth/change-password",  data),
+  toggle2FA:      ()     => api.put("/auth/toggle-2fa"),
+  signOutAll:     ()     => api.post("/auth/sign-out-all"),
+  deleteAccount:  ()     => api.delete("/auth/account"),
 };
 
 // ── Workers ───────────────────────────────────────────────────────────────────
@@ -82,6 +88,14 @@ export const dashboardAPI = {
 // ── Reports ──────────────────────────────────────────────────────────────
 export const reportAPI = {
   getFinancial: (params) => api.get("/reports/financial", { params }),
+  exportCSV:    (params) => api.get("/reports/financial/export-csv", { params, responseType: "blob" }),
+  exportPDF:    (params) => api.get("/reports/financial/export-pdf", { params, responseType: "blob" }),
+};
+
+// ── User Profile ──────────────────────────────────────────────────────────
+export const userAPI = {
+  updateProfile: (data) => api.put("/auth/profile", data),
+  updatePhoto:   (fd)   => api.put("/auth/photo",   fd),
 };
 
 export default api;

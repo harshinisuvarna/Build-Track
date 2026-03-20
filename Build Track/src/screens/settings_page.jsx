@@ -1,4 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { userAPI, authAPI } from "../api";
+import { Toast, ConfirmDialog } from "../components/Toast";
+
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
 
 function Toggle({ on, onToggle }) {
   return (
@@ -26,15 +34,45 @@ export default function SettingsPage() {
 
   const [isMobile,     setIsMobile]     = useState(window.innerWidth < 768);
   const [profileImage, setProfileImage] = useState(null);
-  const [fullName,     setFullName]     = useState("Rajesh Kumar");
-  const [email,        setEmail]        = useState("rajesh.k@buildtrack.in");
+  const [fullName,     setFullName]     = useState("");
+  const [email,        setEmail]        = useState("");
   const [role,         setRole]         = useState("Site Supervisor");
   const [language,     setLanguage]     = useState("English");
   const [currency,     setCurrency]     = useState("Indian Rupee (INR)");
   const [emailNotif,   setEmailNotif]   = useState(true);
   const [pushNotif,    setPushNotif]    = useState(false);
   const [twoFA,        setTwoFA]        = useState(false);
-  const [saved,        setSaved]        = useState(false);     // ← NEW
+  const [saved,        setSaved]        = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [secMsg,       setSecMsg]       = useState("");
+  const [secErr,       setSecErr]       = useState("");
+  const [showPwForm,   setShowPwForm]   = useState(false);
+  const [curPw,        setCurPw]        = useState("");
+  const [newPw,        setNewPw]        = useState("");
+  const [pwSaving,     setPwSaving]     = useState(false);
+  // Toast + confirm dialog state
+  const [toast,        setToast]        = useState({ msg: "", type: "info" });
+  const [confirmDlg,   setConfirmDlg]   = useState(null);
+  const navigate = useNavigate();
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  // ── Load user data from localStorage on mount ──
+  useEffect(() => {
+    const stored = localStorage.getItem("bt_user");
+    if (stored) {
+      const u = JSON.parse(stored);
+      setFullName(u.name || "");
+      setEmail(u.email || "");
+      setRole(u.role || "Site Supervisor");
+      if (u.profilePhoto) {
+        if (u.profilePhoto.startsWith("http")) {
+          setProfileImage(u.profilePhoto);
+        } else {
+          setProfileImage(`${API_ORIGIN}/uploads/${u.profilePhoto}`);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -42,27 +80,124 @@ export default function SettingsPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const handleImageUpload = (e) => {
+  // ── Profile photo upload — hits PUT /api/auth/photo ──
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) setProfileImage(URL.createObjectURL(file));
+    if (!file) return;
+    // Show preview immediately
+    setProfileImage(URL.createObjectURL(file));
+    try {
+      const fd = new FormData();
+      fd.append("photo", file);
+      const { data } = await userAPI.updatePhoto(fd);
+      // Persist to localStorage
+      const stored = JSON.parse(localStorage.getItem("bt_user") || "{}");
+      localStorage.setItem("bt_user", JSON.stringify({
+        ...stored,
+        profilePhoto: data.profilePhoto,
+      }));
+      // Notify sidebar to update
+      window.dispatchEvent(new Event("userUpdated"));
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      setToast({ msg: "Failed to upload photo.", type: "error" });
+    }
   };
 
-  // ── Save profile with visual feedback ── ← NEW
-  const handleSaveProfile = () => {
+  // ── Save profile — hits PUT /api/auth/profile ──
+  const handleSaveProfile = async () => {
     if (!fullName.trim() || !email.trim()) {
-      alert("Name and email cannot be empty.");
+      setToast({ msg: "Name and email cannot be empty.", type: "error" });
       return;
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      setSaving(true);
+      const { data } = await userAPI.updateProfile({
+        name: fullName,
+        email,
+        role,
+      });
+      // Update localStorage with fresh data
+      const stored = JSON.parse(localStorage.getItem("bt_user") || "{}");
+      localStorage.setItem("bt_user", JSON.stringify({ ...stored, ...data.user }));
+      // Notify sidebar to update
+      window.dispatchEvent(new Event("userUpdated"));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      console.error("Profile save error:", err);
+      setToast({ msg: err.response?.data?.message || "Failed to save profile.", type: "error" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSignOutAll    = () => alert("All devices signed out.");
+  // ── Change Password ──
+  const handleChangePassword = async () => {
+    setSecErr(""); setSecMsg("");
+    if (!curPw || !newPw) { setSecErr("Both fields are required."); return; }
+    if (newPw.length < 6) { setSecErr("New password must be at least 6 characters."); return; }
+    try {
+      setPwSaving(true);
+      const { data } = await authAPI.changePassword({ currentPassword: curPw, newPassword: newPw });
+      setSecMsg(data.message || "Password changed successfully!");
+      setCurPw(""); setNewPw(""); setShowPwForm(false);
+      setTimeout(() => setSecMsg(""), 4000);
+    } catch (err) {
+      setSecErr(err.response?.data?.message || "Failed to change password.");
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  // ── Toggle 2FA ──
+  const handleToggle2FA = async () => {
+    try {
+      const { data } = await authAPI.toggle2FA();
+      setTwoFA(data.twoFactorEnabled);
+      setSecMsg(data.message);
+      setTimeout(() => setSecMsg(""), 4000);
+    } catch (err) {
+      setSecErr(err.response?.data?.message || "Failed to toggle 2FA.");
+    }
+  };
+
+  // ── Sign Out All ──
+  const handleSignOutAll = () => {
+    setConfirmDlg({
+      message: "Sign out from all devices? You will need to log in again.",
+      onConfirm: async () => {
+        setConfirmDlg(null);
+        try {
+          await authAPI.signOutAll();
+          localStorage.removeItem("bt_token");
+          localStorage.removeItem("bt_user");
+          navigate("/login");
+        } catch (err) {
+          setSecErr(err.response?.data?.message || "Failed to sign out all sessions.");
+        }
+      },
+    });
+  };
+
+  // ── Delete Account ──
   const handleDeleteAccount = () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to permanently delete your account? This action cannot be undone."
-    );
-    if (confirmed) alert("Account deleted (demo).");
+    setConfirmDlg({
+      message: "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      danger: true,
+      confirmLabel: "Delete My Account",
+      onConfirm: async () => {
+        setConfirmDlg(null);
+        try {
+          await authAPI.deleteAccount();
+          localStorage.removeItem("bt_token");
+          localStorage.removeItem("bt_user");
+          navigate("/login");
+        } catch (err) {
+          setSecErr(err.response?.data?.message || "Failed to delete account.");
+        }
+      },
+    });
   };
 
   const inputStyle = {
@@ -95,6 +230,17 @@ export default function SettingsPage() {
       width: "100%", minHeight: "100vh",
       fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8",
     }}>
+      {/* Toast + Confirm Dialog */}
+      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+      {confirmDlg && (
+        <ConfirmDialog
+          message={confirmDlg.message}
+          danger={confirmDlg.danger}
+          confirmLabel={confirmDlg.confirmLabel}
+          onConfirm={confirmDlg.onConfirm}
+          onCancel={() => setConfirmDlg(null)}
+        />
+      )}
 
       {/* Top Bar */}
       <div style={{
@@ -170,18 +316,20 @@ export default function SettingsPage() {
                 {/* ── Edit Profile button — turns green on save ── */}
                 <button
                   onClick={handleSaveProfile}
+                  disabled={saving}
                   style={{
                     padding: "11px 24px",
                     background: saved ? "#16a34a" : "#ea580c",
                     color: "#fff", border: "none", borderRadius: 10,
-                    fontWeight: 600, fontSize: 14, cursor: "pointer",
+                    fontWeight: 600, fontSize: 14, cursor: saving ? "not-allowed" : "pointer",
                     boxShadow: saved
                       ? "0 4px 12px rgba(22,163,74,0.3)"
                       : "0 4px 12px rgba(234,88,12,0.3)",
                     transition: "background 0.3s ease, box-shadow 0.3s ease",
+                    opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  {saved ? "✓ Profile Saved!" : "Edit Profile Details"}
+                  {saving ? "Saving…" : saved ? "✓ Profile Saved!" : "Edit Profile Details"}
                 </button>
               </div>
             </div>
@@ -242,10 +390,10 @@ export default function SettingsPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Account Password</div>
-                <div style={{ fontSize: 13, color: "#888" }}>Last changed 3 months ago</div>
+                <div style={{ fontSize: 13, color: "#888" }}>Manage your account password</div>
               </div>
               <button
-                onClick={() => alert("Password change feature coming soon.")}
+                onClick={() => setShowPwForm(v => !v)}
                 style={{
                   padding: "10px 18px", background: "#fff",
                   border: "1px solid #e5e5e5", borderRadius: 10,
@@ -253,9 +401,43 @@ export default function SettingsPage() {
                   color: "#444", display: "flex", alignItems: "center", gap: 8,
                 }}
               >
-                🔒 Change Password
+                🔒 {showPwForm ? "Cancel" : "Change Password"}
               </button>
             </div>
+
+            {/* Inline password change form */}
+            {showPwForm && (
+              <div style={{ padding: "16px 0", borderBottom: "1px solid #f0f0f0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 6, display: "block" }}>Current Password</label>
+                    <input type="password" value={curPw} onChange={e => setCurPw(e.target.value)}
+                      placeholder="Enter current password" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 6, display: "block" }}>New Password</label>
+                    <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                      placeholder="Enter new password (min 6 chars)" style={inputStyle} />
+                  </div>
+                </div>
+                <button onClick={handleChangePassword} disabled={pwSaving}
+                  style={{ padding: "10px 24px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: pwSaving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.25)" }}>
+                  {pwSaving ? "Saving…" : "Update Password"}
+                </button>
+              </div>
+            )}
+
+            {/* Security status messages */}
+            {secMsg && (
+              <div style={{ padding: "12px 16px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: 10, color: "#166534", fontSize: 13, margin: "12px 0" }}>
+                ✅ {secMsg}
+              </div>
+            )}
+            {secErr && (
+              <div style={{ padding: "12px 16px", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, color: "#991b1b", fontSize: 13, margin: "12px 0" }}>
+                ⚠️ {secErr}
+              </div>
+            )}
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
               <div>
@@ -263,7 +445,7 @@ export default function SettingsPage() {
                 <div style={{ fontSize: 13, color: "#888" }}>Add an extra layer of security to your account</div>
               </div>
               <button
-                onClick={() => setTwoFA(v => !v)}
+                onClick={handleToggle2FA}
                 style={{
                   padding: "10px 18px",
                   background: twoFA ? "#fff" : "#ea580c",

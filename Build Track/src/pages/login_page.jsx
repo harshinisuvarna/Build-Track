@@ -62,6 +62,11 @@ export default function LoginPage() {
   const [emailFocus, setEmailFocus] = useState(false);
   const [passFocus,  setPassFocus]  = useState(false);
   const [vw,         setVw]         = useState(window.innerWidth);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotMsg,   setForgotMsg]   = useState("");
+  const [forgotErr,   setForgotErr]   = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // If already logged in, skip straight to dashboard
   useEffect(() => {
@@ -248,8 +253,42 @@ export default function LoginPage() {
       </div>
 
       <div style={{ textAlign: "right", marginBottom: 26 }}>
-        <span className="bt-link-orange" style={{ fontSize: 13 }}>Forgot password?</span>
+        <span onClick={() => { setShowForgot(v => !v); setForgotMsg(""); setForgotErr(""); }} className="bt-link-orange" style={{ fontSize: 13, cursor: "pointer" }}>{showForgot ? "← Back to login" : "Forgot password?"}</span>
       </div>
+
+      {showForgot && (
+        <div style={{ background: "#fff9f5", border: "1px solid #fed7aa", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 10 }}>Reset Password</div>
+          <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Enter your email and we'll send a reset link (check server console for the link).</div>
+          <input
+            type="email"
+            value={forgotEmail}
+            onChange={e => { setForgotEmail(e.target.value); setForgotErr(""); }}
+            placeholder="Your email address"
+            style={{ ...inputStyle(false, false), marginBottom: 10 }}
+          />
+          <button
+            onClick={async () => {
+              setForgotMsg(""); setForgotErr("");
+              if (!forgotEmail.trim()) { setForgotErr("Email is required."); return; }
+              try {
+                setForgotLoading(true);
+                const { data } = await authAPI.forgotPassword({ email: forgotEmail });
+                setForgotMsg(data.message || "Reset link sent! Check your server console.");
+              } catch (err) {
+                setForgotErr(err.response?.data?.message || "Failed to send reset email.");
+              } finally {
+                setForgotLoading(false);
+              }
+            }}
+            disabled={forgotLoading}
+            style={{ width: "100%", padding: "11px 0", background: forgotLoading ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: forgotLoading ? "not-allowed" : "pointer" }}>
+            {forgotLoading ? "Sending…" : "Send Reset Link"}
+          </button>
+          {forgotMsg && <div style={{ marginTop: 10, fontSize: 13, color: "#166534", fontWeight: 600 }}>✅ {forgotMsg}</div>}
+          {forgotErr && <div style={{ marginTop: 10, fontSize: 13, color: "#991b1b", fontWeight: 600 }}>⚠️ {forgotErr}</div>}
+        </div>
+      )}
 
       {/* Sign In button */}
       <button type="submit" className="bt-btn-primary" disabled={loading}>

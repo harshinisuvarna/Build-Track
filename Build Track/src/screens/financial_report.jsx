@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { reportAPI } from "../api";
+import { Toast } from "../components/Toast";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTH_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -195,6 +196,51 @@ export default function FinancialReportPage() {
   const calRef = useRef(null);
 
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState({ msg: "", type: "info" });
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  // ── Export CSV handler ──────────────────────────────────────────────────
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      const { data } = await reportAPI.exportCSV({ year: selYear, month: selMonth });
+      const url = URL.createObjectURL(new Blob([data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BuildTrack_Report_${SHORT_MONTHS[selMonth]}_${selYear}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("CSV export error:", err);
+      setToast({ msg: "Failed to export CSV. Please try again.", type: "error" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ── Download PDF handler ────────────────────────────────────────────────
+  const handleDownloadPDF = async () => {
+    try {
+      setExporting(true);
+      const { data } = await reportAPI.exportPDF({ year: selYear, month: selMonth });
+      const url = URL.createObjectURL(new Blob([data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BuildTrack_Report_${MONTH_NAMES[selMonth]}_${selYear}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF export error:", err);
+      setToast({ msg: "Failed to download report. Please try again.", type: "error" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -227,7 +273,12 @@ export default function FinancialReportPage() {
   }, []);
 
   if (loading && !reportData) {
-    return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#888" }}>Loading Report...</div>;
+    return (
+      <>
+        <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#888" }}>Loading Report...</div>
+      </>
+    );
   }
 
   if (error) {
@@ -288,6 +339,7 @@ export default function FinancialReportPage() {
 
   return (
     <div style={{ flex:1, minWidth:0, width:"100%", display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:"#f7f7f8", fontFamily:"'Segoe UI', sans-serif" }}>
+      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
       {/* Topbar */}
       <div style={{ background:"#fff", borderBottom:"1px solid #ebebeb", padding:"0 28px", height:64, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxSizing:"border-box" }}>
@@ -298,7 +350,7 @@ export default function FinancialReportPage() {
             style={{ border:"none", background:"transparent", outline:"none", fontSize:14, color:"#555", width:"100%" }} />
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <button style={{ padding:"10px 20px", background:"#ea580c", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:8, boxShadow:"0 4px 14px rgba(234,88,12,0.3)", whiteSpace:"nowrap" }}>⬇ Export Report</button>
+          <button onClick={handleExportCSV} disabled={exporting} style={{ padding:"10px 20px", background:"#ea580c", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:14, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:8, boxShadow:"0 4px 14px rgba(234,88,12,0.3)", whiteSpace:"nowrap", opacity: exporting ? 0.7 : 1 }}>{exporting ? "⏳ Exporting…" : "⬇ Export Report"}</button>
           <div style={{ width:38, height:38, background:"#f5f5f5", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, cursor:"pointer", border:"1px solid #e5e5e5" }}>🔔</div>
           <div style={{ width:38, height:38, background:"#f5f5f5", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#888", cursor:"pointer", border:"1px solid #e5e5e5" }}>?</div>
         </div>
@@ -313,9 +365,9 @@ export default function FinancialReportPage() {
             <h2 style={{ margin:"0 0 6px", fontSize:"clamp(24px,3vw,34px)", fontWeight:900, color:"#111", letterSpacing:"-0.5px" }}>{monthLabel} Analysis</h2>
             <p style={{ margin:0, fontSize:14, color:"#888", maxWidth:340, lineHeight:1.5 }}>Reporting period performance and labor expenditure overview.</p>
           </div>
-          <button style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)" }}>
+          <button onClick={handleDownloadPDF} disabled={exporting} style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)", opacity: exporting ? 0.7 : 1 }}>
             <span style={{ fontSize:18 }}>📄</span>
-            <span>Download<br /><span style={{ fontSize:13, fontWeight:600 }}>PDF</span></span>
+            <span>{exporting ? "Downloading…" : <>Download<br /><span style={{ fontSize:13, fontWeight:600 }}>Report</span></>}</span>
           </button>
         </div>
 
