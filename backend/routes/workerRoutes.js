@@ -113,8 +113,8 @@ const createHandler = async (req, res) => {
     if (!dailyWage && dailyWage !== "0")
       return res.status(400).json({ message: "Daily wage is required" });
 
-    const photo = req.files?.photo?.[0]?.filename || null;
-    const documents = req.files?.documents?.map((file) => file.filename) || [];
+    const photo = req.files?.find(f => f.fieldname === "photo")?.filename || null;
+    const documents = (req.files || []).filter(f => f.fieldname === "documents").map(f => f.filename);
 
     const worker = await Worker.create({
       createdBy:   req.user._id,
@@ -169,8 +169,9 @@ router.put(
       };
 
       console.log("FILES:", req.files);
-      const photoFile = req.files?.photo?.[0] || null;
-      const newDocuments = req.files?.documents?.map((file) => file.filename) || [];
+      // upload.any() returns a flat array — find files by fieldname
+      const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
+      const newDocuments = (req.files || []).filter(f => f.fieldname === "documents").map(f => f.filename);
 
       // If a new photo was uploaded, delete the old one and save the new filename
       if (photoFile) {

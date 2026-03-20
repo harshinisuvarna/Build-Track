@@ -1,9 +1,11 @@
+// ⚠️ dotenv MUST be loaded BEFORE passport so env vars are available for OAuth strategy registration
+require("dotenv").config();
+
 const express  = require("express");
 const mongoose = require("mongoose");
 const cors     = require("cors");
 const path     = require("path");
 const passport = require("./config/passport");
-require("dotenv").config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;

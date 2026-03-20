@@ -10,11 +10,14 @@ const User           = require("../models/User");
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const safeUser = (user) => ({
-  id:        user._id,
-  name:      user.name,
-  email:     user.email,
-  isActive:  user.isActive,
-  createdAt: user.createdAt,
+  id:           user._id,
+  name:         user.name,
+  email:        user.email,
+  role:         user.role || "User",
+  profilePhoto: user.profilePhoto || null,
+  provider:     user.provider || "local",
+  isActive:     user.isActive,
+  createdAt:    user.createdAt,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

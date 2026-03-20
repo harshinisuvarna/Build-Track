@@ -63,6 +63,22 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    // For password reset flow
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+    },
+
+    // For 2FA toggle
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
