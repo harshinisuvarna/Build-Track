@@ -45,6 +45,7 @@ app.use("/api/projects",     require("./routes/projectRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
 app.use("/api/dashboard",    require("./routes/dashboardRoutes"));
 app.use("/api/reports",      require("./routes/reportRoutes"));
+app.use("/api/voice",        require("./routes/voiceRoutes"));
 
 // ── Test route (no auth) ──────────────────────────────────────────────────────
 app.get("/api/test", (req, res) => res.json({ ok: true }));
