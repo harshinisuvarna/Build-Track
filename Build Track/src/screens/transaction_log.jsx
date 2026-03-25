@@ -87,7 +87,7 @@ export default function TransactionLog() {
 
   const exportCSV = () => {
     const rows = filtered.map(t =>
-      `${t.date},"${t.description}",${t.category},"${t.project}",${t.amount}`
+      `${new Date(t.date).toLocaleDateString("en-IN")},"${(t.title || "").replace(/"/g, '""')}",${t.type},"${t.project || ""}",${t.amount}`
     );
     const csv  = ["Date,Description,Transaction Type,Project,Amount", ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
