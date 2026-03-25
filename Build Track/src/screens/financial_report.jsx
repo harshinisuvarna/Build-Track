@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { reportAPI } from "../api";
 import { Toast } from "../components/Toast";
 
@@ -195,10 +196,19 @@ export default function FinancialReportPage() {
   const [calMonth,     setCalMonth]     = useState(THIS_MONTH);
   const calRef = useRef(null);
 
-  const [search, setSearch] = useState("");
-  const [exporting, setExporting] = useState(false);
-  const [toast, setToast] = useState({ msg: "", type: "info" });
+  const [search,      setSearch]      = useState("");
+  const [exporting,   setExporting]   = useState(false);
+  const [toast,       setToast]       = useState({ msg: "", type: "info" });
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  // ── Table controls state ──────────────────────────────────────────────────
+  const [sortKey,     setSortKey]     = useState("name");    // "name" | "payout" | "trade"
+  const [showSort,    setShowSort]    = useState(false);
+  const [showMore,    setShowMore]    = useState(false);
+  const sortRef = useRef(null);
+  const moreRef = useRef(null);
+
+  const navigate = useNavigate();
 
   // ── Export CSV handler ──────────────────────────────────────────────────
   const handleExportCSV = async () => {
@@ -267,6 +277,8 @@ export default function FinancialReportPage() {
     function handle(e) {
       if (monthDropRef.current && !monthDropRef.current.contains(e.target)) setShowMonthDrop(false);
       if (calRef.current        && !calRef.current.contains(e.target))       setShowCal(false);
+      if (sortRef.current       && !sortRef.current.contains(e.target))      setShowSort(false);
+      if (moreRef.current       && !moreRef.current.contains(e.target))      setShowMore(false);
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
@@ -303,10 +315,22 @@ export default function FinancialReportPage() {
   const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`;
   const rangeLabel = formatRangeLabel(rangeStart, rangeEnd);
 
-  const filtered = workers.filter(w =>
-    w.name.toLowerCase().includes(search.toLowerCase()) ||
-    (w.trade && w.trade.toLowerCase().includes(search.toLowerCase()))
-  );
+  const SORT_OPTIONS = [
+    { key: "name",    label: "Worker Name (A–Z)" },
+    { key: "payout",  label: "Payout (High–Low)"},
+    { key: "trade",   label: "Trade / Role" },
+  ];
+
+  const filtered = workers
+    .filter(w =>
+      w.name.toLowerCase().includes(search.toLowerCase()) ||
+      (w.trade && w.trade.toLowerCase().includes(search.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (sortKey === "payout") return (b.estimatedMonthlyPayout || 0) - (a.estimatedMonthlyPayout || 0);
+      if (sortKey === "trade")  return (a.trade || "").localeCompare(b.trade || "");
+      return (a.name || "").localeCompare(b.name || "");  // default: name A–Z
+    });
 
   // ── Apply a month selection (shared by month-dropdown & last-month btn) ───
   function applyMonth(year, month) {
@@ -494,8 +518,59 @@ export default function FinancialReportPage() {
               <div style={{ fontSize:13, color:"#888", marginTop:3 }}>Breakdown of labor costs for {monthLabel}</div>
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#888" }}>≡</button>
-              <button style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, color:"#888" }}>⋮</button>
+
+              {/* ── Sort dropdown (≡) ─────────────────────────────────────── */}
+              <div ref={sortRef} style={{ position:"relative" }}>
+                <button
+                  onClick={() => { setShowSort(v => !v); setShowMore(false); }}
+                  title="Sort workers"
+                  style={{ background: showSort ? "#fff5f0" : "none", border: showSort ? "1px solid #fde4d0" : "none", cursor:"pointer", fontSize:18, color: showSort ? "#ea580c" : "#888", borderRadius:8, padding:"4px 8px", lineHeight:1, transition:"all 0.15s" }}>
+                  ≡
+                </button>
+                {showSort && (
+                  <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 28px rgba(0,0,0,0.12)", zIndex:300, minWidth:200, overflow:"hidden" }}>
+                    <div style={{ padding:"10px 14px 6px", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em" }}>SORT BY</div>
+                    {SORT_OPTIONS.map(opt => (
+                      <div key={opt.key}
+                        onClick={() => { setSortKey(opt.key); setShowSort(false); }}
+                        style={{ padding:"10px 16px", fontSize:13, fontWeight: sortKey===opt.key?700:400, color: sortKey===opt.key?"#ea580c":"#333", background: sortKey===opt.key?"#fff5f0":"transparent", cursor:"pointer", borderLeft: sortKey===opt.key?"3px solid #ea580c":"3px solid transparent", transition:"background 0.12s" }}
+                        onMouseEnter={e=>{ if(sortKey!==opt.key) e.currentTarget.style.background="#f9f9f9"; }}
+                        onMouseLeave={e=>{ if(sortKey!==opt.key) e.currentTarget.style.background="transparent"; }}>
+                        {opt.label} {sortKey===opt.key && "✓"}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── More options dropdown (⋮) ─────────────────────────────── */}
+              <div ref={moreRef} style={{ position:"relative" }}>
+                <button
+                  onClick={() => { setShowMore(v => !v); setShowSort(false); }}
+                  title="More options"
+                  style={{ background: showMore ? "#fff5f0" : "none", border: showMore ? "1px solid #fde4d0" : "none", cursor:"pointer", fontSize:20, color: showMore ? "#ea580c" : "#888", borderRadius:8, padding:"4px 8px", lineHeight:1, transition:"all 0.15s" }}>
+                  ⋮
+                </button>
+                {showMore && (
+                  <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 28px rgba(0,0,0,0.12)", zIndex:300, minWidth:180, overflow:"hidden" }}>
+                    <div
+                      onClick={() => { handleExportCSV(); setShowMore(false); }}
+                      style={{ padding:"12px 16px", fontSize:13, fontWeight:500, color:"#333", cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"background 0.12s" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f9f9f9"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      ⬇ Export CSV
+                    </div>
+                    <div
+                      onClick={() => { handleDownloadPDF(); setShowMore(false); }}
+                      style={{ padding:"12px 16px", fontSize:13, fontWeight:500, color:"#333", cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"background 0.12s", borderTop:"1px solid #f5f5f5" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f9f9f9"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      📄 Download PDF
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
           <div style={{ padding:"14px 24px", display:"flex", alignItems:"center", gap:20, borderBottom:"1px solid #f0f0f0", flexWrap:"wrap" }}>
@@ -538,7 +613,15 @@ export default function FinancialReportPage() {
               <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>26d</div>
               <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>₹{w.dailyWage || 0}</div>
               <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>₹{w.estimatedMonthlyPayout?.toLocaleString("en-IN")}</div>
-              <div><button style={{ background:"none", border:"none", color:"#ea580c", fontWeight:700, fontSize:12, cursor:"pointer", letterSpacing:"0.04em" }}>DETAILS</button></div>
+              <div>
+                <button
+                  onClick={() => navigate(`/workers/${w._id || w.id}`, { state: { worker: w } })}
+                  style={{ background:"none", border:"none", color:"#ea580c", fontWeight:700, fontSize:12, cursor:"pointer", letterSpacing:"0.04em", padding:0, fontFamily:"inherit", transition:"opacity 0.15s" }}
+                  onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                  DETAILS
+                </button>
+              </div>
             </div>
           ))}
         </div>
