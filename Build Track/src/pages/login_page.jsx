@@ -304,25 +304,15 @@ export default function LoginPage() {
         <div style={{ flex: 1, height: 1, background: "#f1f5f9" }} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
-        {/* Google — redirects browser to backend, which redirects to Google */}
-        <button
-          className="bt-btn-social"
-          type="button"
-          onClick={() => { window.location.href = `${API_ORIGIN}/api/auth/google`; }}
-        >
-          <GoogleIcon /> Google
-        </button>
-
-        {/* GitHub — redirects browser to backend, which redirects to GitHub */}
-        <button
-          className="bt-btn-social"
-          type="button"
-          onClick={() => { window.location.href = `${API_ORIGIN}/api/auth/github`; }}
-        >
-          <GitHubIcon /> GitHub
-        </button>
-      </div>
+      {/* Google only — full width */}
+      <button
+        className="bt-btn-social"
+        type="button"
+        style={{ width: "100%", marginBottom: 28 }}
+        onClick={() => { window.location.href = `${API_ORIGIN}/api/auth/google`; }}
+      >
+        <GoogleIcon /> Continue with Google
+      </button>
 
       <div style={{ textAlign: "center" }}>
         <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "#94a3b8" }}>

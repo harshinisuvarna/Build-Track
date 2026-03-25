@@ -353,7 +353,7 @@ export default function WorkerDirectory() {
                           style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
                           title="Delete worker"
                         >🗑️</button>
-                      </div>
+                      </div>  
                     </td>
                   </tr>
                 ))}
