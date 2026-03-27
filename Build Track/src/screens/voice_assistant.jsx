@@ -1,11 +1,8 @@
 // src/screens/voice_assistant.jsx
-// Real SpeechRecognition  →  backend Gemini parse  →  form autofill
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { transactionAPI } from "../api";
 
-// ── Amount extraction ─────────────────────────────────────────────────────────
 function extractAmount(text) {
   text = text.toLowerCase();
   const num = text.match(/\d+/);
@@ -16,13 +13,19 @@ function extractAmount(text) {
   return 0;
 }
 
-// ── Category detection ────────────────────────────────────────────────────────
 function detectCategory(text) {
-  let category = "Expense"; // default
-  if (/pay|paid|wage|salary/i.test(text))                  category = "Wages";
-  if (/cement|steel|sand|brick|material/i.test(text))      category = "Materials";
-  if (/income|received|client|payment/i.test(text))        category = "Income";
+  let category = "Expense";
+  if (/pay|paid|wage|salary/i.test(text))             category = "Wages";
+  if (/cement|steel|sand|brick|material/i.test(text)) category = "Materials";
+  if (/income|received|client|payment/i.test(text))   category = "Income";
   return category;
+}
+
+function assignField(text, workers, projects) {
+  const lower = text.toLowerCase();
+  const workerMatch  = workers.find(w => lower.includes(w.toLowerCase()));
+  const projectMatch = projects.find(p => lower.includes(p.toLowerCase()));
+  return { worker: workerMatch || "", project: projectMatch || "" };
 }
 
 const recentEntries = [
@@ -33,36 +36,87 @@ const recentEntries = [
 
 const categories = ["Wages", "Expense", "Income", "Materials"];
 
+// Simple worker → project mapping (replace/extend with real API data as needed)
+const WORKER_PROJECT_MAP = {
+  "Suresh - Masonry": "Block A",
+  "Ramesh - Plumbing": "Block B",
+  "Vijay - Electrical": "Tower C",
+};
+
 export default function VoiceAssistantPage() {
   const navigate = useNavigate();
 
-  // ── Layout state ──────────────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
 
-  // ── Voice & parsing state ─────────────────────────────────────────────────
-  const [listening,    setListening]    = useState(false);
-  const [parsing,      setParsing]      = useState(false);
-  const [transcript,   setTranscript]   = useState("");
-  const [parseSource,  setParseSource]  = useState("");
-  const [pulse,        setPulse]        = useState(true);
+  const [listening,   setListening]   = useState(false);
+  const [parsing,     setParsing]     = useState(false);
+  const [transcript,  setTranscript]  = useState("");
+  const [parseSource, setParseSource] = useState("");
+  const [pulse,       setPulse]       = useState(true);
 
-  // ── Form state ────────────────────────────────────────────────────────────
-  const [worker,       setWorker]       = useState("");
-  const [category,     setCategory]     = useState("Wages");
-  const [amount,       setAmount]       = useState("");
-  const [notes,        setNotes]        = useState("");
+  const [worker,    setWorker]    = useState("");
+  const [project,   setProject]   = useState("");
+  const [category,  setCategory]  = useState("Wages");
+  const [amount,    setAmount]    = useState("");
+  const [notes,     setNotes]     = useState("");
 
-  // ── Save state ────────────────────────────────────────────────────────────
+  // Field-level error state
+  const [fieldErrors, setFieldErrors] = useState({ worker: false, project: false });
+
   const [voiceSaving,  setVoiceSaving]  = useState(false);
   const [voiceSuccess, setVoiceSuccess] = useState("");
   const [voiceError,   setVoiceError]   = useState("");
 
-  // ── Refs ──────────────────────────────────────────────────────────────────
-  const recognitionRef = useRef(null);
-  const workerInputRef = useRef(null);
+  const [workerNames,  setWorkerNames]  = useState([]);
+  const [projectNames, setProjectNames] = useState([]);
 
-  // ── Resize handler ────────────────────────────────────────────────────────
+  const recognitionRef = useRef(null);
+
+  // ── Auto-fill project when worker is selected and a mapping exists ──
+  const handleWorkerChange = (val) => {
+    setWorker(val);
+    // Clear worker field error on change
+    if (fieldErrors.worker) setFieldErrors(prev => ({ ...prev, worker: false }));
+
+    // Auto-fill project if worker has a known mapping and project is currently empty
+    const mapped = WORKER_PROJECT_MAP[val];
+    if (mapped && !project) {
+      setProject(mapped);
+      if (fieldErrors.project) setFieldErrors(prev => ({ ...prev, project: false }));
+    }
+  };
+
+  const handleProjectChange = (val) => {
+    setProject(val);
+    if (fieldErrors.project) setFieldErrors(prev => ({ ...prev, project: false }));
+  };
+
+  const handleCategoryChange = (val) => {
+    setCategory(val);
+    // When switching away from Wages, clear worker field error
+    if (val !== "Wages" && fieldErrors.worker) {
+      setFieldErrors(prev => ({ ...prev, worker: false }));
+    }
+  };
+
+  useEffect(() => {
+    const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:5000")
+      .replace(/\/+$/, "").replace(/\/api$/, "");
+    fetch(`${apiBase}/api/workers`)
+      .then(r => r.json())
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data.workers || data.data || []);
+        setWorkerNames(list.map(w => w.name || w).filter(Boolean));
+      }).catch(() => {});
+    fetch(`${apiBase}/api/projects`)
+      .then(r => r.json())
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data.projects || data.data || []);
+        setProjectNames(list.map(p => p.name || p).filter(Boolean));
+      }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const onResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -72,39 +126,28 @@ export default function VoiceAssistantPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Pulse animation ───────────────────────────────────────────────────────
   useEffect(() => {
     const t = setInterval(() => setPulse(p => !p), 800);
     return () => clearInterval(t);
   }, []);
 
-  // ── Cleanup recognition on unmount ────────────────────────────────────────
   useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-    };
+    return () => { recognitionRef.current?.stop(); };
   }, []);
 
-  // ── Core toggle function ──────────────────────────────────────────────────
   const toggleListening = () => {
     if (parsing) return;
-
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
       return;
     }
-
-    // If currently listening → stop
     if (listening) {
       recognitionRef.current?.stop();
       setListening(false);
       return;
     }
 
-    // Always create a fresh instance so second tap works reliably
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IN";
     recognition.interimResults = false;
@@ -115,66 +158,55 @@ export default function VoiceAssistantPage() {
       setTranscript(text);
       setParsing(true);
       setListening(false);
-      recognitionRef.current = null; // reset so next tap creates fresh instance
+      recognitionRef.current = null;
 
-      // ── Client-side regex fallback (used when backend is unreachable) ──────
-      const clientFallback = (text) => ({
-        worker:   "",
-        amount:   extractAmount(text),
-        category: detectCategory(text),
-        notes:    text,
-        source:   "local",
-      });
+      const clientFallback = (t) => {
+        const { worker: fw, project: fp } = assignField(t, workerNames, projectNames);
+        return { worker: fw, project: fp, amount: extractAmount(t), category: detectCategory(t), notes: t, source: "local" };
+      };
 
       try {
         const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:5000")
           .replace(/\/+$/, "").replace(/\/api$/, "");
-
         const res = await fetch(`${apiBase}/api/voice/parse`, {
-          method:  "POST",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ transcript: text }),
+          body: JSON.stringify({ transcript: text, workers: workerNames, projects: projectNames }),
         });
 
-        // Try to parse JSON regardless of HTTP status
         let data;
-        try {
-          data = await res.json();
-        } catch {
-          // Non-JSON response (e.g. HTML 500 page) → use client fallback
-          data = clientFallback(text);
-        }
+        try { data = await res.json(); } catch { data = clientFallback(text); }
+        if (!data.category && !data.worker && !data.amount) data = clientFallback(text);
 
-        // If backend returned an error object without useful fields → client fallback
-        if (!data.category && !data.worker && !data.amount) {
-          data = clientFallback(text);
-        }
-
-        const parsedWorker   = data.worker   || "";
+        const assigned = assignField(text, workerNames, projectNames);
+        const parsedWorker   = data.worker   || assigned.worker   || "";
+        const parsedProject  = data.project  || assigned.project  || "";
         const parsedAmount   = String(data.amount || "");
         const parsedCategory = data.category || "Expense";
         const parsedNotes    = data.notes    || "";
 
+        // Apply auto-fill: if parsedWorker maps to a project and no project was parsed, use it
+        const autoProject = parsedProject || (parsedWorker && WORKER_PROJECT_MAP[parsedWorker]) || "";
+
         setWorker(parsedWorker);
+        setProject(autoProject);
         setAmount(parsedAmount);
         setCategory(parsedCategory);
         setNotes(parsedNotes);
         setParseSource(data.source || "");
-
-        // Worker fallback — runs after autofill if worker is still empty
-        if (!parsedWorker) {
-          setWorker(parsedCategory === "Income" ? "Client Payment" : "General Entry");
-        }
+        // Clear field errors after a fresh voice parse
+        setFieldErrors({ worker: false, project: false });
       } catch (err) {
-        // Complete network failure → silent local fallback
         console.error("Voice parse error:", err);
         const fallback = clientFallback(text);
-        const fbWorker = fallback.worker || (fallback.category === "Income" ? "Client Payment" : "General Entry");
-        setWorker(fbWorker);
+        const autoProject = fallback.project || (fallback.worker && WORKER_PROJECT_MAP[fallback.worker]) || "";
+        setWorker(fallback.worker);
+        setProject(autoProject);
         setAmount(String(fallback.amount));
         setCategory(fallback.category);
         setNotes(fallback.notes);
         setParseSource(fallback.source);
+        setFieldErrors({ worker: false, project: false });
       } finally {
         setParsing(false);
       }
@@ -186,43 +218,61 @@ export default function VoiceAssistantPage() {
       setParsing(false);
       recognitionRef.current = null;
     };
-
-    recognition.onend = () => {
-      // Only reset listening if parsing hasn't started (no result fired)
-      setListening(false);
-    };
+    recognition.onend = () => { setListening(false); };
 
     recognitionRef.current = recognition;
     recognition.start();
     setListening(true);
   };
 
-  // ── Mic button styles ─────────────────────────────────────────────────────
-  const micBg = parsing ? "#9ca3af" : listening ? "#c2410c" : "#ea580c";
+  const micBg       = parsing ? "#9ca3af" : listening ? "#c2410c" : "#ea580c";
   const micDisabled = parsing;
-  const micLabel = parsing ? "⏳" : "🎤";
+  const micLabel    = parsing ? "⏳" : "🎤";
 
-  // ── Save handler ──────────────────────────────────────────────────────────
   const handleSave = async () => {
     setVoiceError(""); setVoiceSuccess("");
+
+    // ── Validation with field highlighting ──
+    const newErrors = { worker: false, project: false };
+    let errorMsg = "";
+
+    if (!project || !project.trim()) {
+      newErrors.project = true;
+      errorMsg = "Project is required.";
+    }
+
+    if (category === "Wages" && (!worker || !worker.trim())) {
+      newErrors.worker = true;
+      errorMsg = errorMsg || "Worker is required for wages.";
+    }
+
+    if (newErrors.worker || newErrors.project) {
+      setFieldErrors(newErrors);
+      setVoiceError(errorMsg);
+      return;
+    }
+
     const numAmount = Number(String(amount).replace(/,/g, ""));
     if (!amount || numAmount <= 0) {
       setVoiceError("Please enter a valid amount.");
       return;
     }
+
     try {
       setVoiceSaving(true);
       await transactionAPI.create({
-        title:  `${category} - ${worker}`,
-        amount: numAmount,
-        type:   category,
-        worker: worker,
-        date:   new Date().toISOString(),
-        notes:  notes || "Entered via Voice Assistant",
+        title:   `${category} - ${worker || project}`,
+        amount:  numAmount,
+        type:    category,
+        worker:  worker,
+        project: project,
+        date:    new Date().toISOString(),
+        notes:   notes || "Entered via Voice Assistant",
       });
       setVoiceSuccess("Entry saved successfully!");
-      setWorker(""); setAmount(""); setCategory("Wages"); setNotes("");
+      setWorker(""); setProject(""); setAmount(""); setCategory("Wages"); setNotes("");
       setTranscript(""); setParseSource("");
+      setFieldErrors({ worker: false, project: false });
       setTimeout(() => setVoiceSuccess(""), 3000);
     } catch (err) {
       setVoiceError(err.response?.data?.message || "Failed to save entry.");
@@ -231,18 +281,35 @@ export default function VoiceAssistantPage() {
     }
   };
 
+  const confirmDisabled = voiceSaving || !amount || Number(String(amount).replace(/,/g, "")) <= 0;
+
+  // Shared input field style — supports error highlight
+  const fieldBox = (hasError = false) => ({
+    display: "flex", alignItems: "center",
+    background: "#f9f9f9",
+    border: `1px solid ${hasError ? "#ef4444" : "#e5e5e5"}`,
+    borderRadius: 10, padding: "10px 14px",
+    transition: "border-color 0.2s ease",
+  });
+  const fieldInput = {
+    flex: 1, border: "none", background: "transparent",
+    outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500,
+  };
+  const fieldLabel = {
+    fontSize: 11, fontWeight: 700, color: "#aaa",
+    letterSpacing: "0.08em", marginBottom: 8,
+  };
+
+  // Dynamic worker label — required asterisk only for Wages
+  const isWages = category === "Wages";
+  const workerPlaceholder = isWages ? "Select worker" : "Optional worker";
+
   return (
     <div style={{
-      display: "flex",
-      width: "100%",
-      height: "100vh",
-      fontFamily: "'Segoe UI', sans-serif",
-      background: "#faf9f7",
-      overflow: "hidden",
-      flex: 1,
-      minWidth: 0,
+      display: "flex", width: "100%", height: "100vh",
+      fontFamily: "'Segoe UI', sans-serif", background: "#faf9f7",
+      overflow: "hidden", flex: 1, minWidth: 0,
     }}>
-
       {sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
@@ -262,8 +329,7 @@ export default function VoiceAssistantPage() {
               style={{ border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#555", width: "100%" }} />
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              onClick={() => navigate("/manualentry")}
+            <button onClick={() => navigate("/manualentry")}
               style={{ padding: "10px 20px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
               📝 Manual Entry
             </button>
@@ -273,8 +339,7 @@ export default function VoiceAssistantPage() {
 
         {/* Body */}
         <div style={{
-          flex: 1, overflowY: "auto",
-          padding: "32px 24px",
+          flex: 1, overflowY: "auto", padding: "32px 24px",
           display: "flex", flexDirection: "column", gap: 28, alignItems: "center",
           boxSizing: "border-box", width: "100%",
         }}>
@@ -283,8 +348,7 @@ export default function VoiceAssistantPage() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             <div style={{ position: "relative" }}>
               <div style={{
-                position: "absolute", inset: -12,
-                borderRadius: "50%",
+                position: "absolute", inset: -12, borderRadius: "50%",
                 background: listening ? "rgba(194,65,12,0.15)" : "rgba(234,88,12,0.12)",
                 transform: (listening || pulse) ? "scale(1.1)" : "scale(1)",
                 transition: "transform 0.8s ease",
@@ -305,43 +369,22 @@ export default function VoiceAssistantPage() {
                 {micLabel}
               </button>
             </div>
-
             <div style={{ textAlign: "center" }}>
               <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1a1a1a" }}>
-                {parsing
-                  ? "Analysing speech…"
-                  : listening
-                    ? "Listening…"
-                    : "Tap to Start Listening"}
+                {parsing ? "Analysing speech…" : listening ? "Listening…" : "Tap to Start Listening"}
               </h1>
-
-              {/* Live transcript */}
               {transcript ? (
-                <p style={{ margin: "6px 0 0", fontSize: 14, color: "#555", fontStyle: "italic" }}>
-                  "{transcript}"
-                </p>
+                <p style={{ margin: "6px 0 0", fontSize: 14, color: "#555", fontStyle: "italic" }}>"{transcript}"</p>
               ) : !listening && (
                 <p style={{ margin: "6px 0 0", fontSize: 13, color: "#aaa" }}>
                   Chrome / Edge only · Try: <em>Pay Suresh 1200 for masonry</em>
                 </p>
               )}
-
-              {/* Parse source badge */}
               {parseSource === "gemini" && (
-                <span style={{
-                  display: "inline-block", marginTop: 8,
-                  fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
-                  color: "#ea580c", background: "#fff5f0",
-                  padding: "3px 10px", borderRadius: 6, border: "1px solid #fde4d0",
-                }}>✦ AI parsed</span>
+                <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#ea580c", background: "#fff5f0", padding: "3px 10px", borderRadius: 6, border: "1px solid #fde4d0" }}>✦ AI parsed</span>
               )}
               {parseSource === "local" && (
-                <span style={{
-                  display: "inline-block", marginTop: 8,
-                  fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
-                  color: "#6b7280", background: "#f3f4f6",
-                  padding: "3px 10px", borderRadius: 6, border: "1px solid #e5e7eb",
-                }}>local fallback</span>
+                <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#6b7280", background: "#f3f4f6", padding: "3px 10px", borderRadius: 6, border: "1px solid #e5e7eb" }}>local fallback</span>
               )}
             </div>
           </div>
@@ -356,60 +399,118 @@ export default function VoiceAssistantPage() {
               <span style={{ fontSize: 11, fontWeight: 700, color: "#ea580c", background: "#fff5f0", padding: "4px 12px", borderRadius: 6, letterSpacing: "0.06em", border: "1px solid #fde4d0" }}>LIVE INTERPRETATION</span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            {/* ── Row 1: Worker (left 50%) + Project (right 50%) ── */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
               {/* Worker */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", marginBottom: 8 }}>WORKER OR PROJECT NAME</div>
-                <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "10px 14px", gap: 8 }}>
-                  <input id="voice-worker" ref={workerInputRef} value={worker} onChange={e => setWorker(e.target.value)}
-                    style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500 }} />
-                  <span onClick={() => workerInputRef.current?.focus()} style={{ color: "#aaa", fontSize: 14, cursor: "pointer" }}>✏️</span>
+                <div style={fieldLabel}>
+                  WORKER{" "}
+                  {isWages
+                    ? <span style={{ color: "#ea580c" }}>*</span>
+                    : <span style={{ color: "#ccc", fontWeight: 400, fontSize: 10 }}>(optional)</span>
+                  }
                 </div>
+                <div style={fieldBox(fieldErrors.worker)}>
+                  <input
+                    id="voice-worker"
+                    value={worker}
+                    onChange={e => handleWorkerChange(e.target.value)}
+                    placeholder={workerPlaceholder}
+                    style={fieldInput}
+                  />
+                </div>
+                {fieldErrors.worker && (
+                  <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontWeight: 500 }}>
+                    Worker is required for wages
+                  </div>
+                )}
               </div>
+
+              {/* Project */}
+              <div>
+                <div style={fieldLabel}>
+                  PROJECT <span style={{ color: "#ea580c" }}>*</span>
+                </div>
+                <div style={fieldBox(fieldErrors.project)}>
+                  <input
+                    id="voice-project"
+                    value={project}
+                    onChange={e => handleProjectChange(e.target.value)}
+                    placeholder="e.g. Block A"
+                    style={fieldInput}
+                  />
+                </div>
+                {fieldErrors.project && (
+                  <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontWeight: 500 }}>
+                    Project is required
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Row 2: Category (left) + Amount (right) ── */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
               {/* Category */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", marginBottom: 8 }}>CATEGORY</div>
+                <div style={fieldLabel}>CATEGORY</div>
                 <div style={{ position: "relative" }}>
-                  <select id="voice-category" value={category} onChange={e => setCategory(e.target.value)}
+                  <select
+                    id="voice-category"
+                    value={category}
+                    onChange={e => handleCategoryChange(e.target.value)}
                     style={{ width: "100%", padding: "10px 14px", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 14, color: "#1a1a1a", fontWeight: 500, outline: "none", appearance: "none", cursor: "pointer" }}>
                     {categories.map(c => <option key={c}>{c}</option>)}
                   </select>
                   <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none" }}>▾</span>
                 </div>
               </div>
+
               {/* Amount */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", marginBottom: 8 }}>AMOUNT (₹)</div>
-                <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "10px 14px", gap: 6 }}>
-                  <span style={{ fontSize: 14, color: "#555", fontWeight: 600 }}>₹</span>
-                  <input id="voice-amount" value={amount} onChange={e => setAmount(e.target.value)}
-                    style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500 }} />
+                <div style={fieldLabel}>AMOUNT (₹)</div>
+                <div style={fieldBox()}>
+                  <span style={{ fontSize: 14, color: "#555", fontWeight: 600, marginRight: 6 }}>₹</span>
+                  <input
+                    id="voice-amount"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    style={fieldInput}
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Notes field */}
+            {/* ── Row 3: Notes (full width) ── */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", marginBottom: 8 }}>NOTES</div>
-              <div style={{ background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "10px 14px" }}>
-                <input id="voice-notes" value={notes} onChange={e => setNotes(e.target.value)}
+              <div style={fieldLabel}>NOTES</div>
+              <div style={fieldBox()}>
+                <input
+                  id="voice-notes"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
                   placeholder="Add any additional notes…"
-                  style={{ width: "100%", border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500, boxSizing: "border-box" }} />
+                  style={{ ...fieldInput, width: "100%", boxSizing: "border-box" }}
+                />
               </div>
             </div>
 
+            {/* ── Row 4: Confirm button ── */}
             <button
               id="voice-confirm-button"
               onClick={handleSave}
-              disabled={voiceSaving || !amount || Number(String(amount).replace(/,/g, "")) <= 0}
-              style={{ width: "100%", padding: "16px 0", background: (voiceSaving || !amount || Number(String(amount).replace(/,/g, "")) <= 0) ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: (voiceSaving || !amount || Number(String(amount).replace(/,/g, "")) <= 0) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 14px rgba(234,88,12,0.3)", marginBottom: 12 }}>
+              disabled={confirmDisabled}
+              style={{ width: "100%", padding: "16px 0", background: confirmDisabled ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: confirmDisabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 14px rgba(234,88,12,0.3)", marginBottom: 12 }}>
               {voiceSaving ? "⏳ Saving…" : "✅ Confirm & Finalize Entry"}
             </button>
             {voiceSuccess && <div style={{ textAlign: "center", padding: "8px 0", color: "#166534", fontSize: 13, fontWeight: 600 }}>✅ {voiceSuccess}</div>}
             {voiceError   && <div style={{ textAlign: "center", padding: "8px 0", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>⚠️ {voiceError}</div>}
             <div style={{ textAlign: "center" }}>
               <button
-                onClick={() => { setWorker(""); setCategory("Wages"); setAmount(""); setNotes(""); setVoiceError(""); setVoiceSuccess(""); setTranscript(""); setParseSource(""); }}
+                onClick={() => {
+                  setWorker(""); setProject(""); setCategory("Wages"); setAmount(""); setNotes("");
+                  setVoiceError(""); setVoiceSuccess(""); setTranscript(""); setParseSource("");
+                  setFieldErrors({ worker: false, project: false });
+                }}
                 style={{ background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 }}>
                 Discard &amp; Try Again
               </button>
