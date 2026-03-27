@@ -1,7 +1,7 @@
 // src/screens/voice_assistant.jsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { transactionAPI } from "../api";
+import { transactionAPI, workerAPI, projectAPI } from "../api";
 
 function extractAmount(text) {
   text = text.toLowerCase();
@@ -101,20 +101,22 @@ export default function VoiceAssistantPage() {
   };
 
   useEffect(() => {
-    const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:5000")
-      .replace(/\/+$/, "").replace(/\/api$/, "");
-    fetch(`${apiBase}/api/workers`)
-      .then(r => r.json())
-      .then(data => {
+    // Use authenticated API helpers — raw fetch() would be rejected (401) by the JWT-protected routes
+    workerAPI.getAll()
+      .then(res => {
+        const data = res.data;
         const list = Array.isArray(data) ? data : (data.workers || data.data || []);
         setWorkerNames(list.map(w => w.name || w).filter(Boolean));
-      }).catch(() => {});
-    fetch(`${apiBase}/api/projects`)
-      .then(r => r.json())
-      .then(data => {
+      })
+      .catch(() => {});
+
+    projectAPI.getAll()
+      .then(res => {
+        const data = res.data;
         const list = Array.isArray(data) ? data : (data.projects || data.data || []);
-        setProjectNames(list.map(p => p.name || p).filter(Boolean));
-      }).catch(() => {});
+        setProjectNames(list.map(p => p.projectName || p.name || p).filter(Boolean));
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
