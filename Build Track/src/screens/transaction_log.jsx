@@ -108,15 +108,16 @@ export default function TransactionLog() {
 
   return (
     /* ── Root: fills the slot DashboardLayout gives this page ── */
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      height: "100vh",
-      fontFamily: "'Segoe UI', sans-serif",
-      background: "#f7f7f8",
-      overflow: "hidden",
-    }}>
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100vh",
+        fontFamily: "'Segoe UI', sans-serif",
+        background: "#f7f7f8",
+        overflow: "hidden",  
+        minHeight: 0,
+      }}>
       {/* Toast + Confirm Dialog */}
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && (
@@ -206,14 +207,13 @@ export default function TransactionLog() {
         </div>
 
         {/* ── Table Card ── */}
-        <div style={{
-          background: "#fff",
-          borderRadius: 16,
-          border: "1px solid #ebebeb",
-          overflow: "hidden",
-          overflowX: "auto",
-          boxShadow: "0 1px 6px rgba(0,0,0,0.04)",
-        }}>
+          <div style={{
+            background: "#fff",
+            borderRadius: 16,
+            border: "1px solid #ebebeb",
+            overflowX: "auto",
+            boxShadow: "0 1px 6px rgba(0,0,0,0.04)",
+          }}>
 
           {/* Desktop Table */}
           {!isMobile && (
@@ -307,7 +307,7 @@ export default function TransactionLog() {
         </div>
 
         {/* ── Summary Cards (always rendered below table, inside scroll area) ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, paddingBottom: 24 }}>
           <div style={{ background: "#f0fdf4", borderRadius: 14, padding: "18px 22px", border: "1px solid #bbf7d0" }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", letterSpacing: "0.08em", marginBottom: 8 }}>MONTHLY INCOME</div>
             <div style={{ fontSize: 26, fontWeight: 800, color: "#15803d" }}>{fmt(monthlyIncome)}</div>

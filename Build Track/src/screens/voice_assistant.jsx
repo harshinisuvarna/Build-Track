@@ -1,4 +1,3 @@
-// src/screens/voice_assistant.jsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { transactionAPI, workerAPI, projectAPI } from "../api";
@@ -28,58 +27,56 @@ function assignField(text, workers, projects) {
   return { worker: workerMatch || "", project: projectMatch || "" };
 }
 
-const recentEntries = [
-  { worker: "Suresh - Masonry",   time: "10 mins ago", category: "WAGES",   catBg: "#dbeafe", catColor: "#1e40af", amount: "₹1,200",    income: false },
-  { worker: "Cement Procurement", time: "45 mins ago", category: "EXPENSE", catBg: "#fce7f3", catColor: "#9d174d", amount: "₹45,000",   income: false },
-  { worker: "Client Milestone 1", time: "2 hours ago", category: "INCOME",  catBg: "#dcfce7", catColor: "#166534", amount: "₹2,50,000", income: true  },
-];
-
 const categories = ["Wages", "Expense", "Income", "Materials"];
-
-// Simple worker → project mapping (replace/extend with real API data as needed)
-const WORKER_PROJECT_MAP = {
-  "Suresh - Masonry": "Block A",
-  "Ramesh - Plumbing": "Block B",
-  "Vijay - Electrical": "Tower C",
+const categoryStyle = {
+  Wages:     { bg: "#dbeafe", color: "#1e40af" },
+  Expense:   { bg: "#fce7f3", color: "#9d174d" },
+  Income:    { bg: "#dcfce7", color: "#166534" },
+  Materials: { bg: "#e0e7ff", color: "#3730a3" },
 };
-
+const WORKER_PROJECT_MAP = {
+  "Suresh - Masonry":    "Block A",
+  "Ramesh - Plumbing":   "Block B",
+  "Vijay - Electrical":  "Tower C",
+};
 export default function VoiceAssistantPage() {
   const navigate = useNavigate();
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
-
   const [listening,   setListening]   = useState(false);
   const [parsing,     setParsing]     = useState(false);
   const [transcript,  setTranscript]  = useState("");
   const [parseSource, setParseSource] = useState("");
   const [pulse,       setPulse]       = useState(true);
-
   const [worker,    setWorker]    = useState("");
   const [project,   setProject]   = useState("");
   const [category,  setCategory]  = useState("Wages");
   const [amount,    setAmount]    = useState("");
   const [notes,     setNotes]     = useState("");
-
-  // Field-level error state
   const [fieldErrors, setFieldErrors] = useState({ worker: false, project: false });
-
   const [voiceSaving,  setVoiceSaving]  = useState(false);
   const [voiceSuccess, setVoiceSuccess] = useState("");
   const [voiceError,   setVoiceError]   = useState("");
-
   const [workerNames,  setWorkerNames]  = useState([]);
   const [projectNames, setProjectNames] = useState([]);
+  const [recentEntries,        setRecentEntries]        = useState([]);
+  const [recentEntriesLoading, setRecentEntriesLoading] = useState(true);
 
   const recognitionRef = useRef(null);
+  const fetchRecentEntries = () => {
+    setRecentEntriesLoading(true);
+    transactionAPI.getAll()
+      .then(({ data }) => {
+        const all = data.transactions || [];
+        setRecentEntries(all.slice(0, 5));
+      })
+      .catch(() => setRecentEntries([]))
+      .finally(() => setRecentEntriesLoading(false));
+  };
 
-  // ── Auto-fill project when worker is selected and a mapping exists ──
   const handleWorkerChange = (val) => {
     setWorker(val);
-    // Clear worker field error on change
     if (fieldErrors.worker) setFieldErrors(prev => ({ ...prev, worker: false }));
-
-    // Auto-fill project if worker has a known mapping and project is currently empty
     const mapped = WORKER_PROJECT_MAP[val];
     if (mapped && !project) {
       setProject(mapped);
@@ -94,14 +91,12 @@ export default function VoiceAssistantPage() {
 
   const handleCategoryChange = (val) => {
     setCategory(val);
-    // When switching away from Wages, clear worker field error
     if (val !== "Wages" && fieldErrors.worker) {
       setFieldErrors(prev => ({ ...prev, worker: false }));
     }
   };
 
   useEffect(() => {
-    // Use authenticated API helpers — raw fetch() would be rejected (401) by the JWT-protected routes
     workerAPI.getAll()
       .then(res => {
         const data = res.data;
@@ -117,6 +112,9 @@ export default function VoiceAssistantPage() {
         setProjectNames(list.map(p => p.projectName || p.name || p).filter(Boolean));
       })
       .catch(() => {});
+
+    // ✅ NEW: fetch real recent entries on mount
+    fetchRecentEntries();
   }, []);
 
   useEffect(() => {
@@ -187,7 +185,6 @@ export default function VoiceAssistantPage() {
         const parsedCategory = data.category || "Expense";
         const parsedNotes    = data.notes    || "";
 
-        // Apply auto-fill: if parsedWorker maps to a project and no project was parsed, use it
         const autoProject = parsedProject || (parsedWorker && WORKER_PROJECT_MAP[parsedWorker]) || "";
 
         setWorker(parsedWorker);
@@ -196,7 +193,6 @@ export default function VoiceAssistantPage() {
         setCategory(parsedCategory);
         setNotes(parsedNotes);
         setParseSource(data.source || "");
-        // Clear field errors after a fresh voice parse
         setFieldErrors({ worker: false, project: false });
       } catch (err) {
         console.error("Voice parse error:", err);
@@ -234,7 +230,6 @@ export default function VoiceAssistantPage() {
   const handleSave = async () => {
     setVoiceError(""); setVoiceSuccess("");
 
-    // ── Validation with field highlighting ──
     const newErrors = { worker: false, project: false };
     let errorMsg = "";
 
@@ -275,6 +270,8 @@ export default function VoiceAssistantPage() {
       setWorker(""); setProject(""); setAmount(""); setCategory("Wages"); setNotes("");
       setTranscript(""); setParseSource("");
       setFieldErrors({ worker: false, project: false });
+      // ✅ NEW: refresh recent entries after save
+      fetchRecentEntries();
       setTimeout(() => setVoiceSuccess(""), 3000);
     } catch (err) {
       setVoiceError(err.response?.data?.message || "Failed to save entry.");
@@ -285,7 +282,6 @@ export default function VoiceAssistantPage() {
 
   const confirmDisabled = voiceSaving || !amount || Number(String(amount).replace(/,/g, "")) <= 0;
 
-  // Shared input field style — supports error highlight
   const fieldBox = (hasError = false) => ({
     display: "flex", alignItems: "center",
     background: "#f9f9f9",
@@ -302,9 +298,20 @@ export default function VoiceAssistantPage() {
     letterSpacing: "0.08em", marginBottom: 8,
   };
 
-  // Dynamic worker label — required asterisk only for Wages
   const isWages = category === "Wages";
   const workerPlaceholder = isWages ? "Select worker" : "Optional worker";
+
+  // ✅ NEW: helper to format time ago
+  const timeAgo = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1)   return "just now";
+    if (mins < 60)  return `${mins} min${mins > 1 ? "s" : ""} ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)   return `${hrs} hour${hrs > 1 ? "s" : ""} ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days > 1 ? "s" : ""} ago`;
+  };
 
   return (
     <div style={{
@@ -401,9 +408,8 @@ export default function VoiceAssistantPage() {
               <span style={{ fontSize: 11, fontWeight: 700, color: "#ea580c", background: "#fff5f0", padding: "4px 12px", borderRadius: 6, letterSpacing: "0.06em", border: "1px solid #fde4d0" }}>LIVE INTERPRETATION</span>
             </div>
 
-            {/* ── Row 1: Worker (left 50%) + Project (right 50%) ── */}
+            {/* Row 1: Worker + Project */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
-              {/* Worker */}
               <div>
                 <div style={fieldLabel}>
                   WORKER{" "}
@@ -427,8 +433,6 @@ export default function VoiceAssistantPage() {
                   </div>
                 )}
               </div>
-
-              {/* Project */}
               <div>
                 <div style={fieldLabel}>
                   PROJECT <span style={{ color: "#ea580c" }}>*</span>
@@ -450,9 +454,8 @@ export default function VoiceAssistantPage() {
               </div>
             </div>
 
-            {/* ── Row 2: Category (left) + Amount (right) ── */}
+            {/* Row 2: Category + Amount */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
-              {/* Category */}
               <div>
                 <div style={fieldLabel}>CATEGORY</div>
                 <div style={{ position: "relative" }}>
@@ -466,8 +469,6 @@ export default function VoiceAssistantPage() {
                   <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none" }}>▾</span>
                 </div>
               </div>
-
-              {/* Amount */}
               <div>
                 <div style={fieldLabel}>AMOUNT (₹)</div>
                 <div style={fieldBox()}>
@@ -482,7 +483,7 @@ export default function VoiceAssistantPage() {
               </div>
             </div>
 
-            {/* ── Row 3: Notes (full width) ── */}
+            {/* Row 3: Notes */}
             <div style={{ marginBottom: 20 }}>
               <div style={fieldLabel}>NOTES</div>
               <div style={fieldBox()}>
@@ -496,7 +497,7 @@ export default function VoiceAssistantPage() {
               </div>
             </div>
 
-            {/* ── Row 4: Confirm button ── */}
+            {/* Row 4: Confirm */}
             <button
               id="voice-confirm-button"
               onClick={handleSave}
@@ -519,7 +520,7 @@ export default function VoiceAssistantPage() {
             </div>
           </div>
 
-          {/* Recent Voice Entries */}
+          {/* ✅ Recent Voice Entries — now real data */}
           <div style={{ width: "100%", maxWidth: 880 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Recent Voice Entries</h2>
@@ -529,49 +530,64 @@ export default function VoiceAssistantPage() {
                     <div key={i} style={{ width: 4, height: pulse ? h : h * 0.6, background: "#ea580c", borderRadius: 3, transition: "height 0.4s ease", transitionDelay: `${i * 0.05}s` }} />
                   ))}
                 </div>
-                <span style={{ fontSize: 13, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View History</span>
+                <span
+                  onClick={() => navigate("/transaction")}
+                  style={{ fontSize: 13, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>
+                  View History
+                </span>
               </div>
             </div>
 
             <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
               {!isMobile && (
                 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.5fr", padding: "12px 20px", borderBottom: "1px solid #f0f0f0" }}>
-                  {["WORKER/PROJECT", "CATEGORY", "AMOUNT (₹)", "STATUS"].map(col => (
+                  {["TITLE / PROJECT", "CATEGORY", "AMOUNT (₹)", "STATUS"].map(col => (
                     <div key={col} style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em" }}>{col}</div>
                   ))}
                 </div>
               )}
-              {recentEntries.map((e, i) => (
-                !isMobile ? (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.5fr", padding: "16px 20px", borderBottom: i < recentEntries.length - 1 ? "1px solid #f9f9f9" : "none", alignItems: "center" }}
+
+              {recentEntriesLoading ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>Loading…</div>
+              ) : recentEntries.length === 0 ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>No entries yet</div>
+              ) : recentEntries.map((t, i) => {
+                const style = categoryStyle[t.type] || { bg: "#f5f5f5", color: "#555" };
+                const isIncome = t.type === "Income";
+                return !isMobile ? (
+                  <div key={t._id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.5fr", padding: "16px 20px", borderBottom: i < recentEntries.length - 1 ? "1px solid #f9f9f9" : "none", alignItems: "center" }}
                     onMouseEnter={ev => ev.currentTarget.style.background = "#fafafa"}
                     onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{e.worker}</div>
-                      <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{e.time}</div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{t.title}</div>
+                      <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{timeAgo(t.date)}</div>
                     </div>
                     <div>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: e.catBg, color: e.catColor, letterSpacing: "0.04em" }}>{e.category}</span>
+                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: style.bg, color: style.color, letterSpacing: "0.04em" }}>{t.type?.toUpperCase()}</span>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: e.income ? "#16a34a" : "#1a1a1a" }}>{e.amount}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: isIncome ? "#16a34a" : "#1a1a1a" }}>
+                      {isIncome ? "+" : "-"}₹{t.amount?.toLocaleString("en-IN")}
+                    </div>
                     <div style={{ fontSize: 20 }}>✅</div>
                   </div>
                 ) : (
-                  <div key={i} style={{ padding: "14px 16px", borderBottom: i < recentEntries.length - 1 ? "1px solid #f9f9f9" : "none" }}>
+                  <div key={t._id} style={{ padding: "14px 16px", borderBottom: i < recentEntries.length - 1 ? "1px solid #f9f9f9" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{e.worker}</div>
-                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>{e.time}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{t.title}</div>
+                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>{timeAgo(t.date)}</div>
                       </div>
                       <span style={{ fontSize: 18 }}>✅</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: e.catBg, color: e.catColor }}>{e.category}</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: e.income ? "#16a34a" : "#1a1a1a" }}>{e.amount}</span>
+                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: style.bg, color: style.color }}>{t.type?.toUpperCase()}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: isIncome ? "#16a34a" : "#1a1a1a" }}>
+                        {isIncome ? "+" : "-"}₹{t.amount?.toLocaleString("en-IN")}
+                      </span>
                     </div>
                   </div>
-                )
-              ))}
+                );
+              })}
             </div>
           </div>
 
