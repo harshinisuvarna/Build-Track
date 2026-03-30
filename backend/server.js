@@ -17,11 +17,13 @@ const CLIENT_URL =
 // ── Core middleware ───────────────────────────────────────────────────────────
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 
-// Multi-part Debug Logger
-app.use((req, res, next) => {
-  console.log(`[REQ] ${req.method} ${req.url} | Content: ${req.headers["content-type"]}`);
-  next();
-});
+// Multi-part Debug Logger — Bug 22: Only in development
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`[REQ] ${req.method} ${req.url} | Content: ${req.headers["content-type"]}`);
+    next();
+  });
+}
 
 app.use(express.json());
 

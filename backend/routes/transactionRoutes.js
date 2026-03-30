@@ -50,11 +50,8 @@ router.post("/", async (req, res) => {
     if (!type)
       return res.status(400).json({ message: "Transaction type is required" });
 
-    // Project is always required
-    if (!project || !String(project).trim())
-      return res.status(400).json({ message: "Project is required" });
-
-    // Worker is required for Wages entries
+    // Bug 20: Project is optional (frontend treats it as optional in both Manual Entry and Voice)
+    // Worker is still required for Wages entries
     if (type === "Wages" && (!worker || !String(worker).trim()))
       return res.status(400).json({ message: "Worker is required for Wages entries" });
 

@@ -1,18 +1,25 @@
-const express  = require("express");
-const jwt      = require("jsonwebtoken");
-const crypto   = require("crypto");
-const router   = express.Router();
-const passport = require("passport");
-const User     = require("../models/User");
+const express    = require("express");
+const jwt        = require("jsonwebtoken");
+const crypto     = require("crypto");
+const nodemailer = require("nodemailer");
+const router     = express.Router();
+const passport   = require("passport");
+const User       = require("../models/User");
 const { protect } = require("../middleware/auth");
-const upload   = require("../config/multer");
+const upload     = require("../config/multer");
 
-const SECRET      = process.env.JWT_SECRET || "buildtrack_secret_change_in_prod";
+// Bug 15: SECRET is guaranteed to exist — auth middleware throws on startup if missing
+const SECRET      = process.env.JWT_SECRET;
 const FRONTEND    = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Bug 19: Include tokenVersion in JWT so sign-out-all can invalidate old tokens
 const makeToken = (user) =>
-  jwt.sign({ id: user._id || user.id, email: user.email }, SECRET, { expiresIn: "7d" });
+  jwt.sign(
+    { id: user._id || user.id, email: user.email, tokenVersion: user.tokenVersion || 0 },
+    SECRET,
+    { expiresIn: "7d" }
+  );
 
 const safeUser = (user) => ({
   id:           user._id || user.id,
@@ -99,22 +106,9 @@ router.post("/login", async (req, res) => {
 
 // ─── GET CURRENT USER ─────────────────────────────────────────────────────────
 // GET /api/auth/me
-router.get("/me", async (req, res) => {
-  try {
-    const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer "))
-      return res.status(401).json({ message: "No token provided" });
-
-    const token   = header.split(" ")[1];
-    const decoded = jwt.verify(token, SECRET);
-    const user    = await User.findById(decoded.id);
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.json({ user: safeUser(user) });
-  } catch {
-    res.status(401).json({ message: "Invalid or expired token" });
-  }
+// Bug 17: Reuse the protect middleware instead of reimplementing auth from scratch
+router.get("/me", protect, (req, res) => {
+  res.json({ user: safeUser(req.user) });
 });
 
 
@@ -240,13 +234,41 @@ router.post("/forgot-password", async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
-    // Log reset link to console (replace with nodemailer in production)
     const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
-    console.log("──────────────────────────────────────────");
-    console.log("📧 PASSWORD RESET LINK (send via email in production):");
-    console.log(`   ${resetUrl}`);
-    console.log("   Token:", token);
-    console.log("──────────────────────────────────────────");
+
+    // Bug 18: Actually send the reset email via nodemailer (if SMTP is configured)
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT) || 587,
+          secure: process.env.SMTP_SECURE === "true",
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        });
+
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
+          to: user.email,
+          subject: "BuildTrack — Password Reset",
+          html: [
+            `<h2>Password Reset Request</h2>`,
+            `<p>Click the link below to reset your password (valid for 1 hour):</p>`,
+            `<a href="${resetUrl}">${resetUrl}</a>`,
+            `<p>If you didn't request this, you can safely ignore this email.</p>`,
+          ].join(""),
+        });
+        console.log(`📧 Password reset email sent to ${user.email}`);
+      } catch (mailErr) {
+        console.error("📧 Failed to send reset email:", mailErr.message);
+        // Still return success — don't reveal email delivery issues
+      }
+    } else {
+      // Fallback for dev: log the link to console
+      console.log("──────────────────────────────────────────");
+      console.log("📧 PASSWORD RESET LINK (configure SMTP_HOST/USER/PASS to send via email):");
+      console.log(`   ${resetUrl}`);
+      console.log("──────────────────────────────────────────");
+    }
 
     res.json({ message: "If that email is registered, a reset link has been sent." });
   } catch (err) {
@@ -348,11 +370,20 @@ router.put("/toggle-2fa", protect, async (req, res) => {
 
 // ─── SIGN OUT ALL SESSIONS ────────────────────────────────────────────────
 // POST /api/auth/sign-out-all
+// Bug 19: Increment tokenVersion so all existing JWTs with the old version are rejected
 router.post("/sign-out-all", protect, async (req, res) => {
-  // In a JWT-only system, there's no server-side session to invalidate.
-  // A production system would use a token blacklist or change JWT secret per user.
-  // For now, we just acknowledge the request — the frontend clears localStorage.
-  res.json({ message: "All sessions signed out. Please log in again on all your devices." });
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    res.json({ message: "All sessions signed out. Please log in again on all your devices." });
+  } catch (err) {
+    console.error("Sign out all error:", err);
+    res.status(500).json({ message: "Failed to sign out all sessions" });
+  }
 });
 
 

@@ -77,7 +77,7 @@ router.post("/", async (req, res) => {
   try {
     const { projectName, location, manager, budget, startDate, scope, status, progress } = req.body;
 
-    console.log("[POST /projects] body:", req.body, "file:", req.file?.filename);
+
 
     if (!projectName || !projectName.trim())
       return res.status(400).json({ message: "Project name is required" });
@@ -111,7 +111,6 @@ router.post("/", async (req, res) => {
 // ─── UPDATE PROJECT ──────────────────────────────────────────────────────────
 // PUT /api/projects/:id   (multipart/form-data, optional new photo)
 router.put("/:id", async (req, res) => {
-  console.log("PROJECT ROUTE HIT (PUT /:id)");
   // Run multer first
   try { await runUpload(req, res); }
   catch (uploadErr) {
@@ -121,16 +120,16 @@ router.put("/:id", async (req, res) => {
   try {
     const { projectName, location, manager, budget, startDate, scope, status, progress } = req.body;
 
-    const updateData = {
-      projectName: projectName?.trim(),
-      location,
-      manager,
-      budget:    Number(budget),
-      startDate: startDate || null,
-      scope,
-      status,
-      progress:  Number(progress),
-    };
+    // Bug 34: Build updateData carefully — only include defined fields
+    const updateData = {};
+    if (projectName !== undefined) updateData.projectName = projectName.trim();
+    if (location !== undefined)    updateData.location    = location;
+    if (manager !== undefined)     updateData.manager     = manager;
+    if (budget !== undefined)      updateData.budget      = Number(budget);
+    if (startDate !== undefined)   updateData.startDate   = startDate || null;
+    if (scope !== undefined)       updateData.scope       = scope;
+    if (status !== undefined)      updateData.status      = status;
+    if (progress !== undefined)    updateData.progress    = Number(progress);
 
     const photoFile = req.files?.find(f => f.fieldname === "photo");
     if (photoFile) {

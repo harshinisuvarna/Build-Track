@@ -26,24 +26,20 @@ const transactionSchema = new mongoose.Schema(
       enum: ["Wages", "Expense", "Income", "Materials"],
       required: true,
     },
-
-    // Free-text worker name (not FK, keeps it simple)
     worker: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Worker",
+      default: null,
     },
-
-    // Free-text project name
     project: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
     },
-
     date: {
       type: Date,
       default: Date.now,
     },
-
     notes: {
       type: String,
       default: "",
@@ -51,5 +47,7 @@ const transactionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+transactionSchema.index({ project: 1, createdBy: 1 });
+transactionSchema.index({ date: -1 });
 
 module.exports = mongoose.model("Transaction", transactionSchema);

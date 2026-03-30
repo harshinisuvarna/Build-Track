@@ -13,14 +13,23 @@ router.get("/summary", async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // 1. Stats
-    const transactions = await Transaction.find({ createdBy: userId });
-    const totalIncome = transactions
-      .filter((t) => t.type === "Income")
-      .reduce((sum, t) => sum + t.amount, 0);
-    const totalExpenses = transactions
-      .filter((t) => t.type !== "Income")
-      .reduce((sum, t) => sum + t.amount, 0);
+    // 1. Stats — Bug 21: Filter to current month instead of scanning entire history
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+
+    const statsResult = await Transaction.aggregate([
+      { $match: { createdBy: userId, date: { $gte: monthStart, $lt: monthEnd } } },
+      {
+        $group: {
+          _id: null,
+          totalIncome:   { $sum: { $cond: [{ $eq: ["$type", "Income"] }, "$amount", 0] } },
+          totalExpenses: { $sum: { $cond: [{ $ne: ["$type", "Income"] }, "$amount", 0] } },
+        },
+      },
+    ]);
+
+    const { totalIncome = 0, totalExpenses = 0 } = statsResult[0] || {};
     const activeWorkers = await Worker.countDocuments({ createdBy: userId, status: "Active" });
 
     // 2. Weekly Chart (Last 7 Days)
