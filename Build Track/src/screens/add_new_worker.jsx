@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { workerAPI } from "../api";
 
+const API_ORIGIN =
+  (import.meta.env.VITE_API_URL || "http://localhost:5000")
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
+
 const trades        = ["Select Trade", "Mason", "Carpenter", "Electrician", "Plumber", "Welder", "Painter", "General Labor", "Site Engineer", "Supervisor"];
 const paymentCycles = ["Weekly", "Bi-Weekly", "Monthly"];
 const statusOptions = ["Active", "Inactive", "On Leave"];
@@ -52,7 +57,7 @@ export default function AddNewWorkerPage() {
       setJoiningDate(new Date(editWorker.joiningDate).toISOString().split("T")[0]);
     }
     if (editWorker?.photo) {
-      setPhotoPreview(`http://localhost:5000/uploads/${editWorker.photo}`);
+      setPhotoPreview(`${API_ORIGIN}/uploads/${editWorker.photo}`);
     }
   }, [isEditMode, editWorker]);
 
@@ -76,9 +81,9 @@ export default function AddNewWorkerPage() {
       form.append("paymentCycle", paymentCycle);
       if (photoFile) form.append("photo", photoFile);   // ← attach image file
 
-      documents.forEach((doc) => {
-        form.append("documents", doc);
-      });
+      // NOTE: documents are not appended to FormData because the backend
+      // only handles a single "photo" via multer.single("photo").
+      // Document upload support requires a multer.array("documents") handler.
 
       if (isEditMode && editWorker?._id) {
         await workerAPI.update(editWorker._id, form);

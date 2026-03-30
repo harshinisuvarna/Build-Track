@@ -87,11 +87,6 @@ export default function LoginPage() {
   // ── Main login handler ──────────────────────────────────────────────────────
   const handleLogin = async (e) => {
     if (e?.preventDefault) e.preventDefault();
-    console.log("[LOGIN] Clicked", {
-      email,
-      apiOrigin: API_ORIGIN,
-      viteApiUrl: import.meta.env.VITE_API_URL,
-    });
 
     // Client-side validation first
     let valid = true;
@@ -103,29 +98,21 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      console.log("[LOGIN] Request payload:", { email, passwordLen: password.length });
+
       const { data } = await authAPI.login({ email, password });
 
-      console.log("LOGIN RESPONSE:", data);
+
 
       // Persist token + user for the session
       localStorage.setItem("bt_token", data.token);
       localStorage.setItem("bt_user",  JSON.stringify(data.user));
 
-      console.log("[LOGIN] Saved token?", {
-        hasToken: Boolean(localStorage.getItem("bt_token")),
-      });
+
 
       // Hard navigate so `RequireAuth` definitely re-evaluates
       window.location.assign("/");
     } catch (err) {
-      console.error("[LOGIN] Error:", {
-        message: err?.message,
-        status: err?.response?.status,
-        data: err?.response?.data,
-        url: err?.config?.url,
-        baseURL: err?.config?.baseURL,
-      });
+
       const msg = err.response?.data?.message || "Something went wrong. Try again.";
       // 401 → credentials, anything else → general error banner
       if (err.response?.status === 401) {
@@ -259,7 +246,7 @@ export default function LoginPage() {
       {showForgot && (
         <div style={{ background: "#fff9f5", border: "1px solid #fed7aa", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 10 }}>Reset Password</div>
-          <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Enter your email and we'll send a reset link (check server console for the link).</div>
+          <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Enter your email and we'll send you a password reset link.</div>
           <input
             type="email"
             value={forgotEmail}
@@ -274,7 +261,7 @@ export default function LoginPage() {
               try {
                 setForgotLoading(true);
                 const { data } = await authAPI.forgotPassword({ email: forgotEmail });
-                setForgotMsg(data.message || "Reset link sent! Check your server console.");
+                setForgotMsg(data.message || "If that email is registered, a reset link has been sent.");
               } catch (err) {
                 setForgotErr(err.response?.data?.message || "Failed to send reset email.");
               } finally {
@@ -321,7 +308,7 @@ export default function LoginPage() {
             type="button"
             className="bt-link-orange"
             onClick={() => {
-              console.log("[LOGIN] Clicked Sign up free → navigating to /signup");
+
               navigate("/signup");
             }}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#ea580c", fontWeight: 700 }}

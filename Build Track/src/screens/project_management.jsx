@@ -18,7 +18,7 @@ const STATUS_STYLE = {
   "Review Needed":{ bg: "#fee2e2", color: "#991b1b", label: "REVIEW NEEDED" },
 };
 
-const TABS = ["All Projects", "Active", "Review Needed", "Completed"];
+const TABS = ["All Projects", "Active", "On Hold", "Review Needed", "Completed"];
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=120&h=120&fit=crop";
 
@@ -102,6 +102,7 @@ export default function ProjectsPage() {
       (p.manager  || "").toLowerCase().includes(q);
     if (activeTab === "All Projects")   return matchSearch;
     if (activeTab === "Active")         return matchSearch && p.status === "Active";
+    if (activeTab === "On Hold")        return matchSearch && p.status === "On Hold";
     if (activeTab === "Review Needed")  return matchSearch && p.status === "Review Needed";
     if (activeTab === "Completed")      return matchSearch && p.status === "Completed";
     return matchSearch;
@@ -111,6 +112,7 @@ export default function ProjectsPage() {
   const counts = {
     "All Projects":   allProjects.length,
     "Active":         allProjects.filter(p => p.status === "Active").length,
+    "On Hold":        allProjects.filter(p => p.status === "On Hold").length,
     "Review Needed":  allProjects.filter(p => p.status === "Review Needed").length,
     "Completed":      allProjects.filter(p => p.status === "Completed").length,
   };

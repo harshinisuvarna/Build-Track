@@ -236,10 +236,10 @@ export default function FinancialReportPage() {
     try {
       setExporting(true);
       const { data } = await reportAPI.exportPDF({ year: selYear, month: selMonth });
-      const url = URL.createObjectURL(new Blob([data]));
+      const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `BuildTrack_Report_${MONTH_NAMES[selMonth]}_${selYear}.txt`;
+      a.download = `BuildTrack_Report_${MONTH_NAMES[selMonth]}_${selYear}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -256,7 +256,11 @@ export default function FinancialReportPage() {
     let isMounted = true;
     setLoading(true);
     setError("");
-    reportAPI.getFinancial({ year: selYear, month: selMonth })
+    const params = { year: selYear, month: selMonth };
+    // If user has picked a custom date range, send it to the API
+    if (rangeStart) params.rangeStart = rangeStart.toISOString();
+    if (rangeEnd)   params.rangeEnd   = rangeEnd.toISOString();
+    reportAPI.getFinancial(params)
       .then(({ data }) => {
         if (isMounted) {
           setReportData(data);
@@ -271,7 +275,7 @@ export default function FinancialReportPage() {
         }
       });
     return () => { isMounted = false; };
-  }, [selYear, selMonth]);
+  }, [selYear, selMonth, rangeStart, rangeEnd]);
 
   useEffect(() => {
     function handle(e) {
@@ -610,7 +614,7 @@ export default function FinancialReportPage() {
                 </div>
               </div>
               <div><span style={{ padding:"4px 10px", background:"#e0e7ff", color:"#3730a3", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{w.project || "Various"}</span></div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>26d</div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.totalDays != null ? `${w.totalDays}d` : `${Math.round((w.estimatedMonthlyPayout || 0) / (w.dailyWage || 1))}d`}</div>
               <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>₹{w.dailyWage || 0}</div>
               <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>₹{w.estimatedMonthlyPayout?.toLocaleString("en-IN")}</div>
               <div>

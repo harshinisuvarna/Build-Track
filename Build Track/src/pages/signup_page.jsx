@@ -341,14 +341,14 @@ export default function SignUpPage() {
             </p>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
               {["Privacy policy", "Terms of service", "Support"].map((link, i, arr) => (
-                <>
-                  <span key={link} style={{ fontSize: 12, color: "#cbd5e1", cursor: "pointer" }}
+                <span key={link} style={{ display: "contents" }}>
+                  <span style={{ fontSize: 12, color: "#cbd5e1", cursor: "pointer" }}
                     onMouseEnter={e => e.currentTarget.style.color = "#94a3b8"}
                     onMouseLeave={e => e.currentTarget.style.color = "#cbd5e1"}>
                     {link}
                   </span>
-                  {i < arr.length - 1 && <span key={`dot-${i}`} style={{ color: "#e2e8f0", fontSize: 11 }}>·</span>}
-                </>
+                  {i < arr.length - 1 && <span style={{ color: "#e2e8f0", fontSize: 11 }}>·</span>}
+                </span>
               ))}
             </div>
           </div>

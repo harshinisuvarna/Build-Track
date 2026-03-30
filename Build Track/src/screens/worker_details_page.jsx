@@ -117,13 +117,7 @@ export default function WorkerDetailsPage() {
           </div>
         )}
 
-        {/* Raw data accordion – useful for debugging */}
-        <details style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "16px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
-          <summary style={{ fontSize: 13, fontWeight: 700, color: "#888", cursor: "pointer", userSelect: "none" }}>Raw Worker Record (debug)</summary>
-          <pre style={{ marginTop: 12, fontSize: 12, color: "#555", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-            {JSON.stringify(worker, null, 2)}
-          </pre>
-        </details>
+
 
       </div>
     </div>

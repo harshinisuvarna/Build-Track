@@ -34,11 +34,7 @@ const categoryStyle = {
   Income:    { bg: "#dcfce7", color: "#166534" },
   Materials: { bg: "#e0e7ff", color: "#3730a3" },
 };
-const WORKER_PROJECT_MAP = {
-  "Suresh - Masonry":    "Block A",
-  "Ramesh - Plumbing":   "Block B",
-  "Vijay - Electrical":  "Tower C",
-};
+
 export default function VoiceAssistantPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,6 +57,7 @@ export default function VoiceAssistantPage() {
   const [projectNames, setProjectNames] = useState([]);
   const [recentEntries,        setRecentEntries]        = useState([]);
   const [recentEntriesLoading, setRecentEntriesLoading] = useState(true);
+  const [searchQuery,          setSearchQuery]          = useState("");
 
   const recognitionRef = useRef(null);
   const fetchRecentEntries = () => {
@@ -77,10 +74,13 @@ export default function VoiceAssistantPage() {
   const handleWorkerChange = (val) => {
     setWorker(val);
     if (fieldErrors.worker) setFieldErrors(prev => ({ ...prev, worker: false }));
-    const mapped = WORKER_PROJECT_MAP[val];
-    if (mapped && !project) {
-      setProject(mapped);
-      if (fieldErrors.project) setFieldErrors(prev => ({ ...prev, project: false }));
+    // Auto-suggest project from projectNames if the worker name appears in a project
+    if (!project && projectNames.length > 0) {
+      const match = projectNames.find(p => p.toLowerCase().includes(val.toLowerCase()));
+      if (match) {
+        setProject(match);
+        if (fieldErrors.project) setFieldErrors(prev => ({ ...prev, project: false }));
+      }
     }
   };
 
@@ -185,7 +185,7 @@ export default function VoiceAssistantPage() {
         const parsedCategory = data.category || "Expense";
         const parsedNotes    = data.notes    || "";
 
-        const autoProject = parsedProject || (parsedWorker && WORKER_PROJECT_MAP[parsedWorker]) || "";
+        const autoProject = parsedProject || "";
 
         setWorker(parsedWorker);
         setProject(autoProject);
@@ -197,7 +197,7 @@ export default function VoiceAssistantPage() {
       } catch (err) {
         console.error("Voice parse error:", err);
         const fallback = clientFallback(text);
-        const autoProject = fallback.project || (fallback.worker && WORKER_PROJECT_MAP[fallback.worker]) || "";
+        const autoProject = fallback.project || "";
         setWorker(fallback.worker);
         setProject(autoProject);
         setAmount(String(fallback.amount));
@@ -335,6 +335,8 @@ export default function VoiceAssistantPage() {
           <div style={{ flex: 1, maxWidth: 460, display: "flex", alignItems: "center", background: "#f5f5f5", borderRadius: 12, padding: "10px 16px", gap: 10 }}>
             <span style={{ color: "#aaa", fontSize: 16 }}>🔍</span>
             <input placeholder="Search entries, projects..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
               style={{ border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#555", width: "100%" }} />
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -551,7 +553,16 @@ export default function VoiceAssistantPage() {
                 <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>Loading…</div>
               ) : recentEntries.length === 0 ? (
                 <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>No entries yet</div>
-              ) : recentEntries.map((t, i) => {
+              ) : recentEntries
+              .filter(t => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase();
+                return (t.title || "").toLowerCase().includes(q) ||
+                       (t.type || "").toLowerCase().includes(q) ||
+                       (t.worker || "").toLowerCase().includes(q) ||
+                       (t.project || "").toLowerCase().includes(q);
+              })
+              .map((t, i) => {
                 const style = categoryStyle[t.type] || { bg: "#f5f5f5", color: "#555" };
                 const isIncome = t.type === "Income";
                 return !isMobile ? (

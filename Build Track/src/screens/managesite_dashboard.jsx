@@ -34,23 +34,46 @@ export default function ManageSitePage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Load real workers ─────────────────────────────────────────────────────
+  // ── Load workers filtered by current project ─────────────────────────────
   useEffect(() => {
+    if (!project) return;
     setLoadingW(true);
-    workerAPI.getAll()
-      .then(({ data }) => setWorkers(data.workers || []))
+    const projectId = project._id || project.id;
+    workerAPI.getAll({ project: projectId })
+      .then(({ data }) => {
+        const all = data.workers || [];
+        // Client-side fallback filter: if backend doesn't filter by project param,
+        // filter workers whose assignedProject matches this project
+        const filtered = all.filter(w =>
+          !w.assignedProject ||
+          w.assignedProject === projectId ||
+          w.assignedProject === project.projectName
+        );
+        setWorkers(filtered);
+      })
       .catch(err => console.error("Load workers:", err))
       .finally(() => setLoadingW(false));
-  }, []);
+  }, [project]);
 
-  // ── Load recent transactions ──────────────────────────────────────────────
+  // ── Load recent transactions filtered by current project ──────────────────
   useEffect(() => {
+    if (!project) return;
     setLoadingT(true);
-    transactionAPI.getAll()
-      .then(({ data }) => setTransactions((data.transactions || []).slice(0, 5)))
+    const projectId = project._id || project.id;
+    transactionAPI.getAll({ project: projectId })
+      .then(({ data }) => {
+        const all = data.transactions || [];
+        // Client-side fallback: filter transactions matching this project
+        const filtered = all.filter(t =>
+          !t.project ||
+          t.project === projectId ||
+          t.project === project.projectName
+        );
+        setTransactions(filtered.slice(0, 5));
+      })
       .catch(err => console.error("Load transactions:", err))
       .finally(() => setLoadingT(false));
-  }, []);
+  }, [project]);
 
   // If no project was passed, redirect back to projects list
   if (!project) {

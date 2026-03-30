@@ -10,9 +10,13 @@ export default function DashboardPage() {
   const [dashData, setDashData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 640);
 
-  const width = window.innerWidth;
-  const isNarrow = width < 640;
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth < 640);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

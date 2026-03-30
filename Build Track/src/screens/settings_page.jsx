@@ -56,7 +56,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  // ── Load user data from localStorage on mount ──
+  // ── Load user data from localStorage on mount, then verify from API ──
   useEffect(() => {
     const stored = localStorage.getItem("bt_user");
     if (stored) {
@@ -64,6 +64,10 @@ export default function SettingsPage() {
       setFullName(u.name || "");
       setEmail(u.email || "");
       setRole(u.role || "Site Supervisor");
+      // Restore 2FA status from cached user data
+      if (u.twoFactorEnabled !== undefined) {
+        setTwoFA(u.twoFactorEnabled);
+      }
       if (u.profilePhoto) {
         if (u.profilePhoto.startsWith("http")) {
           setProfileImage(u.profilePhoto);
@@ -72,6 +76,18 @@ export default function SettingsPage() {
         }
       }
     }
+    // Also fetch fresh user data from backend to ensure 2FA state is current
+    authAPI.me()
+      .then(({ data }) => {
+        const user = data.user || data;
+        if (user.twoFactorEnabled !== undefined) {
+          setTwoFA(user.twoFactorEnabled);
+        }
+        // Update localStorage with fresh data
+        const cached = JSON.parse(localStorage.getItem("bt_user") || "{}");
+        localStorage.setItem("bt_user", JSON.stringify({ ...cached, ...user }));
+      })
+      .catch(err => console.error("Failed to fetch user data:", err));
   }, []);
 
   useEffect(() => {
@@ -156,6 +172,9 @@ export default function SettingsPage() {
       const { data } = await authAPI.toggle2FA();
       setTwoFA(data.twoFactorEnabled);
       setSecMsg(data.message);
+      // Persist to localStorage so it survives reloads
+      const cached = JSON.parse(localStorage.getItem("bt_user") || "{}");
+      localStorage.setItem("bt_user", JSON.stringify({ ...cached, twoFactorEnabled: data.twoFactorEnabled }));
       setTimeout(() => setSecMsg(""), 4000);
     } catch (err) {
       setSecErr(err.response?.data?.message || "Failed to toggle 2FA.");
