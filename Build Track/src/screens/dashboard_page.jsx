@@ -12,7 +12,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   const width = window.innerWidth;
-  const isNarrow  = width < 640;
+  const isNarrow = width < 640;
 
   useEffect(() => {
     let isMounted = true;
@@ -54,16 +54,16 @@ export default function DashboardPage() {
   const { stats: s, weeklyChart, recentProjects, recentActivity } = dashData;
 
   const statCards = [
-    { label: "Total Income",   value: `₹${s.totalIncome.toLocaleString("en-IN")}`, change: "Real-time", up: true,  icon: "📈", bg: "#f0fdf4" },
-    { label: "Expenses",       value: `₹${s.totalExpenses.toLocaleString("en-IN")}`, change: "Real-time",  up: false, icon: "📉", bg: "#fff5f5" },
-    { label: "Net Profit",     value: `₹${s.netProfit.toLocaleString("en-IN")}`, change: "Real-time", up: true,  icon: "💳", bg: "#fff7ed" },
-    { label: "Active Workers", value: s.activeWorkers.toString(),      change: "Currently Active",  up: true, icon: "👥", bg: "#f5f3ff" },
+    { label: "Total Income",   value: `₹${s.totalIncome.toLocaleString("en-IN")}`,   change: "Real-time",       up: true,  icon: "📈", bg: "#f0fdf4" },
+    { label: "Expenses",       value: `₹${s.totalExpenses.toLocaleString("en-IN")}`, change: "Real-time",       up: false, icon: "📉", bg: "#fff5f5" },
+    { label: "Net Profit",     value: `₹${s.netProfit.toLocaleString("en-IN")}`,     change: "Real-time",       up: true,  icon: "💳", bg: "#fff7ed" },
+    { label: "Active Workers", value: s.activeWorkers.toString(),                    change: "Currently Active", up: true,  icon: "👥", bg: "#f5f3ff" },
   ];
 
   return (
     <div style={{
       display: "flex", flexDirection: "column",
-      height: "100vh", overflow: "hidden",
+      minHeight: "100vh",
       flex: 1, minWidth: 0, width: "100%",
     }}>
 
@@ -75,7 +75,6 @@ export default function DashboardPage() {
         justifyContent: "space-between", gap: 12, overflow: "hidden",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-
           <h1 style={{ margin: 0, fontSize: "clamp(16px,2vw,20px)", fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap" }}>
             Dashboard Overview
           </h1>
@@ -88,7 +87,8 @@ export default function DashboardPage() {
 
       {/* ── Scrollable content ── */}
       <div style={{
-        height: `calc(100vh - ${TOPBAR_H}px)`,
+        flex: 1,
+        minHeight: 0,
         overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch",
         padding: "clamp(16px,2.5vw,28px) clamp(16px,3vw,28px) 60px",
         display: "flex", flexDirection: "column", gap: "clamp(14px,2vw,22px)", boxSizing: "border-box",
@@ -195,11 +195,11 @@ export default function DashboardPage() {
           {/* Card header */}
           <div style={{ padding: "clamp(14px,2vw,20px)", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Project Activity</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{recentProjects.length} active projects this month</div>
+              <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Transaction Activity</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{recentActivity.length} recent transactions</div>
             </div>
             <span
-              onClick={() => navigate("/projects")}
+              onClick={() => navigate("/transaction")}
               style={{ fontSize: 13, color: "#ea580c", fontWeight: 700, cursor: "pointer", padding: "6px 14px", background: "#fff5f0", borderRadius: 8, transition: "background 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.background = "#fde8d8"}
               onMouseLeave={e => e.currentTarget.style.background = "#fff5f0"}>
@@ -207,15 +207,18 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          {/* FIX 2: Activity feed — no border on last item, proper padding, bigger text */}
+          {/* Activity feed */}
           <div style={{ padding: "4px clamp(14px,2vw,20px) 8px" }}>
             {recentActivity.map((a, i) => (
+              // ✅ CHANGED: onClick routes to /log, added cursor pointer
               <div
                 key={i}
+                onClick={() => navigate("/transaction")}
                 style={{
                   display: "flex", alignItems: "flex-start", gap: 12,
                   padding: "12px 0",
                   borderBottom: i < recentActivity.length - 1 ? "1px solid #f5f5f5" : "none",
+                  cursor: "pointer",
                 }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
@@ -234,74 +237,6 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-
-          {/* Projects table */}
-          {!isNarrow ? (
-            <div style={{ padding: "0 clamp(14px,2vw,20px)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.4fr 80px", padding: "10px 4px", borderBottom: "1px solid #f0f0f0" }}>
-                {["PROJECT NAME", "MANAGER", "STATUS", "BUDGET", "PROGRESS", ""].map(col => (
-                  <div key={col} style={{ fontSize: 10, fontWeight: 700, color: "#bbb", letterSpacing: "0.08em" }}>{col}</div>
-                ))}
-              </div>
-              {recentProjects.map((p, idx) => (
-                <div
-                  key={p._id}
-                  onClick={() => navigate("/projects")}
-                  style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1.4fr 80px", padding: "14px 4px", borderBottom: idx < recentProjects.length - 1 ? "1px solid #f5f5f5" : "none", alignItems: "center", borderRadius: 8, transition: "background 0.15s", cursor: "pointer" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#fafafa"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, background: "#fff5f0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🏢</div>
-                    <span style={{ fontWeight: 600, fontSize: "clamp(12px,1.2vw,14px)", color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.projectName}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e0e7ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#4338ca", flexShrink: 0 }}>{p.manager?.charAt(0) || "U"}</div>
-                    <span style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap" }}>{p.manager}</span>
-                  </div>
-                  <div>
-                    <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#fef9c3", color: "#854d0e", whiteSpace: "nowrap" }}>{p.status}</span>
-                  </div>
-                  <div style={{ fontSize: 13, color: "#333", fontWeight: 600 }}>₹{p.budget?.toLocaleString("en-IN")}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ flex: 1, height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4, transition: "width 1s ease" }} />
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "#555", minWidth: 30 }}>{p.progress}%</span>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <button style={{ background: "none", border: "none", color: "#ea580c", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>VIEW →</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ padding: "clamp(12px,2vw,16px)", display: "flex", flexDirection: "column", gap: 10 }}>
-              {recentProjects.map(p => (
-                <div
-                  key={p._id}
-                  onClick={() => navigate("/projects")}
-                  style={{ border: "1px solid #ebebeb", borderRadius: 14, padding: 14, cursor: "pointer", transition: "box-shadow 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 36, height: 36, background: "#fff5f0", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏢</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a1a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.projectName}</div>
-                      <div style={{ fontSize: 11, color: "#888" }}>{p.manager}</div>
-                    </div>
-                    <span style={{ padding: "3px 8px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#fef9c3", color: "#854d0e", whiteSpace: "nowrap" }}>{p.status}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, color: "#888" }}>Budget: <strong style={{ color: "#333" }}>₹{p.budget?.toLocaleString("en-IN")}</strong></span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#ea580c" }}>{p.progress}%</span>
-                  </div>
-                  <div style={{ height: 6, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ width: `${p.progress}%`, height: "100%", background: "#ea580c", borderRadius: 4 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
         </div>{/* end Recent Project Activity card */}
 
