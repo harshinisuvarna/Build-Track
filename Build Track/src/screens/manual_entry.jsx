@@ -49,6 +49,8 @@ export default function ManualEntryPage() {
   const [toast,        setToast]        = useState({ msg: "", type: "info" });
   const [confirmDlg,   setConfirmDlg]   = useState(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+  const workerLabel = useCallback((w) => w?.name || "Unknown worker", []);
+  const projectLabel = useCallback((p) => p?.projectName || "Unknown project", []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -95,8 +97,8 @@ export default function ManualEntryPage() {
         title:   title.trim(),
         amount:  Number(amount),
         type:    txType,
-        worker:  worker  || "",
-        project: project || "",
+        worker:  worker  || null,
+        project: project || null,
         date:    date    || new Date().toISOString(),
         notes:   notes.trim(),
       });
@@ -254,7 +256,7 @@ export default function ManualEntryPage() {
                     <select value={worker} onChange={e => setWorker(e.target.value)} style={selectStyle}>
                       <option value="">Select worker (optional)</option>
                       {workerOptions.map(w => (
-                        <option key={w._id} value={w.name}>{w.name}</option>
+                        <option key={w._id} value={w._id}>{workerLabel(w)}</option>
                       ))}
                     </select>
                     <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
@@ -266,7 +268,7 @@ export default function ManualEntryPage() {
                     <select value={project} onChange={e => setProject(e.target.value)} style={selectStyle}>
                       <option value="">Select project (optional)</option>
                       {projectOptions.map(p => (
-                        <option key={p._id} value={p.projectName}>{p.projectName}</option>
+                        <option key={p._id} value={p._id}>{projectLabel(p)}</option>
                       ))}
                     </select>
                     <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
@@ -388,8 +390,8 @@ export default function ManualEntryPage() {
                           </div>
                           <div style={{ fontSize: 12, color: "#999", display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <span style={{ padding: "1px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{tx.type}</span>
-                            {tx.worker  && <span>👷 {tx.worker}</span>}
-                            {tx.project && <span>🏗️ {tx.project}</span>}
+                            {tx.worker  && <span>👷 {workerLabel(tx.worker)}</span>}
+                            {tx.project && <span>🏗️ {projectLabel(tx.project)}</span>}
                             <span>📅 {new Date(tx.date).toLocaleDateString("en-IN")}</span>
                           </div>
                         </div>

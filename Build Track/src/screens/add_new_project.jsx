@@ -18,6 +18,7 @@ export default function NewProjectPage() {
   const navigate     = useNavigate();
   const location     = useLocation();
   const fileInputRef = useRef(null);
+  const initialPhotoRef = useRef("");
 
   // ── Edit-mode detection ────────────────────────────────────────────────────
   const editProject = location.state?.editProject || null;
@@ -43,6 +44,7 @@ export default function NewProjectPage() {
   // photoFile    → the raw File object we put in FormData  (null = no new file chosen)
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile,    setPhotoFile]    = useState(null);
+  const [removeExistingPhoto, setRemoveExistingPhoto] = useState(false);
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [saving,   setSaving]   = useState(false);
@@ -60,7 +62,7 @@ export default function NewProjectPage() {
     setSupervisorsLoading(true);
     workerAPI.getSupervisors()
       .then(({ data }) => setSupervisors(data.supervisors || []))
-      .catch(err => console.warn("Could not load supervisors:", err))
+      .catch(() => setSupervisors([]))
       .finally(() => setSupervisorsLoading(false));
   }, []);
 
@@ -81,6 +83,10 @@ export default function NewProjectPage() {
     // Show existing photo as preview
     if (editProject.photo) {
       setPhotoPreview(`${API_ORIGIN}/uploads/${editProject.photo}`);
+      setRemoveExistingPhoto(false);
+      initialPhotoRef.current = editProject.photo;
+    } else {
+      initialPhotoRef.current = "";
     }
   }, [isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -89,12 +95,16 @@ export default function NewProjectPage() {
     if (!file || !file.type.startsWith("image/")) return;
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
+    setRemoveExistingPhoto(false);
   };
 
   const removePhoto = (e) => {
     e.stopPropagation();
     setPhotoFile(null);
     setPhotoPreview(null);
+    if (isEditMode && editProject.photo) {
+      setRemoveExistingPhoto(true);
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -114,20 +124,36 @@ export default function NewProjectPage() {
     fd.append("scope",     scope);
     fd.append("status",    status);
     fd.append("progress",  progress);
+    if (isEditMode && removeExistingPhoto && !photoFile) {
+      fd.append("removePhoto", "true");
+    } else if (isEditMode && initialPhotoRef.current && !photoFile && !photoPreview) {
+      // If edit mode started with a photo but preview is currently empty,
+      // treat it as an explicit remove to avoid stale photo persistence.
+      fd.append("removePhoto", "true");
+    }
     if (photoFile) fd.append("photo", photoFile);   // only send if user picked a new file
 
     try {
       setSaving(true);
       if (isEditMode) {
-        await projectAPI.update(editProject._id, fd);
+        const projectId = editProject?._id || editProject?.id;
+        if (!projectId) {
+          setErrMsg("Project ID missing. Please reopen this project and try again.");
+          setSaving(false);
+          return;
+        }
+        const { data } = await projectAPI.update(projectId, fd);
+        if (!data?.project?._id) {
+          throw new Error("Update did not return updated project data");
+        }
+        await projectAPI.getById(projectId); // verify latest saved state exists
         setSuccessMsg("Project updated successfully!");
       } else {
         await projectAPI.create(fd);
         setSuccessMsg("Project created successfully!");
       }
-      setTimeout(() => navigate("/projects"), 1200);
+      setTimeout(() => navigate("/projects", { replace: true }), 600);
     } catch (err) {
-      console.error(err);
       setErrMsg(err.response?.data?.message || "Failed to save project. Please try again.");
     } finally {
       setSaving(false);
@@ -369,12 +395,12 @@ export default function NewProjectPage() {
           </div>
 
           {/* Buttons */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "center" }}>
             <button
               onClick={handleSubmit}
               disabled={saving}
               style={{
-                padding: "14px 0", background: saving ? "#f59561" : "#ea580c", color: "#fff",
+                minHeight: 48, padding: "14px 0", background: saving ? "#f59561" : "#ea580c", color: "#fff",
                 border: "none", borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 boxShadow: "0 4px 14px rgba(234,88,12,0.3)",
@@ -387,9 +413,9 @@ export default function NewProjectPage() {
               onClick={() => navigate("/projects")}
               disabled={saving}
               style={{
-                padding: "14px 0", background: "#fff", color: "#555",
+                minHeight: 48, padding: "14px 0", background: "#fff", color: "#555",
                 border: "1px solid #e5e5e5", borderRadius: 12, fontWeight: 600,
-                fontSize: 15, cursor: "pointer",
+                fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
               Cancel

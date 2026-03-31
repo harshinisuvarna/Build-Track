@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { transactionAPI, workerAPI, projectAPI } from "../api";
 
@@ -55,6 +55,8 @@ export default function VoiceAssistantPage() {
   const [voiceError,   setVoiceError]   = useState("");
   const [workerNames,  setWorkerNames]  = useState([]);
   const [projectNames, setProjectNames] = useState([]);
+  const [workerOptions, setWorkerOptions] = useState([]);
+  const [projectOptions, setProjectOptions] = useState([]);
   const [recentEntries,        setRecentEntries]        = useState([]);
   const [recentEntriesLoading, setRecentEntriesLoading] = useState(true);
   const [searchQuery,          setSearchQuery]          = useState("");
@@ -70,6 +72,45 @@ export default function VoiceAssistantPage() {
       .catch(() => setRecentEntries([]))
       .finally(() => setRecentEntriesLoading(false));
   };
+
+  const workerNameToId = useMemo(
+    () =>
+      new Map(
+        workerOptions
+          .filter((w) => w?.name && w?._id)
+          .map((w) => [String(w.name).trim().toLowerCase(), w._id])
+      ),
+    [workerOptions]
+  );
+
+  const projectNameToId = useMemo(
+    () =>
+      new Map(
+        projectOptions
+          .filter((p) => p?.projectName && p?._id)
+          .map((p) => [String(p.projectName).trim().toLowerCase(), p._id])
+      ),
+    [projectOptions]
+  );
+
+  const normalize = (val) => String(val || "").trim().toLowerCase();
+
+  const resolveWorkerId = (workerName) => {
+    const key = normalize(workerName);
+    if (!key) return null;
+    return workerNameToId.get(key) || null;
+  };
+
+  const resolveProjectId = (projectName) => {
+    const key = normalize(projectName);
+    if (!key) return null;
+    return projectNameToId.get(key) || null;
+  };
+
+  const txWorkerLabel = (tx) =>
+    typeof tx?.worker === "string" ? tx.worker : tx?.worker?.name || "";
+  const txProjectLabel = (tx) =>
+    typeof tx?.project === "string" ? tx.project : tx?.project?.projectName || "";
 
   const handleWorkerChange = (val) => {
     setWorker(val);
@@ -101,6 +142,7 @@ export default function VoiceAssistantPage() {
       .then(res => {
         const data = res.data;
         const list = Array.isArray(data) ? data : (data.workers || data.data || []);
+        setWorkerOptions(list);
         setWorkerNames(list.map(w => w.name || w).filter(Boolean));
       })
       .catch(() => {});
@@ -109,6 +151,7 @@ export default function VoiceAssistantPage() {
       .then(res => {
         const data = res.data;
         const list = Array.isArray(data) ? data : (data.projects || data.data || []);
+        setProjectOptions(list);
         setProjectNames(list.map(p => p.projectName || p.name || p).filter(Boolean));
       })
       .catch(() => {});
@@ -257,12 +300,24 @@ export default function VoiceAssistantPage() {
 
     try {
       setVoiceSaving(true);
+      const workerId = resolveWorkerId(worker);
+      const projectId = resolveProjectId(project);
+
+      if (category === "Wages" && worker && !workerId) {
+        setVoiceError("Selected worker is invalid. Please choose a valid worker.");
+        return;
+      }
+      if (project && !projectId) {
+        setVoiceError("Selected project is invalid. Please choose a valid project.");
+        return;
+      }
+
       await transactionAPI.create({
         title:   `${category} - ${worker || project}`,
         amount:  numAmount,
         type:    category,
-        worker:  worker,
-        project: project,
+        worker:  workerId || null,
+        project: projectId || null,
         date:    new Date().toISOString(),
         notes:   notes || "Entered via Voice Assistant",
       });
@@ -559,8 +614,8 @@ export default function VoiceAssistantPage() {
                 const q = searchQuery.toLowerCase();
                 return (t.title || "").toLowerCase().includes(q) ||
                        (t.type || "").toLowerCase().includes(q) ||
-                       (t.worker || "").toLowerCase().includes(q) ||
-                       (t.project || "").toLowerCase().includes(q);
+                       txWorkerLabel(t).toLowerCase().includes(q) ||
+                       txProjectLabel(t).toLowerCase().includes(q);
               })
               .map((t, i) => {
                 const style = categoryStyle[t.type] || { bg: "#f5f5f5", color: "#555" };

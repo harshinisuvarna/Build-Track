@@ -20,7 +20,11 @@ const STATUS_STYLE = {
 
 const TABS = ["All Projects", "Active", "On Hold", "Review Needed", "Completed"];
 
-const FALLBACK_IMG = "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=120&h=120&fit=crop";
+function projectInitials(name = "") {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "🏗️";
+  return words.slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
+}
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
@@ -55,19 +59,17 @@ export default function ProjectsPage() {
         err?.message ||
         "Unknown error";
       setError(status ? `Failed to load projects (${status}): ${msg}` : `Failed to load projects: ${msg}`);
-      console.error("Failed to load projects:", {
-        message: err?.message,
-        status: err?.response?.status,
-        data: err?.response?.data,
-        url: err?.config?.url,
-        baseURL: err?.config?.baseURL,
-      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => {
+    const onFocus = () => fetchProjects();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = (projectId, projectName) => {
@@ -210,19 +212,40 @@ export default function ProjectsPage() {
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
             {filtered.map((p) => {
               const st = STATUS_STYLE[p.status] || STATUS_STYLE["Active"];
-              const imgSrc = p.photo
-                ? `${API_ORIGIN}/uploads/${p.photo}`
-                : FALLBACK_IMG;
+              const hasPhoto = Boolean(p.photo && String(p.photo).trim());
+              const imgSrc = hasPhoto ? `${API_ORIGIN}/uploads/${p.photo}` : "";
 
               return (
                 <div key={p._id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
 
                   {/* Card Header */}
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
-                    <img src={imgSrc} alt={p.projectName}
-                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
-                      onError={e => { e.target.src = FALLBACK_IMG; }}
-                    />
+                    {hasPhoto ? (
+                      <img
+                        src={imgSrc}
+                        alt={p.projectName}
+                        style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 10,
+                          background: "#2a2a2a",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                        title={p.projectName}
+                      >
+                        {projectInitials(p.projectName)}
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
                         <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>{p.projectName}</span>
@@ -274,15 +297,27 @@ export default function ProjectsPage() {
 
                   {/* Actions */}
                   <div style={{ display: "flex", gap: 10 }}>
+                    {/* ✅ CHANGED: orange outlined, centered text, hover fills solid orange */}
                     <button
                       onClick={() => navigate("/managesite", { state: { project: p } })}
                       style={{
-                        flex: 1, padding: "12px 0", background: "#1a1a1a", color: "#fff",
-                        border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14,
-                        cursor: "pointer", transition: "background 0.15s",
+                        flex: 1, padding: "12px 0",
+                        background: "#fff7ed",
+                        color: "#ea580c",
+                        border: "1.5px solid #ea580c",
+                        borderRadius: 10, fontWeight: 600, fontSize: 14,
+                        cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "background 0.15s, color 0.15s",
                       }}
-                      onMouseEnter={e => e.currentTarget.style.background = "#333"}
-                      onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "#ea580c";
+                        e.currentTarget.style.color = "#fff";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "#fff7ed";
+                        e.currentTarget.style.color = "#ea580c";
+                      }}
                     >
                       Manage Site
                     </button>

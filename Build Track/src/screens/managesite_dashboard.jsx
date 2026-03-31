@@ -1,18 +1,20 @@
 // src/screens/managesite_dashboard.jsx
-// ✅ CHANGED: Now reads project data from route state (passed by project_management.jsx)
-//    and loads real workers + transactions from the API
+// Reads project data from route state and loads real financial stats from API
 
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { workerAPI, transactionAPI } from "../api";
+import { workerAPI, transactionAPI, projectAPI } from "../api";
 
 const API_ORIGIN =
   (import.meta.env.VITE_API_URL || "http://localhost:5000")
     .replace(/\/+$/, "")
     .replace(/\/api$/, "");
 
-const FALLBACK_IMG =
-  "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=320&fit=crop";
+function projectInitials(name = "") {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "🏗️";
+  return words.slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
+}
 
 export default function ManageSitePage() {
   const navigate = useNavigate();
@@ -28,11 +30,26 @@ export default function ManageSitePage() {
   const [loadingW,     setLoadingW]     = useState(true);
   const [loadingT,     setLoadingT]     = useState(true);
 
+  // ── Real financial stats from aggregation API ─────────────────────────────
+  const [stats,        setStats]        = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // ── Load real financial stats ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!project) return;
+    const projectId = project._id || project.id;
+    setLoadingStats(true);
+    projectAPI.getStats(projectId)
+      .then(({ data }) => setStats(data))
+      .catch(() => setStats(null))
+      .finally(() => setLoadingStats(false));
+  }, [project]);
 
   // ── Load workers filtered by current project ─────────────────────────────
   useEffect(() => {
@@ -42,8 +59,6 @@ export default function ManageSitePage() {
     workerAPI.getAll({ project: projectId })
       .then(({ data }) => {
         const all = data.workers || [];
-        // Client-side fallback filter: if backend doesn't filter by project param,
-        // filter workers whose assignedProject matches this project
         const filtered = all.filter(w =>
           !w.assignedProject ||
           w.assignedProject === projectId ||
@@ -51,7 +66,7 @@ export default function ManageSitePage() {
         );
         setWorkers(filtered);
       })
-      .catch(err => console.error("Load workers:", err))
+      .catch(() => setWorkers([]))
       .finally(() => setLoadingW(false));
   }, [project]);
 
@@ -63,7 +78,6 @@ export default function ManageSitePage() {
     transactionAPI.getAll({ project: projectId })
       .then(({ data }) => {
         const all = data.transactions || [];
-        // Client-side fallback: filter transactions matching this project
         const filtered = all.filter(t =>
           !t.project ||
           t.project === projectId ||
@@ -71,7 +85,7 @@ export default function ManageSitePage() {
         );
         setTransactions(filtered.slice(0, 5));
       })
-      .catch(err => console.error("Load transactions:", err))
+      .catch(() => setTransactions([]))
       .finally(() => setLoadingT(false));
   }, [project]);
 
@@ -100,20 +114,20 @@ export default function ManageSitePage() {
     );
   }
 
-  // ── Derived data from project + workers ───────────────────────────────────
+  // ── Derived data from project + stats ─────────────────────────────────────
   const projectName  = project.projectName || "Untitled Project";
   const projectLoc   = project.location || "—";
   const progress     = project.progress || 0;
   const budget       = Number(project.budget) || 0;
   const status       = project.status || "Active";
 
-  const imgSrc = project.photo
-    ? `${API_ORIGIN}/uploads/${project.photo}`
-    : FALLBACK_IMG;
+  const hasPhoto = Boolean(project.photo && String(project.photo).trim());
+  const imgSrc = hasPhoto ? `${API_ORIGIN}/uploads/${project.photo}` : "";
 
-  // Estimate spent as progress% of budget (since we don't have actual cost tracking per project)
-  const spent     = Math.round(budget * (progress / 100));
-  const remaining = budget - spent;
+  // Use real stats from API, fallback to budget-only if loading
+  const totalBudget = stats?.totalBudget ?? budget;
+  const spent       = stats?.totalSpent ?? 0;
+  const remaining   = stats?.remainingBudget ?? (budget - spent);
 
   // Status badge colors
   const statusMap = {
@@ -158,7 +172,6 @@ export default function ManageSitePage() {
     { label: "Finishing",          phase: 4, done: progress >= 80, current: progress >= 60 && progress < 80 },
     { label: "Handover",           phase: 5, done: progress >= 100, current: progress >= 80 && progress < 100 },
   ];
-  // Mark the first undone as current if no explicit current
   const hasExplicitCurrent = milestones.some(m => m.current);
   if (!hasExplicitCurrent) {
     const firstUndone = milestones.find(m => !m.done);
@@ -200,12 +213,31 @@ export default function ManageSitePage() {
         {/* Hero Card */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
           <div style={{ position: "relative", flexShrink: 0 }}>
-            <img
-              src={imgSrc}
-              alt={projectName}
-              style={{ width: isMobile ? "100%" : 300, height: isMobile ? 200 : "100%", objectFit: "cover", display: "block", minHeight: 200 }}
-              onError={e => { e.target.src = FALLBACK_IMG; }}
-            />
+            {hasPhoto ? (
+              <img
+                src={imgSrc}
+                alt={projectName}
+                style={{ width: isMobile ? "100%" : 300, height: isMobile ? 200 : "100%", objectFit: "cover", display: "block", minHeight: 200 }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: isMobile ? "100%" : 300,
+                  height: isMobile ? 200 : "100%",
+                  minHeight: 200,
+                  background: "#2a2a2a",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 28,
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {projectInitials(projectName)}
+              </div>
+            )}
             <span style={{ position: "absolute", top: 14, left: 14, padding: "5px 14px", background: st.bg, color: st.color, fontSize: 12, fontWeight: 700, borderRadius: 6, letterSpacing: "0.04em" }}>
               {status.toUpperCase()}
             </span>
@@ -214,7 +246,6 @@ export default function ManageSitePage() {
           <div style={{ flex: 1, padding: "24px 28px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
               <h2 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1a1a1a" }}>{projectName}</h2>
-              {/* ── Edit Details → /newproject with project data as state ── */}
               <button
                 onClick={() => navigate("/newproject", { state: { editProject: project } })}
                 style={{ padding: "8px 16px", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
@@ -254,41 +285,54 @@ export default function ManageSitePage() {
         {/* Financial + Personnel Row */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr", gap: 16 }}>
 
-          {/* Financial Breakdown — from real budget data */}
+          {/* Financial Breakdown — from real transaction aggregation */}
           <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "20px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Financial Breakdown</span>
               <span style={{ fontSize: 12, color: "#aaa" }}>All figures in ₹</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
-              <div style={{ background: "#fafafa", borderRadius: 10, padding: "12px 14px", border: "1px solid #f0f0f0" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 6 }}>TOTAL BUDGET</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>
-                  {budget ? `₹${budget.toLocaleString("en-IN")}` : "—"}
+
+            {loadingStats ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ background: "#fafafa", borderRadius: 10, padding: "12px 14px", border: "1px solid #f0f0f0", height: 80 }}>
+                    <div style={{ width: "60%", height: 10, background: "#f0f0f0", borderRadius: 4, marginBottom: 8 }} />
+                    <div style={{ width: "80%", height: 16, background: "#f0f0f0", borderRadius: 4 }} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+                <div style={{ background: "#fafafa", borderRadius: 10, padding: "12px 14px", border: "1px solid #f0f0f0" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em", marginBottom: 6 }}>TOTAL BUDGET</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>
+                    {totalBudget ? `₹${totalBudget.toLocaleString("en-IN")}` : "—"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>
+                    {project.startDate ? `Allocated ${new Date(project.startDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}` : ""}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>
-                  {project.startDate ? `Allocated ${new Date(project.startDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}` : ""}
+                <div style={{ background: "#fff7f0", borderRadius: 10, padding: "12px 14px", border: "1px solid #fed7aa" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#ea580c", letterSpacing: "0.06em", marginBottom: 6 }}>ACTUAL SPENT</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#ea580c" }}>
+                    {`₹${spent.toLocaleString("en-IN")}`}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>
+                    {totalBudget > 0 ? `${((spent / totalBudget) * 100).toFixed(1)}% of total budget` : ""}
+                  </div>
+                </div>
+                <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", letterSpacing: "0.06em", marginBottom: 6 }}>REMAINING</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#15803d" }}>
+                    {`₹${remaining.toLocaleString("en-IN")}`}
+                  </div>
+                  <div style={{ fontSize: 11, color: remaining > 0 ? "#16a34a" : "#dc2626", marginTop: 4, fontWeight: 600 }}>
+                    {remaining > 0 ? "Within Projections" : remaining === 0 ? "Fully Spent" : "Over Budget"}
+                  </div>
                 </div>
               </div>
-              <div style={{ background: "#fff7f0", borderRadius: 10, padding: "12px 14px", border: "1px solid #fed7aa" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#ea580c", letterSpacing: "0.06em", marginBottom: 6 }}>EST. SPENT</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#ea580c" }}>
-                  {spent ? `₹${spent.toLocaleString("en-IN")}` : "—"}
-                </div>
-                <div style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>
-                  {budget > 0 ? `${((spent / budget) * 100).toFixed(1)}% of total budget` : ""}
-                </div>
-              </div>
-              <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", letterSpacing: "0.06em", marginBottom: 6 }}>REMAINING</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#15803d" }}>
-                  {remaining ? `₹${remaining.toLocaleString("en-IN")}` : "—"}
-                </div>
-                <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4, fontWeight: 600 }}>
-                  {remaining > 0 ? "Within Projections" : remaining === 0 ? "Fully Spent" : "Over Budget"}
-                </div>
-              </div>
-            </div>
+            )}
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Budget utilization</span>
               <span onClick={() => navigate("/reports")} style={{ fontSize: 12, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View Full Report</span>
@@ -334,9 +378,11 @@ export default function ManageSitePage() {
                 </>
               )}
             </div>
-            <button onClick={() => navigate("/workers")} style={{ marginTop: 18, width: "100%", padding: "12px 0", background: "#f5f5f5", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-              Manage All Personnel
-            </button>
+            <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
+              <button onClick={() => navigate("/workers")} style={{ width: "100%", padding: "12px 0", background: "#f5f5f5", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+                Manage All Personnel
+              </button>
+            </div>
           </div>
         </div>
 

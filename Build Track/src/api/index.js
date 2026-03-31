@@ -68,6 +68,7 @@ export const workerAPI = {
 export const projectAPI = {
   getAll:  (p = {}) => api.get("/projects", { params: p }),
   getById: (id)     => api.get(`/projects/${id}`),
+  getStats:(id)     => api.get(`/projects/${id}/stats`),
   create:  (data)   => api.post("/projects", data),        // data = FormData
   update:  (id, d)  => api.put(`/projects/${id}`, d),      // d = FormData
   delete:  (id)     => api.delete(`/projects/${id}`),

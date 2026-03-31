@@ -239,7 +239,7 @@ export default function LoginPage() {
         {passErr && <p style={{ margin: "5px 0 0", fontSize: 12, color: "#dc2626", animation: "btFadeUp 0.2s ease" }}>{passErr}</p>}
       </div>
 
-      <div style={{ textAlign: "right", marginBottom: 26 }}>
+      <div style={{ textAlign: "center", marginBottom: 26 }}>
         <span onClick={() => { setShowForgot(v => !v); setForgotMsg(""); setForgotErr(""); }} className="bt-link-orange" style={{ fontSize: 13, cursor: "pointer" }}>{showForgot ? "← Back to login" : "Forgot password?"}</span>
       </div>
 

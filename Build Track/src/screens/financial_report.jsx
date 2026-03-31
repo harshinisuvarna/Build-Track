@@ -2,15 +2,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { reportAPI } from "../api";
 import { Toast } from "../components/Toast";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTH_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const YEARS        = Array.from({ length: 11 }, (_, i) => 2020 + i); // 2020–2030
+const YEARS        = Array.from({ length: 11 }, (_, i) => 2020 + i);
 
 const now          = new Date();
 const THIS_YEAR    = now.getFullYear();
-const THIS_MONTH   = now.getMonth();   // 0-indexed
+const THIS_MONTH   = now.getMonth();
 
 function lastMonthOf(year, month) {
   return month === 0
@@ -37,6 +39,17 @@ function sameDay(a, b)  { return a && b && a.toDateString() === b.toDateString()
 function inRange(d, s, e) { return s && e && d > s && d < e; }
 function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function firstDayOf(y, m)  { return new Date(y, m, 1).getDay(); }
+function formatINR(n) { return `₹${Number(n || 0).toLocaleString("en-IN")}`; }
+function formatRsPlain(n) { return `Rs ${Number(n || 0).toLocaleString("en-IN")}`; }
+function statusColor(status) {
+  if (status === "ON TRACK") return "#22c55e";
+  if (status === "REVIEW NEEDED") return "#f59e0b";
+  return "#3b82f6";
+}
+function escapeCsv(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 
 // ── Mini Calendar with month+year dropdowns in header ────────────────────────
@@ -48,7 +61,6 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
   const monthMenuRef = useRef(null);
   const yearMenuRef  = useRef(null);
 
-  // Close menus on outside click
   useEffect(() => {
     function handle(e) {
       if (monthMenuRef.current && !monthMenuRef.current.contains(e.target)) setShowMonthMenu(false);
@@ -151,7 +163,7 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
           const inSel     = inRange(day, rangeStart, rangeEnd || hoverDay);
           const isToday   = sameDay(day, new Date());
 
-          let bg="#transparent", color="#333", br=6;
+          let bg="transparent", color="#333", br=6;
           if (isStart || endOrHov) { bg="#ea580c"; color="#fff"; }
           else if (inSel)          { bg="#fff0e8"; color="#ea580c"; br=0; }
 
@@ -202,11 +214,9 @@ export default function FinancialReportPage() {
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   // ── Table controls state ──────────────────────────────────────────────────
-  const [sortKey,     setSortKey]     = useState("name");    // "name" | "payout" | "trade"
+  const [sortKey,     setSortKey]     = useState("name");
   const [showSort,    setShowSort]    = useState(false);
-  const [showMore,    setShowMore]    = useState(false);
   const sortRef = useRef(null);
-  const moreRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -214,17 +224,28 @@ export default function FinancialReportPage() {
   const handleExportCSV = async () => {
     try {
       setExporting(true);
-      const { data } = await reportAPI.exportCSV({ year: selYear, month: selMonth });
-      const url = URL.createObjectURL(new Blob([data]));
+      const header = "Worker Name,Role,Project,Total Days,Rate,Total Payout\n";
+      const rows = filtered.map((w) =>
+        [
+          escapeCsv(w.name),
+          escapeCsv(w.trade || ""),
+          escapeCsv(w.project || "Various"),
+          escapeCsv(w.totalDays ?? 0),
+          escapeCsv(w.dailyWage ?? 0),
+          escapeCsv(w.estimatedMonthlyPayout ?? 0),
+        ].join(",")
+      ).join("\n");
+      const csv = header + rows;
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `BuildTrack_Report_${SHORT_MONTHS[selMonth]}_${selYear}.csv`;
+      a.download = `wages-report-${MONTH_NAMES[selMonth].toLowerCase()}-${selYear}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("CSV export error:", err);
+      setToast({ msg: "CSV exported successfully!", type: "success" });
+    } catch {
       setToast({ msg: "Failed to export CSV. Please try again.", type: "error" });
     } finally {
       setExporting(false);
@@ -235,17 +256,42 @@ export default function FinancialReportPage() {
   const handleDownloadPDF = async () => {
     try {
       setExporting(true);
-      const { data } = await reportAPI.exportPDF({ year: selYear, month: selMonth });
-      const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `BuildTrack_Report_${MONTH_NAMES[selMonth]}_${selYear}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("PDF export error:", err);
+      const doc = new jsPDF();
+      const generatedOn = new Date().toLocaleDateString("en-IN");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text(`Financial Report - ${MONTH_NAMES[selMonth]} ${selYear}`, 14, 16);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text(`Total Income: ${formatRsPlain(income)}`, 14, 28);
+      doc.text(`Expenditures: ${formatRsPlain(expenses)}`, 74, 28);
+      doc.text(`Net Profit: ${formatRsPlain(profit)}`, 140, 28);
+      doc.text(`Compliance: ${Number(compliance || 0).toFixed(1)}%`, 14, 35);
+
+      const tableBody = filtered.length
+        ? filtered.map((w) => [
+            w.name || "—",
+            w.trade || "—",
+            w.project || "Various",
+            `${w.totalDays ?? 0}`,
+            formatRsPlain(w.dailyWage ?? 0),
+            formatRsPlain(w.estimatedMonthlyPayout ?? 0),
+          ])
+        : [["No data available", "", "", "", "", ""]];
+
+      autoTable(doc, {
+        startY: 42,
+        head: [["Worker Name", "Role", "Project", "Total Days", "Rate (₹)", "Total Payout (₹)"]],
+        body: tableBody,
+        styles: { fontSize: 9, font: "helvetica" },
+        headStyles: { fillColor: [40, 120, 176], textColor: 255, fontStyle: "bold" },
+      });
+
+      doc.setFontSize(10);
+      doc.text(`Generated by BuildTrack on ${generatedOn}`, 14, doc.internal.pageSize.height - 10);
+      doc.save(`financial-report-${MONTH_NAMES[selMonth].toLowerCase()}-${selYear}.pdf`);
+      setToast({ msg: "PDF report downloaded!", type: "success" });
+    } catch {
       setToast({ msg: "Failed to download report. Please try again.", type: "error" });
     } finally {
       setExporting(false);
@@ -254,26 +300,22 @@ export default function FinancialReportPage() {
 
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
-    setError("");
-    const params = { year: selYear, month: selMonth };
-    // If user has picked a custom date range, send it to the API
-    if (rangeStart) params.rangeStart = rangeStart.toISOString();
-    if (rangeEnd)   params.rangeEnd   = rangeEnd.toISOString();
-    reportAPI.getFinancial(params)
-      .then(({ data }) => {
-        if (isMounted) {
-          setReportData(data);
-          setLoading(false);
-        }
-      })
-      .catch(err => {
-        if (isMounted) {
-          console.error("Report load error:", err);
-          setError("Failed to load report data");
-          setLoading(false);
-        }
-      });
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      const params = { year: selYear, month: selMonth };
+      if (rangeStart) params.rangeStart = rangeStart.toISOString();
+      if (rangeEnd)   params.rangeEnd   = rangeEnd.toISOString();
+      try {
+        const { data } = await reportAPI.getFinancial(params);
+        if (isMounted) setReportData(data);
+      } catch {
+        if (isMounted) setError("Failed to load report data");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
     return () => { isMounted = false; };
   }, [selYear, selMonth, rangeStart, rangeEnd]);
 
@@ -282,7 +324,6 @@ export default function FinancialReportPage() {
       if (monthDropRef.current && !monthDropRef.current.contains(e.target)) setShowMonthDrop(false);
       if (calRef.current        && !calRef.current.contains(e.target))       setShowCal(false);
       if (sortRef.current       && !sortRef.current.contains(e.target))      setShowSort(false);
-      if (moreRef.current       && !moreRef.current.contains(e.target))      setShowMore(false);
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
@@ -311,9 +352,9 @@ export default function FinancialReportPage() {
 
   const margin = income > 0 ? ((profit / income) * 100).toFixed(1) : "0.0";
   const metrics = [
-    { label:"TOTAL INCOME",  value:`₹${income.toLocaleString("en-IN")}.00`, sub:"Real-time data", subColor:"#16a34a", dot:"#16a34a" },
-    { label:"EXPENDITURES",  value:`₹${expenses.toLocaleString("en-IN")}.00`, sub:"Updated hourly",  subColor:"#ea580c", dot:"#ef4444" },
-    { label:"NET PROFIT",    value:`₹${profit.toLocaleString("en-IN")}.00`, sub:`${margin}% Margin`, subColor:"#6b7280", dot:"#ea580c", valueColor:"#ea580c" },
+    { label:"TOTAL INCOME",  value:formatINR(income), sub:"Real-time data", subColor:"#16a34a", dot:"#16a34a" },
+    { label:"EXPENDITURES",  value:formatINR(expenses), sub:"Updated hourly",  subColor:"#ea580c", dot:"#ef4444" },
+    { label:"NET PROFIT",    value:formatINR(profit), sub:`${margin}% Margin`, subColor:"#6b7280", dot:"#ea580c", valueColor:"#ea580c" },
   ];
 
   const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`;
@@ -333,7 +374,7 @@ export default function FinancialReportPage() {
     .sort((a, b) => {
       if (sortKey === "payout") return (b.estimatedMonthlyPayout || 0) - (a.estimatedMonthlyPayout || 0);
       if (sortKey === "trade")  return (a.trade || "").localeCompare(b.trade || "");
-      return (a.name || "").localeCompare(b.name || "");  // default: name A–Z
+      return (a.name || "").localeCompare(b.name || "");
     });
 
   // ── Apply a month selection (shared by month-dropdown & last-month btn) ───
@@ -348,13 +389,11 @@ export default function FinancialReportPage() {
     setShowMonthDrop(false);
   }
 
-  // ── "Last Month" — always computes the real previous calendar month ───────
   function handleLastMonth() {
     const { year, month } = lastMonthOf(THIS_YEAR, THIS_MONTH);
     applyMonth(year, month);
   }
 
-  // ── Calendar day click ────────────────────────────────────────────────────
   function onDayClick(day) {
     if (pickingStart) {
       setRangeStart(day); setRangeEnd(null); setPickingStart(false);
@@ -374,13 +413,12 @@ export default function FinancialReportPage() {
         <h1 style={{ margin:0, fontSize:20, fontWeight:800, color:"#111", whiteSpace:"nowrap" }}>Financial Reports</h1>
         <div style={{ flex:1, maxWidth:420, margin:"0 auto", display:"flex", alignItems:"center", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:10, padding:"9px 14px", gap:8 }}>
           <span style={{ color:"#aaa", fontSize:14 }}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search transactions..."
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search workers..."
             style={{ border:"none", background:"transparent", outline:"none", fontSize:14, color:"#555", width:"100%" }} />
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <button onClick={handleExportCSV} disabled={exporting} style={{ padding:"10px 20px", background:"#ea580c", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:14, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:8, boxShadow:"0 4px 14px rgba(234,88,12,0.3)", whiteSpace:"nowrap", opacity: exporting ? 0.7 : 1 }}>{exporting ? "⏳ Exporting…" : "⬇ Export Report"}</button>
+          <button onClick={handleExportCSV} disabled={exporting} id="export-csv-btn" style={{ padding:"10px 20px", background:"#fff", color:"#ea580c", border:"1.5px solid #ea580c", borderRadius:10, fontWeight:700, fontSize:14, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap", opacity: exporting ? 0.7 : 1 }}>{exporting ? "⏳ Exporting…" : "⬇ Export CSV"}</button>
           <div style={{ width:38, height:38, background:"#f5f5f5", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, cursor:"pointer", border:"1px solid #e5e5e5" }}>🔔</div>
-          <div style={{ width:38, height:38, background:"#f5f5f5", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#888", cursor:"pointer", border:"1px solid #e5e5e5" }}>?</div>
         </div>
       </div>
 
@@ -393,7 +431,7 @@ export default function FinancialReportPage() {
             <h2 style={{ margin:"0 0 6px", fontSize:"clamp(24px,3vw,34px)", fontWeight:900, color:"#111", letterSpacing:"-0.5px" }}>{monthLabel} Analysis</h2>
             <p style={{ margin:0, fontSize:14, color:"#888", maxWidth:340, lineHeight:1.5 }}>Reporting period performance and labor expenditure overview.</p>
           </div>
-          <button onClick={handleDownloadPDF} disabled={exporting} style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)", opacity: exporting ? 0.7 : 1 }}>
+          <button onClick={handleDownloadPDF} disabled={exporting} id="download-pdf-btn" style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)", opacity: exporting ? 0.7 : 1 }}>
             <span style={{ fontSize:18 }}>📄</span>
             <span>{exporting ? "Downloading…" : <>Download<br /><span style={{ fontSize:13, fontWeight:600 }}>Report</span></>}</span>
           </button>
@@ -402,7 +440,6 @@ export default function FinancialReportPage() {
         {/* ── Date filter strip ──────────────────────────────────────────────── */}
         <div style={{ background:"#fff", borderRadius:14, border:"1px solid #ebebeb", padding:"14px 20px", display:"flex", alignItems:"center", gap:10, marginBottom:24, flexWrap:"wrap", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", position:"relative" }}>
 
-          {/* Last Month — dynamically computes previous calendar month */}
           <button
             onClick={handleLastMonth}
             style={{ padding:"9px 20px", background:"transparent", color:"#333", border:"1.5px solid #e5e5e5", borderRadius:8, fontWeight:500, fontSize:14, cursor:"pointer", transition:"border-color 0.15s" }}
@@ -411,7 +448,7 @@ export default function FinancialReportPage() {
             Last Month
           </button>
 
-          {/* ── Month selector dropdown with inline year switcher ─────────── */}
+          {/* ── Month selector dropdown ─────────── */}
           <div ref={monthDropRef} style={{ position:"relative" }}>
             <button
               onClick={()=>{ setShowMonthDrop(v=>!v); setShowCal(false); }}
@@ -422,7 +459,6 @@ export default function FinancialReportPage() {
             {showMonthDrop && (
               <div style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.14)", zIndex:200, width:240, overflow:"hidden" }}>
 
-                {/* Year switcher row inside the dropdown */}
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderBottom:"1px solid #f0f0f0", background:"#fafafa" }}>
                   <button onClick={()=>setDropYear(y=>Math.max(2020,y-1))}
                     style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#555", padding:"2px 8px" }}>‹</button>
@@ -431,7 +467,6 @@ export default function FinancialReportPage() {
                     style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#555", padding:"2px 8px" }}>›</button>
                 </div>
 
-                {/* Month grid */}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:4, padding:"10px 12px 12px" }}>
                   {MONTH_NAMES.map((name, mi) => {
                     const isActive = dropYear===selYear && mi===selMonth;
@@ -526,7 +561,7 @@ export default function FinancialReportPage() {
               {/* ── Sort dropdown (≡) ─────────────────────────────────────── */}
               <div ref={sortRef} style={{ position:"relative" }}>
                 <button
-                  onClick={() => { setShowSort(v => !v); setShowMore(false); }}
+                  onClick={() => { setShowSort(v => !v); }}
                   title="Sort workers"
                   style={{ background: showSort ? "#fff5f0" : "none", border: showSort ? "1px solid #fde4d0" : "none", cursor:"pointer", fontSize:18, color: showSort ? "#ea580c" : "#888", borderRadius:8, padding:"4px 8px", lineHeight:1, transition:"all 0.15s" }}>
                   ≡
@@ -547,36 +582,10 @@ export default function FinancialReportPage() {
                 )}
               </div>
 
-              {/* ── More options dropdown (⋮) ─────────────────────────────── */}
-              <div ref={moreRef} style={{ position:"relative" }}>
-                <button
-                  onClick={() => { setShowMore(v => !v); setShowSort(false); }}
-                  title="More options"
-                  style={{ background: showMore ? "#fff5f0" : "none", border: showMore ? "1px solid #fde4d0" : "none", cursor:"pointer", fontSize:20, color: showMore ? "#ea580c" : "#888", borderRadius:8, padding:"4px 8px", lineHeight:1, transition:"all 0.15s" }}>
-                  ⋮
-                </button>
-                {showMore && (
-                  <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 28px rgba(0,0,0,0.12)", zIndex:300, minWidth:180, overflow:"hidden" }}>
-                    <div
-                      onClick={() => { handleExportCSV(); setShowMore(false); }}
-                      style={{ padding:"12px 16px", fontSize:13, fontWeight:500, color:"#333", cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"background 0.12s" }}
-                      onMouseEnter={e=>e.currentTarget.style.background="#f9f9f9"}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      ⬇ Export CSV
-                    </div>
-                    <div
-                      onClick={() => { handleDownloadPDF(); setShowMore(false); }}
-                      style={{ padding:"12px 16px", fontSize:13, fontWeight:500, color:"#333", cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"background 0.12s", borderTop:"1px solid #f5f5f5" }}
-                      onMouseEnter={e=>e.currentTarget.style.background="#f9f9f9"}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      📄 Download PDF
-                    </div>
-                  </div>
-                )}
-              </div>
-
             </div>
           </div>
+
+          {/* ── PROJECT STATUS LEGEND only ── */}
           <div style={{ padding:"14px 24px", display:"flex", alignItems:"center", gap:20, borderBottom:"1px solid #f0f0f0", flexWrap:"wrap" }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
               <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.06em" }}>PROJECT STATUS LEGEND:</span>
@@ -586,27 +595,25 @@ export default function FinancialReportPage() {
                 </div>
               ))}
             </div>
-            <div style={{ width:1, height:16, background:"#e5e5e5" }} />
-            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.06em" }}>PROFIT LEGEND:</span>
-              {[["#16a34a","HIGH"],["#f59e0b","MED"],["#ef4444","LOW"]].map(([c,l])=>(
-                <div key={l} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                  <div style={{ width:8, height:8, borderRadius:"50%", background:c }}/><span style={{ fontSize:11, fontWeight:600, color:"#666" }}>{l}</span>
-                </div>
-              ))}
-            </div>
           </div>
+
           <div style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"10px 24px", borderBottom:"1px solid #f0f0f0" }}>
-            {["WORKER DETAILS","PROJECT","TOTAL HOURS","RATE","TOTAL PAYOUT","ACTION"].map(col=>(
+            {["WORKER DETAILS","PROJECT","TOTAL DAYS","RATE","TOTAL PAYOUT","ACTION"].map(col=>(
               <div key={col} style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em" }}>{col}</div>
             ))}
           </div>
+          {filtered.length === 0 && (
+            <div style={{ padding: 32, textAlign: "center", color: "#aaa", fontSize: 14 }}>
+              {workers.length === 0 ? "No workers found for this period." : "No workers match your search."}
+            </div>
+          )}
           {filtered.map((w,i)=>(
-            <div key={i}
+            <div key={w._id || w.id || i}
               style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"18px 24px", borderBottom:i<filtered.length-1?"1px solid #f5f5f5":"none", alignItems:"center", transition:"background 0.15s" }}
               onMouseEnter={e=>e.currentTarget.style.background="#fafafa"}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ width:8, height:8, borderRadius:"50%", background: statusColor(w.projectStatus), flexShrink:0 }} />
                 <div style={{ width:40, height:40, borderRadius:"50%", background:"#2d3748", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>{w.name?.charAt(0)}</div>
                 <div>
                   <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{w.name}</div>
@@ -614,9 +621,9 @@ export default function FinancialReportPage() {
                 </div>
               </div>
               <div><span style={{ padding:"4px 10px", background:"#e0e7ff", color:"#3730a3", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{w.project || "Various"}</span></div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.totalDays != null ? `${w.totalDays}d` : `${Math.round((w.estimatedMonthlyPayout || 0) / (w.dailyWage || 1))}d`}</div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>₹{w.dailyWage || 0}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>₹{w.estimatedMonthlyPayout?.toLocaleString("en-IN")}</div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.totalDays != null ? `${w.totalDays}d` : "—"}</div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{formatINR(w.dailyWage || 0)}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{formatINR(w.estimatedMonthlyPayout || 0)}</div>
               <div>
                 <button
                   onClick={() => navigate(`/workers/${w._id || w.id}`, { state: { worker: w } })}
