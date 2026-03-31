@@ -96,18 +96,11 @@ userSchema.pre("validate", function () {
     this.providerId = this.googleId;
     return;
   }
-  if (this.githubId) {
-    this.provider = "github";
-    this.providerId = this.githubId;
-    return;
-  }
   if (this.password) {
     this.provider = "local";
     this.providerId = null;
   }
 });
-
-// ── Hash password before saving ──────────────────────────────────────────────
 // Mongoose 7+ async middleware: do NOT call next(), just return or throw
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;

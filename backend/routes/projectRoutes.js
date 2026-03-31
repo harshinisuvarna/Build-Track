@@ -5,8 +5,9 @@ const path        = require("path");
 const fs          = require("fs");
 const multer      = require("multer");
 const Project     = require("../models/Project");
+const Transaction = require("../models/Transaction");
 const { protect } = require("../middleware/auth");
-const upload      = require("../config/multer");   // reuse existing multer config
+const upload      = require("../config/multer");
 
 // All routes require valid JWT
 router.use(protect);
@@ -27,7 +28,6 @@ const runUpload = (req, res) =>
 
 
 // ─── GET ALL PROJECTS ────────────────────────────────────────────────────────
-// GET /api/projects
 router.get("/", async (req, res) => {
   try {
     const { status, search } = req.query;
@@ -45,15 +45,13 @@ router.get("/", async (req, res) => {
 
     const projects = await Project.find(query).sort({ createdAt: -1 });
     res.json({ projects });
-  } catch (err) {
-    console.error("Get projects error:", err);
+  } catch {
     res.status(500).json({ message: "Failed to fetch projects" });
   }
 });
 
 
 // ─── GET SINGLE PROJECT ──────────────────────────────────────────────────────
-// GET /api/projects/:id
 router.get("/:id", async (req, res) => {
   try {
     const project = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
@@ -65,19 +63,65 @@ router.get("/:id", async (req, res) => {
 });
 
 
+// ─── GET PROJECT FINANCIAL STATS ─────────────────────────────────────────────
+// Uses MongoDB aggregation on real transaction data instead of progress-based estimates
+router.get("/:id/stats", async (req, res) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    const mongoose = require("mongoose");
+    const projectObjectId = new mongoose.Types.ObjectId(req.params.id);
+
+    const result = await Transaction.aggregate([
+      { $match: { project: projectObjectId } },
+      {
+        $group: {
+          _id: null,
+          totalSpent: {
+            $sum: {
+              $cond: [
+                { $in: ["$type", ["Expense", "Wages", "Materials"]] },
+                "$amount",
+                0,
+              ],
+            },
+          },
+          totalIncome: {
+            $sum: {
+              $cond: [{ $eq: ["$type", "Income"] }, "$amount", 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const { totalSpent = 0, totalIncome = 0 } = result[0] || {};
+    const totalBudget = Number(project.budget) || 0;
+    const remainingBudget = totalBudget - totalSpent;
+
+    res.json({
+      totalBudget,
+      totalSpent,
+      totalIncome,
+      remainingBudget,
+      projectName: project.projectName,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch project stats" });
+  }
+});
+
+
 // ─── CREATE PROJECT ──────────────────────────────────────────────────────────
-// POST /api/projects   (multipart/form-data, optional photo)
 router.post("/", async (req, res) => {
-  // Run multer first
   try { await runUpload(req, res); }
   catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
 
   try {
-    const { projectName, location, manager, budget, startDate, scope, status, progress } = req.body;
-
-
+    const { projectName, location, manager, budget, startDate, scope, status, progress, removePhoto } = req.body;
 
     if (!projectName || !projectName.trim())
       return res.status(400).json({ message: "Project name is required" });
@@ -95,9 +139,24 @@ router.post("/", async (req, res) => {
       photo:       req.files?.find(f => f.fieldname === "photo")?.filename || null,
     });
 
+    // ── Auto-create a transaction log entry when a project is created ──
+    try {
+      const budgetAmount = Number(budget) || 0;
+      await Transaction.create({
+        createdBy: req.user._id.toString(),
+        title:     `Project Created - ${project.projectName}`,
+        amount:    budgetAmount,
+        type:      "Expense",
+        project:   project._id.toString(),
+        date:      new Date(),
+        notes:     `Auto-generated on project creation. Budget: ₹${budgetAmount}`,
+      });
+    } catch {
+      // Transaction creation is non-critical — project was still saved
+    }
+
     res.status(201).json({ message: "Project created", project });
   } catch (err) {
-    console.error("Create project error:", err);
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
       return res.status(400).json({ message: msg });
@@ -107,20 +166,28 @@ router.post("/", async (req, res) => {
 });
 
 
-
 // ─── UPDATE PROJECT ──────────────────────────────────────────────────────────
-// PUT /api/projects/:id   (multipart/form-data, optional new photo)
 router.put("/:id", async (req, res) => {
-  // Run multer first
   try { await runUpload(req, res); }
   catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
 
   try {
-    const { projectName, location, manager, budget, startDate, scope, status, progress } = req.body;
+    const { projectName, location, manager, budget, startDate, scope, status, progress, removePhoto } = req.body;
+    console.log("[PUT /api/projects/:id] payload:", {
+      id: req.params.id,
+      projectName,
+      location,
+      manager,
+      budget,
+      startDate,
+      status,
+      progress,
+      removePhoto,
+      files: (req.files || []).map((f) => ({ field: f.fieldname, name: f.filename })),
+    });
 
-    // Bug 34: Build updateData carefully — only include defined fields
     const updateData = {};
     if (projectName !== undefined) updateData.projectName = projectName.trim();
     if (location !== undefined)    updateData.location    = location;
@@ -131,15 +198,19 @@ router.put("/:id", async (req, res) => {
     if (status !== undefined)      updateData.status      = status;
     if (progress !== undefined)    updateData.progress    = Number(progress);
 
+    const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
+
     const photoFile = req.files?.find(f => f.fieldname === "photo");
-    if (photoFile) {
-      // Delete old photo from disk
-      const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
-      if (existing?.photo) {
+    if (photoFile && existing) {
+      if (existing.photo) {
         const oldPath = path.join(__dirname, "../uploads", existing.photo);
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
       updateData.photo = photoFile.filename;
+    } else if (removePhoto === "true" && existing?.photo) {
+      const oldPath = path.join(__dirname, "../uploads", existing.photo);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      updateData.photo = null;
     }
 
     const project = await Project.findOneAndUpdate(
@@ -149,9 +220,17 @@ router.put("/:id", async (req, res) => {
     );
 
     if (!project) return res.status(404).json({ message: "Project not found" });
+    console.log("[PUT /api/projects/:id] updated:", {
+      id: project._id,
+      projectName: project.projectName,
+      location: project.location,
+      manager: project.manager,
+      budget: project.budget,
+      progress: project.progress,
+      photo: project.photo,
+    });
     res.json({ message: "Project updated", project });
   } catch (err) {
-    console.error("Update project error:", err);
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
       return res.status(400).json({ message: msg });
@@ -161,15 +240,12 @@ router.put("/:id", async (req, res) => {
 });
 
 
-
 // ─── DELETE PROJECT ──────────────────────────────────────────────────────────
-// DELETE /api/projects/:id
 router.delete("/:id", async (req, res) => {
   try {
     const project = await Project.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    // Delete photo from disk too
     if (project.photo) {
       const photoPath = path.join(__dirname, "../uploads", project.photo);
       if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);

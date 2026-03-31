@@ -1,6 +1,15 @@
 // backend/models/Transaction.js
 const mongoose = require("mongoose");
 
+// Ensure we never crash on cast:
+// If a client accidentally sends names like "HARSHINI" instead of ObjectIds,
+// convert them to `null` before Mongoose tries to cast.
+const toObjectIdOrNull = function (value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "object" && value?._id) value = value._id;
+  return mongoose.Types.ObjectId.isValid(value) ? value : null;
+};
+
 const transactionSchema = new mongoose.Schema(
   {
     createdBy: {
@@ -30,11 +39,13 @@ const transactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Worker",
       default: null,
+      set: toObjectIdOrNull,
     },
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
       default: null,
+      set: toObjectIdOrNull,
     },
     date: {
       type: Date,

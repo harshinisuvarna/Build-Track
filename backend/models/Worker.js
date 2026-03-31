@@ -1,6 +1,17 @@
 // backend/models/Worker.js
 const mongoose = require("mongoose");
 
+// ── Title-case helper (Bug #7: Worker Name Validation) ───────────────────────
+// "HARSHINI" → "Harshini", "nidhi kumar" → "Nidhi Kumar"
+function toTitleCase(str) {
+  if (!str) return str;
+  return str
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 const workerSchema = new mongoose.Schema(
   {
     // Worker belongs to the user who created them
@@ -76,6 +87,13 @@ const workerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// ── Normalize name to title-case on every save (Bug #7) ─────────────────────
+workerSchema.pre("save", function () {
+  if (this.isModified("name") && this.name) {
+    this.name = toTitleCase(this.name);
+  }
+});
 
 // Generate displayId on create (per-user sequence per year)
 workerSchema.pre("save", async function () {

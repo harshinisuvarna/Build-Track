@@ -15,7 +15,37 @@ const CLIENT_URL =
   "http://localhost:5173";
 
 // ── Core middleware ───────────────────────────────────────────────────────────
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+const allowedOrigins = new Set([
+  CLIENT_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",   // ← ADDED: current Vite dev server port
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",   // ← ADDED: 127.0.0.1 variant
+]);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser tools (no Origin header)
+      if (!origin) return callback(null, true);
+      // Allow any localhost/127.0.0.1 port in development — Vite picks a free
+      // port automatically so hardcoding every port is fragile.
+      if (process.env.NODE_ENV !== "production") {
+        if (
+          origin.startsWith("http://localhost:") ||
+          origin.startsWith("http://127.0.0.1:")
+        ) {
+          return callback(null, true);
+        }
+      }
+      if (allowedOrigins.has(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 
 // Multi-part Debug Logger — Bug 22: Only in development
 if (process.env.NODE_ENV !== "production") {

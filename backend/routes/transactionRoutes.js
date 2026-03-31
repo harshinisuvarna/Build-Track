@@ -2,7 +2,10 @@
 const express       = require("express");
 const router        = express.Router();
 const Transaction   = require("../models/Transaction");
+const Worker        = require("../models/Worker");
+const Project       = require("../models/Project");
 const { protect }   = require("../middleware/auth");
+const mongoose      = require("mongoose");
 
 // All routes require valid JWT
 router.use(protect);
@@ -20,13 +23,14 @@ router.get("/", async (req, res) => {
     if (search) {
       query.$or = [
         { title:   { $regex: search, $options: "i" } },
-        { worker:  { $regex: search, $options: "i" } },
-        { project: { $regex: search, $options: "i" } },
         { notes:   { $regex: search, $options: "i" } },
       ];
     }
 
-    const transactions = await Transaction.find(query).sort({ date: -1, createdAt: -1 });
+    const transactions = await Transaction.find(query)
+      .populate("worker", "name")
+      .populate("project", "projectName")
+      .sort({ date: -1, createdAt: -1 });
     res.json({ transactions });
   } catch (err) {
     console.error("Get transactions error:", err);
@@ -40,6 +44,13 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { title, amount, type, worker, project, date, notes } = req.body;
+    console.log("[POST /api/transactions] incoming:", {
+      title,
+      amount,
+      type,
+      worker,
+      project,
+    });
 
     if (!title || !title.trim())
       return res.status(400).json({ message: "Title is required" });
@@ -55,13 +66,49 @@ router.post("/", async (req, res) => {
     if (type === "Wages" && (!worker || !String(worker).trim()))
       return res.status(400).json({ message: "Worker is required for Wages entries" });
 
+    const parseOptionalObjectId = (value) => {
+      if (value === undefined || value === null || value === "") return null;
+      return mongoose.Types.ObjectId.isValid(value) ? value : null;
+    };
+
+    // Strict path: expected frontend behavior (send _id values)
+    let workerId = parseOptionalObjectId(worker);
+    let projectId = parseOptionalObjectId(project);
+
+    // Safe fallback path: if legacy clients send names, map to ObjectId.
+    if (!workerId && worker) {
+      const workerDoc = await Worker.findOne({
+        createdBy: req.user._id,
+        name: String(worker).trim(),
+      }).select("_id");
+      workerId = workerDoc?._id || null;
+    }
+
+    if (!projectId && project) {
+      const projectDoc = await Project.findOne({
+        createdBy: req.user._id,
+        projectName: String(project).trim(),
+      }).select("_id");
+      projectId = projectDoc?._id || null;
+    }
+
+    console.log("[POST /api/transactions] computed ids:", { workerId, projectId });
+
+    if (worker && !workerId) {
+      return res.status(400).json({ message: "Invalid worker. Please select a valid worker from the dropdown." });
+    }
+
+    if (project && !projectId) {
+      return res.status(400).json({ message: "Invalid project. Please select a valid project from the dropdown." });
+    }
+
     const transaction = await Transaction.create({
       createdBy: req.user._id,
       title:     title.trim(),
       amount:    Number(amount),
       type,
-      worker:    worker  || "",
-      project:   project || "",
+      worker:    workerId,
+      project:   projectId,
       date:      date    || new Date(),
       notes:     notes   || "",
     });
