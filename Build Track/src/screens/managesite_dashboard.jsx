@@ -75,14 +75,23 @@ export default function ManageSitePage() {
     if (!project) return;
     setLoadingT(true);
     const projectId = project._id || project.id;
+    const projectName = project.projectName || "";
+    const resolveProjectRef = (projectRef) => {
+      if (!projectRef) return { id: "", name: "" };
+      if (typeof projectRef === "string") return { id: projectRef, name: projectRef };
+      return {
+        id: projectRef._id || projectRef.id || "",
+        name: projectRef.projectName || projectRef.name || "",
+      };
+    };
     transactionAPI.getAll({ project: projectId })
       .then(({ data }) => {
         const all = data.transactions || [];
-        const filtered = all.filter(t =>
-          !t.project ||
-          t.project === projectId ||
-          t.project === project.projectName
-        );
+        const filtered = all.filter((t) => {
+          if (!t.project) return true;
+          const ref = resolveProjectRef(t.project);
+          return ref.id === projectId || ref.name === projectName;
+        });
         setTransactions(filtered.slice(0, 5));
       })
       .catch(() => setTransactions([]))
@@ -163,6 +172,11 @@ export default function ManageSitePage() {
     if (days < 7)   return `${days} day${days > 1 ? "s" : ""} ago`;
     return new Date(dateStr).toLocaleDateString("en-IN");
   }
+  const workerLabel = (worker) => {
+    if (!worker) return "";
+    if (typeof worker === "string") return worker;
+    return worker.name || worker.displayId || "";
+  };
 
   // Simple milestone estimate from progress
   const milestones = [
@@ -409,7 +423,7 @@ export default function ManageSitePage() {
                       <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{t.title || t.type}</div>
                       <div style={{ fontSize: 13, color: "#666", marginTop: 2 }}>
                         {t.type === "Income" ? "+" : "−"}₹{t.amount?.toLocaleString("en-IN")}
-                        {t.worker ? ` · ${t.worker}` : ""}
+                        {t.worker ? ` · ${workerLabel(t.worker)}` : ""}
                       </div>
                     </div>
                     <div style={{ fontSize: 12, color: "#aaa", whiteSpace: "nowrap", flexShrink: 0 }}>{timeAgo(t.date)}</div>
