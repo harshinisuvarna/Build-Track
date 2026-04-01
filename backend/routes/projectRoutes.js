@@ -121,7 +121,7 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const { projectName, location, manager, budget, startDate, scope, status, progress, removePhoto } = req.body;
+    const { projectName, location, manager, budget, startDate, scope, status, progress } = req.body;
 
     if (!projectName || !projectName.trim())
       return res.status(400).json({ message: "Project name is required" });
@@ -175,18 +175,6 @@ router.put("/:id", async (req, res) => {
 
   try {
     const { projectName, location, manager, budget, startDate, scope, status, progress, removePhoto } = req.body;
-    console.log("[PUT /api/projects/:id] payload:", {
-      id: req.params.id,
-      projectName,
-      location,
-      manager,
-      budget,
-      startDate,
-      status,
-      progress,
-      removePhoto,
-      files: (req.files || []).map((f) => ({ field: f.fieldname, name: f.filename })),
-    });
 
     const updateData = {};
     if (projectName !== undefined) updateData.projectName = projectName.trim();
@@ -220,15 +208,6 @@ router.put("/:id", async (req, res) => {
     );
 
     if (!project) return res.status(404).json({ message: "Project not found" });
-    console.log("[PUT /api/projects/:id] updated:", {
-      id: project._id,
-      projectName: project.projectName,
-      location: project.location,
-      manager: project.manager,
-      budget: project.budget,
-      progress: project.progress,
-      photo: project.photo,
-    });
     res.json({ message: "Project updated", project });
   } catch (err) {
     if (err.name === "ValidationError") {
