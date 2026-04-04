@@ -12,8 +12,6 @@ router.use(protect);
 router.get("/summary", async (req, res) => {
   try {
     const userId = req.user._id;
-
-    // 1. Stats — Bug 21: Filter to current month instead of scanning entire history
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);

@@ -6,11 +6,7 @@ const Worker        = require("../models/Worker");
 const Project       = require("../models/Project");
 const { protect }   = require("../middleware/auth");
 const mongoose      = require("mongoose");
-
-// All routes require valid JWT
 router.use(protect);
-
-
 // ─── GET ALL TRANSACTIONS ─────────────────────────────────────────────────────
 // GET /api/transactions
 router.get("/", async (req, res) => {
@@ -60,8 +56,6 @@ router.post("/", async (req, res) => {
 
     if (!type)
       return res.status(400).json({ message: "Transaction type is required" });
-
-    // Bug 20: Project is optional (frontend treats it as optional in both Manual Entry and Voice)
     // Worker is still required for Wages entries
     if (type === "Wages" && (!worker || !String(worker).trim()))
       return res.status(400).json({ message: "Worker is required for Wages entries" });
@@ -70,11 +64,9 @@ router.post("/", async (req, res) => {
       if (value === undefined || value === null || value === "") return null;
       return mongoose.Types.ObjectId.isValid(value) ? value : null;
     };
-
     // Strict path: expected frontend behavior (send _id values)
     let workerId = parseOptionalObjectId(worker);
     let projectId = parseOptionalObjectId(project);
-
     // Safe fallback path: if legacy clients send names, map to ObjectId.
     if (!workerId && worker) {
       const workerDoc = await Worker.findOne({
@@ -83,7 +75,6 @@ router.post("/", async (req, res) => {
       }).select("_id");
       workerId = workerDoc?._id || null;
     }
-
     if (!projectId && project) {
       const projectDoc = await Project.findOne({
         createdBy: req.user._id,
@@ -91,13 +82,10 @@ router.post("/", async (req, res) => {
       }).select("_id");
       projectId = projectDoc?._id || null;
     }
-
     console.log("[POST /api/transactions] computed ids:", { workerId, projectId });
-
     if (worker && !workerId) {
       return res.status(400).json({ message: "Invalid worker. Please select a valid worker from the dropdown." });
     }
-
     if (project && !projectId) {
       return res.status(400).json({ message: "Invalid project. Please select a valid project from the dropdown." });
     }
@@ -112,7 +100,6 @@ router.post("/", async (req, res) => {
       date:      date    || new Date(),
       notes:     notes   || "",
     });
-
     res.status(201).json({ message: "Transaction saved", transaction });
   } catch (err) {
     console.error("Create transaction error:", err);
@@ -123,7 +110,6 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Failed to save transaction" });
   }
 });
-
 
 // ─── DELETE TRANSACTION ────────────────────────────────────────────────────────
 // DELETE /api/transactions/:id
@@ -136,6 +122,5 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to delete transaction" });
   }
 });
-
 
 module.exports = router;

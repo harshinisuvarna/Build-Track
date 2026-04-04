@@ -26,7 +26,6 @@ const runUpload = (req, res) =>
     });
   });
 
-
 // ─── GET ALL PROJECTS ────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
@@ -50,7 +49,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-
 // ─── GET SINGLE PROJECT ──────────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
@@ -61,7 +59,6 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch project" });
   }
 });
-
 
 // ─── GET PROJECT FINANCIAL STATS ─────────────────────────────────────────────
 // Uses MongoDB aggregation on real transaction data instead of progress-based estimates
@@ -165,17 +162,14 @@ router.post("/", async (req, res) => {
   }
 });
 
-
 // ─── UPDATE PROJECT ──────────────────────────────────────────────────────────
 router.put("/:id", async (req, res) => {
   try { await runUpload(req, res); }
   catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
-
   try {
     const { projectName, location, manager, budget, startDate, scope, status, progress, removePhoto } = req.body;
-
     const updateData = {};
     if (projectName !== undefined) updateData.projectName = projectName.trim();
     if (location !== undefined)    updateData.location    = location;
@@ -217,7 +211,6 @@ router.put("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to update project" });
   }
 });
-
 
 // ─── DELETE PROJECT ──────────────────────────────────────────────────────────
 router.delete("/:id", async (req, res) => {

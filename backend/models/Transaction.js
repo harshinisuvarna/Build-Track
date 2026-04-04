@@ -1,9 +1,5 @@
 // backend/models/Transaction.js
 const mongoose = require("mongoose");
-
-// Ensure we never crash on cast:
-// If a client accidentally sends names like "HARSHINI" instead of ObjectIds,
-// convert them to `null` before Mongoose tries to cast.
 const toObjectIdOrNull = function (value) {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value === "object" && value?._id) value = value._id;

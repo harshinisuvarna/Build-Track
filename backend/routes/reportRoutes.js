@@ -225,11 +225,9 @@ router.get("/financial/export-pdf", async (req, res) => {
     const monthName = monthNames[parseInt(month)] || "Unknown";
 
     const workersRecords = await Worker.find({ createdBy: userId });
-
     // Calculate working days
     const rangeDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)));
     const workingDays = Math.round(rangeDays * 0.86);
-
     // Get wage transactions for actual payout data
     const wageTransactions = transactions.filter(t => t.type === "Wages");
     const workerWageMap = {};

@@ -10,16 +10,12 @@ const multer      = require("multer");
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
-    // e.g. 1711000000000-worker.jpg
     cb(null, Date.now() + "-" + file.originalname);
   }
 });
 
 const upload = multer({ storage });
-
-// All routes below require a valid JWT
 router.use(protect);
-
 
 // ─── GET ALL WORKERS ─────────────────────────────────────────────────────────
 // GET /api/workers
@@ -46,10 +42,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-
 // ─── STATS SUMMARY ───────────────────────────────────────────────────────────
 // GET /api/workers/stats/summary
-// ⚠️  MUST be defined BEFORE /:id so Express doesn't treat "stats" as an ID
 router.get("/stats/summary", async (req, res) => {
   try {
     const [total, active, inactive] = await Promise.all([
@@ -63,11 +57,8 @@ router.get("/stats/summary", async (req, res) => {
   }
 });
 
-
 // ─── GET SUPERVISORS ─────────────────────────────────────────────────────────
 // GET /api/workers/supervisors
-// Returns all active workers whose trade is "Supervisor" — used for manager dropdown
-// ⚠️  MUST be defined BEFORE /:id so Express doesn't treat "supervisors" as an ID
 router.get("/supervisors", async (req, res) => {
   try {
     const supervisors = await Worker.find({
@@ -84,7 +75,6 @@ router.get("/supervisors", async (req, res) => {
   }
 });
 
-
 // ─── GET SINGLE WORKER ───────────────────────────────────────────────────────
 // GET /api/workers/:id
 router.get("/:id", async (req, res) => {
@@ -96,7 +86,6 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch worker" });
   }
 });
-
 
 // ─── CREATE WORKER ───────────────────────────────────────────────────────────
 // Supports both POST /api/workers and POST /api/workers/add
@@ -143,10 +132,8 @@ const createHandler = async (req, res) => {
 router.post("/", upload.any(), createHandler);
 router.post("/add", upload.any(), createHandler);
 
-
 // ─── UPDATE WORKER ───────────────────────────────────────────────────────────
 // PUT /api/workers/:id
-// Accepts multipart/form-data (with optional new photo + documents)
 router.put(
   "/:id",
   upload.any(), // final attempt at flexibility
@@ -156,8 +143,6 @@ router.put(
     console.log("FILES:", req.files);
     try {
       const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
-
-      // Build update object
       const updateData = {
         name:        name?.trim(),
         trade,
@@ -169,11 +154,8 @@ router.put(
       };
 
       console.log("FILES:", req.files);
-      // upload.any() returns a flat array — find files by fieldname
       const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
       const newDocuments = (req.files || []).filter(f => f.fieldname === "documents").map(f => f.filename);
-
-      // If a new photo was uploaded, delete the old one and save the new filename
       if (photoFile) {
         const existing = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
         if (existing?.photo) {
@@ -207,8 +189,7 @@ router.put(
   }
 );
 
-
-// ─── DELETE WORKER ───────────────────────────────────────────────────────────
+// ─── DELETE WORKER ──────────────────────────────────────────────────────────
 // DELETE /api/workers/:id
 router.delete("/:id", async (req, res) => {
   try {
@@ -220,7 +201,6 @@ router.delete("/:id", async (req, res) => {
       const photoPath = path.join(__dirname, "../uploads", worker.photo);
       if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
     }
-
     // Delete documents from disk too
     if (Array.isArray(worker.documents) && worker.documents.length > 0) {
       for (const doc of worker.documents) {

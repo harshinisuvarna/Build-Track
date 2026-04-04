@@ -54,9 +54,6 @@ const projectSchema = new mongoose.Schema(
       max: 100,
       default: 0,
     },
-
-    // Filename only — e.g. "1711000000000-123.jpg"
-    // Full URL served as: http://localhost:5000/uploads/{photo}
     photo: {
       type: String,
       default: null,

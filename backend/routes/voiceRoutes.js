@@ -3,8 +3,9 @@ const express = require("express");
 const router  = express.Router();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UTILITY: Fuzzy / substring match against a known list
-// Returns the best-matching list item, or null
+// FUZZY MATCH
+// Tries to match a raw string against a known list using 4 progressively
+// looser strategies: exact → contained-in-input → input-in-item → token overlap
 // ─────────────────────────────────────────────────────────────────────────────
 function fuzzyMatch(input, list) {
   if (!input || !list || list.length === 0) return null;
@@ -32,53 +33,76 @@ function fuzzyMatch(input, list) {
   return tokenMatch || null;
 }
 
+function detectCategory(transcript) {
+  const t = transcript;
+
+  // Check Wages first — more specific than Income
+  if (/\b(pay|paid|wage|wages|salary|labour|labor|gave|ways)\b/i.test(t)) {
+    return "Wages";
+  }
+
+  // Materials — purchasing / buying physical items
+  if (/\b(cement|steel|sand|brick|material|materials|paint|bought|buy|purchase)\b/i.test(t)) {
+    return "Materials";
+  }
+
+  // Income — only unambiguous payment-received phrases
+  // NOTE: "got\s+the" removed; it matched too broadly (e.g. "got the wages")
+  if (/\b(received|income|client|got\s+payment|payment\s+received)\b/i.test(t)) {
+    return "Income";
+  }
+
+  // Default fallback
+  return "Expense";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LOCAL FALLBACK PARSER
+// Used when Gemini is unavailable or times out.
+// Extracts: amount, category, worker, project from raw transcript text.
 // ─────────────────────────────────────────────────────────────────────────────
 function localFallback(transcript, workers = [], projects = []) {
   const t = transcript.trim();
-  console.log("[localFallback] transcript:", t);
-  console.log("[localFallback] workers list:", workers);
-  console.log("[localFallback] projects list:", projects);
+  console.log("[localFallback] transcript :", t);
+  console.log("[localFallback] workers    :", workers);
+  console.log("[localFallback] projects   :", projects);
 
   // ── Amount ──────────────────────────────────────────────────────────────────
+  // Priority: lakh > crore > thousand > plain number
   let amount = 0;
   const lakhMatch     = t.match(/(\d+(?:\.\d+)?)\s*lakh/i);
   const croreMatch    = t.match(/(\d+(?:\.\d+)?)\s*crore/i);
   const thousandMatch = t.match(/(\d+(?:\.\d+)?)\s*thousand/i);
   const plainMatch    = t.match(/\d[\d,]*/);
 
-  if (lakhMatch)          amount = Math.round(parseFloat(lakhMatch[1])     * 100000);
-  else if (croreMatch)    amount = Math.round(parseFloat(croreMatch[1])    * 10000000);
-  else if (thousandMatch) amount = Math.round(parseFloat(thousandMatch[1]) * 1000);
+  if      (lakhMatch)     amount = Math.round(parseFloat(lakhMatch[1])     * 100_000);
+  else if (croreMatch)    amount = Math.round(parseFloat(croreMatch[1])    * 10_000_000);
+  else if (thousandMatch) amount = Math.round(parseFloat(thousandMatch[1]) * 1_000);
   else if (plainMatch)    amount = Number(plainMatch[0].replace(/,/g, ""));
 
-  // ── Category ────────────────────────────────────────────────────────────────
-  let category = "Expense";
-  if (/\b(pay|paid|wage|wages|salary|labour|labor|gave|ways)\b/i.test(t))              category = "Wages";
-  if (/\b(cement|steel|sand|brick|material|materials|paint|bought|buy|purchase)\b/i.test(t)) category = "Materials";
-  if (/\b(received|income|client|got\s+the|got\s+payment|payment\s+received)\b/i.test(t)) category = "Income";
+  // ── Category ─────────────────────────────────────────────────────────────────
+  // Delegated to detectCategory() which uses safe if/else-if logic
+  const category = detectCategory(t);
 
   // ── Worker ──────────────────────────────────────────────────────────────────
   let worker = null;
 
-  // Strategy A: name follows pay/paid/gave keywords
+  // Strategy A: name immediately follows pay/paid/gave keywords
   const afterPayMatch = t.match(/\b(?:pay(?:ing)?|paid|gave)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i);
   if (afterPayMatch) {
     worker = fuzzyMatch(afterPayMatch[1].trim(), workers);
     if (!worker) {
+      // Try just the first word (handles "paid Suresh Kumar 500")
       const firstName = afterPayMatch[1].trim().split(/\s+/)[0];
       worker = fuzzyMatch(firstName, workers);
     }
   }
 
-  // Strategy B: scan entire transcript for any worker name
+  // Strategy B: scan entire transcript for any known worker name
   if (!worker && workers.length > 0) {
     for (const w of workers) {
-      // Check if the transcript contains any token from the worker name (>2 chars)
       const wTokens = w.toLowerCase().split(/\s+/);
-      const tLower  = t.toLowerCase();
-      const tTokens = tLower.split(/\s+/);
+      const tTokens = t.toLowerCase().split(/\s+/);
       const hit = wTokens.some(wt => wt.length > 2 && tTokens.includes(wt));
       if (hit) { worker = w; break; }
     }
@@ -87,17 +111,20 @@ function localFallback(transcript, workers = [], projects = []) {
   // ── Project ─────────────────────────────────────────────────────────────────
   let project = null;
 
-  // Strategy A: extract phrase after "for", strip noise words ("the", "project", "work", "site")
+  // Strategy A: extract phrase after "for", strip common noise words
   const afterForMatch = t.match(/\bfor\s+([A-Za-z][A-Za-z\s\d\-]*)/i);
   if (afterForMatch) {
-    const raw = afterForMatch[1].trim();
-    // Remove filler words at the start: "the", "project", "work", "site", "this"
-    const cleaned = raw.replace(/^(the\s+|project\s+|work\s+|site\s+|this\s+)+/i, "").trim();
+    const raw     = afterForMatch[1].trim();
+    const cleaned = raw
+      .replace(/^(the\s+|project\s+|work\s+|site\s+|this\s+)+/i, "")
+      .trim();
+
     console.log("[localFallback] afterFor raw:", raw, "→ cleaned:", cleaned);
+
     project = fuzzyMatch(cleaned, projects);
-    // Try the full phrase too (covers cases like "Block A" being mentioned as-is)
     if (!project) project = fuzzyMatch(raw, projects);
-    // Progressive prefix shortening if multi-word
+
+    // Progressively shorten phrase if full match fails
     if (!project) {
       const words = cleaned.split(/\s+/);
       for (let len = words.length - 1; len >= 1 && !project; len--) {
@@ -106,38 +133,43 @@ function localFallback(transcript, workers = [], projects = []) {
     }
   }
 
-  // Strategy B: scan entire transcript for any project name
+  // Strategy B: scan entire transcript for any known project name
   if (!project && projects.length > 0) {
     for (const p of projects) {
       const pTokens = p.toLowerCase().split(/\s+/);
-      const tLower  = t.toLowerCase();
-      const tTokens = tLower.split(/\s+/);
+      const tTokens = t.toLowerCase().split(/\s+/);
       const hit = pTokens.some(pt => pt.length > 2 && tTokens.includes(pt));
       if (hit) { project = p; break; }
     }
   }
 
-  console.log("[localFallback] result →", { worker, project, amount, category });
-  return { worker, project, amount, category, notes: transcript, source: "local" };
+  const result = { worker, project, amount, category, notes: transcript, source: "local" };
+  console.log("[localFallback] result →", result);
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Validate Gemini output against known lists
+// VALIDATE GEMINI RESULT
+// Ensures Gemini's output only uses known workers/projects, and applies
+// the same safe category detection used by localFallback.
 // ─────────────────────────────────────────────────────────────────────────────
 function validateGeminiResult(parsed, transcript, workers, projects) {
   const allowedCategories = ["Wages", "Expense", "Income", "Materials"];
   if (!parsed || typeof parsed !== "object") return { valid: false };
 
+  // Validate category against allow-list; fall back to Expense
   const category = allowedCategories.find(
     c => c.toLowerCase() === String(parsed.category || "").toLowerCase()
   ) || "Expense";
 
+  // Validate worker against known list
   let worker = null;
   if (parsed.worker) {
     worker = workers.length > 0 ? fuzzyMatch(parsed.worker, workers) : parsed.worker;
     if (!worker) console.warn(`[Gemini] worker "${parsed.worker}" not in list — discarded`);
   }
 
+  // Validate project against known list
   let project = null;
   if (parsed.project) {
     project = projects.length > 0 ? fuzzyMatch(parsed.project, projects) : parsed.project;
@@ -145,7 +177,7 @@ function validateGeminiResult(parsed, transcript, workers, projects) {
   }
 
   return {
-    valid:    true,
+    valid: true,
     worker,
     project,
     amount:   Number(parsed.amount) || 0,
@@ -155,7 +187,8 @@ function validateGeminiResult(parsed, transcript, workers, projects) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gemini client (lazy init)
+// GEMINI CLIENT — lazy initialisation
+// Fails gracefully if SDK is missing or API key is not configured.
 // ─────────────────────────────────────────────────────────────────────────────
 let genAI = null;
 try {
@@ -173,16 +206,16 @@ try {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/voice/parse
-// Body: { transcript: string, workers: string[], projects: string[] }
+// Main endpoint: tries Gemini first, falls back to local parser on any failure.
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/parse", async (req, res) => {
   try {
     const { transcript, workers = [], projects = [] } = req.body;
 
     console.log("\n══════════════════════════════════════════════");
-    console.log("[voice/parse] transcript:", transcript);
-    console.log("[voice/parse] workers received:", workers.length, workers);
-    console.log("[voice/parse] projects received:", projects.length, projects);
+    console.log("[voice/parse] transcript :", transcript);
+    console.log("[voice/parse] workers    :", workers.length, workers);
+    console.log("[voice/parse] projects   :", projects.length, projects);
     console.log("══════════════════════════════════════════════");
 
     if (!transcript || !transcript.trim()) {
@@ -191,10 +224,9 @@ router.post("/parse", async (req, res) => {
 
     const t = transcript.trim();
 
-    // ── TRY GEMINI ────────────────────────────────────────────────────────────
+    // ── TRY GEMINI ──────────────────────────────────────────────────────────
     if (genAI) {
       try {
-        // Use gemini-pro (v1) which is universally available
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
         const workerList  = workers.length  ? workers.join(", ")  : "(none provided)";
@@ -218,7 +250,7 @@ RULES:
 CATEGORY — pick exactly one:
 - "Wages"     → words: pay, paid, gave, wage, salary, labour
 - "Materials" → words: cement, sand, steel, brick, paint, bought, buy
-- "Income"    → words: received, got, income, client payment
+- "Income"    → words: received, got payment, income, client payment
 - "Expense"   → everything else
 
 Return ONLY raw JSON, no markdown:
@@ -226,6 +258,7 @@ Return ONLY raw JSON, no markdown:
 
         console.log("[Gemini] Sending prompt…");
 
+        // Race against an 8-second timeout
         const result = await Promise.race([
           model.generateContent(prompt),
           new Promise((_, reject) =>
@@ -233,10 +266,12 @@ Return ONLY raw JSON, no markdown:
           ),
         ]);
 
+        // Strip any accidental markdown fences from the response
         let text = result.response.text().trim();
         text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
         console.log("[Gemini] raw response:", text);
 
+        // Parse JSON — try direct parse first, then regex extraction
         let parsed;
         try {
           parsed = JSON.parse(text);
@@ -253,8 +288,8 @@ Return ONLY raw JSON, no markdown:
 
         let { worker, project, amount, category, notes } = validated;
 
-        // Fill any nulls with local fallback
-        if (!worker || !project) {
+        // Fill any nulls that Gemini missed with local fallback values
+        if (!worker || !project || !amount) {
           const local = localFallback(t, workers, projects);
           if (!worker)  worker  = local.worker;
           if (!project) project = local.project;
@@ -271,7 +306,7 @@ Return ONLY raw JSON, no markdown:
       console.log("[voice/parse] Gemini disabled — using local fallback directly");
     }
 
-    // ── LOCAL FALLBACK ────────────────────────────────────────────────────────
+    // ── LOCAL FALLBACK ───────────────────────────────────────────────────────
     const fallback = localFallback(t, workers, projects);
     return res.json(fallback);
 

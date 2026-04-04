@@ -38,33 +38,19 @@ const userSchema = new mongoose.Schema(
       default: "User",
       trim: true,
     },
-
-    // Optional: OAuth users won't have a password
     password: {
       type: String,
       minlength: 6,
       default: null,
-      // NOTE: NO select:false here — that was causing matchPassword to see undefined
     },
-
-    // For Google OAuth — ready but not wired yet
     googleId: {
       type: String,
       default: null,
     },
-
-    // For GitHub OAuth — ready but not wired yet
-    githubId: {
-      type: String,
-      default: null,
-    },
-
     isActive: {
       type: Boolean,
       default: true,
     },
-
-    // For password reset flow
     resetPasswordToken: {
       type: String,
       default: null,
@@ -79,8 +65,6 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
-    // Bug 19: For sign-out-all — incremented to invalidate old JWTs
     tokenVersion: {
       type: Number,
       default: 0,
@@ -88,8 +72,6 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// Keep provider fields consistent with legacy oauth ids
 userSchema.pre("validate", function () {
   if (this.googleId) {
     this.provider = "google";
@@ -101,19 +83,14 @@ userSchema.pre("validate", function () {
     this.providerId = null;
   }
 });
-// Mongoose 7+ async middleware: do NOT call next(), just return or throw
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
-
-// ── Compare entered password vs stored hash during login ─────────────────────
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.password) return false; // OAuth user — no password set
   return bcrypt.compare(enteredPassword, this.password);
 };
-
-// ── Strip password from every JSON response ───────────────────────────────────
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;

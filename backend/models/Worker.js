@@ -1,8 +1,5 @@
 // backend/models/Worker.js
 const mongoose = require("mongoose");
-
-// ── Title-case helper (Bug #7: Worker Name Validation) ───────────────────────
-// "HARSHINI" → "Harshini", "nidhi kumar" → "Nidhi Kumar"
 function toTitleCase(str) {
   if (!str) return str;
   return str
@@ -14,7 +11,6 @@ function toTitleCase(str) {
 
 const workerSchema = new mongoose.Schema(
   {
-    // Worker belongs to the user who created them
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -65,16 +61,11 @@ const workerSchema = new mongoose.Schema(
       enum: ["Weekly", "Bi-Weekly", "Monthly"],
       default: "Weekly",
     },
-
-    // Auto-generated e.g. BT-2026-001
     displayId: {
       type: String,
       default: null,
       index: true,
     },
-
-    // Filename only — e.g. "1711000000000-123.jpg"
-    // Full URL served as: http://localhost:5000/uploads/{photo}
     photo: {
       type: String,
       default: null,
@@ -87,15 +78,11 @@ const workerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// ── Normalize name to title-case on every save (Bug #7) ─────────────────────
 workerSchema.pre("save", function () {
   if (this.isModified("name") && this.name) {
     this.name = toTitleCase(this.name);
   }
 });
-
-// Generate displayId on create (per-user sequence per year)
 workerSchema.pre("save", async function () {
   if (this.displayId) return;
   if (!this.isNew) return;
@@ -112,8 +99,6 @@ workerSchema.pre("save", async function () {
 
   this.displayId = `${prefix}${String(count + 1).padStart(3, "0")}`;
 });
-
-// Ensure API always returns some displayId for legacy documents
 workerSchema.set("toJSON", {
   transform: (doc, ret) => {
     if (!ret.displayId) {

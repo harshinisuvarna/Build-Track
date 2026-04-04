@@ -7,13 +7,8 @@ const passport   = require("passport");
 const User       = require("../models/User");
 const { protect } = require("../middleware/auth");
 const upload     = require("../config/multer");
-
-// Bug 15: SECRET is guaranteed to exist — auth middleware throws on startup if missing
 const SECRET      = process.env.JWT_SECRET;
 const FRONTEND    = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-// Bug 19: Include tokenVersion in JWT so sign-out-all can invalidate old tokens
 const makeToken = (user) =>
   jwt.sign(
     { id: user._id || user.id, email: user.email, tokenVersion: user.tokenVersion || 0 },
@@ -31,13 +26,11 @@ const safeUser = (user) => ({
   isActive:     user.isActive,
   createdAt:    user.createdAt,
 });
-
-
 // ─── REGISTER ─────────────────────────────────────────────────────────────────
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body;  
 
     if (!name || !email || !password)
       return res.status(400).json({ message: "All fields required" });
@@ -62,8 +55,6 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ message: "Server error during registration" });
   }
 });
-
-
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
@@ -102,16 +93,11 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Server error during login" });
   }
 });
-
-
 // ─── GET CURRENT USER ─────────────────────────────────────────────────────────
 // GET /api/auth/me
-// Bug 17: Reuse the protect middleware instead of reimplementing auth from scratch
 router.get("/me", protect, (req, res) => {
   res.json({ user: safeUser(req.user) });
 });
-
-
 // ─── UPDATE PROFILE ───────────────────────────────────────────────────────────
 // PUT /api/auth/profile
 router.put("/profile", protect, async (req, res) => {
@@ -134,8 +120,6 @@ router.put("/profile", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to update profile" });
   }
 });
-
-
 // ─── UPDATE PROFILE PHOTO ─────────────────────────────────────────────────────
 // PUT /api/auth/photo
 router.put("/photo", protect, upload.single("photo"), async (req, res) => {
@@ -154,8 +138,6 @@ router.put("/photo", protect, upload.single("photo"), async (req, res) => {
     res.status(500).json({ message: "Failed to upload photo" });
   }
 });
-
-
 // ─── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
 // GET /api/auth/google
 router.get("/google", (req, res, next) => {
@@ -166,7 +148,6 @@ router.get("/google", (req, res, next) => {
   }
   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
-
 // GET /api/auth/google/callback
 router.get(
   "/google/callback",
@@ -181,35 +162,6 @@ router.get(
     res.redirect(`${FRONTEND}/oauth/callback?token=${token}`);
   }
 );
-
-
-// ─── GITHUB OAUTH ─────────────────────────────────────────────────────────────
-// GET /api/auth/github
-router.get("/github", (req, res, next) => {
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    return res.status(503).json({
-      message: "GitHub login is not configured yet. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to your .env file.",
-    });
-  }
-  passport.authenticate("github", { scope: ["user:email"] })(req, res, next);
-});
-
-// GET /api/auth/github/callback
-router.get(
-  "/github/callback",
-  (req, res, next) => {
-    passport.authenticate("github", {
-      session: false,
-      failureRedirect: `${FRONTEND}/login?error=github_failed`,
-    })(req, res, next);
-  },
-  (req, res) => {
-    const token = makeToken(req.user);
-    res.redirect(`${FRONTEND}/oauth/callback?token=${token}`);
-  }
-);
-
-
 // ─── FORGOT PASSWORD ──────────────────────────────────────────────────────
 // POST /api/auth/forgot-password
 router.post("/forgot-password", async (req, res) => {
@@ -227,16 +179,13 @@ router.post("/forgot-password", async (req, res) => {
     if (!user.password) {
       return res.json({ message: "This account uses Google or GitHub login. Please use those instead." });
     }
-
-    // Generate token
+    // Generate reset token and expiry
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
     const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
-
-    // Bug 18: Actually send the reset email via nodemailer (if SMTP is configured)
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const transporter = nodemailer.createTransport({
@@ -260,10 +209,8 @@ router.post("/forgot-password", async (req, res) => {
         console.log(`📧 Password reset email sent to ${user.email}`);
       } catch (mailErr) {
         console.error("📧 Failed to send reset email:", mailErr.message);
-        // Still return success — don't reveal email delivery issues
       }
     } else {
-      // Fallback for dev: log the link to console
       console.log("──────────────────────────────────────────");
       console.log("📧 PASSWORD RESET LINK (configure SMTP_HOST/USER/PASS to send via email):");
       console.log(`   ${resetUrl}`);
@@ -310,8 +257,6 @@ router.post("/reset-password", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
-
 // ─── CHANGE PASSWORD (authenticated) ─────────────────────────────────────
 // PUT /api/auth/change-password
 router.put("/change-password", protect, async (req, res) => {
@@ -323,19 +268,16 @@ router.put("/change-password", protect, async (req, res) => {
     if (newPassword.length < 6) {
       return res.status(400).json({ message: "New password must be at least 6 characters" });
     }
-
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (!user.password) {
       return res.status(400).json({ message: "This account uses OAuth login and has no password to change." });
     }
-
     const isMatch = await user.matchPassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
-
     user.password = newPassword; // hashed by pre-save hook
     await user.save();
 
@@ -370,7 +312,6 @@ router.put("/toggle-2fa", protect, async (req, res) => {
 
 // ─── SIGN OUT ALL SESSIONS ────────────────────────────────────────────────
 // POST /api/auth/sign-out-all
-// Bug 19: Increment tokenVersion so all existing JWTs with the old version are rejected
 router.post("/sign-out-all", protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -385,7 +326,6 @@ router.post("/sign-out-all", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to sign out all sessions" });
   }
 });
-
 
 // ─── DELETE ACCOUNT ───────────────────────────────────────────────────────
 // DELETE /api/auth/account
