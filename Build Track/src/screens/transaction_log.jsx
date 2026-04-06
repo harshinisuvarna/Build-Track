@@ -12,7 +12,6 @@ const categoryStyle = {
   Materials: { bg: "#e0e7ff", color: "#3730a3" },
 };
 
-// ✅ Safely resolve project name from either a populated object or a plain string
 const resolveProjectName = (project) => {
   if (!project) return "";
   if (typeof project === "string") return project;
@@ -34,7 +33,6 @@ export default function TransactionLog() {
   const [confirmDlg, setConfirmDlg]     = useState(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  // ✅ Wrapped in useCallback so it's stable as a dependency in useEffect
   const fetchTransactions = useCallback(() => {
     setLoading(true);
     setError("");
@@ -55,18 +53,11 @@ export default function TransactionLog() {
   }, []);
 
   useEffect(() => {
-    // Initial load
     fetchTransactions();
-
-    // ✅ FIX: Re-fetch when user navigates back to this tab/window.
-    // This ensures auto-created project transactions appear without
-    // the user having to manually reload the page.
     const onFocus = () => fetchTransactions();
     window.addEventListener("focus", onFocus);
-
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
-
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("resize", onResize);
@@ -112,11 +103,15 @@ export default function TransactionLog() {
   const fmt = (n) => "₹ " + Math.abs(n).toLocaleString("en-IN");
 
   const exportCSV = () => {
+    // ✅ CSV now includes quantity/unit/rate columns for Materials
     const rows = filtered.map((t) => {
       const projName = resolveProjectName(t.project);
-      return `${new Date(t.date).toLocaleDateString("en-IN")},"${(t.title || "").replace(/"/g, '""')}",${t.type},"${projName}",${t.amount ?? 0}`;
+      const qty  = t.type === "Materials" ? (t.quantity ?? "") : "";
+      const unit = t.type === "Materials" ? (t.unit ?? "")     : "";
+      const rate = t.type === "Materials" ? (t.rate ?? "")     : "";
+      return `${new Date(t.date).toLocaleDateString("en-IN")},"${(t.title || "").replace(/"/g, '""')}",${t.type},"${projName}",${qty},${unit},${rate},${t.amount ?? 0}`;
     });
-    const csv  = ["Date,Description,Transaction Type,Project,Amount", ...rows].join("\n");
+    const csv  = ["Date,Description,Transaction Type,Project,Quantity,Unit,Rate,Amount", ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url  = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -192,7 +187,6 @@ export default function TransactionLog() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {/* ✅ Manual refresh button */}
           <button
             onClick={fetchTransactions}
             style={{
@@ -374,13 +368,13 @@ export default function TransactionLog() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  {["DATE", "DESCRIPTION", "TRANSACTION TYPE", "PROJECT", "AMOUNT (₹)", ""].map(
+                  {["DATE", "DESCRIPTION", "TRANSACTION TYPE", "PROJECT", "QTY / UNIT / RATE", "AMOUNT (₹)", ""].map(
                     (col, i) => (
                       <th
                         key={col + i}
                         style={{
                           padding: "13px 20px",
-                          textAlign: i >= 4 ? "right" : "left",
+                          textAlign: i >= 5 ? "right" : "left",
                           fontSize: 11,
                           fontWeight: 700,
                           color: "#aaa",
@@ -396,13 +390,13 @@ export default function TransactionLog() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
+                    <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
                       Loading…
                     </td>
                   </tr>
                 ) : paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
+                    <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
                       No entries found
                     </td>
                   </tr>
@@ -437,6 +431,23 @@ export default function TransactionLog() {
                       <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>
                         {resolveProjectName(t.project) || "N/A"}
                       </td>
+
+                      {/* ✅ NEW: Qty / Unit / Rate — only meaningful for Materials */}
+                      <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>
+                        {t.type === "Materials" && t.quantity ? (
+                          <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                            <span style={{ fontWeight: 600, color: "#3730a3" }}>
+                              {t.quantity} {t.unit || ""}
+                            </span>
+                            <span style={{ fontSize: 11, color: "#aaa" }}>
+                              @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={{ color: "#ddd" }}>—</span>
+                        )}
+                      </td>
+
                       <td
                         style={{
                           padding: "14px 20px",
@@ -489,6 +500,12 @@ export default function TransactionLog() {
                         <div style={{ fontSize: 11, color: "#aaa" }}>
                           {new Date(t.date).toLocaleDateString()}
                         </div>
+                        {/* ✅ NEW: show qty/unit/rate on mobile too, only for Materials */}
+                        {t.type === "Materials" && t.quantity ? (
+                          <div style={{ fontSize: 11, color: "#3730a3", marginTop: 3, fontWeight: 600 }}>
+                            {t.quantity} {t.unit || ""} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                          </div>
+                        ) : null}
                       </div>
                       <div
                         style={{

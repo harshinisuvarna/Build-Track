@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { dashboardAPI } from "../api";
+import { dashboardAPI, transactionAPI } from "../api";
 
 const TOPBAR_H = 65;
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [dashData, setDashData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [isNarrow, setIsNarrow] = useState(window.innerWidth < 640);
+  const [dashData,  setDashData]  = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState("");
+  const [isNarrow,  setIsNarrow]  = useState(window.innerWidth < 640);
+
+  // ✅ NEW: local transactions so we can compute Materials spend client-side
+  const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth < 640);
@@ -20,20 +23,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
-    dashboardAPI.getSummary()
-      .then(({ data }) => {
-        if (isMounted) {
-          setDashData(data);
-          setLoading(false);
-        }
+
+    // ✅ Fetch dashboard summary AND all transactions in parallel
+    Promise.all([
+      dashboardAPI.getSummary(),
+      transactionAPI.getAll(),
+    ])
+      .then(([dashRes, txRes]) => {
+        if (!isMounted) return;
+        setDashData(dashRes.data);
+        setTransactions(txRes.data.transactions || []);
+        setLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          console.error("Dashboard load error:", err);
-          setError("Failed to load dashboard data");
-          setLoading(false);
-        }
+        if (!isMounted) return;
+        console.error("Dashboard load error:", err);
+        setError("Failed to load dashboard data");
+        setLoading(false);
       });
+
     return () => { isMounted = false; };
   }, []);
 
@@ -55,14 +63,38 @@ export default function DashboardPage() {
     );
   }
 
-  const { stats: s, weeklyChart, recentProjects, recentActivity } = dashData;
+  const { weeklyChart, recentProjects, recentActivity } = dashData;
+  const s = dashData.stats;
+
+  // ✅ Recalculate totals client-side so Materials is always counted as expense
+  const totalIncome = transactions
+    .filter(t => t.type === "Income")
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const totalExpenses = transactions
+    .filter(t => t.type === "Expense" || t.type === "Materials" || t.type === "Wages")
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const materialsSpend = transactions
+    .filter(t => t.type === "Materials")
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const netProfit = totalIncome - totalExpenses;
+
+  // ✅ Use client-computed values; fall back to backend stats if no transactions yet
+  const income   = transactions.length ? totalIncome   : (s.totalIncome   || 0);
+  const expenses = transactions.length ? totalExpenses : (s.totalExpenses || 0);
+  const profit   = transactions.length ? netProfit     : (s.netProfit     || 0);
 
   const statCards = [
-    { label: "Total Income",   value: `₹${s.totalIncome.toLocaleString("en-IN")}`,   change: "Real-time",       up: true,  icon: "📈", bg: "#f0fdf4" },
-    { label: "Expenses",       value: `₹${s.totalExpenses.toLocaleString("en-IN")}`, change: "Real-time",       up: false, icon: "📉", bg: "#fff5f5" },
-    { label: "Net Profit",     value: `₹${s.netProfit.toLocaleString("en-IN")}`,     change: "Real-time",       up: true,  icon: "💳", bg: "#fff7ed" },
-    { label: "Active Workers", value: s.activeWorkers.toString(),                    change: "Currently Active", up: true,  icon: "👥", bg: "#f5f3ff" },
+    { label: "Total Income",    value: `₹${income.toLocaleString("en-IN")}`,            change: "Real-time",        up: true,  icon: "📈", bg: "#f0fdf4" },
+    { label: "Expenses",        value: `₹${expenses.toLocaleString("en-IN")}`,           change: "Real-time",        up: false, icon: "📉", bg: "#fff5f5" },
+    { label: "Net Profit",      value: `₹${Math.abs(profit).toLocaleString("en-IN")}`,   change: profit >= 0 ? "Profit" : "Loss", up: profit >= 0, icon: "💳", bg: "#fff7ed" },
+    { label: "Active Workers",  value: (s.activeWorkers || 0).toString(),                change: "Currently Active", up: true,  icon: "👥", bg: "#f5f3ff" },
   ];
+
+  // ✅ Extra row: Materials spend card (only shown if any materials exist)
+  const showMaterials = materialsSpend > 0;
 
   return (
     <div style={{
@@ -138,7 +170,9 @@ export default function DashboardPage() {
                 <span style={{ fontSize: "clamp(11px,1.1vw,13px)", color: "#777", fontWeight: 600 }}>{card.label}</span>
                 <div style={{ width: 34, height: 34, borderRadius: 10, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{card.icon}</div>
               </div>
-              <div style={{ fontSize: "clamp(20px,2.5vw,28px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: "-0.5px" }}>{card.value}</div>
+              <div style={{ fontSize: "clamp(20px,2.5vw,28px)", fontWeight: 800, color: card.label === "Net Profit" && profit < 0 ? "#dc2626" : "#1a1a1a", letterSpacing: "-0.5px" }}>
+                {card.label === "Net Profit" && profit < 0 ? "−" : ""}{card.value}
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: "clamp(10px,1vw,12px)", fontWeight: 700, color: card.up ? "#16a34a" : "#dc2626", background: card.up ? "#f0fdf4" : "#fff5f5", padding: "2px 8px", borderRadius: 20 }}>
                   {card.up ? "▲" : "▼"} {card.change}
@@ -148,7 +182,6 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-
         {/* Chart */}
         <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(16px,2vw,24px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
@@ -157,7 +190,7 @@ export default function DashboardPage() {
               <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>Revenue vs Expenses — Last 7 Days</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹{s.totalIncome.toLocaleString("en-IN")}</div>
+              <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹{income.toLocaleString("en-IN")}</div>
               <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>Current Period Data</div>
             </div>
           </div>
@@ -193,10 +226,8 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Recent Project Activity */}
+        {/* Recent Transaction Activity */}
         <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
-
-          {/* Card header */}
           <div style={{ padding: "clamp(14px,2vw,20px)", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Transaction Activity</div>
@@ -211,10 +242,8 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          {/* Activity feed */}
           <div style={{ padding: "4px clamp(14px,2vw,20px) 8px" }}>
             {recentActivity.map((a, i) => (
-              // ✅ CHANGED: onClick routes to /log, added cursor pointer
               <div
                 key={i}
                 onClick={() => navigate("/transaction")}
@@ -230,7 +259,7 @@ export default function DashboardPage() {
                   alignItems: "center", justifyContent: "center",
                   fontSize: 16, flexShrink: 0,
                 }}>
-                  {a.type === "Income" ? "💰" : "📉"}
+                  {a.type === "Income" ? "💰" : a.type === "Materials" ? "🧱" : a.type === "Wages" ? "👷" : "📉"}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>
@@ -238,13 +267,16 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{new Date(a.date).toLocaleDateString()}</div>
                 </div>
+                {/* ✅ Show amount in activity feed */}
+                <div style={{ fontSize: 13, fontWeight: 700, color: a.type === "Income" ? "#16a34a" : "#dc2626", flexShrink: 0 }}>
+                  {a.type === "Income" ? "+" : "−"}₹{(a.amount || 0).toLocaleString("en-IN")}
+                </div>
               </div>
             ))}
           </div>
+        </div>
 
-        </div>{/* end Recent Project Activity card */}
-
-      </div>{/* end scroll */}
+      </div>
     </div>
   );
 }

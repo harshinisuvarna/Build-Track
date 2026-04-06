@@ -30,13 +30,18 @@ export default function ManualEntryPage() {
   const [projectOptions, setProjectOptions] = useState([]);
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [txType,  setTxType]  = useState("");
-  const [date,    setDate]    = useState(() => new Date().toISOString().split("T")[0]);
-  const [worker,  setWorker]  = useState("");
-  const [project, setProject] = useState("");
-  const [title,   setTitle]   = useState("");
-  const [amount,  setAmount]  = useState("");
-  const [notes,   setNotes]   = useState("");
+  const [txType,    setTxType]    = useState("");
+  const [date,      setDate]      = useState(() => new Date().toISOString().split("T")[0]);
+  const [worker,    setWorker]    = useState("");
+  const [project,   setProject]   = useState("");
+  const [title,     setTitle]     = useState("");
+  const [amount,    setAmount]    = useState("");
+  const [notes,     setNotes]     = useState("");
+
+  // ✅ NEW: Materials-specific fields
+  const [quantity,  setQuantity]  = useState("");
+  const [unit,      setUnit]      = useState("");
+  const [rate,      setRate]      = useState("");
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [saving,      setSaving]      = useState(false);
@@ -49,7 +54,7 @@ export default function ManualEntryPage() {
   const [toast,        setToast]        = useState({ msg: "", type: "info" });
   const [confirmDlg,   setConfirmDlg]   = useState(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
-  const workerLabel = useCallback((w) => w?.name || "Unknown worker", []);
+  const workerLabel  = useCallback((w) => w?.name        || "Unknown worker",  []);
   const projectLabel = useCallback((p) => p?.projectName || "Unknown project", []);
 
   useEffect(() => {
@@ -80,20 +85,37 @@ export default function ManualEntryPage() {
 
   useEffect(() => { fetchTransactions(); }, []);
 
+  // ✅ Auto-calculate amount when quantity or rate changes (Materials only)
+  useEffect(() => {
+    if (txType === "Materials") {
+      const q = parseFloat(quantity) || 0;
+      const r = parseFloat(rate)     || 0;
+      if (q > 0 && r > 0) setAmount(String(q * r));
+    }
+  }, [quantity, rate, txType]);
+
   // ── Submit form ───────────────────────────────────────────────────────────
   const handleSave = async () => {
     setErrMsg("");
     setSuccessMsg("");
 
-    if (!txType)         { setErrMsg("Please select a transaction type."); return; }
-    if (!title.trim())   { setErrMsg("Please enter a title/description."); return; }
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      setErrMsg("Please enter a valid amount."); return;
+    if (!txType)       { setErrMsg("Please select a transaction type."); return; }
+    if (!title.trim()) { setErrMsg("Please enter a title/description."); return; }
+
+    // ✅ For Materials: validate quantity + rate instead of manual amount
+    if (txType === "Materials") {
+      if (!quantity || parseFloat(quantity) <= 0) { setErrMsg("Please enter a valid quantity."); return; }
+      if (!rate     || parseFloat(rate)     <= 0) { setErrMsg("Please enter a valid rate.");     return; }
+    } else {
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        setErrMsg("Please enter a valid amount."); return;
+      }
     }
 
     try {
       setSaving(true);
-      await transactionAPI.create({
+
+      const payload = {
         title:   title.trim(),
         amount:  Number(amount),
         type:    txType,
@@ -101,13 +123,25 @@ export default function ManualEntryPage() {
         project: project || null,
         date:    date    || new Date().toISOString(),
         notes:   notes.trim(),
-      });
+      };
+
+      // ✅ Include materials fields only when relevant
+      if (txType === "Materials") {
+        payload.quantity = parseFloat(quantity) || 0;
+        payload.unit     = unit.trim();
+        payload.rate     = parseFloat(rate)     || 0;
+      }
+
+      await transactionAPI.create(payload);
       setSuccessMsg("Entry saved successfully!");
+
       // Reset form
       setTxType(""); setTitle(""); setAmount(""); setNotes("");
       setWorker(""); setProject("");
       setDate(new Date().toISOString().split("T")[0]);
-      // Refresh list
+      // ✅ Reset materials fields too
+      setQuantity(""); setUnit(""); setRate("");
+
       fetchTransactions();
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
@@ -147,9 +181,7 @@ export default function ManualEntryPage() {
     appearance: "none", cursor: "pointer",
     fontFamily: "'Segoe UI', sans-serif",
   };
-  const inputStyle = {
-    ...selectStyle, appearance: "unset",
-  };
+  const inputStyle = { ...selectStyle, appearance: "unset" };
   const labelStyle = {
     fontSize: 12, fontWeight: 700, color: "#555",
     letterSpacing: "0.04em", marginBottom: 8,
@@ -162,7 +194,6 @@ export default function ManualEntryPage() {
       fontFamily: "'Segoe UI', sans-serif",
       background: "#f7f7f8", overflow: "hidden", flex: 1, minWidth: 0,
     }}>
-      {/* Toast + Confirm Dialog */}
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && (
         <ConfirmDialog
@@ -234,7 +265,13 @@ export default function ManualEntryPage() {
                 <div>
                   <div style={labelStyle}>👤 Transaction Type *</div>
                   <div style={{ position: "relative" }}>
-                    <select value={txType} onChange={e => setTxType(e.target.value)} style={selectStyle}>
+                    <select value={txType} onChange={e => {
+                      setTxType(e.target.value);
+                      // ✅ Clear materials fields when switching away
+                      if (e.target.value !== "Materials") {
+                        setQuantity(""); setUnit(""); setRate("");
+                      }
+                    }} style={selectStyle}>
                       <option value="">Select entry type</option>
                       {transactionTypes.map(t => <option key={t}>{t}</option>)}
                     </select>
@@ -276,15 +313,92 @@ export default function ManualEntryPage() {
                 </div>
               </div>
 
+              {/* ✅ NEW: Materials fields — only shown when type is Materials */}
+              {txType === "Materials" && (
+                <div style={{
+                  background: "#fff7ed",
+                  border: "1px solid #fed7aa",
+                  borderRadius: 12,
+                  padding: "18px 20px",
+                  marginBottom: 20,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#9a3412", letterSpacing: "0.04em", marginBottom: 14 }}>
+                    🧱 MATERIALS DETAILS
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
+                    {/* Quantity */}
+                    <div>
+                      <div style={labelStyle}>📦 Quantity *</div>
+                      <input
+                        type="number" min="0"
+                        value={quantity}
+                        onChange={e => setQuantity(e.target.value)}
+                        placeholder="e.g. 50"
+                        style={inputStyle}
+                      />
+                    </div>
+                    {/* Unit */}
+                    <div>
+                      <div style={labelStyle}>📐 Unit</div>
+                      <input
+                        type="text"
+                        value={unit}
+                        onChange={e => setUnit(e.target.value)}
+                        placeholder="bag, MT, truck, sqft…"
+                        style={inputStyle}
+                      />
+                    </div>
+                    {/* Rate */}
+                    <div>
+                      <div style={labelStyle}>💵 Rate per unit *</div>
+                      <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 6 }}>
+                        <span style={{ fontSize: 13, color: "#ea580c", fontWeight: 600 }}>₹</span>
+                        <input
+                          type="number" min="0"
+                          value={rate}
+                          onChange={e => setRate(e.target.value)}
+                          placeholder="0.00"
+                          style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500, fontFamily: "'Segoe UI', sans-serif" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auto-calculated total preview */}
+                  {quantity && rate && parseFloat(quantity) > 0 && parseFloat(rate) > 0 && (
+                    <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #fde4d0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 13, color: "#9a3412" }}>
+                        {quantity} {unit || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "#ea580c" }}>
+                        = ₹{(parseFloat(quantity) * parseFloat(rate)).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Row 3: Amount */}
               <div style={{ marginBottom: 20 }}>
-                <div style={labelStyle}>💰 Amount *</div>
+                <div style={labelStyle}>
+                  💰 Amount *
+                  {txType === "Materials" && (
+                    <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(auto-calculated from qty × rate)</span>
+                  )}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 8 }}>
                   <span style={{ fontSize: 15, color: "#ea580c", fontWeight: 600 }}>₹</span>
                   <input
                     type="number" value={amount} onChange={e => setAmount(e.target.value)}
                     placeholder="0.00" min="0"
-                    style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500, fontFamily: "'Segoe UI', sans-serif" }}
+                    // ✅ Read-only when Materials (auto-calculated), editable otherwise
+                    readOnly={txType === "Materials"}
+                    style={{
+                      flex: 1, border: "none", background: "transparent", outline: "none",
+                      fontSize: 14, color: txType === "Materials" ? "#888" : "#1a1a1a",
+                      fontWeight: 500, fontFamily: "'Segoe UI', sans-serif",
+                      cursor: txType === "Materials" ? "not-allowed" : "text",
+                    }}
                   />
                 </div>
               </div>
@@ -323,7 +437,12 @@ export default function ManualEntryPage() {
                   {saving ? "⏳ Saving…" : "💾 Save Entry"}
                 </button>
                 <button
-                  onClick={() => { setTxType(""); setTitle(""); setAmount(""); setNotes(""); setWorker(""); setProject(""); }}
+                  onClick={() => {
+                    setTxType(""); setTitle(""); setAmount(""); setNotes("");
+                    setWorker(""); setProject("");
+                    // ✅ Also clear materials fields on Clear
+                    setQuantity(""); setUnit(""); setRate("");
+                  }}
                   style={{
                     padding: "14px 0", background: "#fff", color: "#555",
                     border: "1px solid #e5e5e5", borderRadius: 12, fontWeight: 600, fontSize: 15, cursor: "pointer",
@@ -377,31 +496,29 @@ export default function ManualEntryPage() {
                         onMouseEnter={e => e.currentTarget.style.background = "#f5f5f5"}
                         onMouseLeave={e => e.currentTarget.style.background = "#fafafa"}
                       >
-                        {/* Type dot */}
-                        <div style={{
-                          width: 10, height: 10, borderRadius: "50%",
-                          background: st.dot, flexShrink: 0,
-                        }} />
+                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: st.dot, flexShrink: 0 }} />
 
-                        {/* Title + meta */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {tx.title}
                           </div>
                           <div style={{ fontSize: 12, color: "#999", display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <span style={{ padding: "1px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{tx.type}</span>
+                            {/* ✅ Show qty/unit/rate in recent entries for Materials */}
+                            {tx.type === "Materials" && tx.quantity
+                              ? <span>📦 {tx.quantity} {tx.unit || ""} @ ₹{(tx.rate || 0).toLocaleString("en-IN")}</span>
+                              : null
+                            }
                             {tx.worker  && <span>👷 {workerLabel(tx.worker)}</span>}
                             {tx.project && <span>🏗️ {projectLabel(tx.project)}</span>}
                             <span>📅 {new Date(tx.date).toLocaleDateString("en-IN")}</span>
                           </div>
                         </div>
 
-                        {/* Amount */}
-                        <div style={{ fontWeight: 700, fontSize: 15, color: tx.type === "Income" ? "#166534" : "#1a1a1a", flexShrink: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: tx.type === "Income" ? "#166634" : "#1a1a1a", flexShrink: 0 }}>
                           {tx.type === "Income" ? "+" : "−"}₹{Number(tx.amount).toLocaleString("en-IN")}
                         </div>
 
-                        {/* Delete */}
                         <button
                           onClick={() => handleDelete(tx._id)}
                           style={{
