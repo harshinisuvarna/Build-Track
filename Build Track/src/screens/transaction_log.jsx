@@ -103,7 +103,6 @@ export default function TransactionLog() {
   const fmt = (n) => "₹ " + Math.abs(n).toLocaleString("en-IN");
 
   const exportCSV = () => {
-    // ✅ CSV now includes quantity/unit/rate columns for Materials
     const rows = filtered.map((t) => {
       const projName = resolveProjectName(t.project);
       const qty  = t.type === "Materials" ? (t.quantity ?? "") : "";
@@ -431,8 +430,6 @@ export default function TransactionLog() {
                       <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>
                         {resolveProjectName(t.project) || "N/A"}
                       </td>
-
-                      {/* ✅ NEW: Qty / Unit / Rate — only meaningful for Materials */}
                       <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>
                         {t.type === "Materials" && t.quantity ? (
                           <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -447,7 +444,6 @@ export default function TransactionLog() {
                           <span style={{ color: "#ddd" }}>—</span>
                         )}
                       </td>
-
                       <td
                         style={{
                           padding: "14px 20px",
@@ -500,7 +496,6 @@ export default function TransactionLog() {
                         <div style={{ fontSize: 11, color: "#aaa" }}>
                           {new Date(t.date).toLocaleDateString()}
                         </div>
-                        {/* ✅ NEW: show qty/unit/rate on mobile too, only for Materials */}
                         {t.type === "Materials" && t.quantity ? (
                           <div style={{ fontSize: 11, color: "#3730a3", marginTop: 3, fontWeight: 600 }}>
                             {t.quantity} {t.unit || ""} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
@@ -547,7 +542,7 @@ export default function TransactionLog() {
             </div>
           )}
 
-          {/* Pagination */}
+          {/* ── Pagination ── */}
           <div
             style={{
               padding: "14px 20px",
@@ -561,6 +556,8 @@ export default function TransactionLog() {
           >
             <span style={{ fontSize: 13, color: "#888" }}>{paginationLabel()}</span>
             <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+
+              {/* Previous button */}
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -569,10 +566,13 @@ export default function TransactionLog() {
                   border: "1px solid #e5e5e5", background: "#fff",
                   cursor: page === 1 ? "not-allowed" : "pointer",
                   color: page === 1 ? "#ccc" : "#555", fontSize: 16,
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 ‹
               </button>
+
+              {/* Page number buttons */}
               {getPages().map((p, i) => (
                 <button
                   key={i}
@@ -586,11 +586,14 @@ export default function TransactionLog() {
                     borderColor: page === p ? "#ea580c" : "#e5e5e5",
                     background:  page === p ? "#ea580c" : "#fff",
                     color:       page === p ? "#fff"    : "#555",
+                    display: "flex", alignItems: "center", justifyContent: "center",
                   }}
                 >
                   {p}
                 </button>
               ))}
+
+              {/* Next button */}
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
@@ -599,10 +602,12 @@ export default function TransactionLog() {
                   border: "1px solid #e5e5e5", background: "#fff",
                   cursor: page === totalPages ? "not-allowed" : "pointer",
                   color: page === totalPages ? "#ccc" : "#555", fontSize: 16,
+                  display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 ›
               </button>
+
             </div>
           </div>
         </div>

@@ -1,6 +1,3 @@
-// src/screens/managesite_dashboard.jsx
-// Reads project data from route state and loads real financial stats from API
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { workerAPI, transactionAPI, projectAPI } from "../api";
@@ -100,7 +97,7 @@ export default function ManageSitePage() {
 
   // If no project was passed, redirect back to projects list
   if (!project) {
-    return (
+    return (  
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "center", height: "100vh", fontFamily: "'Segoe UI', sans-serif",
@@ -393,9 +390,23 @@ export default function ManageSitePage() {
               )}
             </div>
             <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
-              <button onClick={() => navigate("/workers")} style={{ width: "100%", padding: "12px 0", background: "#f5f5f5", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-                Manage All Personnel
-              </button>
+              <button 
+                  onClick={() => navigate("/workers")} 
+                  style={{ 
+                    width: "100%", 
+                    padding: "12px 0", 
+                    background: "#f5f5f5", 
+                    color: "#444", 
+                    border: "1px solid #e5e5e5", 
+                    borderRadius: 10, 
+                    fontWeight: 600, 
+                    fontSize: 14, 
+                    cursor: "pointer",
+                    textAlign: "center"  
+                  }}
+                >
+                  Manage All Personnel
+                </button>
             </div>
           </div>
         </div>

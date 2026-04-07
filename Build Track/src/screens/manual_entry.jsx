@@ -420,7 +420,7 @@ export default function ManualEntryPage() {
                 />
               </div>
 
-              {/* Buttons */}
+             {/* Buttons */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <button
                   onClick={handleSave}
@@ -436,22 +436,25 @@ export default function ManualEntryPage() {
                 >
                   {saving ? "⏳ Saving…" : "💾 Save Entry"}
                 </button>
+
                 <button
                   onClick={() => {
                     setTxType(""); setTitle(""); setAmount(""); setNotes("");
                     setWorker(""); setProject("");
-                    // ✅ Also clear materials fields on Clear
                     setQuantity(""); setUnit(""); setRate("");
                   }}
                   style={{
                     padding: "14px 0", background: "#fff", color: "#555",
-                    border: "1px solid #e5e5e5", borderRadius: 12, fontWeight: 600, fontSize: 15, cursor: "pointer",
+                    border: "1px solid #e5e5e5", borderRadius: 12, fontWeight: 600,
+                    fontSize: 15, cursor: "pointer",
+                    textAlign: "center",
                   }}
                 >
                   Clear
                 </button>
               </div>
-            </div>
+
+            </div> {/* ← closes Form Card */}
 
             {/* ── Tip Banner ── */}
             <div style={{ background: "#fff9f5", border: "1px solid #fed7aa", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
@@ -465,7 +468,6 @@ export default function ManualEntryPage() {
                 for even faster entry logging. Just say &quot;Paid worker Amit ₹500 for cement work&quot;.
               </p>
             </div>
-
             {/* ── Recent Entries List ── */}
             <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "22px 28px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
               <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#1a1a1a" }}>
