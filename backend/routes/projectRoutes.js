@@ -185,12 +185,12 @@ router.put("/:id", async (req, res) => {
     const photoFile = req.files?.find(f => f.fieldname === "photo");
     if (photoFile && existing) {
       if (existing.photo) {
-        const oldPath = path.join(__dirname, "../uploads", existing.photo);
+        const oldPath = path.join(process.cwd(), "uploads", existing.photo);
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
       updateData.photo = photoFile.filename;
     } else if (removePhoto === "true" && existing?.photo) {
-      const oldPath = path.join(__dirname, "../uploads", existing.photo);
+      const oldPath = path.join(process.cwd(), "uploads", existing.photo);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       updateData.photo = null;
     }
@@ -219,7 +219,7 @@ router.delete("/:id", async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     if (project.photo) {
-      const photoPath = path.join(__dirname, "../uploads", project.photo);
+      const photoPath = path.join(process.cwd(), "uploads", project.photo);
       if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
     }
 

@@ -63,9 +63,13 @@ function detectCategory(transcript) {
 // ─────────────────────────────────────────────────────────────────────────────
 function localFallback(transcript, workers = [], projects = []) {
   const t = transcript.trim();
-  console.log("[localFallback] transcript :", t);
-  console.log("[localFallback] workers    :", workers);
-  console.log("[localFallback] projects   :", projects);
+  const isDev = process.env.NODE_ENV !== "production";
+
+  if (isDev) {
+    console.log("[localFallback] transcript :", t);
+    console.log("[localFallback] workers    :", workers);
+    console.log("[localFallback] projects   :", projects);
+  }
 
   // ── Amount ──────────────────────────────────────────────────────────────────
   // Priority: lakh > crore > thousand > plain number
@@ -119,7 +123,7 @@ function localFallback(transcript, workers = [], projects = []) {
       .replace(/^(the\s+|project\s+|work\s+|site\s+|this\s+)+/i, "")
       .trim();
 
-    console.log("[localFallback] afterFor raw:", raw, "→ cleaned:", cleaned);
+    if (isDev) console.log("[localFallback] afterFor raw:", raw, "→ cleaned:", cleaned);
 
     project = fuzzyMatch(cleaned, projects);
     if (!project) project = fuzzyMatch(raw, projects);
@@ -144,7 +148,7 @@ function localFallback(transcript, workers = [], projects = []) {
   }
 
   const result = { worker, project, amount, category, notes: transcript, source: "local" };
-  console.log("[localFallback] result →", result);
+  if (isDev) console.log("[localFallback] result →", result);
   return result;
 }
 
@@ -155,6 +159,7 @@ function localFallback(transcript, workers = [], projects = []) {
 // ─────────────────────────────────────────────────────────────────────────────
 function validateGeminiResult(parsed, transcript, workers, projects) {
   const allowedCategories = ["Wages", "Expense", "Income", "Materials"];
+  const isDev = process.env.NODE_ENV !== "production";
   if (!parsed || typeof parsed !== "object") return { valid: false };
 
   // Validate category against allow-list; fall back to Expense
@@ -166,14 +171,14 @@ function validateGeminiResult(parsed, transcript, workers, projects) {
   let worker = null;
   if (parsed.worker) {
     worker = workers.length > 0 ? fuzzyMatch(parsed.worker, workers) : parsed.worker;
-    if (!worker) console.warn(`[Gemini] worker "${parsed.worker}" not in list — discarded`);
+    if (!worker && isDev) console.warn(`[Gemini] worker "${parsed.worker}" not in list — discarded`);
   }
 
   // Validate project against known list
   let project = null;
   if (parsed.project) {
     project = projects.length > 0 ? fuzzyMatch(parsed.project, projects) : parsed.project;
-    if (!project) console.warn(`[Gemini] project "${parsed.project}" not in list — discarded`);
+    if (!project && isDev) console.warn(`[Gemini] project "${parsed.project}" not in list — discarded`);
   }
 
   return {
@@ -190,18 +195,19 @@ function validateGeminiResult(parsed, transcript, workers, projects) {
 // GEMINI CLIENT — lazy initialisation
 // Fails gracefully if SDK is missing or API key is not configured.
 // ─────────────────────────────────────────────────────────────────────────────
+const isDev = process.env.NODE_ENV !== "production";
 let genAI = null;
 try {
   const { GoogleGenerativeAI } = require("@google/generative-ai");
   const key = process.env.GEMINI_API_KEY;
   if (key && key.trim() && key !== "your_key_here") {
     genAI = new GoogleGenerativeAI(key.trim());
-    console.log("✅ Gemini client ready");
+    if (isDev) console.log("✅ Gemini client ready");
   } else {
-    console.warn("⚠️  GEMINI_API_KEY missing or placeholder — Gemini disabled");
+    if (isDev) console.warn("⚠️  GEMINI_API_KEY missing or placeholder — Gemini disabled");
   }
 } catch (e) {
-  console.warn("⚠️  @google/generative-ai SDK missing:", e.message);
+  if (isDev) console.warn("⚠️  @google/generative-ai SDK missing:", e.message);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,19 +218,21 @@ router.post("/parse", async (req, res) => {
   try {
     const { transcript, workers = [], projects = [] } = req.body;
 
-    console.log("\n══════════════════════════════════════════════");
-    console.log("[voice/parse] transcript :", transcript);
-    console.log("[voice/parse] workers    :", workers.length, workers);
-    console.log("[voice/parse] projects   :", projects.length, projects);
-    console.log("══════════════════════════════════════════════");
-
     if (!transcript || !transcript.trim()) {
       return res.status(400).json({ message: "Transcript is required" });
     }
 
     const t = transcript.trim();
 
-    // ── TRY GEMINI ──────────────────────────────────────────────────────────
+    if (isDev) {
+      console.log("\n══════════════════════════════════════════════");
+      console.log("[voice/parse] transcript :", t);
+      console.log("[voice/parse] workers    :", workers.length, workers);
+      console.log("[voice/parse] projects   :", projects.length, projects);
+      console.log("══════════════════════════════════════════════");
+    }
+
+    // ── TRY GEMINI ───────────────────────────────────────────────────────────
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
@@ -256,7 +264,7 @@ CATEGORY — pick exactly one:
 Return ONLY raw JSON, no markdown:
 {"worker":null,"project":null,"category":"Expense","amount":0,"notes":""}`;
 
-        console.log("[Gemini] Sending prompt…");
+        if (isDev) console.log("[Gemini] Sending prompt…");
 
         // Race against an 8-second timeout
         const result = await Promise.race([
@@ -269,7 +277,7 @@ Return ONLY raw JSON, no markdown:
         // Strip any accidental markdown fences from the response
         let text = result.response.text().trim();
         text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-        console.log("[Gemini] raw response:", text);
+        if (isDev) console.log("[Gemini] raw response:", text);
 
         // Parse JSON — try direct parse first, then regex extraction
         let parsed;
@@ -281,7 +289,7 @@ Return ONLY raw JSON, no markdown:
           parsed = JSON.parse(match[0]);
         }
 
-        console.log("[Gemini] parsed:", parsed);
+        if (isDev) console.log("[Gemini] parsed:", parsed);
 
         const validated = validateGeminiResult(parsed, t, workers, projects);
         if (!validated.valid) throw new Error("Gemini validation failed");
@@ -296,14 +304,14 @@ Return ONLY raw JSON, no markdown:
           if (!amount)  amount  = local.amount;
         }
 
-        console.log("[Gemini] final:", { worker, project, amount, category });
+        if (isDev) console.log("[Gemini] final:", { worker, project, amount, category });
         return res.json({ worker, project, amount, category, notes, source: "gemini" });
 
       } catch (geminiErr) {
-        console.warn("[Gemini] FAILED →", geminiErr.message, "— using local fallback");
+        if (isDev) console.warn("[Gemini] FAILED →", geminiErr.message, "— using local fallback");
       }
     } else {
-      console.log("[voice/parse] Gemini disabled — using local fallback directly");
+      if (isDev) console.log("[voice/parse] Gemini disabled — using local fallback directly");
     }
 
     // ── LOCAL FALLBACK ───────────────────────────────────────────────────────

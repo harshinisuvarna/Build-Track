@@ -5,16 +5,7 @@ const path        = require("path");
 const fs          = require("fs");
 const Worker      = require("../models/Worker");
 const { protect } = require("../middleware/auth");
-const multer      = require("multer");
-
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
-});
-
-const upload = multer({ storage });
+const upload      = require("../config/multer"); // shared config
 router.use(protect);
 
 // ─── GET ALL WORKERS ─────────────────────────────────────────────────────────
@@ -90,9 +81,6 @@ router.get("/:id", async (req, res) => {
 // ─── CREATE WORKER ───────────────────────────────────────────────────────────
 // Supports both POST /api/workers and POST /api/workers/add
 const createHandler = async (req, res) => {
-  console.log("WORKER ROUTE HIT (CREATE)");
-  console.log("BODY:", req.body);
-  console.log("FILES:", req.files);
   try {
     const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
 
@@ -136,11 +124,8 @@ router.post("/add", upload.any(), createHandler);
 // PUT /api/workers/:id
 router.put(
   "/:id",
-  upload.any(), // final attempt at flexibility
+  upload.any(),
   async (req, res) => {
-    console.log("WORKER ROUTE HIT (PUT /:id)");
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
     try {
       const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
       const updateData = {
@@ -153,13 +138,12 @@ router.put(
         paymentCycle,
       };
 
-      console.log("FILES:", req.files);
       const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
       const newDocuments = (req.files || []).filter(f => f.fieldname === "documents").map(f => f.filename);
       if (photoFile) {
         const existing = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
         if (existing?.photo) {
-          const oldPath = path.join(__dirname, "../uploads", existing.photo);
+          const oldPath = path.join(process.cwd(), "uploads", existing.photo);
           if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
         }
         updateData.photo = photoFile.filename;
@@ -198,13 +182,13 @@ router.delete("/:id", async (req, res) => {
 
     // Also delete photo file from disk
     if (worker.photo) {
-      const photoPath = path.join(__dirname, "../uploads", worker.photo);
+      const photoPath = path.join(process.cwd(), "uploads", worker.photo);
       if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
     }
     // Delete documents from disk too
     if (Array.isArray(worker.documents) && worker.documents.length > 0) {
       for (const doc of worker.documents) {
-        const docPath = path.join(__dirname, "../uploads", doc);
+        const docPath = path.join(process.cwd(), "uploads", doc);
         if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
       }
     }
