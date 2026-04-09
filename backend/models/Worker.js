@@ -8,7 +8,6 @@ function toTitleCase(str) {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }
-
 const workerSchema = new mongoose.Schema(
   {
     createdBy: {
@@ -16,13 +15,11 @@ const workerSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     name: {
       type: String,
       required: true,
       trim: true,
     },
-
     trade: {
       type: String,
       required: true,
@@ -31,31 +28,26 @@ const workerSchema = new mongoose.Schema(
              "Laborer", "Architect", "Inspector", "Site Manager", "Engineer", "Other"],
       default: "General Labor",
     },
-
     mobile: {
       type: String,
       default: "",
       trim: true,
     },
-
     joiningDate: {
       type: Date,
       default: null,
     },
-
     status: {
       type: String,
       enum: ["Active", "Inactive", "On Leave"],
       default: "Active",
     },
-
     dailyWage: {
       type: Number,
       required: true,
       min: 0,
       default: 0,
     },
-
     paymentCycle: {
       type: String,
       enum: ["Weekly", "Bi-Weekly", "Monthly"],
@@ -70,7 +62,6 @@ const workerSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-
     documents: {
       type: [String],
       default: [],
@@ -87,16 +78,13 @@ workerSchema.pre("save", async function () {
   if (this.displayId) return;
   if (!this.isNew) return;
   if (!this.createdBy) return;
-
   const year = new Date().getFullYear();
   const prefix = `BT-${year}-`;
   const Worker = mongoose.model("Worker");
-
   const count = await Worker.countDocuments({
     createdBy: this.createdBy,
     displayId: { $regex: `^${prefix}` },
   });
-
   this.displayId = `${prefix}${String(count + 1).padStart(3, "0")}`;
 });
 workerSchema.set("toJSON", {
@@ -110,5 +98,4 @@ workerSchema.set("toJSON", {
     return ret;
   },
 });
-
 module.exports = mongoose.model("Worker", workerSchema);

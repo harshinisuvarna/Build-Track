@@ -1,6 +1,4 @@
-// backend/models/Project.js
 const mongoose = require("mongoose");
-
 const projectSchema = new mongoose.Schema(
   {
     createdBy: {
@@ -8,46 +6,38 @@ const projectSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     projectName: {
       type: String,
       required: true,
       trim: true,
     },
-
     location: {
       type: String,
       default: "",
       trim: true,
     },
-
     manager: {
       type: String,
       default: "",
       trim: true,
     },
-
     budget: {
       type: Number,
       default: 0,
     },
-
     startDate: {
       type: Date,
       default: null,
     },
-
     scope: {
       type: String,
       default: "",
     },
-
     status: {
       type: String,
       enum: ["Active", "Completed", "On Hold", "Review Needed"],
       default: "Active",
     },
-
     progress: {
       type: Number,
       min: 0,
@@ -61,5 +51,4 @@ const projectSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 module.exports = mongoose.model("Project", projectSchema);

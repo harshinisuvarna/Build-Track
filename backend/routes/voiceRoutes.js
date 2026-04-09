@@ -2,42 +2,151 @@
 const express = require("express");
 const router  = express.Router();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FUZZY MATCH
-// Tries to match a raw string against a known list using 4 progressively
-// looser strategies: exact → contained-in-input → input-in-item → token overlap
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Levenshtein edit distance ─────────────────────────────────────────────────
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => {
+    const row = new Array(n + 1);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// ── Consonant skeleton — strips vowels for phonetic-ish comparison ────────────
+function consonants(s) {
+  return s.toLowerCase().replace(/[aeiou\s]/g, "");
+}
+
+// ── Similarity score (0–1) using edit distance ────────────────────────────────
+function similarity(a, b) {
+  const la = a.toLowerCase(), lb = b.toLowerCase();
+  const maxLen = Math.max(la.length, lb.length);
+  if (maxLen === 0) return 1;
+  return 1 - editDistance(la, lb) / maxLen;
+}
+
+// ── MAIN: fuzzy match input against a list ────────────────────────────────────
+// Uses 7 progressively looser strategies to maximise voice-input matching
 function fuzzyMatch(input, list) {
   if (!input || !list || list.length === 0) return null;
   const lower = input.toLowerCase().trim();
-  if (!lower) return null;
+  if (!lower || lower.length < 2) return null;
 
-  // 1. Exact match (case-insensitive)
+  // 1. Exact match
   const exact = list.find(item => item.toLowerCase() === lower);
   if (exact) return exact;
 
-  // 2. List item is a substring of input  ("hotel" ∈ "the project hotel")
+  // 2. List item is substring of input
   const contained = list.find(item => lower.includes(item.toLowerCase()));
   if (contained) return contained;
 
-  // 3. Input is a substring of list item  ("suresh" ∈ "Suresh - Masonry")
+  // 3. Input is substring of list item
   const sub = list.find(item => item.toLowerCase().includes(lower));
   if (sub) return sub;
 
-  // 4. Token overlap — any word from input > 2 chars matches a word in item
+  // 4. Token overlap — any word > 2 chars matches
   const inputTokens = lower.split(/\s+/);
-  const tokenMatch  = list.find(item => {
+  const tokenMatch = list.find(item => {
     const itemTokens = item.toLowerCase().split(/\s+/);
     return inputTokens.some(t => t.length > 2 && itemTokens.includes(t));
   });
-  return tokenMatch || null;
+  if (tokenMatch) return tokenMatch;
+
+  // 5. Prefix match — first 3+ chars match
+  if (lower.length >= 3) {
+    const prefix3 = lower.slice(0, 3);
+    const prefixMatch = list.find(item => item.toLowerCase().startsWith(prefix3));
+    if (prefixMatch) return prefixMatch;
+  }
+
+  // 6. Consonant skeleton — ignore vowels
+  const inputCons = consonants(lower);
+  if (inputCons.length >= 2) {
+    const consMatch = list.find(item => {
+      const itemCons = consonants(item);
+      // skeleton exact or within 1 edit
+      return itemCons === inputCons || editDistance(inputCons, itemCons) <= 1;
+    });
+    if (consMatch) return consMatch;
+  }
+
+  // 7. Edit distance — allow ~35% difference (scales with name length)
+  let bestMatch = null, bestSim = 0;
+  const threshold = 0.55; // minimum 55% similarity
+  for (const item of list) {
+    // Compare full names
+    const sim = similarity(lower, item.toLowerCase());
+    if (sim > bestSim && sim >= threshold) {
+      bestSim = sim;
+      bestMatch = item;
+    }
+    // Also compare against each token in the list item
+    const itemTokens = item.toLowerCase().split(/\s+/);
+    for (const tok of itemTokens) {
+      if (tok.length < 3) continue;
+      const tokSim = similarity(lower, tok);
+      if (tokSim > bestSim && tokSim >= threshold) {
+        bestSim = tokSim;
+        bestMatch = item;
+      }
+    }
+  }
+  return bestMatch;
+}
+
+// ── Best worker match: tries EVERY transcript word against the worker list ────
+function bestWorkerMatch(transcript, workers) {
+  if (!workers || workers.length === 0) return null;
+  // Split transcript into words, try each against the worker list
+  const tokens = transcript.toLowerCase().split(/\s+/).filter(t => t.length >= 3);
+  // Noise words that should never be matched as a worker name
+  const noise = new Set([
+    "the", "for", "has", "have", "been", "was", "were", "and", "with",
+    "from", "this", "that", "project", "wages", "wage", "paid", "pay",
+    "given", "income", "expense", "material", "materials", "rupees",
+    "lakh", "lakhs", "lacs", "lac", "crore", "crores", "thousand",
+    "credited", "debited", "construction", "payment",
+  ]);
+
+  let best = null, bestSim = 0;
+  const isDev = process.env.NODE_ENV !== "production";
+  for (const token of tokens) {
+    if (noise.has(token)) continue;
+    for (const w of workers) {
+      const wLower = w.toLowerCase();
+      const wTokens = wLower.split(/\s+/);
+
+      // Check token against full name and each name-part
+      const candidates = [wLower, ...wTokens];
+      for (const candidate of candidates) {
+        if (candidate.length < 3) continue;
+        const sim = similarity(token, candidate);
+        if (isDev && sim > 0.4) console.log(`[bestWorkerMatch] "${token}" vs "${candidate}" = ${sim.toFixed(2)}`);
+        if (sim > bestSim && sim >= 0.55) {
+          bestSim = sim;
+          best = w;
+        }
+      }
+    }
+  }
+  if (isDev) console.log(`[bestWorkerMatch] result: ${best} (sim: ${bestSim.toFixed(2)})`);
+  return best;
 }
 
 function detectCategory(transcript) {
   const t = transcript;
 
   // Check Wages first — more specific than Income
-  if (/\b(pay|paid|wage|wages|salary|labour|labor|gave|ways)\b/i.test(t)) {
+  if (/\b(pay|paid|wage|wages|salary|labour|labor|gave|given|giving|give|ways)\b/i.test(t)) {
     return "Wages";
   }
 
@@ -73,15 +182,19 @@ function localFallback(transcript, workers = [], projects = []) {
 
   // ── Amount ──────────────────────────────────────────────────────────────────
   // Priority: lakh > crore > thousand > plain number
+  // Handles: "6 lacs", "Rs 6 lacs", "rupees 6 lakh", "6.5 lakh", "6lacs"
   let amount = 0;
-  const lakhMatch     = t.match(/(\d+(?:\.\d+)?)\s*lakh/i);
-  const croreMatch    = t.match(/(\d+(?:\.\d+)?)\s*crore/i);
-  const thousandMatch = t.match(/(\d+(?:\.\d+)?)\s*thousand/i);
+  const lakhMatch     = t.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)/i)
+                     || t.match(/(?:rs\.?|rupees?)\s*(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)/i);
+  const croreMatch    = t.match(/(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)/i)
+                     || t.match(/(?:rs\.?|rupees?)\s*(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)/i);
+  const thousandMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:thousand|k)\b/i)
+                     || t.match(/(?:rs\.?|rupees?)\s*(\d+(?:\.\d+)?)\s*(?:thousand|k)\b/i);
   const plainMatch    = t.match(/\d[\d,]*/);
 
-  if      (lakhMatch)     amount = Math.round(parseFloat(lakhMatch[1])     * 100_000);
-  else if (croreMatch)    amount = Math.round(parseFloat(croreMatch[1])    * 10_000_000);
-  else if (thousandMatch) amount = Math.round(parseFloat(thousandMatch[1]) * 1_000);
+  if      (lakhMatch)     amount = Math.round(parseFloat(lakhMatch[1] || lakhMatch[2])     * 100_000);
+  else if (croreMatch)    amount = Math.round(parseFloat(croreMatch[1] || croreMatch[2])    * 10_000_000);
+  else if (thousandMatch) amount = Math.round(parseFloat(thousandMatch[1] || thousandMatch[2]) * 1_000);
   else if (plainMatch)    amount = Number(plainMatch[0].replace(/,/g, ""));
 
   // ── Category ─────────────────────────────────────────────────────────────────
@@ -91,25 +204,32 @@ function localFallback(transcript, workers = [], projects = []) {
   // ── Worker ──────────────────────────────────────────────────────────────────
   let worker = null;
 
-  // Strategy A: name immediately follows pay/paid/gave keywords
-  const afterPayMatch = t.match(/\b(?:pay(?:ing)?|paid|gave)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i);
+  // Strategy A1: name immediately follows pay/paid/gave/given/give/got keywords
+  const afterPayMatch = t.match(/\b(?:pay(?:ing)?|paid|gave|given|give|giving|got)\s+(?:to\s+)?(?:wages?\s+(?:of\s+)?)?([A-Za-z]+(?:\s+[A-Za-z]+)?)/i);
   if (afterPayMatch) {
     worker = fuzzyMatch(afterPayMatch[1].trim(), workers);
     if (!worker) {
-      // Try just the first word (handles "paid Suresh Kumar 500")
       const firstName = afterPayMatch[1].trim().split(/\s+/)[0];
       worker = fuzzyMatch(firstName, workers);
     }
   }
 
-  // Strategy B: scan entire transcript for any known worker name
-  if (!worker && workers.length > 0) {
-    for (const w of workers) {
-      const wTokens = w.toLowerCase().split(/\s+/);
-      const tTokens = t.toLowerCase().split(/\s+/);
-      const hit = wTokens.some(wt => wt.length > 2 && tTokens.includes(wt));
-      if (hit) { worker = w; break; }
+  // Strategy A2: name BEFORE keyword — "Sumitra got wages", "Suresh paid 500"
+  if (!worker) {
+    const beforePayMatch = t.match(/\b([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(?:got|paid|received|gave|given|gets?)\b/i);
+    if (beforePayMatch) {
+      worker = fuzzyMatch(beforePayMatch[1].trim(), workers);
+      if (!worker) {
+        const firstName = beforePayMatch[1].trim().split(/\s+/)[0];
+        worker = fuzzyMatch(firstName, workers);
+      }
     }
+  }
+
+  // Strategy B: full transcript scan — tries every word with similarity scoring
+  // Handles spelling mistakes, pronunciation differences (e.g. Sumitra → sumithra)
+  if (!worker && workers.length > 0) {
+    worker = bestWorkerMatch(t, workers);
   }
 
   // ── Project ─────────────────────────────────────────────────────────────────

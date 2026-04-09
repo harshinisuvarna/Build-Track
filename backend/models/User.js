@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -8,7 +7,6 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
     email: {
       type: String,
       required: true,
@@ -16,23 +14,19 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-
     provider: {
       type: String,
       enum: ["local", "google", "github"],
       default: "local",
     },
-
     providerId: {
       type: String,
       default: null,
     },
-
     profilePhoto: {
       type: String,
       default: null,
     },
-
     role: {
       type: String,
       default: "User",
@@ -59,8 +53,6 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-
-    // For 2FA toggle
     twoFactorEnabled: {
       type: Boolean,
       default: false,
@@ -97,5 +89,4 @@ userSchema.methods.toJSON = function () {
   delete obj.__v;
   return obj;
 };
-
 module.exports = mongoose.model("User", userSchema);

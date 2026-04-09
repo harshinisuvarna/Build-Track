@@ -7,6 +7,7 @@ const passport   = require("passport");
 const User       = require("../models/User");
 const { protect } = require("../middleware/auth");
 const upload     = require("../config/multer");
+const { getFileUrl } = require("../config/fileHelpers");
 const SECRET      = process.env.JWT_SECRET;
 const FRONTEND    = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
 const makeToken = (user) =>
@@ -129,10 +130,10 @@ router.put("/photo", protect, upload.single("photo"), async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    user.profilePhoto = req.file.filename;
+    user.profilePhoto = getFileUrl(req.file);
     await user.save();
 
-    res.json({ message: "Photo updated", profilePhoto: req.file.filename });
+    res.json({ message: "Photo updated", profilePhoto: user.profilePhoto });
   } catch (err) {
     console.error("Photo upload error:", err);
     res.status(500).json({ message: "Failed to upload photo" });
@@ -206,11 +207,11 @@ router.post("/forgot-password", async (req, res) => {
             `<p>If you didn't request this, you can safely ignore this email.</p>`,
           ].join(""),
         });
-        console.log(`📧 Password reset email sent to ${user.email}`);
+        if (process.env.NODE_ENV !== "production") console.log(`📧 Password reset email sent to ${user.email}`);
       } catch (mailErr) {
         console.error("📧 Failed to send reset email:", mailErr.message);
       }
-    } else {
+    } else if (process.env.NODE_ENV !== "production") {
       console.log("──────────────────────────────────────────");
       console.log("📧 PASSWORD RESET LINK (configure SMTP_HOST/USER/PASS to send via email):");
       console.log(`   ${resetUrl}`);

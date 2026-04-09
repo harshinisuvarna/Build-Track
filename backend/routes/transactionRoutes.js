@@ -1,4 +1,3 @@
-// backend/routes/transactionRoutes.js
 const express       = require("express");
 const router        = express.Router();
 const Transaction   = require("../models/Transaction");
@@ -7,8 +6,6 @@ const Project       = require("../models/Project");
 const { protect }   = require("../middleware/auth");
 const mongoose      = require("mongoose");
 router.use(protect);
-// ─── GET ALL TRANSACTIONS ─────────────────────────────────────────────────────
-// GET /api/transactions
 router.get("/", async (req, res) => {
   try {
     const { type, search } = req.query;
@@ -22,7 +19,6 @@ router.get("/", async (req, res) => {
         { notes:   { $regex: search, $options: "i" } },
       ];
     }
-
     const transactions = await Transaction.find(query)
       .populate("worker", "name")
       .populate("project", "projectName")
@@ -33,41 +29,23 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
-
-
-// ─── CREATE TRANSACTION ────────────────────────────────────────────────────────
-// POST /api/transactions   (JSON body)
 router.post("/", async (req, res) => {
   try {
     const { title, amount, type, worker, project, date, notes } = req.body;
-    console.log("[POST /api/transactions] incoming:", {
-      title,
-      amount,
-      type,
-      worker,
-      project,
-    });
-
     if (!title || !title.trim())
       return res.status(400).json({ message: "Title is required" });
-
     if (!amount || isNaN(Number(amount)))
       return res.status(400).json({ message: "Valid amount is required" });
-
     if (!type)
       return res.status(400).json({ message: "Transaction type is required" });
-    // Worker is still required for Wages entries
     if (type === "Wages" && (!worker || !String(worker).trim()))
       return res.status(400).json({ message: "Worker is required for Wages entries" });
-
     const parseOptionalObjectId = (value) => {
       if (value === undefined || value === null || value === "") return null;
       return mongoose.Types.ObjectId.isValid(value) ? value : null;
     };
-    // Strict path: expected frontend behavior (send _id values)
     let workerId = parseOptionalObjectId(worker);
     let projectId = parseOptionalObjectId(project);
-    // Safe fallback path: if legacy clients send names, map to ObjectId.
     if (!workerId && worker) {
       const workerDoc = await Worker.findOne({
         createdBy: req.user._id,
@@ -82,14 +60,12 @@ router.post("/", async (req, res) => {
       }).select("_id");
       projectId = projectDoc?._id || null;
     }
-    console.log("[POST /api/transactions] computed ids:", { workerId, projectId });
     if (worker && !workerId) {
       return res.status(400).json({ message: "Invalid worker. Please select a valid worker from the dropdown." });
     }
     if (project && !projectId) {
       return res.status(400).json({ message: "Invalid project. Please select a valid project from the dropdown." });
     }
-
     const transaction = await Transaction.create({
       createdBy: req.user._id,
       title:     title.trim(),
@@ -110,9 +86,6 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Failed to save transaction" });
   }
 });
-
-// ─── DELETE TRANSACTION ────────────────────────────────────────────────────────
-// DELETE /api/transactions/:id
 router.delete("/:id", async (req, res) => {
   try {
     const tx = await Transaction.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });
@@ -122,5 +95,4 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to delete transaction" });
   }
 });
-
 module.exports = router;

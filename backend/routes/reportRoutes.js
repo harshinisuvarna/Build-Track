@@ -6,13 +6,9 @@ const Transaction = require("../models/Transaction");
 const Worker = require("../models/Worker");
 const Project = require("../models/Project");
 const { protect } = require("../middleware/auth");
-
 router.use(protect);
-
-// ── Helper: compute date range from query params ──────────────────────────────
 function getDateRange(query) {
   const { year, month, rangeStart, rangeEnd } = query;
-
   if (rangeStart && rangeEnd) {
     const start = new Date(rangeStart);
     const end = new Date(rangeEnd);
@@ -22,44 +18,34 @@ function getDateRange(query) {
       endDate: end,
     };
   }
-
   return {
     startDate: new Date(year, month, 1, 0, 0, 0, 0),
     endDate:   new Date(year, parseInt(month) + 1, 0, 23, 59, 59, 999),
   };
 }
-
-// ── Helper: format INR ────────────────────────────────────────────────────────
 function formatINR(n) {
   return `₹${(n || 0).toLocaleString("en-IN")}`;
 }
-
 function normalizeProjectStatus(status) {
   const s = String(status || "").toLowerCase();
   if (s === "on track" || s === "completed") return "ON TRACK";
   if (s === "review needed" || s === "on hold") return "REVIEW NEEDED";
   return "IN PROGRESS";
 }
-
-// GET /api/reports/financial
 router.get("/financial", async (req, res) => {
   try {
     const { year, month } = req.query;
     const userId = req.user._id;
-
     if (!year || month === undefined || month === "") {
       return res.status(400).json({ message: "Year and month are required" });
     }
-
     const { startDate, endDate } = getDateRange(req.query);
-
     const transactions = await Transaction.find({
       createdBy: userId,
       date: { $gte: startDate, $lte: endDate },
     })
       .populate("project", "projectName status")
       .populate("worker", "_id");
-
     const income = transactions
       .filter((t) => t.type === "Income")
       .reduce((sum, t) => sum + t.amount, 0);
@@ -71,18 +57,12 @@ router.get("/financial", async (req, res) => {
     const compliance = totalVolume > 0
       ? Math.min(100, Math.max(0, (income / totalVolume) * 100))
       : 100;
-
-    // Get all workers with their project assignments
     const workersRecords = await Worker.find({ createdBy: userId });
-
-    // Get all projects for name lookup
     const projects = await Project.find({ createdBy: userId });
     const projectMap = {};
     projects.forEach((p) => {
       projectMap[p._id.toString()] = p.projectName;
     });
-
-    // Build wage transactions grouped by worker for strict, activity-based data
     const wageTransactions = transactions.filter((t) => t.type === "Wages");
     const workerStats = {};
     wageTransactions.forEach((t) => {
@@ -103,8 +83,6 @@ router.get("/financial", async (req, res) => {
         workerStats[wId].project = matchedProject || t.project || null;
       }
     });
-
-    // Strict rule: show only workers with wage activity in selected range.
     const workers = workersRecords
       .filter((w) => workerStats[w._id.toString()])
       .map((w) => {
@@ -121,7 +99,6 @@ router.get("/financial", async (req, res) => {
           projectStatus: normalizeProjectStatus(stats.project?.status),
         };
       });
-
     res.json({
       income,
       expenses,
@@ -133,34 +110,22 @@ router.get("/financial", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch financial report" });
   }
 });
-
-// GET /api/reports/financial/export-csv
-// Exports Wages Per Worker table as CSV
 router.get("/financial/export-csv", async (req, res) => {
   try {
     const { year, month } = req.query;
     const userId = req.user._id;
-
     if (!year || month === undefined || month === "") {
       return res.status(400).json({ message: "Year and month are required" });
     }
-
     const { startDate, endDate } = getDateRange(req.query);
-
-    // Calculate working days
     const rangeDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)));
     const workingDays = Math.round(rangeDays * 0.86);
-
-    // Get workers
     const workersRecords = await Worker.find({ createdBy: userId });
-
-    // Get wage transactions for the period
     const wageTransactions = await Transaction.find({
       createdBy: userId,
       type: "Wages",
       date: { $gte: startDate, $lte: endDate },
     });
-
     const workerWageMap = {};
     wageTransactions.forEach((t) => {
       const wId = t.worker?.toString();
@@ -169,8 +134,6 @@ router.get("/financial/export-csv", async (req, res) => {
         workerWageMap[wId] += t.amount;
       }
     });
-
-    // Build CSV with Wages Per Worker data
     const header = "Worker Name,Role,Project,Total Days,Daily Rate,Total Payout\n";
     const rows = workersRecords.map((w) => {
       const name = `"${(w.name || "").replace(/"/g, '""')}"`;
@@ -182,12 +145,9 @@ router.get("/financial/export-csv", async (req, res) => {
       const payout = actualPayout > 0 ? actualPayout : rate * workingDays;
       return `${name},${trade},${project},${totalDays},${rate},${payout}`;
     }).join("\n");
-
     const csv = header + rows;
-
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const filename = `BuildTrack_Wages_${monthNames[parseInt(month)]}_${year}.csv`;
-
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
@@ -195,40 +155,28 @@ router.get("/financial/export-csv", async (req, res) => {
     res.status(500).json({ message: "Failed to export CSV" });
   }
 });
-
-
-// GET /api/reports/financial/export-pdf
-// Generates a full PDF report with summary + wages per worker table
 router.get("/financial/export-pdf", async (req, res) => {
   try {
     const { year, month } = req.query;
     const userId = req.user._id;
-
     if (!year || month === undefined || month === "") {
       return res.status(400).json({ message: "Year and month are required" });
     }
-
     const { startDate, endDate } = getDateRange(req.query);
-
     const transactions = await Transaction.find({
       createdBy: userId,
       date: { $gte: startDate, $lte: endDate },
     }).sort({ date: -1 });
-
     const income = transactions.filter(t => t.type === "Income").reduce((s, t) => s + t.amount, 0);
     const expenses = transactions.filter(t => t.type !== "Income").reduce((s, t) => s + t.amount, 0);
     const profit = income - expenses;
     const totalVolume = income + expenses;
     const compliance = totalVolume > 0 ? Math.min(100, Math.max(0, (income / totalVolume) * 100)) : 100;
-
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthName = monthNames[parseInt(month)] || "Unknown";
-
     const workersRecords = await Worker.find({ createdBy: userId });
-    // Calculate working days
     const rangeDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)));
     const workingDays = Math.round(rangeDays * 0.86);
-    // Get wage transactions for actual payout data
     const wageTransactions = transactions.filter(t => t.type === "Wages");
     const workerWageMap = {};
     wageTransactions.forEach((t) => {
@@ -238,35 +186,23 @@ router.get("/financial/export-pdf", async (req, res) => {
         workerWageMap[wId] += t.amount;
       }
     });
-
     const filename = `BuildTrack_Report_${monthName}_${year}.pdf`;
-
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-    // ── Build PDF ──────────────────────────────────────────────────────────
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     doc.pipe(res);
-
     const orange = "#ea580c";
     const dark = "#1a1a1a";
     const gray = "#666666";
-
-    // ── Title ──
     doc.fontSize(22).fillColor(orange).text("BUILDTRACK", { align: "center" });
     doc.fontSize(10).fillColor(gray).text("Financial Report", { align: "center" });
     doc.moveDown(0.5);
     doc.fontSize(18).fillColor(dark).text(`${monthName} ${year} Analysis`, { align: "center" });
     doc.moveDown(0.3);
-
-    // Horizontal rule
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e5e5e5").stroke();
     doc.moveDown(1);
-
-    // ── Summary Section ──
     doc.fontSize(14).fillColor(dark).text("Financial Summary", { underline: true });
     doc.moveDown(0.5);
-
     const summaryItems = [
       ["Total Income", formatINR(income)],
       ["Expenditures", formatINR(expenses)],
@@ -275,24 +211,18 @@ router.get("/financial/export-pdf", async (req, res) => {
       ["Compliance Score", `${compliance.toFixed(1)}%`],
       ["Total Transactions", `${transactions.length}`],
     ];
-
     summaryItems.forEach(([label, value]) => {
       doc.fontSize(11).fillColor(gray).text(label, 60, doc.y, { continued: true, width: 200 });
       doc.fillColor(dark).text(`   ${value}`);
       doc.moveDown(0.2);
     });
-
     doc.moveDown(1.5);
-
-    // ── Wages Per Worker Table ──
     if (doc.y > 550) { doc.addPage(); }
     doc.fontSize(14).fillColor(dark).text("Wages Per Worker", { underline: true });
     doc.moveDown(0.5);
-
     if (workersRecords.length === 0) {
       doc.fontSize(11).fillColor(gray).text("No workers found.");
     } else {
-      // Table header
       const wColX = [50, 180, 280, 350, 410, 480];
       const headerY = doc.y;
       doc.fontSize(8).fillColor(orange);
@@ -303,10 +233,8 @@ router.get("/financial/export-pdf", async (req, res) => {
       doc.text("RATE", wColX[4], headerY);
       doc.text("TOTAL PAYOUT", wColX[5], headerY);
       doc.moveDown(0.3);
-
       doc.moveTo(50, doc.y).lineTo(555, doc.y).strokeColor("#ebebeb").stroke();
       doc.moveDown(0.3);
-
       workersRecords.forEach(w => {
         if (doc.y > 720) { doc.addPage(); }
         const actualPayout = workerWageMap[w._id.toString()] || 0;
@@ -322,14 +250,10 @@ router.get("/financial/export-pdf", async (req, res) => {
         doc.moveDown(0.5);
       });
     }
-
     doc.moveDown(1);
-
-    // ── Transactions Table ──
     if (doc.y > 600) { doc.addPage(); }
     doc.fontSize(14).fillColor(dark).text("Transactions", { underline: true });
     doc.moveDown(0.5);
-
     if (transactions.length === 0) {
       doc.fontSize(11).fillColor(gray).text("No transactions for this period.");
     } else {
@@ -342,10 +266,8 @@ router.get("/financial/export-pdf", async (req, res) => {
       doc.text("AMOUNT", colX[3], thY);
       doc.text("NOTES", colX[4], thY);
       doc.moveDown(0.3);
-
       doc.moveTo(50, doc.y).lineTo(555, doc.y).strokeColor("#ebebeb").stroke();
       doc.moveDown(0.3);
-
       transactions.forEach(t => {
         if (doc.y > 720) { doc.addPage(); }
         const date = new Date(t.date).toLocaleDateString("en-IN");
@@ -360,20 +282,15 @@ router.get("/financial/export-pdf", async (req, res) => {
         doc.moveDown(0.5);
       });
     }
-
-    // ── Footer ──
     doc.moveDown(2);
     if (doc.y > 750) { doc.addPage(); }
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e5e5e5").stroke();
     doc.moveDown(0.5);
     doc.fontSize(8).fillColor(gray)
       .text(`Generated by BuildTrack on ${new Date().toLocaleDateString("en-IN")}`, { align: "center" });
-
     doc.end();
   } catch (err) {
     res.status(500).json({ message: "Failed to export report" });
   }
 });
-
-
 module.exports = router;

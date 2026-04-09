@@ -1,40 +1,28 @@
-// backend/routes/workerRoutes.js
 const express     = require("express");
 const router      = express.Router();
-const path        = require("path");
-const fs          = require("fs");
 const Worker      = require("../models/Worker");
 const { protect } = require("../middleware/auth");
-const upload      = require("../config/multer"); // shared config
+const upload      = require("../config/multer");
+const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 router.use(protect);
-
-// ─── GET ALL WORKERS ─────────────────────────────────────────────────────────
-// GET /api/workers
 router.get("/", async (req, res) => {
   try {
     const { status, search } = req.query;
     const query = { createdBy: req.user._id };
-
     if (status && status !== "All") query.status = status;
-
     if (search) {
       query.$or = [
         { name:  { $regex: search, $options: "i" } },
         { trade: { $regex: search, $options: "i" } },
       ];
     }
-
     const workers = await Worker.find(query).sort({ createdAt: -1 });
     res.json({ workers });
-
   } catch (err) {
     console.error("Get workers error:", err);
     res.status(500).json({ message: "Failed to fetch workers" });
   }
 });
-
-// ─── STATS SUMMARY ───────────────────────────────────────────────────────────
-// GET /api/workers/stats/summary
 router.get("/stats/summary", async (req, res) => {
   try {
     const [total, active, inactive] = await Promise.all([
@@ -47,9 +35,6 @@ router.get("/stats/summary", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch stats" });
   }
 });
-
-// ─── GET SUPERVISORS ─────────────────────────────────────────────────────────
-// GET /api/workers/supervisors
 router.get("/supervisors", async (req, res) => {
   try {
     const supervisors = await Worker.find({
@@ -58,16 +43,12 @@ router.get("/supervisors", async (req, res) => {
     })
       .select("name trade status")
       .sort({ name: 1 });
-
     res.json({ supervisors });
   } catch (err) {
     console.error("Get supervisors error:", err);
     res.status(500).json({ message: "Failed to fetch supervisors" });
   }
 });
-
-// ─── GET SINGLE WORKER ───────────────────────────────────────────────────────
-// GET /api/workers/:id
 router.get("/:id", async (req, res) => {
   try {
     const worker = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
@@ -77,22 +58,16 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch worker" });
   }
 });
-
-// ─── CREATE WORKER ───────────────────────────────────────────────────────────
-// Supports both POST /api/workers and POST /api/workers/add
 const createHandler = async (req, res) => {
   try {
     const { name, trade, mobile, joiningDate, status, dailyWage, paymentCycle } = req.body;
-
     if (!name || !name.trim())
       return res.status(400).json({ message: "Worker name is required" });
-
     if (!dailyWage && dailyWage !== "0")
       return res.status(400).json({ message: "Daily wage is required" });
-
-    const photo = req.files?.find(f => f.fieldname === "photo")?.filename || null;
-    const documents = (req.files || []).filter(f => f.fieldname === "documents").map(f => f.filename);
-
+    const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
+    const photo = getFileUrl(photoFile);
+    const documents = (req.files || []).filter(f => f.fieldname === "documents").map(f => getFileUrl(f));
     const worker = await Worker.create({
       createdBy:   req.user._id,
       name:        name.trim(),
@@ -105,7 +80,6 @@ const createHandler = async (req, res) => {
       photo: photo,
       documents,
     });
-
     res.status(201).json({ message: "Worker added successfully", worker });
   } catch (err) {
     console.error("Create worker error:", err);
@@ -116,12 +90,8 @@ const createHandler = async (req, res) => {
     res.status(500).json({ message: "Failed to create worker" });
   }
 };
-
 router.post("/", upload.any(), createHandler);
 router.post("/add", upload.any(), createHandler);
-
-// ─── UPDATE WORKER ───────────────────────────────────────────────────────────
-// PUT /api/workers/:id
 router.put(
   "/:id",
   upload.any(),
@@ -137,30 +107,22 @@ router.put(
         dailyWage:   Number(dailyWage),
         paymentCycle,
       };
-
       const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
-      const newDocuments = (req.files || []).filter(f => f.fieldname === "documents").map(f => f.filename);
+      const newDocuments = (req.files || []).filter(f => f.fieldname === "documents").map(f => getFileUrl(f));
       if (photoFile) {
         const existing = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
-        if (existing?.photo) {
-          const oldPath = path.join(process.cwd(), "uploads", existing.photo);
-          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-        }
-        updateData.photo = photoFile.filename;
+        if (existing?.photo) await deleteFile(existing.photo);
+        updateData.photo = getFileUrl(photoFile);
       }
-
       if (newDocuments.length > 0) {
         updateData.documents = newDocuments;
       }
-
       const worker = await Worker.findOneAndUpdate(
         { _id: req.params.id, createdBy: req.user._id },
         updateData,
         { new: true, runValidators: true }
       );
-
       if (!worker) return res.status(404).json({ message: "Worker not found" });
-
       res.json({ message: "Worker updated", worker });
     } catch (err) {
       console.error("Update worker error:", err);
@@ -172,32 +134,19 @@ router.put(
     }
   }
 );
-
-// ─── DELETE WORKER ──────────────────────────────────────────────────────────
-// DELETE /api/workers/:id
 router.delete("/:id", async (req, res) => {
   try {
     const worker = await Worker.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });
     if (!worker) return res.status(404).json({ message: "Worker not found" });
-
-    // Also delete photo file from disk
-    if (worker.photo) {
-      const photoPath = path.join(process.cwd(), "uploads", worker.photo);
-      if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
-    }
-    // Delete documents from disk too
+    if (worker.photo) await deleteFile(worker.photo);
     if (Array.isArray(worker.documents) && worker.documents.length > 0) {
       for (const doc of worker.documents) {
-        const docPath = path.join(process.cwd(), "uploads", doc);
-        if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
+        await deleteFile(doc);
       }
     }
-
     res.json({ message: "Worker deleted" });
   } catch {
     res.status(500).json({ message: "Failed to delete worker" });
   }
 });
-
-
 module.exports = router;
