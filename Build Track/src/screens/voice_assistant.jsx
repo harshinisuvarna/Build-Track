@@ -3,12 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { transactionAPI, workerAPI, projectAPI } from "../api";
 
 function extractAmount(text) {
-  text = text.toLowerCase();
-  const num = text.match(/\d+/);
-  if (num) return Number(num[0]);
-  if (text.includes("thousand")) return 1000;
-  if (text.includes("lakh"))     return 100000;
-  if (text.includes("crore"))    return 10000000;
+  const t = text.toLowerCase();
+  const lakhMatch     = t.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)/i);
+  const croreMatch    = t.match(/(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)/i);
+  const thousandMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:thousand|k)\b/i);
+  const plainMatch    = t.match(/\d[\d,]*/);
+
+  if (lakhMatch)     return Math.round(parseFloat(lakhMatch[1])     * 100000);
+  if (croreMatch)    return Math.round(parseFloat(croreMatch[1])    * 10000000);
+  if (thousandMatch) return Math.round(parseFloat(thousandMatch[1]) * 1000);
+  if (plainMatch)    return Number(plainMatch[0].replace(/,/g, ""));
   return 0;
 }
 
@@ -25,6 +29,59 @@ function assignField(text, workers, projects) {
   const workerMatch  = workers.find(w => lower.includes(w.toLowerCase()));
   const projectMatch = projects.find(p => lower.includes(p.toLowerCase()));
   return { worker: workerMatch || "", project: projectMatch || "" };
+}
+
+// Levenshtein edit distance for fuzzy name matching
+function editDist(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => { const r = new Array(n + 1); r[0] = i; return r; });
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+function nameSimilarity(a, b) {
+  const la = a.toLowerCase(), lb = b.toLowerCase();
+  const mx = Math.max(la.length, lb.length);
+  return mx === 0 ? 1 : 1 - editDist(la, lb) / mx;
+}
+
+// Find the best matching worker option by name (fuzzy)
+function fuzzyFindWorker(parsedName, workerOptions) {
+  if (!parsedName || !workerOptions?.length) return null;
+  const lower = parsedName.toLowerCase().trim();
+  // 1) Exact match
+  let match = workerOptions.find(w => w.name?.toLowerCase() === lower);
+  if (match) return match;
+  // 2) Substring
+  match = workerOptions.find(w => w.name?.toLowerCase().includes(lower) || lower.includes(w.name?.toLowerCase()));
+  if (match) return match;
+  // 3) Similarity >= 55%
+  let best = null, bestSim = 0;
+  for (const w of workerOptions) {
+    if (!w.name) continue;
+    const sim = nameSimilarity(lower, w.name);
+    if (sim > bestSim && sim >= 0.55) { bestSim = sim; best = w; }
+  }
+  return best;
+}
+
+// Find the best matching project option by name (fuzzy)
+function fuzzyFindProject(parsedName, projectOptions) {
+  if (!parsedName || !projectOptions?.length) return null;
+  const lower = parsedName.toLowerCase().trim();
+  let match = projectOptions.find(p => p.projectName?.toLowerCase() === lower);
+  if (match) return match;
+  match = projectOptions.find(p => p.projectName?.toLowerCase().includes(lower) || lower.includes(p.projectName?.toLowerCase()));
+  if (match) return match;
+  let best = null, bestSim = 0;
+  for (const p of projectOptions) {
+    if (!p.projectName) continue;
+    const sim = nameSimilarity(lower, p.projectName);
+    if (sim > bestSim && sim >= 0.55) { bestSim = sim; best = p; }
+  }
+  return best;
 }
 
 const categories = ["Wages", "Expense", "Income", "Materials"];
@@ -222,16 +279,29 @@ export default function VoiceAssistantPage() {
         if (!data.category && !data.worker && !data.amount) data = clientFallback(text);
 
         const assigned = assignField(text, workerNames, projectNames);
-        const parsedWorker   = data.worker   || assigned.worker   || "";
-        const parsedProject  = data.project  || assigned.project  || "";
+        const rawWorker  = data.worker  || assigned.worker  || "";
+        const rawProject = data.project || assigned.project || "";
         const parsedAmount   = String(data.amount || "");
         const parsedCategory = data.category || "Expense";
         const parsedNotes    = data.notes    || "";
 
-        const autoProject = parsedProject || "";
+        // Fuzzy-match parsed names against actual worker/project objects
+        const matchedWorker  = fuzzyFindWorker(rawWorker, workerOptions);
+        const matchedProject = fuzzyFindProject(rawProject, projectOptions);
 
-        setWorker(parsedWorker);
-        setProject(autoProject);
+        // Also scan the entire transcript for worker/project names
+        let finalWorker = matchedWorker;
+        if (!finalWorker) {
+          const words = text.toLowerCase().split(/\s+/);
+          for (const word of words) {
+            if (word.length < 3) continue;
+            const found = fuzzyFindWorker(word, workerOptions);
+            if (found) { finalWorker = found; break; }
+          }
+        }
+
+        setWorker(finalWorker?.name || rawWorker);
+        setProject(matchedProject?.projectName || rawProject);
         setAmount(parsedAmount);
         setCategory(parsedCategory);
         setNotes(parsedNotes);
@@ -240,9 +310,21 @@ export default function VoiceAssistantPage() {
       } catch (err) {
         console.error("Voice parse error:", err);
         const fallback = clientFallback(text);
-        const autoProject = fallback.project || "";
-        setWorker(fallback.worker);
-        setProject(autoProject);
+
+        // Fuzzy match in fallback too
+        let fbWorker = fuzzyFindWorker(fallback.worker, workerOptions);
+        if (!fbWorker) {
+          const words = text.toLowerCase().split(/\s+/);
+          for (const word of words) {
+            if (word.length < 3) continue;
+            const found = fuzzyFindWorker(word, workerOptions);
+            if (found) { fbWorker = found; break; }
+          }
+        }
+        const fbProject = fuzzyFindProject(fallback.project, projectOptions);
+
+        setWorker(fbWorker?.name || fallback.worker);
+        setProject(fbProject?.projectName || fallback.project);
         setAmount(String(fallback.amount));
         setCategory(fallback.category);
         setNotes(fallback.notes);

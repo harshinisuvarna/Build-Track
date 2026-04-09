@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { workerAPI } from "../api";
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000")
-    .replace(/\/+$/, "")
-    .replace(/\/api$/, "");
+import { resolveImageUrl } from "../utils/imageUrl";
 
 const trades        = ["Select Trade", "Mason", "Carpenter", "Electrician", "Plumber", "Welder", "Painter", "General Labor", "Site Engineer", "Supervisor"];
 const paymentCycles = ["Weekly", "Bi-Weekly", "Monthly"];
@@ -57,7 +53,7 @@ export default function AddNewWorkerPage() {
       setJoiningDate(new Date(editWorker.joiningDate).toISOString().split("T")[0]);
     }
     if (editWorker?.photo) {
-      setPhotoPreview(`${API_ORIGIN}/uploads/${editWorker.photo}`);
+      setPhotoPreview(resolveImageUrl(editWorker.photo));
     }
   }, [isEditMode, editWorker]);
 

@@ -7,12 +7,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, workerAPI } from "../api";
+import { resolveImageUrl } from "../utils/imageUrl";
 
 // Managers are now loaded dynamically from /api/workers/supervisors
 
 const TOPBAR_H  = 65;
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "").replace(/\/api$/, "");
 
 export default function NewProjectPage() {
   const navigate     = useNavigate();
@@ -82,7 +81,7 @@ export default function NewProjectPage() {
     setManager(editProject.manager || "");
     // Show existing photo as preview
     if (editProject.photo) {
-      setPhotoPreview(`${API_ORIGIN}/uploads/${editProject.photo}`);
+      setPhotoPreview(resolveImageUrl(editProject.photo));
       setRemoveExistingPhoto(false);
       initialPhotoRef.current = editProject.photo;
     } else {

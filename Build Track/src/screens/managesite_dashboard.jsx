@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { workerAPI, transactionAPI, projectAPI } from "../api";
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000")
-    .replace(/\/+$/, "")
-    .replace(/\/api$/, "");
+import { resolveImageUrl } from "../utils/imageUrl";
 
 function projectInitials(name = "") {
   const words = String(name).trim().split(/\s+/).filter(Boolean);
@@ -128,7 +124,7 @@ export default function ManageSitePage() {
   const status       = project.status || "Active";
 
   const hasPhoto = Boolean(project.photo && String(project.photo).trim());
-  const imgSrc = hasPhoto ? `${API_ORIGIN}/uploads/${project.photo}` : "";
+  const imgSrc = hasPhoto ? resolveImageUrl(project.photo) : "";
 
   // Use real stats from API, fallback to budget-only if loading
   const totalBudget = stats?.totalBudget ?? budget;

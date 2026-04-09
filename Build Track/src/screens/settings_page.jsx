@@ -2,11 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { userAPI, authAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000")
-    .replace(/\/+$/, "")
-    .replace(/\/api$/, "");
+import { resolveImageUrl } from "../utils/imageUrl";
 
 function Toggle({ on, onToggle }) {
   return (
@@ -69,11 +65,7 @@ export default function SettingsPage() {
         setTwoFA(u.twoFactorEnabled);
       }
       if (u.profilePhoto) {
-        if (u.profilePhoto.startsWith("http")) {
-          setProfileImage(u.profilePhoto);
-        } else {
-          setProfileImage(`${API_ORIGIN}/uploads/${u.profilePhoto}`);
-        }
+        setProfileImage(resolveImageUrl(u.profilePhoto));
       }
     }
     // Also fetch fresh user data from backend to ensure 2FA state is current

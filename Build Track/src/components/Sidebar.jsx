@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { navItems } from "../navItems";
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000")
-    .replace(/\/+$/, "")
-    .replace(/\/api$/, "");
+import { resolveImageUrl } from "../utils/imageUrl";
 
 /* ── BuildTrack Logo Icon ── */
 function LogoIcon({ size = 38 }) {
@@ -49,9 +45,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   }, []);
 
   const photoUrl = user?.profilePhoto
-    ? (user.profilePhoto.startsWith("http")
-      ? user.profilePhoto
-      : `${API_ORIGIN}/uploads/${user.profilePhoto}`)
+    ? resolveImageUrl(user.profilePhoto)
     : null;
 
   // Bug 23: Logout handler — clears auth state and redirects to login

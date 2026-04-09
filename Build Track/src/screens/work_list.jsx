@@ -9,11 +9,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { workerAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
+import { resolveImageUrl } from "../utils/imageUrl";
 
 const ITEMS_PER_PAGE = 7;
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "").replace(/\/api$/, "");
 
 // Generate initials from name
 const getInitials = (name = "") =>
@@ -28,7 +26,7 @@ function WorkerAvatar({ worker, size = 38, borderRadius = 10, fontSize = 13 }) {
 
   return worker.photo ? (
     <img
-      src={`${API_ORIGIN}/uploads/${worker.photo}`}
+      src={resolveImageUrl(worker.photo)}
       alt={worker.name}
       style={{
         width: size, height: size, borderRadius,

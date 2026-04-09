@@ -7,9 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate }         from "react-router-dom";
 import { projectAPI }          from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "").replace(/\/api$/, "");
+import { resolveImageUrl } from "../utils/imageUrl";
 
 const STATUS_STYLE = {
   Active:         { bg: "#dcfce7", color: "#166534", label: "ACTIVE" },
@@ -213,7 +211,7 @@ export default function ProjectsPage() {
             {filtered.map((p) => {
               const st = STATUS_STYLE[p.status] || STATUS_STYLE["Active"];
               const hasPhoto = Boolean(p.photo && String(p.photo).trim());
-              const imgSrc = hasPhoto ? `${API_ORIGIN}/uploads/${p.photo}` : "";
+              const imgSrc = hasPhoto ? resolveImageUrl(p.photo) : "";
 
               return (
                 <div key={p._id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: 20, boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
