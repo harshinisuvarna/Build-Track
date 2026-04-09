@@ -98,10 +98,7 @@ app.use(passport.initialize());
 
 // ── MongoDB connection ────────────────────────────────────────────────────────
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser:    true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
@@ -143,6 +140,20 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Start server ──────────────────────────────────────────────────────────────
-app.listen(PORT, () =>
-  console.log(`🚀 BuildTrack API → http://localhost:${PORT}  [${NODE_ENV}]`)
+const server = app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT} [${NODE_ENV}]`)
 );
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+const shutdown = (signal) => {
+  console.log(`\n⏳ ${signal} received — shutting down gracefully…`);
+  server.close(() => {
+    mongoose.connection.close(false).then(() => {
+      console.log("🛑 MongoDB connection closed. Bye!");
+      process.exit(0);
+    });
+  });
+};
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));

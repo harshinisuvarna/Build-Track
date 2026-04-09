@@ -13,6 +13,8 @@ dist-ssr
 *.local
 .env
 .env.example
+uploads/*
+!uploads/.gitkeep
 
 
 # Editor directories and files
