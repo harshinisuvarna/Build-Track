@@ -4,7 +4,6 @@ const toObjectIdOrNull = function (value) {
   if (typeof value === "object" && value?._id) value = value._id;
   return mongoose.Types.ObjectId.isValid(value) ? value : null;
 };
-
 const transactionSchema = new mongoose.Schema(
   {
     createdBy: {
@@ -71,9 +70,7 @@ const transactionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 }); // for material filtering & reports
-
 module.exports = mongoose.model("Transaction", transactionSchema);
