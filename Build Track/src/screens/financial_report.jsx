@@ -5,7 +5,6 @@ import { Toast } from "../components/Toast";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTH_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const YEARS        = Array.from({ length: 11 }, (_, i) => 2020 + i);
@@ -51,8 +50,6 @@ function escapeCsv(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-
-// ── Mini Calendar with month+year dropdowns in header ────────────────────────
 function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
                         onDayClick, onDayHover, setCalYear, setCalMonth }) {
 
@@ -88,7 +85,6 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
   return (
     <div style={{ padding:"16px", minWidth:272 }}>
 
-      {/* ── Header: ‹  [Month ▾]  [Year ▾]  › ── */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:6 }}>
 
         <button onClick={prevMonth}
@@ -96,7 +92,6 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
 
         <div style={{ display:"flex", gap:6, flex:1, justifyContent:"center" }}>
 
-          {/* Month dropdown */}
           <div ref={monthMenuRef} style={{ position:"relative" }}>
             <button
               onClick={() => { setShowMonthMenu(v=>!v); setShowYearMenu(false); }}
@@ -118,7 +113,6 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
             )}
           </div>
 
-          {/* Year dropdown */}
           <div ref={yearMenuRef} style={{ position:"relative" }}>
             <button
               onClick={() => { setShowYearMenu(v=>!v); setShowMonthMenu(false); }}
@@ -145,14 +139,12 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
           style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#555", padding:"2px 8px", borderRadius:6, lineHeight:1 }}>›</button>
       </div>
 
-      {/* Day-of-week labels */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
           <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#aaa", padding:"2px 0" }}>{d}</div>
         ))}
       </div>
 
-      {/* Day cells */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
         {cells.map((day, i) => {
           if (!day) return <div key={`e${i}`} />;
@@ -185,11 +177,9 @@ function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
 
 export default function FinancialReportPage() {
 
-  // ── Date states ───────────────────────────────────────────────────────────
   const [selYear,  setSelYear]  = useState(THIS_YEAR);
   const [selMonth, setSelMonth] = useState(THIS_MONTH);
 
-  // ── Data states ───────────────────────────────────────────────────────────
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -213,14 +203,13 @@ export default function FinancialReportPage() {
   const [toast,       setToast]       = useState({ msg: "", type: "info" });
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  // ── Table controls state ──────────────────────────────────────────────────
   const [sortKey,     setSortKey]     = useState("name");
   const [showSort,    setShowSort]    = useState(false);
   const sortRef = useRef(null);
 
   const navigate = useNavigate();
 
-  // ── Export CSV handler ──────────────────────────────────────────────────
+
   const handleExportCSV = async () => {
     try {
       setExporting(true);
@@ -252,7 +241,7 @@ export default function FinancialReportPage() {
     }
   };
 
-  // ── Download PDF handler ────────────────────────────────────────────────
+
   const handleDownloadPDF = async () => {
     try {
       setExporting(true);
@@ -377,7 +366,7 @@ export default function FinancialReportPage() {
       return (a.name || "").localeCompare(b.name || "");
     });
 
-  // ── Apply a month selection (shared by month-dropdown & last-month btn) ───
+
   function applyMonth(year, month) {
     setSelYear(year);
     setSelMonth(month);
@@ -408,7 +397,6 @@ export default function FinancialReportPage() {
     <div style={{ flex:1, minWidth:0, width:"100%", display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:"#f7f7f8", fontFamily:"'Segoe UI', sans-serif" }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
-      {/* Topbar */}
       <div style={{ background:"#fff", borderBottom:"1px solid #ebebeb", padding:"0 28px", height:64, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxSizing:"border-box" }}>
         <h1 style={{ margin:0, fontSize:20, fontWeight:800, color:"#111", whiteSpace:"nowrap" }}>Financial Reports</h1>
         <div style={{ flex:1, maxWidth:420, margin:"0 auto", display:"flex", alignItems:"center", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:10, padding:"9px 14px", gap:8 }}>
@@ -422,7 +410,6 @@ export default function FinancialReportPage() {
         </div>
       </div>
 
-      {/* Body */}
       <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"28px 28px 60px", boxSizing:"border-box" }}>
 
         {/* Page heading */}

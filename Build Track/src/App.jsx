@@ -3,7 +3,7 @@ import DashboardLayout from "./layout/DashboardLayout";
 
 import LoginPage       from "./pages/login_page";
 import SignUpPage      from "./pages/signup_page";
-import OAuthCallback   from "./pages/oauth_callback";   // ← OAuth landing page
+import OAuthCallback   from "./pages/oauth_callback";
 import Dashboard       from "./screens/dashboard_page";
 import VoiceAssistant  from "./screens/voice_assistant";
 import Workers         from "./screens/work_list";
@@ -27,7 +27,7 @@ export default function App() {
     <Routes>
       <Route path="/login"          element={<LoginPage />} />
       <Route path="/signup"         element={<SignUpPage />} />
-      <Route path="/oauth/callback" element={<OAuthCallback />} />   {/* ← OAuth token landing */}
+      <Route path="/oauth/callback" element={<OAuthCallback />} />
 
       <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route path="/"            element={<Dashboard />} />

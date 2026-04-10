@@ -1,19 +1,6 @@
-// src/pages/login_page.jsx
-// CONNECTED TO BACKEND:
-//  • Calls POST /api/auth/login with email + password
-//  • Stores JWT in localStorage as "bt_token"
-//  • Stores user object as "bt_user"
-//  • Redirects to "/" (dashboard) on success
-//  • Shows exact error message from server on failure
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { authAPI } from "../api";
-
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000")
-    .replace(/\/+$/, "")
-    .replace(/\/api$/, "");
+import { authAPI, API_ORIGIN } from "../api";
 
 const EyeOpen = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -58,7 +45,7 @@ export default function LoginPage() {
   const [shake,      setShake]      = useState(false);
   const [emailErr,   setEmailErr]   = useState("");
   const [passErr,    setPassErr]    = useState("");
-  const [serverErr,  setServerErr]  = useState(""); // ← real API errors shown here
+  const [serverErr,  setServerErr]  = useState("");
   const [emailFocus, setEmailFocus] = useState(false);
   const [passFocus,  setPassFocus]  = useState(false);
   const [vw,         setVw]         = useState(window.innerWidth);
@@ -68,7 +55,7 @@ export default function LoginPage() {
   const [forgotErr,   setForgotErr]   = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // If already logged in, skip straight to dashboard
+
   useEffect(() => {
     if (localStorage.getItem("bt_token")) navigate("/", { replace: true });
   }, []);
@@ -84,11 +71,10 @@ export default function LoginPage() {
 
   const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
-  // ── Main login handler ──────────────────────────────────────────────────────
   const handleLogin = async (e) => {
     if (e?.preventDefault) e.preventDefault();
 
-    // Client-side validation first
+
     let valid = true;
     setEmailErr(""); setPassErr(""); setServerErr("");
 
@@ -98,23 +84,19 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-
       const { data } = await authAPI.login({ email, password });
 
 
-
-      // Persist token + user for the session
       localStorage.setItem("bt_token", data.token);
       localStorage.setItem("bt_user",  JSON.stringify(data.user));
 
 
-
-      // Hard navigate so `RequireAuth` definitely re-evaluates
       window.location.assign("/");
     } catch (err) {
-
-      const msg = err.response?.data?.message || "Something went wrong. Try again.";
-      // 401 → credentials, anything else → general error banner
+      const msg =
+        err.friendlyMessage ||
+        err.response?.data?.message ||
+        "Something went wrong. Please try again.";
       if (err.response?.status === 401) {
         setPassErr(msg);
         setServerErr(msg);
@@ -128,9 +110,6 @@ export default function LoginPage() {
     }
   };
 
-  // (Enter key handled by <form onSubmit>)
-
-  // ── Styles ──────────────────────────────────────────────────────────────────
   const inputStyle = (focused, hasErr) => ({
     width: "100%", boxSizing: "border-box",
     padding: "13px 16px",
@@ -184,7 +163,6 @@ export default function LoginPage() {
     .bt-footer-link:hover { color:#94a3b8; }
   `;
 
-  // ── Form ────────────────────────────────────────────────────────────────────
   const FormFields = (
     <div style={{ animation: shake ? "btShake 0.42s ease" : "none" }}>
 
@@ -269,7 +247,7 @@ export default function LoginPage() {
               }
             }}
             disabled={forgotLoading}
-            style={{ width: "100%", padding: "11px 0", background: forgotLoading ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: forgotLoading ? "not-allowed" : "pointer" }}>
+            style={{ width: "100%", padding: "11px 0", background: forgotLoading ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: forgotLoading ? "not-allowed" : "pointer", textAlign: "center" }}>
             {forgotLoading ? "Sending…" : "Send Reset Link"}
           </button>
           {forgotMsg && <div style={{ marginTop: 10, fontSize: 13, color: "#166534", fontWeight: 600 }}>✅ {forgotMsg}</div>}

@@ -1,6 +1,3 @@
-// src/screens/worker_details_page.jsx
-// Receives worker data via react-router navigation state from financial_report.jsx
-
 import { useLocation, useNavigate } from "react-router-dom";
 
 export default function WorkerDetailsPage() {
@@ -8,7 +5,6 @@ export default function WorkerDetailsPage() {
   const navigate   = useNavigate();
   const worker     = state?.worker;
 
-  // ── Guard: if landed directly without state, bounce back ─────────────────
   if (!worker) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "'Segoe UI', sans-serif", gap: 16 }}>
@@ -25,10 +21,10 @@ export default function WorkerDetailsPage() {
   }
 
   const {
-    name                  = "N/A",
-    trade                 = "—",
-    project               = "Various",
-    dailyWage             = 0,
+    name                   = "N/A",
+    trade                  = "—",
+    project                = "Various",
+    dailyWage              = 0,
     estimatedMonthlyPayout = 0,
     status,
     phone,
@@ -40,16 +36,15 @@ export default function WorkerDetailsPage() {
   const initials = name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   const statCards = [
-    { label: "Daily Wage",       value: `₹${Number(dailyWage).toLocaleString("en-IN")}`,                      icon: "💰" },
-    { label: "Monthly Payout",   value: `₹${Number(estimatedMonthlyPayout).toLocaleString("en-IN")}`,          icon: "📆" },
-    { label: "Trade / Role",     value: trade || "—",                                                           icon: "🔧" },
-    { label: "Project",          value: project || "Various",                                                   icon: "🏗️" },
+    { label: "Daily Wage",     value: `₹${Number(dailyWage).toLocaleString("en-IN")}`,             icon: "💰" },
+    { label: "Monthly Payout", value: `₹${Number(estimatedMonthlyPayout).toLocaleString("en-IN")}`, icon: "📆" },
+    { label: "Trade / Role",   value: trade || "—",                                                  icon: "🔧" },
+    { label: "Project",        value: project || "Various",                                           icon: "🏗️" },
   ];
 
   return (
     <div style={{ flex: 1, minWidth: 0, height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "#f7f7f8", fontFamily: "'Segoe UI', sans-serif" }}>
 
-      {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
       <div style={{ background: "#fff", borderBottom: "1px solid #ebebeb", padding: "0 28px", height: 64, flexShrink: 0, display: "flex", alignItems: "center", gap: 16 }}>
         <button
           onClick={() => navigate(-1)}
@@ -61,12 +56,9 @@ export default function WorkerDetailsPage() {
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111" }}>Worker Details</h1>
       </div>
 
-      {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 28px 60px", boxSizing: "border-box" }}>
 
-        {/* Profile Hero */}
         <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #ebebeb", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "32px 36px", display: "flex", alignItems: "center", gap: 28, marginBottom: 28, flexWrap: "wrap" }}>
-          {/* Avatar */}
           <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,#ea580c,#f97316)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: "#fff", flexShrink: 0, boxShadow: "0 4px 16px rgba(234,88,12,0.35)" }}>
             {initials}
           </div>
@@ -75,13 +67,12 @@ export default function WorkerDetailsPage() {
             <h2 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 900, color: "#111" }}>{name}</h2>
             <p style={{ margin: "0 0 12px", fontSize: 14, color: "#888" }}>{trade}{project && project !== "Various" ? ` · ${project}` : ""}</p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {phone  && <span style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>📞 {phone}</span>}
-              {email  && <span style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>✉️ {email}</span>}
+              {phone    && <span style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>📞 {phone}</span>}
+              {email    && <span style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>✉️ {email}</span>}
               {joinDate && <span style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>📅 Joined {new Date(joinDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>}
             </div>
           </div>
 
-          {/* Status badge */}
           {status && (
             <div style={{
               padding: "8px 18px", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
@@ -93,7 +84,6 @@ export default function WorkerDetailsPage() {
           )}
         </div>
 
-        {/* Stat Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 28 }}>
           {statCards.map(s => (
             <div key={s.label} style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "22px 20px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -104,7 +94,6 @@ export default function WorkerDetailsPage() {
           ))}
         </div>
 
-        {/* Attendance (if present) */}
         {typeof attendance === "number" && (
           <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "24px 24px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", marginBottom: 28 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#aaa", letterSpacing: "0.08em", marginBottom: 14 }}>ATTENDANCE</div>
@@ -116,8 +105,6 @@ export default function WorkerDetailsPage() {
             </div>
           </div>
         )}
-
-
 
       </div>
     </div>

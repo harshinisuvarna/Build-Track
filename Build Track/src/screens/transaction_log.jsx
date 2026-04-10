@@ -43,7 +43,6 @@ export default function TransactionLog() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Tx load error:", err);
         setError(
           err?.response?.data?.message ||
           "Failed to load transactions. Please try again."
@@ -163,7 +162,6 @@ export default function TransactionLog() {
         />
       )}
 
-      {/* ── Top Bar ── */}
       <div
         style={{
           flexShrink: 0,
@@ -227,7 +225,6 @@ export default function TransactionLog() {
         </div>
       </div>
 
-      {/* ── Body ── */}
       <div
         style={{
           flex: 1,
@@ -352,7 +349,6 @@ export default function TransactionLog() {
           </div>
         </div>
 
-        {/* ── Table Card ── */}
         <div
           style={{
             background: "#fff",
@@ -612,7 +608,6 @@ export default function TransactionLog() {
           </div>
         </div>
 
-        {/* ── Summary Cards ── */}
         <div
           style={{
             display: "grid",

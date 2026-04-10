@@ -24,8 +24,8 @@ export default function AddNewWorkerPage() {
   const [dailyWage,    setDailyWage]    = useState("800");
   const [paymentCycle, setPaymentCycle] = useState("Weekly");
   const [dragOver,     setDragOver]     = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);  // blob URL for display
-  const [photoFile,    setPhotoFile]    = useState(null);  // actual File object to upload
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoFile,    setPhotoFile]    = useState(null);
   const [documents,    setDocuments]    = useState([]);
   const [saving,       setSaving]       = useState(false);
   const [serverErr,    setServerErr]    = useState("");
@@ -38,7 +38,6 @@ export default function AddNewWorkerPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Pre-fill when in edit mode (data from route state) ───────────────────
   useEffect(() => {
     if (!isEditMode) return;
     setFullName(editWorker?.name || "");
@@ -57,7 +56,7 @@ export default function AddNewWorkerPage() {
     }
   }, [isEditMode, editWorker]);
 
-  // ── Save / Update handler ─────────────────────────────────────────────────
+
   const handleSave = async () => {
     if (!fullName.trim()) { setServerErr("Worker name is required."); return; }
     if (trade === "Select Trade") { setServerErr("Please select a trade."); return; }
@@ -66,7 +65,6 @@ export default function AddNewWorkerPage() {
     setServerErr("");
     setSaving(true);
     try {
-      // ── Build FormData so image file is included in the request ─────────────
       const form = new FormData();
       form.append("name",         fullName.trim());
       form.append("trade",        trade === "Select Trade" ? "General Labor" : trade);
@@ -75,11 +73,7 @@ export default function AddNewWorkerPage() {
       form.append("status",       status);
       form.append("dailyWage",    dailyWage);
       form.append("paymentCycle", paymentCycle);
-      if (photoFile) form.append("photo", photoFile);   // ← attach image file
-
-      // NOTE: documents are not appended to FormData because the backend
-      // only handles a single "photo" via multer.single("photo").
-      // Document upload support requires a multer.array("documents") handler.
+      if (photoFile) form.append("photo", photoFile);
 
       if (isEditMode && editWorker?._id) {
         await workerAPI.update(editWorker._id, form);
@@ -161,10 +155,8 @@ export default function AddNewWorkerPage() {
               ← Worker Directory
             </span>
             <span>/</span>
-            {/* ── Breadcrumb label changes based on mode ── ← NEW */}
             <span style={{ color: "#555" }}>{isEditMode ? "Edit Worker" : "Add New Worker"}</span>
           </div>
-          {/* ── Page title changes based on mode ── ← NEW */}
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1a1a1a" }}>
             {isEditMode ? `Edit Worker${editWorker?.name ? " — " + editWorker.name : ""}` : "Add New Worker"}
           </h1>
@@ -176,7 +168,6 @@ export default function AddNewWorkerPage() {
           >
             Cancel
           </button>
-          {/* ── Save button label changes based on mode ── ← NEW */}
           <button onClick={handleSave} disabled={saving}
             style={{ padding: "10px 22px", background: saving ? "#f97316" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.3)", display: "flex", alignItems: "center", gap: 8 }}>
             {isEditMode ? "Update Worker" : "Save Worker"}
@@ -237,8 +228,8 @@ export default function AddNewWorkerPage() {
                     onChange={e => {
                       const file = e.target.files[0];
                       if (file) {
-                        setPhotoFile(file);                            // ← store File object
-                        setPhotoPreview(URL.createObjectURL(file));    // ← local preview
+                        setPhotoFile(file);
+                        setPhotoPreview(URL.createObjectURL(file));
                       }
                     }} />
                 </label>
@@ -288,7 +279,6 @@ export default function AddNewWorkerPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Worker ID</label>
-                  {/* ── Show actual worker ID in edit mode (from route state) ── */}
                   <input
                     value={
                       isEditMode

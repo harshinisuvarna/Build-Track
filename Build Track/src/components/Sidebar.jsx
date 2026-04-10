@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { navItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
 
-/* ── BuildTrack Logo Icon ── */
+
 function LogoIcon({ size = 38 }) {
   return (
     <div style={{
@@ -48,7 +48,7 @@ export default function Sidebar({ collapsed, onToggle }) {
     ? resolveImageUrl(user.profilePhoto)
     : null;
 
-  // Bug 23: Logout handler — clears auth state and redirects to login
+
   const handleLogout = () => {
     localStorage.removeItem("bt_token");
     localStorage.removeItem("bt_user");
@@ -72,9 +72,9 @@ export default function Sidebar({ collapsed, onToggle }) {
         transition: "width 0.25s ease, min-width 0.25s ease, padding 0.25s ease",
       }}
     >
-      {/* ── Logo + Navigation wrapped together ── */}
+
       <div>
-        {/* Logo */}
+
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <LogoIcon />
           <div>
@@ -83,8 +83,6 @@ export default function Sidebar({ collapsed, onToggle }) {
           </div>
         </div>
 
-        {/* Navigation */}
-        {/* Bug 25: Add `end` prop to Dashboard NavLink so "/" only activates on exact match */}
         {navItems.map((item) => (
           <NavLink
             key={item.label}
@@ -109,7 +107,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         ))}
       </div>
 
-      {/* ── User Profile + Logout — pushed to bottom ── */}
+
       <div style={{
         marginTop: "auto",
         padding: "16px 0 0",
@@ -140,7 +138,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           </div>
         </div>
 
-        {/* Bug 23: Logout button */}
+
         <button
           onClick={handleLogout}
           style={{

@@ -13,7 +13,7 @@ export default function ManageSitePage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ── Read project from route state ─────────────────────────────────────────
+
   const project = location.state?.project || null;
 
   const [isMobile,     setIsMobile]     = useState(window.innerWidth < 768);
@@ -23,7 +23,7 @@ export default function ManageSitePage() {
   const [loadingW,     setLoadingW]     = useState(true);
   const [loadingT,     setLoadingT]     = useState(true);
 
-  // ── Real financial stats from aggregation API ─────────────────────────────
+
   const [stats,        setStats]        = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -33,7 +33,6 @@ export default function ManageSitePage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Load real financial stats ─────────────────────────────────────────────
   useEffect(() => {
     if (!project) return;
     const projectId = project._id || project.id;
@@ -44,7 +43,7 @@ export default function ManageSitePage() {
       .finally(() => setLoadingStats(false));
   }, [project]);
 
-  // ── Load workers filtered by current project ─────────────────────────────
+
   useEffect(() => {
     if (!project) return;
     setLoadingW(true);
@@ -63,7 +62,6 @@ export default function ManageSitePage() {
       .finally(() => setLoadingW(false));
   }, [project]);
 
-  // ── Load recent transactions filtered by current project ──────────────────
   useEffect(() => {
     if (!project) return;
     setLoadingT(true);
@@ -91,7 +89,7 @@ export default function ManageSitePage() {
       .finally(() => setLoadingT(false));
   }, [project]);
 
-  // If no project was passed, redirect back to projects list
+
   if (!project) {
     return (  
       <div style={{
@@ -116,7 +114,6 @@ export default function ManageSitePage() {
     );
   }
 
-  // ── Derived data from project + stats ─────────────────────────────────────
   const projectName  = project.projectName || "Untitled Project";
   const projectLoc   = project.location || "—";
   const progress     = project.progress || 0;
@@ -126,12 +123,12 @@ export default function ManageSitePage() {
   const hasPhoto = Boolean(project.photo && String(project.photo).trim());
   const imgSrc = hasPhoto ? resolveImageUrl(project.photo) : "";
 
-  // Use real stats from API, fallback to budget-only if loading
+
   const totalBudget = stats?.totalBudget ?? budget;
   const spent       = stats?.totalSpent ?? 0;
   const remaining   = stats?.remainingBudget ?? (budget - spent);
 
-  // Status badge colors
+
   const statusMap = {
     Active:          { bg: "#dcfce7", color: "#166534" },
     Completed:       { bg: "#e0e7ff", color: "#3730a3" },
@@ -140,12 +137,12 @@ export default function ManageSitePage() {
   };
   const st = statusMap[status] || statusMap.Active;
 
-  // Active personnel = first 4 workers + overflow
+
   const activeWorkers = workers.filter(w => w.status === "Active");
   const shownWorkers  = activeWorkers.slice(0, 4);
   const overflowCount = Math.max(0, activeWorkers.length - 4);
 
-  // Activity log from real transactions
+
   const activityIcons = {
     Income:    { icon: "💰", color: "#dcfce7" },
     Wages:     { icon: "👷", color: "#dbeafe" },
@@ -171,7 +168,7 @@ export default function ManageSitePage() {
     return worker.name || worker.displayId || "";
   };
 
-  // Simple milestone estimate from progress
+
   const milestones = [
     { label: "Foundation",         phase: 1, done: progress >= 20 },
     { label: "Structure",          phase: 2, done: progress >= 40 },

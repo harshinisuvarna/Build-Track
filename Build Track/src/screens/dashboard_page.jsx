@@ -12,7 +12,6 @@ export default function DashboardPage() {
   const [error,     setError]     = useState("");
   const [isNarrow,  setIsNarrow]  = useState(window.innerWidth < 640);
 
-  // ✅ NEW: local transactions so we can compute Materials spend client-side
   const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
@@ -24,7 +23,6 @@ export default function DashboardPage() {
   useEffect(() => {
     let isMounted = true;
 
-    // ✅ Fetch dashboard summary AND all transactions in parallel
     Promise.all([
       dashboardAPI.getSummary(),
       transactionAPI.getAll(),
@@ -35,9 +33,8 @@ export default function DashboardPage() {
         setTransactions(txRes.data.transactions || []);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(() => {
         if (!isMounted) return;
-        console.error("Dashboard load error:", err);
         setError("Failed to load dashboard data");
         setLoading(false);
       });
@@ -66,7 +63,6 @@ export default function DashboardPage() {
   const { weeklyChart, recentProjects, recentActivity } = dashData;
   const s = dashData.stats;
 
-  // ✅ Recalculate totals client-side so Materials is always counted as expense
   const totalIncome = transactions
     .filter(t => t.type === "Income")
     .reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -81,7 +77,6 @@ export default function DashboardPage() {
 
   const netProfit = totalIncome - totalExpenses;
 
-  // ✅ Use client-computed values; fall back to backend stats if no transactions yet
   const income   = transactions.length ? totalIncome   : (s.totalIncome   || 0);
   const expenses = transactions.length ? totalExpenses : (s.totalExpenses || 0);
   const profit   = transactions.length ? netProfit     : (s.netProfit     || 0);
@@ -93,7 +88,6 @@ export default function DashboardPage() {
     { label: "Active Workers",  value: (s.activeWorkers || 0).toString(),                change: "Currently Active", up: true,  icon: "👥", bg: "#f5f3ff" },
   ];
 
-  // ✅ Extra row: Materials spend card (only shown if any materials exist)
   const showMaterials = materialsSpend > 0;
 
   return (
@@ -267,7 +261,6 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{new Date(a.date).toLocaleDateString()}</div>
                 </div>
-                {/* ✅ Show amount in activity feed */}
                 <div style={{ fontSize: 13, fontWeight: 700, color: a.type === "Income" ? "#16a34a" : "#dc2626", flexShrink: 0 }}>
                   {a.type === "Income" ? "+" : "−"}₹{(a.amount || 0).toLocaleString("en-IN")}
                 </div>

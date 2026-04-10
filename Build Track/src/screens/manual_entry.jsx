@@ -1,11 +1,3 @@
-// src/screens/manual_entry.jsx
-// ✅ CONNECTED TO BACKEND:
-//   • GET  /api/workers         → populates Worker dropdown with real names
-//   • GET  /api/projects        → populates Project dropdown with real names
-//   • POST /api/transactions    → saves new entry as JSON
-//   • GET  /api/transactions    → loads and displays recent entries list
-//   • DELETE /api/transactions/:id → removes an entry
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { workerAPI, projectAPI, transactionAPI } from "../api";
@@ -25,11 +17,10 @@ export default function ManualEntryPage() {
 
   const [isMobile,  setIsMobile]  = useState(window.innerWidth < 768);
 
-  // ── Dropdown data loaded from backend ─────────────────────────────────────
+
   const [workerOptions,  setWorkerOptions]  = useState([]);
   const [projectOptions, setProjectOptions] = useState([]);
 
-  // ── Form state ────────────────────────────────────────────────────────────
   const [txType,    setTxType]    = useState("");
   const [date,      setDate]      = useState(() => new Date().toISOString().split("T")[0]);
   const [worker,    setWorker]    = useState("");
@@ -38,17 +29,15 @@ export default function ManualEntryPage() {
   const [amount,    setAmount]    = useState("");
   const [notes,     setNotes]     = useState("");
 
-  // ✅ NEW: Materials-specific fields
   const [quantity,  setQuantity]  = useState("");
   const [unit,      setUnit]      = useState("");
   const [rate,      setRate]      = useState("");
 
-  // ── UI state ──────────────────────────────────────────────────────────────
   const [saving,      setSaving]      = useState(false);
   const [errMsg,      setErrMsg]      = useState("");
   const [successMsg,  setSuccessMsg]  = useState("");
 
-  // ── Transactions list ─────────────────────────────────────────────────────
+
   const [transactions, setTransactions] = useState([]);
   const [txLoading,    setTxLoading]    = useState(true);
   const [toast,        setToast]        = useState({ msg: "", type: "info" });
@@ -63,29 +52,26 @@ export default function ManualEntryPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Load workers + projects for dropdowns ─────────────────────────────────
   useEffect(() => {
     workerAPI.getAll()
       .then(({ data }) => setWorkerOptions(data.workers || []))
-      .catch(err => console.warn("Could not load workers:", err));
+      .catch(() => {});
 
     projectAPI.getAll()
       .then(({ data }) => setProjectOptions(data.projects || []))
-      .catch(err => console.warn("Could not load projects:", err));
+      .catch(() => {});
   }, []);
 
-  // ── Load existing transactions ─────────────────────────────────────────────
   const fetchTransactions = () => {
     setTxLoading(true);
     transactionAPI.getAll()
       .then(({ data }) => setTransactions(data.transactions || []))
-      .catch(err => console.error("Could not load transactions:", err))
+      .catch(() => {})
       .finally(() => setTxLoading(false));
   };
 
   useEffect(() => { fetchTransactions(); }, []);
 
-  // ✅ Auto-calculate amount when quantity or rate changes (Materials only)
   useEffect(() => {
     if (txType === "Materials") {
       const q = parseFloat(quantity) || 0;
@@ -94,7 +80,6 @@ export default function ManualEntryPage() {
     }
   }, [quantity, rate, txType]);
 
-  // ── Submit form ───────────────────────────────────────────────────────────
   const handleSave = async () => {
     setErrMsg("");
     setSuccessMsg("");
@@ -102,7 +87,6 @@ export default function ManualEntryPage() {
     if (!txType)       { setErrMsg("Please select a transaction type."); return; }
     if (!title.trim()) { setErrMsg("Please enter a title/description."); return; }
 
-    // ✅ For Materials: validate quantity + rate instead of manual amount
     if (txType === "Materials") {
       if (!quantity || parseFloat(quantity) <= 0) { setErrMsg("Please enter a valid quantity."); return; }
       if (!rate     || parseFloat(rate)     <= 0) { setErrMsg("Please enter a valid rate.");     return; }
@@ -125,7 +109,6 @@ export default function ManualEntryPage() {
         notes:   notes.trim(),
       };
 
-      // ✅ Include materials fields only when relevant
       if (txType === "Materials") {
         payload.quantity = parseFloat(quantity) || 0;
         payload.unit     = unit.trim();
@@ -135,24 +118,21 @@ export default function ManualEntryPage() {
       await transactionAPI.create(payload);
       setSuccessMsg("Entry saved successfully!");
 
-      // Reset form
       setTxType(""); setTitle(""); setAmount(""); setNotes("");
       setWorker(""); setProject("");
       setDate(new Date().toISOString().split("T")[0]);
-      // ✅ Reset materials fields too
       setQuantity(""); setUnit(""); setRate("");
 
       fetchTransactions();
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
-      console.error(err);
       setErrMsg(err.response?.data?.message || "Failed to save entry. Try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Delete transaction ────────────────────────────────────────────────────
+
   const handleDelete = (id) => {
     const tx = transactions.find(t => t._id === id);
     setConfirmDlg({
@@ -172,7 +152,6 @@ export default function ManualEntryPage() {
     });
   };
 
-  // ── Shared styles ─────────────────────────────────────────────────────────
   const selectStyle = {
     width: "100%", padding: "11px 14px",
     background: "#f9f9f9", border: "1px solid #e5e5e5",
@@ -267,7 +246,6 @@ export default function ManualEntryPage() {
                   <div style={{ position: "relative" }}>
                     <select value={txType} onChange={e => {
                       setTxType(e.target.value);
-                      // ✅ Clear materials fields when switching away
                       if (e.target.value !== "Materials") {
                         setQuantity(""); setUnit(""); setRate("");
                       }
@@ -313,7 +291,6 @@ export default function ManualEntryPage() {
                 </div>
               </div>
 
-              {/* ✅ NEW: Materials fields — only shown when type is Materials */}
               {txType === "Materials" && (
                 <div style={{
                   background: "#fff7ed",
@@ -391,7 +368,6 @@ export default function ManualEntryPage() {
                   <input
                     type="number" value={amount} onChange={e => setAmount(e.target.value)}
                     placeholder="0.00" min="0"
-                    // ✅ Read-only when Materials (auto-calculated), editable otherwise
                     readOnly={txType === "Materials"}
                     style={{
                       flex: 1, border: "none", background: "transparent", outline: "none",
@@ -454,7 +430,7 @@ export default function ManualEntryPage() {
                 </button>
               </div>
 
-            </div> {/* ← closes Form Card */}
+            </div>
 
             {/* ── Tip Banner ── */}
             <div style={{ background: "#fff9f5", border: "1px solid #fed7aa", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
@@ -506,7 +482,6 @@ export default function ManualEntryPage() {
                           </div>
                           <div style={{ fontSize: 12, color: "#999", display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <span style={{ padding: "1px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{tx.type}</span>
-                            {/* ✅ Show qty/unit/rate in recent entries for Materials */}
                             {tx.type === "Materials" && tx.quantity
                               ? <span>📦 {tx.quantity} {tx.unit || ""} @ ₹{(tx.rate || 0).toLocaleString("en-IN")}</span>
                               : null
