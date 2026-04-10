@@ -1,0 +1,46 @@
+/* ── BuildTrack Global Reset ────────────────────────────────────────────────── */
+/* Bug 30: Replaced Vite dark-mode defaults with a clean light-mode foundation */
+/* Bug 31: Replaced Vite button defaults with a proper CSS reset */
+
+:root {
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #1a1a1a;
+  background-color: #f7f7f8;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: #ea580c;
+  text-decoration: none;
+}
+a:hover {
+  color: #c2410c;
+  text-decoration: underline;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  background: #f7f7f8;
+  color: #1a1a1a;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Reset buttons so inline styles have full control */
+button {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+}
