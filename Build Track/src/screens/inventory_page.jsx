@@ -22,18 +22,16 @@ const C = {
   card   : "#ffffff",
 };
 
-const LOW_STOCK_THRESHOLD = 0.15; 
-
-function stockStatus(item) {
-  if (item.closingStock <= 0)                                    return "empty";
-  if (item.purchased > 0 && item.closingStock / item.purchased < LOW_STOCK_THRESHOLD) return "low";
-  return "ok";
+function getStatus(balance, threshold = 5) {
+  if (balance <= 0) return "Out of Stock";
+  if (balance <= threshold) return "Low Stock";
+  return "In Stock";
 }
 
 const STATUS_META = {
-  ok    : { label: "In Stock",   bg: C.greenL,  color: C.green,  dot: C.green  },
-  low   : { label: "Low Stock",  bg: C.yellowL, color: C.yellow, dot: C.yellow },
-  empty : { label: "Out of Stock", bg: C.redL,  color: C.red,    dot: C.red    },
+  "In Stock": { label: "In Stock", bg: C.greenL, color: C.green, dot: C.green },
+  "Low Stock": { label: "Low Stock", bg: C.yellowL, color: C.yellow, dot: C.yellow },
+  "Out of Stock": { label: "Out of Stock", bg: C.redL, color: C.red, dot: C.red },
 };
 
 export default function InventoryPage() {
@@ -46,6 +44,7 @@ export default function InventoryPage() {
   const [filterStatus,   setFilterStatus]   = useState("all");
   const [sortBy,         setSortBy]         = useState("name");   // name | stock | purchased | status
   const [sortDir,        setSortDir]        = useState("asc");
+  const [thresholdDrafts, setThresholdDrafts] = useState({});
   const fetchInventory = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -53,8 +52,14 @@ export default function InventoryPage() {
       projectAPI.getAll(),
     ])
       .then(([invRes, projRes]) => {
-        setInventory(invRes.data.inventory || []);
+        const items = invRes.data.inventory || [];
+        setInventory(items);
         setProjects(projRes.data.projects  || []);
+        const drafts = {};
+        items.forEach((item) => {
+          drafts[item._id] = Number(item.threshold ?? 5);
+        });
+        setThresholdDrafts(drafts);
       })
       .catch(() => setToast({ msg: "Failed to load inventory", type: "error" }))
       .finally(() => setLoading(false));
@@ -66,8 +71,10 @@ export default function InventoryPage() {
     .filter(item => {
       const q = search.toLowerCase();
       const matchSearch = !q || item.materialName?.toLowerCase().includes(q);
-      const matchProject = filterProject === "all" || String(item.project) === filterProject;
-      const matchStatus  = filterStatus  === "all" || stockStatus(item) === filterStatus;
+      const projectId = item.project?._id || item.project;
+      const status = item.status || getStatus(item.closingStock, item.threshold);
+      const matchProject = filterProject === "all" || String(projectId) === filterProject;
+      const matchStatus  = filterStatus  === "all" || status === filterStatus;
       return matchSearch && matchProject && matchStatus;
     })
     .sort((a, b) => {
@@ -75,16 +82,37 @@ export default function InventoryPage() {
       if      (sortBy === "name")      { va = a.materialName?.toLowerCase(); vb = b.materialName?.toLowerCase(); }
       else if (sortBy === "stock")     { va = a.closingStock;  vb = b.closingStock; }
       else if (sortBy === "purchased") { va = a.purchased;     vb = b.purchased; }
-      else if (sortBy === "status")    { const ord = { ok: 0, low: 1, empty: 2 }; va = ord[stockStatus(a)]; vb = ord[stockStatus(b)]; }
+      else if (sortBy === "status")    {
+        const ord = { "In Stock": 0, "Low Stock": 1, "Out of Stock": 2 };
+        va = ord[a.status || getStatus(a.closingStock, a.threshold)];
+        vb = ord[b.status || getStatus(b.closingStock, b.threshold)];
+      }
       if (va < vb) return sortDir === "asc" ? -1 :  1;
       if (va > vb) return sortDir === "asc" ?  1 : -1;
       return 0;
     });
 
   const totalItems   = inventory.length;
-  const lowItems     = inventory.filter(i => stockStatus(i) === "low").length;
-  const emptyItems   = inventory.filter(i => stockStatus(i) === "empty").length;
+  const lowItems     = inventory.filter(i => (i.status || getStatus(i.closingStock, i.threshold)) === "Low Stock").length;
+  const emptyItems   = inventory.filter(i => (i.status || getStatus(i.closingStock, i.threshold)) === "Out of Stock").length;
   const totalPurchased = inventory.reduce((s, i) => s + (i.purchased || 0), 0);
+  const totalUsed = inventory.reduce((s, i) => s + (i.used || 0), 0);
+
+  async function saveThreshold(item) {
+    if (!item?._id) return;
+    const nextThreshold = Number(thresholdDrafts[item._id]);
+    if (!Number.isFinite(nextThreshold) || nextThreshold < 0) {
+      setToast({ msg: "Threshold must be a number >= 0", type: "error" });
+      return;
+    }
+    try {
+      await inventoryAPI.updateThreshold(item._id, nextThreshold);
+      setToast({ msg: "Threshold updated", type: "success" });
+      fetchInventory();
+    } catch (err) {
+      setToast({ msg: err.response?.data?.message || "Failed to update threshold", type: "error" });
+    }
+  }
 
   function toggleSort(col) {
     if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -184,9 +212,9 @@ export default function InventoryPage() {
         <div style={{ position: "relative" }}>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...sel, minWidth: 150 }}>
             <option value="all">All Status</option>
-            <option value="ok">In Stock</option>
-            <option value="low">Low Stock</option>
-            <option value="empty">Out of Stock</option>
+            <option value="In Stock">In Stock</option>
+            <option value="Low Stock">Low Stock</option>
+            <option value="Out of Stock">Out of Stock</option>
           </select>
           <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 11, pointerEvents: "none" }}>▾</span>
         </div>
@@ -232,7 +260,7 @@ export default function InventoryPage() {
                   { label: "PURCHASED",   col: "purchased", align: "right" },
                   { label: "USED",        col: null,        align: "right" },
                   { label: "BALANCE",     col: "stock",     align: "right" },
-                  { label: "USAGE %",     col: null,        align: "left"  },
+                    { label: "THRESHOLD",   col: null,        align: "center"  },
                   { label: "STATUS",      col: "status",    align: "center"},
                 ].map(h => (
                   <th
@@ -253,10 +281,10 @@ export default function InventoryPage() {
             </thead>
             <tbody>
               {filtered.map((item, idx) => {
-                const status = stockStatus(item);
+                const status = item.status || getStatus(item.closingStock, item.threshold);
                 const meta   = STATUS_META[status];
-                const usedPct = item.purchased > 0 ? Math.min(100, Math.round((item.used / item.purchased) * 100)) : 0;
-                const project = projects.find(p => String(p._id) === String(item.project));
+                const projectId = item.project?._id || item.project;
+                const projectName = item.project?.projectName || projects.find(p => String(p._id) === String(projectId))?.projectName;
 
                 return (
                   <tr
@@ -282,7 +310,7 @@ export default function InventoryPage() {
                         background: C.orangeL, border: `1px solid ${C.orangeB}`,
                         borderRadius: 20, padding: "3px 10px",
                       }}>
-                        {project?.projectName || "—"}
+                        {projectName || "—"}
                       </span>
                     </td>
 
@@ -305,19 +333,38 @@ export default function InventoryPage() {
                       {(item.closingStock || 0).toLocaleString("en-IN")}
                     </td>
 
-                    {/* Usage bar */}
-                    <td style={{ padding: "16px 18px", minWidth: 140 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ flex: 1, height: 8, background: "#f0f0f0", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{
-                            height: "100%", borderRadius: 99,
-                            width: `${usedPct}%`,
-                            background: usedPct >= 85 ? C.red : usedPct >= 60 ? C.yellow : C.green,
-                            transition: "width 0.4s ease",
-                          }} />
+                    {/* Threshold */}
+                    <td style={{ padding: "16px 18px", textAlign: "center", minWidth: 160 }}>
+                      {item._id ? (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={thresholdDrafts[item._id] ?? 5}
+                            onChange={(e) =>
+                              setThresholdDrafts((prev) => ({ ...prev, [item._id]: e.target.value }))
+                            }
+                            style={{ width: 72, ...inp, textAlign: "right", padding: "6px 8px" }}
+                          />
+                          <button
+                            onClick={() => saveThreshold(item)}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 8,
+                              border: `1px solid ${C.orangeB}`,
+                              background: C.orangeL,
+                              color: C.orange,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Save
+                          </button>
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, minWidth: 30 }}>{usedPct}%</span>
-                      </div>
+                      ) : (
+                        <span style={{ color: C.sub, fontSize: 12 }}>Default: 5</span>
+                      )}
                     </td>
 
                     {/* Status badge */}
@@ -344,7 +391,7 @@ export default function InventoryPage() {
       {!loading && filtered.length > 0 && (
         <div style={{ marginTop: 16, fontSize: 12, color: C.sub, textAlign: "right" }}>
           Showing {filtered.length} of {inventory.length} materials ·{" "}
-          Total purchased: <strong>{totalPurchased.toLocaleString("en-IN")} units</strong>
+          Purchased: <strong>{totalPurchased.toLocaleString("en-IN")}</strong> · Used: <strong>{totalUsed.toLocaleString("en-IN")}</strong>
         </div>
       )}
     </div>

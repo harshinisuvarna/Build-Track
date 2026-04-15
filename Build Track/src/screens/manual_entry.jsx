@@ -33,6 +33,7 @@ export default function ManualEntryPage() {
   const [quantity,  setQuantity]  = useState("");
   const [unit,      setUnit]      = useState("");
   const [rate,      setRate]      = useState("");
+  const [materialType, setMaterialType] = useState("purchase");
 
   // ── New optional fields ──
   const [brand,         setBrand]         = useState("");
@@ -142,6 +143,7 @@ export default function ManualEntryPage() {
         fd.append("quantity", parseFloat(quantity) || 0);
         fd.append("unit",     unit.trim() || "unit");
         fd.append("rate",     parseFloat(rate) || 0);
+        fd.append("materialType", materialType);
       }
 
       // Optional fields
@@ -166,6 +168,7 @@ export default function ManualEntryPage() {
       setWorker(""); setProject("");
       setDate(new Date().toISOString().split("T")[0]);
       setQuantity(""); setUnit(""); setRate("");
+      setMaterialType("purchase");
       setBrand(""); setUnitType(""); setRateType(""); setWorkDone("");
       setUsage(""); setMachineType(""); setPaymentStatus("");
       setPaymentMode(""); setPaymentDate(""); setRemarks("");
@@ -405,6 +408,16 @@ export default function ManualEntryPage() {
                     </div>
                     {/* Unit Type */}
                     <div>
+                      <div style={labelStyle}>↕️ Material Action *</div>
+                      <div style={{ position: "relative", marginBottom: 12 }}>
+                        <select value={materialType} onChange={e => setMaterialType(e.target.value)} style={selectStyle}>
+                          <option value="purchase">Purchase (Add Stock)</option>
+                          <option value="usage">Usage (Reduce Stock)</option>
+                        </select>
+                        <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                      </div>
+                    </div>
+                    <div>
                       <div style={labelStyle}>📐 Unit Type <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
                       <div style={{ position: "relative" }}>
                         <select value={unitType} onChange={e => setUnitType(e.target.value)} style={selectStyle}>
@@ -463,7 +476,7 @@ export default function ManualEntryPage() {
                   {quantity && rate && parseFloat(quantity) > 0 && parseFloat(rate) > 0 && (
                     <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #fde4d0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <span style={{ fontSize: 13, color: "#9a3412" }}>
-                        {quantity} {unit || unitType || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
+                        {materialType === "usage" ? "Use" : "Buy"} {quantity} {unit || unitType || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
                       </span>
                       <span style={{ fontSize: 15, fontWeight: 800, color: "#ea580c" }}>
                         = ₹{(parseFloat(quantity) * parseFloat(rate)).toLocaleString("en-IN")}
@@ -813,6 +826,7 @@ export default function ManualEntryPage() {
                     setTxType(""); setTitle(""); setAmount(""); setNotes("");
                     setWorker(""); setProject("");
                     setQuantity(""); setUnit(""); setRate("");
+                    setMaterialType("purchase");
                     setBrand(""); setUnitType(""); setRateType(""); setWorkDone("");
                     setUsage(""); setMachineType(""); setPaymentStatus("");
                     setPaymentMode(""); setPaymentDate(""); setRemarks(""); setPaymentScreenshot(null);
@@ -880,6 +894,19 @@ export default function ManualEntryPage() {
                           </div>
                           <div style={{ fontSize: 12, color: "#999", display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <span style={{ padding: "1px 8px", borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{tx.type}</span>
+                            {tx.type === "Materials" && tx.materialType && (
+                              <span
+                                style={{
+                                  padding: "1px 8px",
+                                  borderRadius: 20,
+                                  background: tx.materialType === "usage" ? "#fef2f2" : "#ecfdf5",
+                                  color: tx.materialType === "usage" ? "#b91c1c" : "#166534",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {tx.materialType === "usage" ? "Usage" : "Purchase"}
+                              </span>
+                            )}
                             {tx.type === "Materials" && tx.quantity
                               ? <span>📦 {tx.quantity} {tx.unit || ""} @ ₹{(tx.rate || 0).toLocaleString("en-IN")}</span>
                               : null

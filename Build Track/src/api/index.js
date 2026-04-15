@@ -102,6 +102,7 @@ export const voiceAPI = {
 export const inventoryAPI = {
   getAll: () => api.get("/inventory"),
   use: (data) => api.post("/inventory/use", data),
+  updateThreshold: (id, threshold) => api.patch(`/inventory/${id}/threshold`, { threshold }),
 };
 
 export { API_ORIGIN };
