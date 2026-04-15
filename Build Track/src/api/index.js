@@ -73,9 +73,11 @@ export const projectAPI = {
 };
 
 export const transactionAPI = {
-  getAll: (p = {}) => api.get("/transactions", { params: p }),
-  create: (data)   => api.post("/transactions", data),
-  delete: (id)     => api.delete(`/transactions/${id}`),
+  getAll:  (p = {}) => api.get("/transactions",    { params: p }),
+  getById: (id)     => api.get(`/transactions/${id}`),
+  create:  (data)   => api.post("/transactions",   data),
+  update:  (id, d)  => api.put(`/transactions/${id}`, d),
+  delete:  (id)     => api.delete(`/transactions/${id}`),
 };
 
 export const dashboardAPI = {

@@ -1,146 +1,350 @@
 import { useState, useEffect, useCallback } from "react";
-import { inventoryAPI } from "../api";
+import { inventoryAPI, projectAPI } from "../api";
 import { Toast } from "../components/Toast";
 
-export default function InventoryPage() {
-  const [inventory, setInventory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState({ msg: "", type: "info" });
-  
-  const [showUseModal, setShowUseModal] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState("");
-  const [usedQty, setUsedQty] = useState("");
-  const [updating, setUpdating] = useState(false);
+const C = {
+  orange : "#ea580c",
+  orangeL: "#fff7ed",
+  orangeB: "#fed7aa",
+  green  : "#16a34a",
+  greenL : "#dcfce7",
+  greenB : "#bbf7d0",
+  red    : "#dc2626",
+  redL   : "#fee2e2",
+  redB   : "#fca5a5",
+  yellow : "#d97706",
+  yellowL: "#fffbeb",
+  yellowB: "#fde68a",
+  text   : "#1a1a1a",
+  sub    : "#888",
+  border : "#ebebeb",
+  bg     : "#f7f7f8",
+  card   : "#ffffff",
+};
 
+const LOW_STOCK_THRESHOLD = 0.15; 
+
+function stockStatus(item) {
+  if (item.closingStock <= 0)                                    return "empty";
+  if (item.purchased > 0 && item.closingStock / item.purchased < LOW_STOCK_THRESHOLD) return "low";
+  return "ok";
+}
+
+const STATUS_META = {
+  ok    : { label: "In Stock",   bg: C.greenL,  color: C.green,  dot: C.green  },
+  low   : { label: "Low Stock",  bg: C.yellowL, color: C.yellow, dot: C.yellow },
+  empty : { label: "Out of Stock", bg: C.redL,  color: C.red,    dot: C.red    },
+};
+
+export default function InventoryPage() {
+  const [inventory,      setInventory]      = useState([]);
+  const [projects,       setProjects]       = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [toast,          setToast]          = useState({ msg: "", type: "info" });
+  const [search,         setSearch]         = useState("");
+  const [filterProject,  setFilterProject]  = useState("all");
+  const [filterStatus,   setFilterStatus]   = useState("all");
+  const [sortBy,         setSortBy]         = useState("name");   // name | stock | purchased | status
+  const [sortDir,        setSortDir]        = useState("asc");
   const fetchInventory = useCallback(() => {
     setLoading(true);
-    inventoryAPI.getAll()
-      .then(({ data }) => setInventory(data.inventory || []))
+    Promise.all([
+      inventoryAPI.getAll(),
+      projectAPI.getAll(),
+    ])
+      .then(([invRes, projRes]) => {
+        setInventory(invRes.data.inventory || []);
+        setProjects(projRes.data.projects  || []);
+      })
       .catch(() => setToast({ msg: "Failed to load inventory", type: "error" }))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+  useEffect(() => { fetchInventory(); }, [fetchInventory]);
 
-  const handleUseMaterial = async () => {
-    if (!selectedMaterial || !usedQty || parseFloat(usedQty) <= 0) {
-      setToast({ msg: "Please enter valid material and quantity", type: "error" });
-      return;
-    }
+  const filtered = inventory
+    .filter(item => {
+      const q = search.toLowerCase();
+      const matchSearch = !q || item.materialName?.toLowerCase().includes(q);
+      const matchProject = filterProject === "all" || String(item.project) === filterProject;
+      const matchStatus  = filterStatus  === "all" || stockStatus(item) === filterStatus;
+      return matchSearch && matchProject && matchStatus;
+    })
+    .sort((a, b) => {
+      let va, vb;
+      if      (sortBy === "name")      { va = a.materialName?.toLowerCase(); vb = b.materialName?.toLowerCase(); }
+      else if (sortBy === "stock")     { va = a.closingStock;  vb = b.closingStock; }
+      else if (sortBy === "purchased") { va = a.purchased;     vb = b.purchased; }
+      else if (sortBy === "status")    { const ord = { ok: 0, low: 1, empty: 2 }; va = ord[stockStatus(a)]; vb = ord[stockStatus(b)]; }
+      if (va < vb) return sortDir === "asc" ? -1 :  1;
+      if (va > vb) return sortDir === "asc" ?  1 : -1;
+      return 0;
+    });
 
-    try {
-      setUpdating(true);
-      await inventoryAPI.use({ materialName: selectedMaterial, usedQty: Number(usedQty) });
-      setToast({ msg: "Inventory updated successfully!", type: "success" });
-      setShowUseModal(false);
-      setUsedQty("");
-      fetchInventory();
-    } catch (err) {
-      setToast({ msg: err.response?.data?.message || "Failed to update inventory", type: "error" });
-    } finally {
-      setUpdating(false);
-    }
+  const totalItems   = inventory.length;
+  const lowItems     = inventory.filter(i => stockStatus(i) === "low").length;
+  const emptyItems   = inventory.filter(i => stockStatus(i) === "empty").length;
+  const totalPurchased = inventory.reduce((s, i) => s + (i.purchased || 0), 0);
+
+  function toggleSort(col) {
+    if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortBy(col); setSortDir("asc"); }
+  }
+
+  const SortIcon = ({ col }) => {
+    if (sortBy !== col) return <span style={{ color: "#ccc", fontSize: 10 }}>↕</span>;
+    return <span style={{ color: C.orange, fontSize: 10 }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
   };
+  const inp = {
+    padding: "9px 14px", background: C.card, border: `1px solid ${C.border}`,
+    borderRadius: 10, fontSize: 13, color: C.text, outline: "none",
+    fontFamily: "'Segoe UI', sans-serif",
+  };
+  const sel = { ...inp, appearance: "none", cursor: "pointer", paddingRight: 32 };
 
   return (
-    <div style={{ padding: 24, fontFamily: "'Segoe UI', sans-serif" }}>
+    <div style={{ padding: 28, fontFamily: "'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh" }}>
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "info" })} />
-      
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#1a1a1a" }}>Material Inventory</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 14, color: "#666" }}>Track your stock levels automatically</p>
+
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: C.text }}>Material Inventory</h1>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: C.sub }}>
+          Real-time stock levels across all projects
+        </p>
+      </div>
+
+      {/* ── KPI Cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 28 }}>
+        {[
+          { label: "Total Materials", value: totalItems,     icon: "📦", color: C.orange, bg: C.orangeL, border: C.orangeB },
+          { label: "In Stock",        value: totalItems - lowItems - emptyItems, icon: "✅", color: C.green,  bg: C.greenL,  border: C.greenB  },
+          { label: "Low Stock",       value: lowItems,       icon: "⚠️",  color: C.yellow, bg: C.yellowL, border: C.yellowB },
+          { label: "Out of Stock",    value: emptyItems,     icon: "🚫",  color: C.red,    bg: C.redL,    border: C.redB    },
+        ].map(kpi => (
+          <div key={kpi.label} style={{
+            background: kpi.bg, border: `1px solid ${kpi.border}`,
+            borderRadius: 16, padding: "20px 22px",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+          }}>
+            <div style={{ fontSize: 22, marginBottom: 8 }}>{kpi.icon}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+            <div style={{ fontSize: 12, color: kpi.color, fontWeight: 600, marginTop: 2 }}>{kpi.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Alerts Banner ── */}
+      {(lowItems > 0 || emptyItems > 0) && (
+        <div style={{
+          background: emptyItems > 0 ? C.redL : C.yellowL,
+          border: `1px solid ${emptyItems > 0 ? C.redB : C.yellowB}`,
+          borderRadius: 12, padding: "14px 20px", marginBottom: 20,
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <span style={{ fontSize: 20 }}>{emptyItems > 0 ? "🚨" : "⚠️"}</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: emptyItems > 0 ? C.red : C.yellow }}>
+              {emptyItems > 0 ? `${emptyItems} material(s) out of stock!` : `${lowItems} material(s) running low`}
+            </div>
+            <div style={{ fontSize: 12, color: C.sub, marginTop: 2 }}>
+              Create a Materials → Purchase transaction to restock.
+            </div>
+          </div>
         </div>
-        <button 
-          onClick={() => setShowUseModal(true)}
+      )}
+
+      {/* ── Toolbar ── */}
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`,
+        borderRadius: 14, padding: "16px 20px", marginBottom: 20,
+        display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center",
+      }}>
+        {/* Search */}
+        <div style={{ position: "relative", flex: "1 1 200px" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 14 }}>🔍</span>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search materials…"
+            style={{ ...inp, paddingLeft: 36, width: "100%", boxSizing: "border-box" }}
+          />
+        </div>
+
+        {/* Project filter */}
+        <div style={{ position: "relative" }}>
+          <select value={filterProject} onChange={e => setFilterProject(e.target.value)} style={{ ...sel, minWidth: 180 }}>
+            <option value="all">All Projects</option>
+            {projects.map(p => <option key={p._id} value={p._id}>{p.projectName}</option>)}
+          </select>
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 11, pointerEvents: "none" }}>▾</span>
+        </div>
+
+        {/* Status filter */}
+        <div style={{ position: "relative" }}>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...sel, minWidth: 150 }}>
+            <option value="all">All Status</option>
+            <option value="ok">In Stock</option>
+            <option value="low">Low Stock</option>
+            <option value="empty">Out of Stock</option>
+          </select>
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 11, pointerEvents: "none" }}>▾</span>
+        </div>
+
+        <button
+          onClick={fetchInventory}
           style={{
-            padding: "10px 20px", background: "#ea580c", color: "#fff",
-            border: "none", borderRadius: 10, fontWeight: 600, cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(234,88,12,0.2)"
+            padding: "9px 18px", background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", color: C.sub,
           }}
         >
-          − Mark as Used
+          ↻ Refresh
         </button>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#fafafa", borderBottom: "1px solid #eee" }}>
-              <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#888", letterSpacing: "0.05em" }}>MATERIAL</th>
-              <th style={{ padding: "16px 20px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#888", letterSpacing: "0.05em" }}>PURCHASED</th>
-              <th style={{ padding: "16px 20px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#888", letterSpacing: "0.05em" }}>USED</th>
-              <th style={{ padding: "16px 20px", textAlign: "right", fontSize: 12, fontWeight: 700, color: "#888", letterSpacing: "0.05em" }}>BALANCE STOCK</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="4" style={{ padding: 40, textAlign: "center", color: "#999" }}>Loading inventory...</td></tr>
-            ) : inventory.length === 0 ? (
-              <tr><td colSpan="4" style={{ padding: 40, textAlign: "center", color: "#999" }}>No materials in stock yet.</td></tr>
-            ) : inventory.map(item => (
-              <tr key={item._id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                <td style={{ padding: "16px 20px", fontWeight: 600, color: "#1a1a1a" }}>
-                  {item.materialName}
-                  {item.unit && <span style={{ marginLeft: 8, fontSize: 11, color: "#999", fontWeight: 400 }}>({item.unit})</span>}
-                </td>
-                <td style={{ padding: "16px 20px", textAlign: "right", color: "#555" }}>{item.purchasedQty.toLocaleString()}</td>
-                <td style={{ padding: "16px 20px", textAlign: "right", color: "#dc2626" }}>{item.usedQty.toLocaleString()}</td>
-                <td style={{ padding: "16px 20px", textAlign: "right", fontWeight: 700, color: item.balanceQty > 0 ? "#16a34a" : "#dc2626" }}>
-                  {item.balanceQty.toLocaleString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showUseModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", borderRadius: 16, padding: 32, width: "100%", maxWidth: 400, boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
-            <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700 }}>Record Material Usage</h2>
-            
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>Select Material</label>
-              <select 
-                value={selectedMaterial} 
-                onChange={e => setSelectedMaterial(e.target.value)}
-                style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid #ddd", outline: "none" }}
-              >
-                <option value="">Select a material</option>
-                {inventory.map(i => <option key={i._id} value={i.materialName}>{i.materialName}</option>)}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>Quantity Used</label>
-              <input 
-                type="number" 
-                value={usedQty} 
-                onChange={e => setUsedQty(e.target.value)}
-                placeholder="0.00"
-                style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid #ddd", outline: "none", boxSizing: "border-box" }}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: 12 }}>
-              <button 
-                onClick={handleUseMaterial}
-                disabled={updating}
-                style={{ flex: 1, padding: 14, background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}
-              >
-                {updating ? "Saving..." : "Update Stock"}
-              </button>
-              <button 
-                onClick={() => { setShowUseModal(false); setSelectedMaterial(""); setUsedQty(""); }}
-                style={{ flex: 1, padding: 14, background: "#f5f5f5", color: "#555", border: "1px solid #ddd", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
+      {/* ── Table ── */}
+      <div style={{
+        background: C.card, borderRadius: 16, border: `1px solid ${C.border}`,
+        overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)",
+      }}>
+        {loading ? (
+          <div style={{ padding: 60, textAlign: "center", color: C.sub }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+            Loading inventory…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 60, textAlign: "center", color: C.sub }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>No materials found</div>
+            <div style={{ fontSize: 13 }}>
+              {inventory.length === 0
+                ? "Add a Materials → Purchase transaction to start tracking stock."
+                : "Try adjusting your filters."}
             </div>
           </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#fafafa", borderBottom: `1px solid ${C.border}` }}>
+                {[
+                  { label: "MATERIAL",    col: "name",      align: "left"  },
+                  { label: "PROJECT",     col: null,        align: "left"  },
+                  { label: "PURCHASED",   col: "purchased", align: "right" },
+                  { label: "USED",        col: null,        align: "right" },
+                  { label: "BALANCE",     col: "stock",     align: "right" },
+                  { label: "USAGE %",     col: null,        align: "left"  },
+                  { label: "STATUS",      col: "status",    align: "center"},
+                ].map(h => (
+                  <th
+                    key={h.label}
+                    onClick={() => h.col && toggleSort(h.col)}
+                    style={{
+                      padding: "14px 18px", textAlign: h.align,
+                      fontSize: 11, fontWeight: 700, color: "#888",
+                      letterSpacing: "0.06em", userSelect: "none",
+                      cursor: h.col ? "pointer" : "default",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {h.label} {h.col && <SortIcon col={h.col} />}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item, idx) => {
+                const status = stockStatus(item);
+                const meta   = STATUS_META[status];
+                const usedPct = item.purchased > 0 ? Math.min(100, Math.round((item.used / item.purchased) * 100)) : 0;
+                const project = projects.find(p => String(p._id) === String(item.project));
+
+                return (
+                  <tr
+                    key={item._id}
+                    style={{
+                      borderBottom: `1px solid #f5f5f5`,
+                      background: idx % 2 === 0 ? C.card : "#fafafa",
+                      transition: "background 0.12s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f0f4ff"}
+                    onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? C.card : "#fafafa"}
+                  >
+                    {/* Material */}
+                    <td style={{ padding: "16px 18px" }}>
+                      <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>{item.materialName}</div>
+                      {item.unit && <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>({item.unit})</div>}
+                    </td>
+
+                    {/* Project */}
+                    <td style={{ padding: "16px 18px" }}>
+                      <span style={{
+                        fontSize: 12, fontWeight: 600, color: C.orange,
+                        background: C.orangeL, border: `1px solid ${C.orangeB}`,
+                        borderRadius: 20, padding: "3px 10px",
+                      }}>
+                        {project?.projectName || "—"}
+                      </span>
+                    </td>
+
+                    {/* Purchased */}
+                    <td style={{ padding: "16px 18px", textAlign: "right", fontWeight: 600, color: C.text }}>
+                      {(item.purchased || 0).toLocaleString("en-IN")}
+                    </td>
+
+                    {/* Used */}
+                    <td style={{ padding: "16px 18px", textAlign: "right", color: C.red, fontWeight: 600 }}>
+                      {(item.used || 0).toLocaleString("en-IN")}
+                    </td>
+
+                    {/* Balance */}
+                    <td style={{
+                      padding: "16px 18px", textAlign: "right",
+                      fontWeight: 800, fontSize: 15,
+                      color: status === "empty" ? C.red : status === "low" ? C.yellow : C.green,
+                    }}>
+                      {(item.closingStock || 0).toLocaleString("en-IN")}
+                    </td>
+
+                    {/* Usage bar */}
+                    <td style={{ padding: "16px 18px", minWidth: 140 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ flex: 1, height: 8, background: "#f0f0f0", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", borderRadius: 99,
+                            width: `${usedPct}%`,
+                            background: usedPct >= 85 ? C.red : usedPct >= 60 ? C.yellow : C.green,
+                            transition: "width 0.4s ease",
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, minWidth: 30 }}>{usedPct}%</span>
+                      </div>
+                    </td>
+
+                    {/* Status badge */}
+                    <td style={{ padding: "16px 18px", textAlign: "center" }}>
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                        background: meta.bg, color: meta.color,
+                        border: `1px solid ${meta.color}22`,
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: meta.dot }} />
+                        {meta.label}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* ── Footer summary ── */}
+      {!loading && filtered.length > 0 && (
+        <div style={{ marginTop: 16, fontSize: 12, color: C.sub, textAlign: "right" }}>
+          Showing {filtered.length} of {inventory.length} materials ·{" "}
+          Total purchased: <strong>{totalPurchased.toLocaleString("en-IN")} units</strong>
         </div>
       )}
     </div>

@@ -77,9 +77,11 @@ app.use("/api/auth",         require("./routes/authRoutes"));
 app.use("/api/workers",      require("./routes/workerRoutes"));
 app.use("/api/projects",     require("./routes/projectRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
+app.use("/api/inventory",    require("./routes/inventoryRoutes"));
 app.use("/api/dashboard",    require("./routes/dashboardRoutes"));
 app.use("/api/reports",      require("./routes/reportRoutes"));
 app.use("/api/voice",        require("./routes/voiceRoutes"));
+app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
 app.get("/api/test", (_req, res) => res.json({ ok: true }));
 app.use((_req, res) => res.status(404).json({ message: "Route not found" }));
 app.use((err, _req, res, _next) => {

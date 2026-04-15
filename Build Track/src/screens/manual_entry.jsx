@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { workerAPI, projectAPI, transactionAPI } from "../api";
+// transactionAPI.update is used by the edit modal below
 import { Toast, ConfirmDialog } from "../components/Toast";
 
 const transactionTypes = ["Wages", "Expense", "Income", "Materials"];
@@ -50,6 +51,10 @@ export default function ManualEntryPage() {
   const [errMsg,      setErrMsg]      = useState("");
   const [successMsg,  setSuccessMsg]  = useState("");
 
+  // ── Edit modal state ──
+  const [editTx,        setEditTx]        = useState(null);   // the tx being edited
+  const [editSaving,    setEditSaving]    = useState(false);
+  const [editErr,       setEditErr]       = useState("");
 
   const [transactions, setTransactions] = useState([]);
   const [txLoading,    setTxLoading]    = useState(true);
@@ -169,6 +174,55 @@ export default function ManualEntryPage() {
     }
   };
 
+
+  /* ── Edit handlers ─────────────────────────────────────────────────── */
+  const handleEdit = (tx) => {
+    setEditTx({
+      _id:           tx._id,
+      title:         tx.title         || "",
+      type:          tx.type          || "",
+      date:          tx.date ? new Date(tx.date).toISOString().split("T")[0] : "",
+      amount:        tx.amount        || "",
+      quantity:      tx.quantity      || "",
+      rate:          tx.rate          || "",
+      unit:          tx.unit          || "",
+      notes:         tx.notes         || "",
+      paymentStatus: tx.paymentStatus || "",
+      paymentMode:   tx.paymentMode   || "",
+      remarks:       tx.remarks       || "",
+    });
+    setEditErr("");
+  };
+
+  const handleEditSave = async () => {
+    if (!editTx.title.trim()) { setEditErr("Title is required."); return; }
+    if (!editTx.amount || Number(editTx.amount) < 0) { setEditErr("Valid amount is required."); return; }
+    try {
+      setEditSaving(true);
+      setEditErr("");
+      const payload = {
+        title:         editTx.title.trim(),
+        date:          editTx.date,
+        notes:         editTx.notes,
+        paymentStatus: editTx.paymentStatus,
+        paymentMode:   editTx.paymentMode,
+        remarks:       editTx.remarks,
+        ...(editTx.quantity && { quantity: Number(editTx.quantity) }),
+        ...(editTx.rate     && { rate:     Number(editTx.rate) }),
+      };
+      // For Materials transactions the backend recalculates amount from qty*rate
+      if (!editTx.quantity || !editTx.rate) payload.amount = Number(editTx.amount);
+
+      await transactionAPI.update(editTx._id, payload);
+      setToast({ msg: "Transaction updated!", type: "success" });
+      setEditTx(null);
+      fetchTransactions();
+    } catch (err) {
+      setEditErr(err.response?.data?.message || "Failed to update. Try again.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const handleDelete = (id) => {
     const tx = transactions.find(t => t._id === id);
@@ -785,6 +839,19 @@ export default function ManualEntryPage() {
                           {tx.type === "Income" ? "+" : "−"}₹{Number(tx.amount).toLocaleString("en-IN")}
                         </div>
 
+                        {/* Edit button */}
+                        <button
+                          onClick={() => handleEdit(tx)}
+                          style={{
+                            width: 30, height: 30, borderRadius: 8,
+                            border: "1px solid #dbeafe", background: "#eff6ff",
+                            cursor: "pointer", fontSize: 13, flexShrink: 0,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                          title="Edit entry"
+                        >✏️</button>
+
+                        {/* Delete button */}
                         <button
                           onClick={() => handleDelete(tx._id)}
                           style={{
@@ -805,6 +872,172 @@ export default function ManualEntryPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════
+           EDIT TRANSACTION MODAL
+      ══════════════════════════════════════════════════════════════════ */}
+      {editTx && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 9000, backdropFilter: "blur(2px)",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "32px 36px",
+            width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+            fontFamily: "'Segoe UI', sans-serif",
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#1a1a1a" }}>Edit Transaction</h2>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>Update the details below</p>
+              </div>
+              <button
+                onClick={() => setEditTx(null)}
+                style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #eee", background: "#f5f5f5", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >✕</button>
+            </div>
+
+            {/* Type badge (read-only) */}
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "6px 14px", borderRadius: 20, marginBottom: 20,
+              background: (TYPE_STYLE[editTx.type] || TYPE_STYLE.Expense).bg,
+              color: (TYPE_STYLE[editTx.type] || TYPE_STYLE.Expense).color,
+              fontSize: 12, fontWeight: 700,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: (TYPE_STYLE[editTx.type] || TYPE_STYLE.Expense).dot }} />
+              {editTx.type}
+              <span style={{ fontWeight: 400, color: "#aaa", marginLeft: 4 }}>(type cannot be changed)</span>
+            </div>
+
+            {editErr && (
+              <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "10px 14px", color: "#991b1b", fontSize: 13, marginBottom: 16 }}>
+                ⚠️ {editErr}
+              </div>
+            )}
+
+            {/* Fields */}
+            {[
+              { label: "📋 Title",          key: "title",         type: "text"   },
+              { label: "📅 Date",           key: "date",          type: "date"   },
+              { label: "📝 Notes",          key: "notes",         type: "textarea"},
+              { label: "💬 Remarks",        key: "remarks",       type: "textarea"},
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>{f.label}</div>
+                {f.type === "textarea" ? (
+                  <textarea
+                    value={editTx[f.key]}
+                    onChange={e => setEditTx(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    rows={2}
+                    style={{ width: "100%", padding: "10px 13px", borderRadius: 10, border: "1px solid #e5e5e5", fontSize: 13, fontFamily: "'Segoe UI', sans-serif", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                ) : (
+                  <input
+                    type={f.type}
+                    value={editTx[f.key]}
+                    onChange={e => setEditTx(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    style={{ width: "100%", padding: "10px 13px", borderRadius: 10, border: "1px solid #e5e5e5", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "'Segoe UI', sans-serif" }}
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* Materials: qty + rate */}
+            {editTx.type === "Materials" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+                {[
+                  { label: "📦 Quantity", key: "quantity" },
+                  { label: "💵 Rate",     key: "rate"     },
+                  { label: "📐 Unit",     key: "unit",    text: true },
+                ].map(f => (
+                  <div key={f.key}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>{f.label}</div>
+                    <input
+                      type={f.text ? "text" : "number"}
+                      min="0"
+                      value={editTx[f.key]}
+                      onChange={e => {
+                        const updated = { ...editTx, [f.key]: e.target.value };
+                        const q = parseFloat(updated.quantity) || 0;
+                        const r = parseFloat(updated.rate)     || 0;
+                        if (q > 0 && r > 0) updated.amount = String(q * r);
+                        setEditTx(updated);
+                      }}
+                      style={{ width: "100%", padding: "10px 13px", borderRadius: 10, border: "1px solid #e5e5e5", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "'Segoe UI', sans-serif" }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Amount */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>💰 Amount</div>
+              <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "10px 13px", gap: 8 }}>
+                <span style={{ color: "#ea580c", fontWeight: 700 }}>₹</span>
+                <input
+                  type="number" min="0"
+                  value={editTx.amount}
+                  readOnly={editTx.type === "Materials"}
+                  onChange={e => setEditTx(prev => ({ ...prev, amount: e.target.value }))}
+                  style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, fontFamily: "'Segoe UI', sans-serif", cursor: editTx.type === "Materials" ? "not-allowed" : "text", color: editTx.type === "Materials" ? "#888" : "#1a1a1a" }}
+                />
+              </div>
+            </div>
+
+            {/* Payment */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+              {[
+                { label: "✅ Payment Status", key: "paymentStatus", opts: ["", "Paid", "Pending", "Partial"] },
+                { label: "🏦 Payment Mode",   key: "paymentMode",   opts: ["", "Cash", "UPI", "Bank", "Cheque"] },
+              ].map(f => (
+                <div key={f.key}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>{f.label}</div>
+                  <div style={{ position: "relative" }}>
+                    <select
+                      value={editTx[f.key]}
+                      onChange={e => setEditTx(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      style={{ width: "100%", padding: "10px 13px", borderRadius: 10, border: "1px solid #e5e5e5", fontSize: 13, outline: "none", appearance: "none", cursor: "pointer", fontFamily: "'Segoe UI', sans-serif", background: "#f9f9f9" }}
+                    >
+                      {f.opts.map(o => <option key={o} value={o}>{o || "Select…"}</option>)}
+                    </select>
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 11, pointerEvents: "none" }}>▾</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer buttons */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving}
+                style={{
+                  padding: "13px 0", background: editSaving ? "#f59561" : "#ea580c",
+                  color: "#fff", border: "none", borderRadius: 12,
+                  fontWeight: 700, fontSize: 14, cursor: editSaving ? "not-allowed" : "pointer",
+                  boxShadow: "0 4px 14px rgba(234,88,12,0.25)", transition: "background 0.2s",
+                }}
+              >
+                {editSaving ? "⏳ Saving…" : "💾 Save Changes"}
+              </button>
+              <button
+                onClick={() => setEditTx(null)}
+                style={{
+                  padding: "13px 0", background: "#f5f5f5", color: "#555",
+                  border: "1px solid #e5e5e5", borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

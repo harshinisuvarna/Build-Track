@@ -1,15 +1,15 @@
-const express    = require("express");
-const jwt        = require("jsonwebtoken");
-const crypto     = require("crypto");
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const nodemailer = require("nodemailer");
-const router     = express.Router();
-const passport   = require("passport");
-const User       = require("../models/User");
+const router = express.Router();
+const passport = require("passport");
+const User = require("../models/User");
 const { protect } = require("../middleware/auth");
-const upload     = require("../config/multer");
+const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
-const SECRET      = process.env.JWT_SECRET;
-const FRONTEND    = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
+const SECRET = process.env.JWT_SECRET;
+const FRONTEND = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
 const makeToken = (user) =>
   jwt.sign(
     { id: user._id || user.id, email: user.email, tokenVersion: user.tokenVersion || 0 },
@@ -17,18 +17,18 @@ const makeToken = (user) =>
     { expiresIn: "7d" }
   );
 const safeUser = (user) => ({
-  id:           user._id || user.id,
-  name:         user.name,
-  email:        user.email,
-  role:         user.role || "User",
+  id: user._id || user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role || "User",
   profilePhoto: user.profilePhoto || null,
-  provider:     user.provider || "local",
-  isActive:     user.isActive,
-  createdAt:    user.createdAt,
+  provider: user.provider || "local",
+  isActive: user.isActive,
+  createdAt: user.createdAt,
 });
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;  
+    const { name, email, password } = req.body;
     if (!name || !email || !password)
       return res.status(400).json({ message: "All fields required" });
     if (password.length < 6)
@@ -39,8 +39,8 @@ router.post("/register", async (req, res) => {
     const user = await User.create({ name: name.trim(), email, password });
     res.status(201).json({
       message: "Account created successfully",
-      token:   makeToken(user),
-      user:    safeUser(user),
+      token: makeToken(user),
+      user: safeUser(user),
     });
   } catch (err) {
     console.error("Register error:", err);
@@ -66,8 +66,8 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     res.json({
       message: "Login successful",
-      token:   makeToken(user),
-      user:    safeUser(user),
+      token: makeToken(user),
+      user: safeUser(user),
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -82,9 +82,9 @@ router.put("/profile", protect, async (req, res) => {
     const { name, email, role } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (name)  user.name  = name.trim();
+    if (name) user.name = name.trim();
     if (email) user.email = email.trim().toLowerCase();
-    if (role)  user.role  = role.trim();
+    if (role) user.role = role.trim();
     await user.save();
     res.json({ message: "Profile updated", user: safeUser(user) });
   } catch (err) {
