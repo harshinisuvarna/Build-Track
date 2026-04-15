@@ -1,7 +1,0 @@
-const API_ORIGIN = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
-
-export function resolveImageUrl(photo) {
-  if (!photo) return "";
-  if (photo.startsWith("http://") || photo.startsWith("https://")) return photo;
-  return `${API_ORIGIN}/uploads/${photo}`;
-}

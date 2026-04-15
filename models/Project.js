@@ -22,8 +22,9 @@ const projectSchema = new mongoose.Schema(
       trim: true,
     },
     budget: {
-      type: Number,
-      default: 0,
+      materials: { type: Number, default: 0 },
+      labour: { type: Number, default: 0 },
+      equipment: { type: Number, default: 0 },
     },
     startDate: {
       type: Date,

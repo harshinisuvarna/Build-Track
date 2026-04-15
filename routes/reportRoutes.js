@@ -33,39 +33,47 @@ function normalizeProjectStatus(status) {
 }
 router.get("/financial", async (req, res) => {
   try {
-    const { year, month } = req.query;
+    const { year, month, type, category, project } = req.query;
     const userId = req.user._id;
-    if (!year || month === undefined || month === "") {
-      return res.status(400).json({ message: "Year and month are required" });
-    }
+
     const { startDate, endDate } = getDateRange(req.query);
-    const transactions = await Transaction.find({
+
+    const query = {
       createdBy: userId,
       date: { $gte: startDate, $lte: endDate },
-    })
+    };
+
+    if (type)     query.type = type;
+    if (category) query.category = category;
+    if (project)  query.project = project;
+
+    const transactions = await Transaction.find(query)
       .populate("project", "projectName status")
-      .populate("worker", "_id");
+      .populate("worker", "_id name trade dailyWage");
+
     const income = transactions
       .filter((t) => t.type === "Income")
       .reduce((sum, t) => sum + t.amount, 0);
+
     const expenses = transactions
       .filter((t) => t.type !== "Income")
       .reduce((sum, t) => sum + t.amount, 0);
+
     const profit = income - expenses;
     const totalVolume = income + expenses;
     const compliance = totalVolume > 0
       ? Math.min(100, Math.max(0, (income / totalVolume) * 100))
       : 100;
+
     const workersRecords = await Worker.find({ createdBy: userId });
     const projects = await Project.find({ createdBy: userId });
-    const projectMap = {};
-    projects.forEach((p) => {
-      projectMap[p._id.toString()] = p.projectName;
-    });
+    
+    // Wage Calculation Logic
     const wageTransactions = transactions.filter((t) => t.type === "Wages");
     const workerStats = {};
+
     wageTransactions.forEach((t) => {
-      const wId = t.worker?._id?.toString?.() || t.worker?.toString?.();
+      const wId = t.worker?._id?.toString() || t.worker?.toString();
       if (!wId) return;
       if (!workerStats[wId]) {
         workerStats[wId] = {
@@ -77,18 +85,16 @@ router.get("/financial", async (req, res) => {
       workerStats[wId].totalPayout += Number(t.amount || 0);
       workerStats[wId].daySet.add(new Date(t.date).toISOString().slice(0, 10));
       if (!workerStats[wId].project && t.project) {
-        const projectId = t.project?._id?.toString?.() || t.project?.toString?.() || null;
-        const matchedProject = projectId ? projects.find((p) => String(p._id) === String(projectId)) : null;
-        workerStats[wId].project = matchedProject || t.project || null;
+        workerStats[wId].project = t.project;
       }
     });
+
     const workers = workersRecords
       .filter((w) => workerStats[w._id.toString()])
       .map((w) => {
         const stats = workerStats[w._id.toString()];
         return {
           _id: w._id,
-          id: w._id,
           name: w.name,
           trade: w.trade,
           dailyWage: w.dailyWage,
@@ -98,17 +104,31 @@ router.get("/financial", async (req, res) => {
           projectStatus: normalizeProjectStatus(stats.project?.status),
         };
       });
+
+    // Category Breakdown Calculation
+    let categoryBreakdown = {};
+    const materials = transactions.filter(t => t.type === "Materials");
+    materials.forEach(t => {
+      const cat = t.category || "Uncategorized";
+      if (!categoryBreakdown[cat]) categoryBreakdown[cat] = 0;
+      categoryBreakdown[cat] += t.amount;
+    });
+
     res.json({
       income,
       expenses,
       profit,
       compliance,
       workers,
+      categoryBreakdown,
+      transactionCount: transactions.length
     });
   } catch (err) {
+    console.error("Financial report error:", err);
     res.status(500).json({ message: "Failed to fetch financial report" });
   }
 });
+
 router.get("/financial/export-csv", async (req, res) => {
   try {
     const { year, month } = req.query;

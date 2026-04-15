@@ -7,20 +7,29 @@ const inventorySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
+    },
     materialName: {
       type: String,
       required: true,
       trim: true,
     },
-    purchasedQty: {
+    openingStock: {
       type: Number,
       default: 0,
     },
-    usedQty: {
+    purchased: {
       type: Number,
       default: 0,
     },
-    balanceQty: {
+    used: {
+      type: Number,
+      default: 0,
+    },
+    closingStock: {
       type: Number,
       default: 0,
     },
@@ -32,7 +41,7 @@ const inventorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Unique material name per user
-inventorySchema.index({ createdBy: 1, materialName: 1 }, { unique: true });
+// Unique material name per project
+inventorySchema.index({ project: 1, materialName: 1 }, { unique: true });
 
 module.exports = mongoose.model("Inventory", inventorySchema);

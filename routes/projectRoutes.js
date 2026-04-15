@@ -88,21 +88,76 @@ router.get("/:id/stats", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch project stats" });
   }
 });
+router.get("/:id/budget", async (req, res) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    const mongoose = require("mongoose");
+    const projectObjectId = new mongoose.Types.ObjectId(req.params.id);
+
+    const actuals = await Transaction.aggregate([
+      { $match: { project: projectObjectId } },
+      {
+        $group: {
+          _id: "$type",
+          total: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    const actualMap = {};
+    actuals.forEach(a => { actualMap[a._id] = a.total; });
+
+    const report = {
+      materials: {
+        budget: project.budget?.materials || 0,
+        actual: actualMap["Materials"] || 0,
+        remaining: (project.budget?.materials || 0) - (actualMap["Materials"] || 0)
+      },
+      labour: {
+        budget: project.budget?.labour || 0,
+        actual: actualMap["Wages"] || 0,
+        remaining: (project.budget?.labour || 0) - (actualMap["Wages"] || 0)
+      },
+      equipment: {
+        budget: project.budget?.equipment || 0,
+        actual: actualMap["Expense"] || 0,
+        remaining: (project.budget?.equipment || 0) - (actualMap["Expense"] || 0)
+      }
+    };
+
+    res.json(report);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch project budget analysis" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try { await runUpload(req, res); }
   catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
   try {
-    const { projectName, location, manager, budget, startDate, scope, status, progress } = req.body;
+    const { 
+      projectName, location, manager, 
+      budgetMaterials, budgetLabour, budgetEquipment,
+      startDate, scope, status, progress 
+    } = req.body;
+
     if (!projectName || !projectName.trim())
       return res.status(400).json({ message: "Project name is required" });
+
     const project = await Project.create({
       createdBy:   req.user._id,
       projectName: projectName.trim(),
       location:    location  || "",
       manager:     manager   || "",
-      budget:      Number(budget)   || 0,
+      budget: {
+        materials: Number(budgetMaterials) || 0,
+        labour:    Number(budgetLabour)    || 0,
+        equipment: Number(budgetEquipment) || 0,
+      },
       startDate:   startDate || null,
       scope:       scope     || "",
       status:      status    || "Active",
@@ -118,22 +173,37 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Failed to create project" });
   }
 });
+
 router.put("/:id", async (req, res) => {
   try { await runUpload(req, res); }
   catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
   try {
-    const { projectName, location, manager, budget, startDate, scope, status, progress, removePhoto } = req.body;
+    const { 
+      projectName, location, manager, 
+      budgetMaterials, budgetLabour, budgetEquipment,
+      startDate, scope, status, progress, removePhoto 
+    } = req.body;
+
     const updateData = {};
     if (projectName !== undefined) updateData.projectName = projectName.trim();
-    if (location !== undefined)    updateData.location    = location;
-    if (manager !== undefined)     updateData.manager     = manager;
-    if (budget !== undefined)      updateData.budget      = Number(budget);
-    if (startDate !== undefined)   updateData.startDate   = startDate || null;
-    if (scope !== undefined)       updateData.scope       = scope;
-    if (status !== undefined)      updateData.status      = status;
-    if (progress !== undefined)    updateData.progress    = Number(progress);
+    if (location    !== undefined) updateData.location    = location;
+    if (manager     !== undefined) updateData.manager     = manager;
+    
+    // Handle nested budget update
+    if (budgetMaterials !== undefined || budgetLabour !== undefined || budgetEquipment !== undefined) {
+      updateData.budget = {};
+      if (budgetMaterials !== undefined) updateData.budget.materials = Number(budgetMaterials);
+      if (budgetLabour    !== undefined) updateData.budget.labour    = Number(budgetLabour);
+      if (budgetEquipment !== undefined) updateData.budget.equipment = Number(budgetEquipment);
+    }
+
+    if (startDate   !== undefined) updateData.startDate   = startDate || null;
+    if (scope       !== undefined) updateData.scope       = scope;
+    if (status      !== undefined) updateData.status      = status;
+    if (progress    !== undefined) updateData.progress    = Number(progress);
+
     const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
     const photoFile = req.files?.find(f => f.fieldname === "photo");
     if (photoFile && existing) {
@@ -143,9 +213,10 @@ router.put("/:id", async (req, res) => {
       await deleteFile(existing.photo);
       updateData.photo = null;
     }
+
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, createdBy: req.user._id },
-      updateData,
+      { $set: updateData }, // Use $set to avoid overwriting the whole budget object if only one part changed
       { new: true, runValidators: true }
     );
     if (!project) return res.status(404).json({ message: "Project not found" });
@@ -158,6 +229,7 @@ router.put("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to update project" });
   }
 });
+
 router.delete("/:id", async (req, res) => {
   try {
     const project = await Project.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });
@@ -168,4 +240,5 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to delete project" });
   }
 });
-module.exports = router;
+
+module.exports = router;
