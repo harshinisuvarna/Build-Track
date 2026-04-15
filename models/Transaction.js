@@ -67,6 +67,84 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // ── Materials ──────────────────────────────
+    brand: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    unitType: {
+      type: String,
+      enum: ["kg", "bag", "ton", "MT", "sqft", "truck", ""],
+      default: "",
+    },
+
+    // quantity & rate already exist above; added below only if missing
+    // (quantity and rate are already in the schema — no duplication needed)
+
+    // ── Wages ──────────────────────────────────
+    rateType: {
+      type: String,
+      enum: ["day", "sqft", "hour", ""],
+      default: "",
+    },
+
+    workDone: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // ── Equipment / Expense ────────────────────
+    usage: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    machineType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ── Generic ────────────────────────────────
+    category: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ── Payment ────────────────────────────────
+    paymentStatus: {
+      type: String,
+      enum: ["Paid", "Partially Paid", "Pending", "Partial", "Advance", ""],
+      default: "",
+    },
+
+    paymentMode: {
+      type: String,
+      enum: ["Cash", "UPI", "Bank Transfer", "Cheque", "Bank", ""],
+      default: "",
+    },
+
+    paymentDate: {
+      type: Date,
+      default: null,
+    },
+
+    remarks: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    attachments: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
