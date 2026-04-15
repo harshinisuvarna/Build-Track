@@ -5,7 +5,6 @@ const { protect } = require("../middleware/auth");
 
 router.use(protect);
 
-// GET /api/inventory - List all inventory items
 router.get("/", async (req, res) => {
   try {
     const { project } = req.query;
@@ -19,7 +18,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST /api/inventory/use - Mark materials as used
 router.post("/use", async (req, res) => {
   try {
     const { materialName, usedQty, project } = req.body;
