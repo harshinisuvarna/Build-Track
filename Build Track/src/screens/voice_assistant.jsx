@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { transactionAPI, workerAPI, projectAPI } from "../api";
+import { transactionAPI, workerAPI, projectAPI, voiceAPI } from "../api";
 
 function extractAmount(text) {
   const t = text.toLowerCase();
@@ -31,7 +31,6 @@ function assignField(text, workers, projects) {
   return { worker: workerMatch || "", project: projectMatch || "" };
 }
 
-// Levenshtein edit distance for fuzzy name matching
 function editDist(a, b) {
   const m = a.length, n = b.length;
   const dp = Array.from({ length: m + 1 }, (_, i) => { const r = new Array(n + 1); r[0] = i; return r; });
@@ -47,17 +46,13 @@ function nameSimilarity(a, b) {
   return mx === 0 ? 1 : 1 - editDist(la, lb) / mx;
 }
 
-// Find the best matching worker option by name (fuzzy)
 function fuzzyFindWorker(parsedName, workerOptions) {
   if (!parsedName || !workerOptions?.length) return null;
   const lower = parsedName.toLowerCase().trim();
-  // 1) Exact match
   let match = workerOptions.find(w => w.name?.toLowerCase() === lower);
   if (match) return match;
-  // 2) Substring
   match = workerOptions.find(w => w.name?.toLowerCase().includes(lower) || lower.includes(w.name?.toLowerCase()));
   if (match) return match;
-  // 3) Similarity >= 55%
   let best = null, bestSim = 0;
   for (const w of workerOptions) {
     if (!w.name) continue;
@@ -67,7 +62,6 @@ function fuzzyFindWorker(parsedName, workerOptions) {
   return best;
 }
 
-// Find the best matching project option by name (fuzzy)
 function fuzzyFindProject(parsedName, projectOptions) {
   if (!parsedName || !projectOptions?.length) return null;
   const lower = parsedName.toLowerCase().trim();
@@ -172,7 +166,6 @@ export default function VoiceAssistantPage() {
   const handleWorkerChange = (val) => {
     setWorker(val);
     if (fieldErrors.worker) setFieldErrors(prev => ({ ...prev, worker: false }));
-    // Auto-suggest project from projectNames if the worker name appears in a project
     if (!project && projectNames.length > 0) {
       const match = projectNames.find(p => p.toLowerCase().includes(val.toLowerCase()));
       if (match) {
@@ -213,7 +206,6 @@ export default function VoiceAssistantPage() {
       })
       .catch(() => {});
 
-    // ✅ NEW: fetch real recent entries on mount
     fetchRecentEntries();
   }, []);
 
@@ -266,30 +258,26 @@ export default function VoiceAssistantPage() {
       };
 
       try {
-        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:5000")
-          .replace(/\/+$/, "").replace(/\/api$/, "");
-        const res = await fetch(`${apiBase}/api/voice/parse`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcript: text, workers: workerNames, projects: projectNames }),
+        const { data } = await voiceAPI.parse({
+          transcript: text,
+          workers: workerNames,
+          projects: projectNames,
         });
 
-        let data;
-        try { data = await res.json(); } catch { data = clientFallback(text); }
-        if (!data.category && !data.worker && !data.amount) data = clientFallback(text);
+        const parsedData = (data && (data.category || data.worker || data.amount))
+          ? data
+          : clientFallback(text);
 
         const assigned = assignField(text, workerNames, projectNames);
-        const rawWorker  = data.worker  || assigned.worker  || "";
-        const rawProject = data.project || assigned.project || "";
-        const parsedAmount   = String(data.amount || "");
-        const parsedCategory = data.category || "Expense";
-        const parsedNotes    = data.notes    || "";
+        const rawWorker  = parsedData.worker  || assigned.worker  || "";
+        const rawProject = parsedData.project || assigned.project || "";
+        const parsedAmount   = String(parsedData.amount || "");
+        const parsedCategory = parsedData.category || "Expense";
+        const parsedNotes    = parsedData.notes    || "";
 
-        // Fuzzy-match parsed names against actual worker/project objects
         const matchedWorker  = fuzzyFindWorker(rawWorker, workerOptions);
         const matchedProject = fuzzyFindProject(rawProject, projectOptions);
 
-        // Also scan the entire transcript for worker/project names
         let finalWorker = matchedWorker;
         if (!finalWorker) {
           const words = text.toLowerCase().split(/\s+/);
@@ -305,13 +293,11 @@ export default function VoiceAssistantPage() {
         setAmount(parsedAmount);
         setCategory(parsedCategory);
         setNotes(parsedNotes);
-        setParseSource(data.source || "");
+        setParseSource(parsedData.source || "");
         setFieldErrors({ worker: false, project: false });
       } catch (err) {
-        console.error("Voice parse error:", err);
         const fallback = clientFallback(text);
 
-        // Fuzzy match in fallback too
         let fbWorker = fuzzyFindWorker(fallback.worker, workerOptions);
         if (!fbWorker) {
           const words = text.toLowerCase().split(/\s+/);
@@ -336,7 +322,6 @@ export default function VoiceAssistantPage() {
     };
 
     recognition.onerror = (e) => {
-      console.error("SpeechRecognition error:", e.error);
       setListening(false);
       setParsing(false);
       recognitionRef.current = null;
@@ -407,11 +392,14 @@ export default function VoiceAssistantPage() {
       setWorker(""); setProject(""); setAmount(""); setCategory("Wages"); setNotes("");
       setTranscript(""); setParseSource("");
       setFieldErrors({ worker: false, project: false });
-      // ✅ NEW: refresh recent entries after save
       fetchRecentEntries();
       setTimeout(() => setVoiceSuccess(""), 3000);
     } catch (err) {
-      setVoiceError(err.response?.data?.message || "Failed to save entry.");
+      setVoiceError(
+        err.friendlyMessage ||
+        err.response?.data?.message ||
+        "Failed to save entry. Please try again."
+      );
     } finally {
       setVoiceSaving(false);
     }
@@ -438,7 +426,6 @@ export default function VoiceAssistantPage() {
   const isWages = category === "Wages";
   const workerPlaceholder = isWages ? "Select worker" : "Optional worker";
 
-  // ✅ NEW: helper to format time ago
   const timeAgo = (dateStr) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -659,7 +646,7 @@ export default function VoiceAssistantPage() {
             </div>
           </div>
 
-          {/* ✅ Recent Voice Entries — now real data */}
+
           <div style={{ width: "100%", maxWidth: 880 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Recent Voice Entries</h2>

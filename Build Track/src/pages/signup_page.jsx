@@ -2,11 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
 
-const API_ORIGIN =
-  (import.meta.env.VITE_API_URL || "http://localhost:5000")
-    .replace(/\/+$/, "")
-    .replace(/\/api$/, "");
-
 const CheckIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
     <circle cx="10" cy="10" r="10" fill="#ea580c" />
@@ -103,7 +98,10 @@ export default function SignUpPage() {
       localStorage.setItem("bt_user",  JSON.stringify(data.user));
       window.location.assign("/");
     } catch (err) {
-      const msg = err.response?.data?.message || "Something went wrong. Please try again.";
+      const msg =
+        err.friendlyMessage ||
+        err.response?.data?.message ||
+        "Something went wrong. Please try again.";
       setServerErr(msg);
       setShake(true);
       setTimeout(() => setShake(false), 420);

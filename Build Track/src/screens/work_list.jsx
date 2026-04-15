@@ -1,10 +1,3 @@
-// src/screens/work_list.jsx
-// CONNECTED TO BACKEND:
-//  • Fetches workers from GET /api/workers on mount
-//  • Delete calls DELETE /api/workers/:id
-//  • Edit navigates to /newworker with worker state (handled by add_new_worker.jsx)
-//  • All requests include JWT automatically via api/index.js interceptor
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { workerAPI } from "../api";
@@ -13,11 +6,9 @@ import { resolveImageUrl } from "../utils/imageUrl";
 
 const ITEMS_PER_PAGE = 7;
 
-// Generate initials from name
 const getInitials = (name = "") =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-// Worker avatar: photo if available, else initials
 function WorkerAvatar({ worker, size = 38, borderRadius = 10, fontSize = 13 }) {
   const avatarColors = ["#ea580c", "#0ea5e9", "#16a34a", "#7c3aed", "#db2777"];
   let hash = 0;
@@ -63,7 +54,6 @@ export default function WorkerDirectory() {
   const filterRef = useRef(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  // ── Fetch workers from backend ─────────────────────────────────────────────
   const fetchWorkers = async () => {
     try {
       setLoading(true);
@@ -77,16 +67,10 @@ export default function WorkerDirectory() {
         err?.message ||
         "Unknown error";
       setError(status ? `Failed to load workers (${status}): ${msg}` : `Failed to load workers: ${msg}`);
-      console.error("Failed to load workers:", {
-        message: err?.message,
-        status: err?.response?.status,
-        data: err?.response?.data,
-        url: err?.config?.url,
-        baseURL: err?.config?.baseURL,
-      });
     } finally {
       setLoading(false);
     }
+
   };
 
   useEffect(() => { fetchWorkers(); }, []);
@@ -106,7 +90,6 @@ export default function WorkerDirectory() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ── Client-side filter + search ───────────────────────────────────────────
   const filtered = allWorkers.filter((w) => {
     const matchSearch =
       w.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -124,12 +107,10 @@ export default function WorkerDirectory() {
   const handleFilter = (f) => { setFilter(f); setPage(1); setShowFilters(false); };
   const handleSearch = (e) => { setSearch(e.target.value); setPage(1); };
 
-  // ── Edit: pass full worker object to /newworker page ──────────────────────
   const handleEdit = (worker) => {
     navigate("/newworker", { state: { editWorker: worker } });
   };
 
-  // ── Delete: confirm → call API → remove from list ─────────────────────────
   const handleDelete = (workerId) => {
     const worker = allWorkers.find(w => w._id === workerId);
     setConfirmDlg({
@@ -160,7 +141,6 @@ export default function WorkerDirectory() {
     URL.revokeObjectURL(url);
   };
 
-  // ── Shared styles ─────────────────────────────────────────────────────────
 
   return (
     <div style={{
@@ -169,7 +149,6 @@ export default function WorkerDirectory() {
       fontFamily: "'Segoe UI', sans-serif",
       background: "#f7f7f8", overflow: "hidden",
     }}>
-      {/* Toast + Confirm Dialog */}
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && (
         <ConfirmDialog

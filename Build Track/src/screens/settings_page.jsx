@@ -46,13 +46,12 @@ export default function SettingsPage() {
   const [curPw,        setCurPw]        = useState("");
   const [newPw,        setNewPw]        = useState("");
   const [pwSaving,     setPwSaving]     = useState(false);
-  // Toast + confirm dialog state
+
   const [toast,        setToast]        = useState({ msg: "", type: "info" });
   const [confirmDlg,   setConfirmDlg]   = useState(null);
   const navigate = useNavigate();
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  // ── Load user data from localStorage on mount, then verify from API ──
   useEffect(() => {
     const stored = localStorage.getItem("bt_user");
     if (stored) {
@@ -60,7 +59,6 @@ export default function SettingsPage() {
       setFullName(u.name || "");
       setEmail(u.email || "");
       setRole(u.role || "Site Supervisor");
-      // Restore 2FA status from cached user data
       if (u.twoFactorEnabled !== undefined) {
         setTwoFA(u.twoFactorEnabled);
       }
@@ -68,18 +66,16 @@ export default function SettingsPage() {
         setProfileImage(resolveImageUrl(u.profilePhoto));
       }
     }
-    // Also fetch fresh user data from backend to ensure 2FA state is current
     authAPI.me()
       .then(({ data }) => {
         const user = data.user || data;
         if (user.twoFactorEnabled !== undefined) {
           setTwoFA(user.twoFactorEnabled);
         }
-        // Update localStorage with fresh data
         const cached = JSON.parse(localStorage.getItem("bt_user") || "{}");
         localStorage.setItem("bt_user", JSON.stringify({ ...cached, ...user }));
       })
-      .catch(err => console.error("Failed to fetch user data:", err));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -88,31 +84,28 @@ export default function SettingsPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Profile photo upload — hits PUT /api/auth/photo ──
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Show preview immediately
+
     setProfileImage(URL.createObjectURL(file));
     try {
       const fd = new FormData();
       fd.append("photo", file);
       const { data } = await userAPI.updatePhoto(fd);
-      // Persist to localStorage
+
       const stored = JSON.parse(localStorage.getItem("bt_user") || "{}");
       localStorage.setItem("bt_user", JSON.stringify({
         ...stored,
         profilePhoto: data.profilePhoto,
       }));
-      // Notify sidebar to update
+
       window.dispatchEvent(new Event("userUpdated"));
-    } catch (err) {
-      console.error("Photo upload error:", err);
+    } catch {
       setToast({ msg: "Failed to upload photo.", type: "error" });
     }
   };
 
-  // ── Save profile — hits PUT /api/auth/profile ──
   const handleSaveProfile = async () => {
     if (!fullName.trim() || !email.trim()) {
       setToast({ msg: "Name and email cannot be empty.", type: "error" });
@@ -125,22 +118,21 @@ export default function SettingsPage() {
         email,
         role,
       });
-      // Update localStorage with fresh data
+
       const stored = JSON.parse(localStorage.getItem("bt_user") || "{}");
       localStorage.setItem("bt_user", JSON.stringify({ ...stored, ...data.user }));
-      // Notify sidebar to update
+
       window.dispatchEvent(new Event("userUpdated"));
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      console.error("Profile save error:", err);
       setToast({ msg: err.response?.data?.message || "Failed to save profile.", type: "error" });
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Change Password ──
+
   const handleChangePassword = async () => {
     setSecErr(""); setSecMsg("");
     if (!curPw || !newPw) { setSecErr("Both fields are required."); return; }
@@ -158,13 +150,13 @@ export default function SettingsPage() {
     }
   };
 
-  // ── Toggle 2FA ──
+
   const handleToggle2FA = async () => {
     try {
       const { data } = await authAPI.toggle2FA();
       setTwoFA(data.twoFactorEnabled);
       setSecMsg(data.message);
-      // Persist to localStorage so it survives reloads
+
       const cached = JSON.parse(localStorage.getItem("bt_user") || "{}");
       localStorage.setItem("bt_user", JSON.stringify({ ...cached, twoFactorEnabled: data.twoFactorEnabled }));
       setTimeout(() => setSecMsg(""), 4000);
@@ -173,7 +165,7 @@ export default function SettingsPage() {
     }
   };
 
-  // ── Sign Out All ──
+
   const handleSignOutAll = () => {
     setConfirmDlg({
       message: "Sign out from all devices? You will need to log in again.",
@@ -191,7 +183,7 @@ export default function SettingsPage() {
     });
   };
 
-  // ── Delete Account ──
+
   const handleDeleteAccount = () => {
     setConfirmDlg({
       message: "Are you sure you want to permanently delete your account? This action cannot be undone.",

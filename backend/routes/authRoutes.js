@@ -16,7 +16,6 @@ const makeToken = (user) =>
     SECRET,
     { expiresIn: "7d" }
   );
-
 const safeUser = (user) => ({
   id:           user._id || user.id,
   name:         user.name,
@@ -27,90 +26,65 @@ const safeUser = (user) => ({
   isActive:     user.isActive,
   createdAt:    user.createdAt,
 });
-// ─── REGISTER ─────────────────────────────────────────────────────────────────
-// POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;  
-
     if (!name || !email || !password)
       return res.status(400).json({ message: "All fields required" });
-
     if (password.length < 6)
       return res.status(400).json({ message: "Password must be at least 6 characters" });
-
     const exists = await User.findOne({ email: email.toLowerCase().trim() });
     if (exists)
       return res.status(409).json({ message: "An account with this email already exists" });
-
     const user = await User.create({ name: name.trim(), email, password });
-
     res.status(201).json({
       message: "Account created successfully",
       token:   makeToken(user),
       user:    safeUser(user),
     });
-
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ message: "Server error during registration" });
   }
 });
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
-// POST /api/auth/login
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password)
       return res.status(400).json({ message: "Email and password are required" });
-
     const user = await User.findOne({ email: email.toLowerCase().trim() });
-
     if (!user)
       return res.status(401).json({ message: "Invalid email or password" });
-
     if (!user.isActive)
       return res.status(403).json({ message: "Account deactivated. Contact support." });
-
-    // If this user signed up via OAuth and has no password
     if (!user.password)
       return res.status(400).json({
         message: "This account uses Google or GitHub login. Please use those buttons instead.",
       });
-
     const isMatch = await user.matchPassword(password);
     if (!isMatch)
       return res.status(401).json({ message: "Invalid email or password" });
-
     res.json({
       message: "Login successful",
       token:   makeToken(user),
       user:    safeUser(user),
     });
-
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error during login" });
   }
 });
-// ─── GET CURRENT USER ─────────────────────────────────────────────────────────
-// GET /api/auth/me
 router.get("/me", protect, (req, res) => {
   res.json({ user: safeUser(req.user) });
 });
-// ─── UPDATE PROFILE ───────────────────────────────────────────────────────────
-// PUT /api/auth/profile
 router.put("/profile", protect, async (req, res) => {
   try {
     const { name, email, role } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-
     if (name)  user.name  = name.trim();
     if (email) user.email = email.trim().toLowerCase();
     if (role)  user.role  = role.trim();
-
     await user.save();
     res.json({ message: "Profile updated", user: safeUser(user) });
   } catch (err) {
@@ -121,26 +95,19 @@ router.put("/profile", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to update profile" });
   }
 });
-// ─── UPDATE PROFILE PHOTO ─────────────────────────────────────────────────────
-// PUT /api/auth/photo
 router.put("/photo", protect, upload.single("photo"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No photo uploaded" });
-
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-
     user.profilePhoto = getFileUrl(req.file);
     await user.save();
-
     res.json({ message: "Photo updated", profilePhoto: user.profilePhoto });
   } catch (err) {
     console.error("Photo upload error:", err);
     res.status(500).json({ message: "Failed to upload photo" });
   }
 });
-// ─── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
-// GET /api/auth/google
 router.get("/google", (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return res.status(503).json({
@@ -149,7 +116,6 @@ router.get("/google", (req, res, next) => {
   }
   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
-// GET /api/auth/google/callback
 router.get(
   "/google/callback",
   (req, res, next) => {
@@ -163,29 +129,21 @@ router.get(
     res.redirect(`${FRONTEND}/oauth/callback?token=${token}`);
   }
 );
-// ─── FORGOT PASSWORD ──────────────────────────────────────────────────────
-// POST /api/auth/forgot-password
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
-
     const user = await User.findOne({ email: email.toLowerCase().trim() });
-
-    // Always return success (don't reveal if email exists)
     if (!user) {
       return res.json({ message: "If that email is registered, a reset link has been sent." });
     }
-
     if (!user.password) {
       return res.json({ message: "This account uses Google or GitHub login. Please use those instead." });
     }
-    // Generate reset token and expiry
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
-
     const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
@@ -195,7 +153,6 @@ router.post("/forgot-password", async (req, res) => {
           secure: process.env.SMTP_SECURE === "true",
           auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
         });
-
         await transporter.sendMail({
           from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
           to: user.email,
@@ -217,17 +174,12 @@ router.post("/forgot-password", async (req, res) => {
       console.log(`   ${resetUrl}`);
       console.log("──────────────────────────────────────────");
     }
-
     res.json({ message: "If that email is registered, a reset link has been sent." });
   } catch (err) {
     console.error("Forgot password error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
-
-
-// ─── RESET PASSWORD (via token) ───────────────────────────────────────────
-// POST /api/auth/reset-password
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
@@ -237,29 +189,23 @@ router.post("/reset-password", async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
-
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: new Date() },
     });
-
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired reset token" });
     }
-
     user.password = password; // will be hashed by pre-save hook
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     await user.save();
-
     res.json({ message: "Password has been reset successfully. You can now log in." });
   } catch (err) {
     console.error("Reset password error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
-// ─── CHANGE PASSWORD (authenticated) ─────────────────────────────────────
-// PUT /api/auth/change-password
 router.put("/change-password", protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -271,7 +217,6 @@ router.put("/change-password", protect, async (req, res) => {
     }
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-
     if (!user.password) {
       return res.status(400).json({ message: "This account uses OAuth login and has no password to change." });
     }
@@ -281,25 +226,18 @@ router.put("/change-password", protect, async (req, res) => {
     }
     user.password = newPassword; // hashed by pre-save hook
     await user.save();
-
     res.json({ message: "Password changed successfully" });
   } catch (err) {
     console.error("Change password error:", err);
     res.status(500).json({ message: "Failed to change password" });
   }
 });
-
-
-// ─── TOGGLE 2FA ───────────────────────────────────────────────────────────
-// PUT /api/auth/toggle-2fa
 router.put("/toggle-2fa", protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-
     user.twoFactorEnabled = !user.twoFactorEnabled;
     await user.save();
-
     res.json({
       message: user.twoFactorEnabled ? "Two-factor authentication enabled" : "Two-factor authentication disabled",
       twoFactorEnabled: user.twoFactorEnabled,
@@ -309,27 +247,18 @@ router.put("/toggle-2fa", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to toggle 2FA" });
   }
 });
-
-
-// ─── SIGN OUT ALL SESSIONS ────────────────────────────────────────────────
-// POST /api/auth/sign-out-all
 router.post("/sign-out-all", protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
-
     res.json({ message: "All sessions signed out. Please log in again on all your devices." });
   } catch (err) {
     console.error("Sign out all error:", err);
     res.status(500).json({ message: "Failed to sign out all sessions" });
   }
 });
-
-// ─── DELETE ACCOUNT ───────────────────────────────────────────────────────
-// DELETE /api/auth/account
 router.delete("/account", protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -345,6 +274,4 @@ router.delete("/account", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to delete account" });
   }
 });
-
-
 module.exports = router;

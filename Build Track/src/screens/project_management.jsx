@@ -1,8 +1,3 @@
-// src/screens/project_management.jsx
-// Fetches real projects from GET /api/projects
-// Delete calls DELETE /api/projects/:id
-// Edit navigates to /newproject with state
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate }         from "react-router-dom";
 import { projectAPI }          from "../api";
@@ -43,7 +38,6 @@ export default function ProjectsPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Fetch from backend ────────────────────────────────────────────────────
   const fetchProjects = async () => {
     try {
       setLoading(true);
@@ -69,7 +63,6 @@ export default function ProjectsPage() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = (projectId, projectName) => {
     setConfirmDlg({
       message: `Delete "${projectName}"? This action cannot be undone.`,
@@ -88,12 +81,10 @@ export default function ProjectsPage() {
     });
   };
 
-  // ── Edit ──────────────────────────────────────────────────────────────────
   const handleEdit = (project) => {
     navigate("/newproject", { state: { editProject: project } });
   };
 
-  // ── Filter ────────────────────────────────────────────────────────────────
   const filtered = allProjects.filter((p) => {
     const q = search.toLowerCase();
     const matchSearch =
@@ -108,7 +99,6 @@ export default function ProjectsPage() {
     return matchSearch;
   });
 
-  // Tab counts
   const counts = {
     "All Projects":   allProjects.length,
     "Active":         allProjects.filter(p => p.status === "Active").length,
@@ -295,7 +285,6 @@ export default function ProjectsPage() {
 
                   {/* Actions */}
                   <div style={{ display: "flex", gap: 10 }}>
-                    {/* ✅ CHANGED: orange outlined, centered text, hover fills solid orange */}
                     <button
                       onClick={() => navigate("/managesite", { state: { project: p } })}
                       style={{

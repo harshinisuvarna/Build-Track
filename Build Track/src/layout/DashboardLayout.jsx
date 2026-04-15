@@ -10,7 +10,7 @@ export default function DashboardLayout() {
     const onResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      if (!mobile) setSidebarOpen(false); // close overlay when going to desktop
+      if (!mobile) setSidebarOpen(false);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -18,7 +18,7 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      {/* Bug 24: Mobile overlay backdrop */}
+
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -31,7 +31,7 @@ export default function DashboardLayout() {
         />
       )}
 
-      {/* Bug 24: On mobile, sidebar is absolutely positioned and toggleable */}
+
       {isMobile ? (
         <div style={{
           position: "fixed", top: 0, left: 0, bottom: 0,
@@ -45,9 +45,9 @@ export default function DashboardLayout() {
         <Sidebar collapsed={false} />
       )}
 
-      {/* Main content area */}
+
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
-        {/* Bug 24: Mobile hamburger button */}
+
         {isMobile && (
           <div style={{
             background: "#fff",

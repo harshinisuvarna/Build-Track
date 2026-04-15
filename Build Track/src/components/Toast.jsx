@@ -1,7 +1,3 @@
-// Usage:
-//   <Toast message={msg} type="success|error|info" onClose={() => setMsg("")} />
-//   <ConfirmDialog message="..." onConfirm={fn} onCancel={fn} />
-
 import { useEffect } from "react";
 
 const TOAST_STYLES = {

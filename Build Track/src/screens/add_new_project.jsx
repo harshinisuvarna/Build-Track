@@ -1,17 +1,10 @@
-// src/screens/add_new_project.jsx
-// ✅ CONNECTED TO BACKEND:
-//   • GET  /api/workers/supervisors — loads real supervisor list for manager dropdown
-//   • POST /api/projects  — creates project (FormData with optional photo)
-//   • PUT  /api/projects/:id — updates project (FormData with optional new photo)
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, workerAPI } from "../api";
 import { resolveImageUrl } from "../utils/imageUrl";
 
-// Managers are now loaded dynamically from /api/workers/supervisors
+const TOPBAR_H = 65;
 
-const TOPBAR_H  = 65;
 
 export default function NewProjectPage() {
   const navigate     = useNavigate();
@@ -19,15 +12,14 @@ export default function NewProjectPage() {
   const fileInputRef = useRef(null);
   const initialPhotoRef = useRef("");
 
-  // ── Edit-mode detection ────────────────────────────────────────────────────
+
   const editProject = location.state?.editProject || null;
   const isEditMode  = Boolean(editProject);
 
-  // ── Supervisors (loaded from backend) ────────────────────────────────────
+
   const [supervisors,     setSupervisors]     = useState([]);
   const [supervisorsLoading, setSupervisorsLoading] = useState(true);
 
-  // ── Form state ────────────────────────────────────────────────────────────
   const [isMobile,    setIsMobile]    = useState(() => window.innerWidth < 768);
   const [projectName, setProjectName] = useState("");
   const [loc,         setLoc]         = useState("");
@@ -39,13 +31,11 @@ export default function NewProjectPage() {
   const [progress,    setProgress]    = useState(0);
   const [dragOver,    setDragOver]    = useState(false);
 
-  // photoPreview → data URL shown in UI
-  // photoFile    → the raw File object we put in FormData  (null = no new file chosen)
+
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile,    setPhotoFile]    = useState(null);
   const [removeExistingPhoto, setRemoveExistingPhoto] = useState(false);
 
-  // ── UI state ──────────────────────────────────────────────────────────────
   const [saving,   setSaving]   = useState(false);
   const [errMsg,   setErrMsg]   = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -56,7 +46,6 @@ export default function NewProjectPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Load supervisors from backend ─────────────────────────────────────────
   useEffect(() => {
     setSupervisorsLoading(true);
     workerAPI.getSupervisors()
@@ -65,7 +54,7 @@ export default function NewProjectPage() {
       .finally(() => setSupervisorsLoading(false));
   }, []);
 
-  // ── Pre-fill when editing ─────────────────────────────────────────────────
+
   useEffect(() => {
     if (!isEditMode) return;
     setProjectName(editProject.projectName || "");
@@ -77,9 +66,7 @@ export default function NewProjectPage() {
     setScope(      editProject.scope       || "");
     setStatus(     editProject.status      || "Active");
     setProgress(   editProject.progress    || 0);
-    // Restore saved manager name (matches against whatever was saved as string)
     setManager(editProject.manager || "");
-    // Show existing photo as preview
     if (editProject.photo) {
       setPhotoPreview(resolveImageUrl(editProject.photo));
       setRemoveExistingPhoto(false);
@@ -89,7 +76,7 @@ export default function NewProjectPage() {
     }
   }, [isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Handle file selection ─────────────────────────────────────────────────
+
   const handlePhotoFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
     setPhotoFile(file);
@@ -107,7 +94,7 @@ export default function NewProjectPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+
   const handleSubmit = async () => {
     setErrMsg("");
     setSuccessMsg("");
@@ -123,14 +110,8 @@ export default function NewProjectPage() {
     fd.append("scope",     scope);
     fd.append("status",    status);
     fd.append("progress",  progress);
-    if (isEditMode && removeExistingPhoto && !photoFile) {
-      fd.append("removePhoto", "true");
-    } else if (isEditMode && initialPhotoRef.current && !photoFile && !photoPreview) {
-      // If edit mode started with a photo but preview is currently empty,
-      // treat it as an explicit remove to avoid stale photo persistence.
-      fd.append("removePhoto", "true");
-    }
-    if (photoFile) fd.append("photo", photoFile);   // only send if user picked a new file
+    if (photoFile) fd.append("photo", photoFile);
+
 
     try {
       setSaving(true);
@@ -159,7 +140,6 @@ export default function NewProjectPage() {
     }
   };
 
-  // ── Shared styles ─────────────────────────────────────────────────────────
   const inputStyle = {
     width: "100%", padding: "11px 14px",
     background: "#f9f9f9", border: "1px solid #e5e5e5",
