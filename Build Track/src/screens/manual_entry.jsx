@@ -45,7 +45,8 @@ export default function ManualEntryPage() {
   const [paymentMode,   setPaymentMode]   = useState("");
   const [paymentDate,   setPaymentDate]   = useState("");
   const [remarks,       setRemarks]       = useState("");
-  const [attachments,   setAttachments]   = useState([]);
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [screenshotDragOver, setScreenshotDragOver] = useState(false);
 
   const [saving,      setSaving]      = useState(false);
   const [errMsg,      setErrMsg]      = useState("");
@@ -125,39 +126,39 @@ export default function ManualEntryPage() {
     try {
       setSaving(true);
 
-      const payload = {
-        title:   title.trim(),
-        amount:  Number(amount),
-        type:    txType,
-        worker:  worker  || undefined,
-        project: project || undefined,
-        date:    date    || new Date().toISOString(),
-        notes:   notes.trim(),
-        // For Materials, also send `category` = title so the backend is satisfied
-        ...(txType === "Materials" && { category: title.trim() }),
-        // ── New optional fields (conditionally appended) ──
-        ...(brand         && { brand }),
-        ...(unitType      && { unitType }),
-        ...(parseFloat(quantity) > 0 && { quantity: parseFloat(quantity) }),
-        ...(parseFloat(rate)     > 0 && { rate:     parseFloat(rate) }),
-        ...(parseFloat(workDone) > 0 && { workDone: parseFloat(workDone) }),
-        ...(parseFloat(usage)    > 0 && { usage:    parseFloat(usage) }),
-        ...(machineType   && { machineType }),
-        ...(rateType      && { rateType }),
-        ...(paymentStatus && { paymentStatus }),
-        ...(paymentMode   && { paymentMode }),
-        ...(paymentDate   && { paymentDate }),
-        ...(remarks       && { remarks }),
-      };
+      // Build FormData so any file is sent as multipart/form-data
+      const fd = new FormData();
+      fd.append("title",   title.trim());
+      fd.append("amount",  Number(amount));
+      fd.append("type",    txType);
+      fd.append("date",    date || new Date().toISOString());
+      fd.append("notes",   notes.trim());
+      if (worker)  fd.append("worker",  worker);
+      if (project) fd.append("project", project);
 
+      // For Materials send category = title (backend fallback also handles this)
       if (txType === "Materials") {
-        payload.quantity = parseFloat(quantity) || 0;
-        payload.unit     = unit.trim();
-        payload.rate     = parseFloat(rate)     || 0;
+        fd.append("category", title.trim());
+        fd.append("quantity", parseFloat(quantity) || 0);
+        fd.append("unit",     unit.trim() || "unit");
+        fd.append("rate",     parseFloat(rate) || 0);
       }
 
-      console.log("[ManualEntry] Submitting payload:", payload);
-      await transactionAPI.create(payload);
+      // Optional fields
+      if (brand)         fd.append("brand",         brand);
+      if (unitType)      fd.append("unitType",      unitType);
+      if (parseFloat(workDone) > 0) fd.append("workDone", parseFloat(workDone));
+      if (parseFloat(usage)    > 0) fd.append("usage",    parseFloat(usage));
+      if (machineType)   fd.append("machineType",   machineType);
+      if (rateType)      fd.append("rateType",      rateType);
+      if (paymentStatus) fd.append("paymentStatus", paymentStatus);
+      if (paymentMode)   fd.append("paymentMode",   paymentMode);
+      if (paymentDate)   fd.append("paymentDate",   paymentDate);
+      if (remarks)       fd.append("remarks",       remarks);
+      if (paymentScreenshot) fd.append("paymentScreenshot", paymentScreenshot);
+
+      console.log("[ManualEntry] Submitting FormData for type:", txType);
+      await transactionAPI.create(fd);
       console.log("[ManualEntry] Transaction saved successfully.");
       setSuccessMsg("Entry saved successfully!");
 
@@ -167,7 +168,8 @@ export default function ManualEntryPage() {
       setQuantity(""); setUnit(""); setRate("");
       setBrand(""); setUnitType(""); setRateType(""); setWorkDone("");
       setUsage(""); setMachineType(""); setPaymentStatus("");
-      setPaymentMode(""); setPaymentDate(""); setRemarks(""); setAttachments([]);
+      setPaymentMode(""); setPaymentDate(""); setRemarks("");
+      setPaymentScreenshot(null);
 
       fetchTransactions();
       setTimeout(() => setSuccessMsg(""), 3000);
@@ -712,22 +714,78 @@ export default function ManualEntryPage() {
                     }}
                   />
                 </div>
-                {/* Attachments */}
+                {/* Payment Screenshot — drag-drop upload box */}
                 <div>
-                  <div style={labelStyle}>📎 Attachments <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(UI only — not uploaded yet)</span></div>
+                  <div style={labelStyle}>📎 Payment Screenshot <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional · JPG, PNG, PDF · max 5 MB)</span></div>
+
+                  {/* Hidden real input */}
                   <input
+                    id="screenshot-input"
                     type="file"
-                    multiple
-                    onChange={e => setAttachments(Array.from(e.target.files))}
-                    style={{
-                      width: "100%", padding: "8px 0",
-                      fontSize: 13, color: "#555",
-                      fontFamily: "'Segoe UI', sans-serif",
-                    }}
+                    accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                    style={{ display: "none" }}
+                    onChange={e => setPaymentScreenshot(e.target.files[0] || null)}
                   />
-                  {attachments.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: "#888" }}>
-                      {attachments.length} file{attachments.length > 1 ? "s" : ""} selected
+
+                  {/* Drop zone */}
+                  <div
+                    onClick={() => document.getElementById("screenshot-input").click()}
+                    onDragOver={e => { e.preventDefault(); setScreenshotDragOver(true); }}
+                    onDragLeave={() => setScreenshotDragOver(false)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setScreenshotDragOver(false);
+                      const file = e.dataTransfer.files[0];
+                      if (file) setPaymentScreenshot(file);
+                    }}
+                    style={{
+                      border: `2px dashed ${screenshotDragOver ? "#ea580c" : "#d1d5db"}`,
+                      borderRadius: 12,
+                      padding: "28px 20px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      background: screenshotDragOver ? "#fff7ed" : "#fafafa",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <div style={{
+                      width: 48, height: 48, borderRadius: "50%",
+                      background: "#f3f4f6", display: "flex",
+                      alignItems: "center", justifyContent: "center",
+                      margin: "0 auto 12px", fontSize: 22,
+                    }}>📎</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
+                      Click to upload or drag and drop
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+                      PNG, JPG, PDF up to 5MB
+                    </div>
+                  </div>
+
+                  {/* Selected file preview */}
+                  {paymentScreenshot && (
+                    <div style={{
+                      marginTop: 10, display: "flex", alignItems: "center",
+                      gap: 8, padding: "8px 12px",
+                      background: "#f0fdf4", border: "1px solid #bbf7d0",
+                      borderRadius: 8, fontSize: 13,
+                    }}>
+                      <span style={{ fontSize: 16 }}>✅</span>
+                      <span style={{ flex: 1, color: "#166534", fontWeight: 600,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {paymentScreenshot.name}
+                      </span>
+                      <span style={{ fontSize: 12, color: "#6b7280" }}>
+                        ({(paymentScreenshot.size / 1024).toFixed(0)} KB)
+                      </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); setPaymentScreenshot(null); }}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          fontSize: 16, color: "#ef4444", lineHeight: 1,
+                        }}
+                        title="Remove"
+                      >✕</button>
                     </div>
                   )}
                 </div>
@@ -757,7 +815,7 @@ export default function ManualEntryPage() {
                     setQuantity(""); setUnit(""); setRate("");
                     setBrand(""); setUnitType(""); setRateType(""); setWorkDone("");
                     setUsage(""); setMachineType(""); setPaymentStatus("");
-                    setPaymentMode(""); setPaymentDate(""); setRemarks(""); setAttachments([]);
+                    setPaymentMode(""); setPaymentDate(""); setRemarks(""); setPaymentScreenshot(null);
                   }}
                   style={{
                     padding: "14px 0", background: "#fff", color: "#555",
