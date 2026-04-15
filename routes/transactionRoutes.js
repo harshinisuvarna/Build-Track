@@ -12,6 +12,11 @@ const multer        = require("multer");
 router.use(protect);
 const parseId = (id) =>
   mongoose.Types.ObjectId.isValid(id) ? id : null;
+const normalizeMaterialType = (materialType, subType) => {
+  if (materialType === "purchase" || materialType === "usage") return materialType;
+  if (subType === "Consumption") return "usage";
+  return "purchase";
+};
 const runTransactionCreateUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.fields([
@@ -133,6 +138,7 @@ router.post("/", async (req, res) => {
     const {
       title, type, worker, project, date, notes,
       category, brand, subType, unit, quantity, rate,
+      materialType,
       paymentStatus, paymentMode, paymentDate, paidAmount, remarks,
       workDone, usage, machineType, rateType, unitType,
       amount: rawAmount,
@@ -144,6 +150,9 @@ router.post("/", async (req, res) => {
     const resolvedCategory = category || (type === "Materials" ? title.trim() : undefined);
     if (type === "Materials" && !resolvedCategory)
       return res.status(400).json({ message: "Category is required for Materials" });
+    const normalizedMaterialType = type === "Materials"
+      ? normalizeMaterialType(materialType, subType)
+      : "";
     const { workerId, projectId } = await resolveIds(req.user._id, { worker, project });
     // upload.fields() gives req.files as { fieldName: [file, ...] }
     const attachmentFiles  = (req.files?.attachments       || []).map(getFileUrl);
@@ -169,6 +178,7 @@ router.post("/", async (req, res) => {
       category:      resolvedCategory,
       brand,
       subType,
+      materialType: normalizedMaterialType,
       unit:          unit || unitType || "unit",
       quantity:      qty,
       rate:          rt,
@@ -187,7 +197,7 @@ router.post("/", async (req, res) => {
     });
     await transaction.save({ session });
     if (type === "Materials" && qty > 0 && projectId) {
-      const inventoryDelta = subType === "Consumption" ? -qty : qty;
+      const inventoryDelta = normalizedMaterialType === "usage" ? -qty : qty;
       await applyInventoryDelta(req.user._id, projectId, resolvedCategory, unit, inventoryDelta, session);
     }
     await session.commitTransaction();
@@ -220,6 +230,7 @@ router.put("/:id", async (req, res) => {
     const {
       title, type, worker, project, date, notes,
       category, brand, subType, unit, quantity, rate,
+      materialType,
       paymentStatus, paymentMode, paymentDate, paidAmount, remarks,
     } = req.body;
     if (title !== undefined && !String(title).trim())
@@ -237,17 +248,24 @@ router.put("/:id", async (req, res) => {
     const newPaidAmt = paidAmount !== undefined ? Number(paidAmount) : tx.paidAmount;
     const newType    = type     || tx.type;
     const newSubType = subType  !== undefined ? subType : tx.subType;
+    const newMaterialType = newType === "Materials"
+      ? normalizeMaterialType(
+          materialType !== undefined ? materialType : tx.materialType,
+          newSubType
+        )
+      : "";
     const newCat     = category || tx.category;
     if (newQty < 0 || newRt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
     if (newPaidAmt > newQty * newRt)
       return res.status(400).json({ message: "Paid amount cannot exceed total" });
     if (tx.type === "Materials" && tx.quantity > 0) {
-      const oldDelta = tx.subType === "Consumption" ? tx.quantity : -tx.quantity; // reverse
+      const oldType = normalizeMaterialType(tx.materialType, tx.subType);
+      const oldDelta = oldType === "usage" ? tx.quantity : -tx.quantity; // reverse
       await applyInventoryDelta(req.user._id, tx.project, tx.category, tx.unit, oldDelta, session);
     }
     if (newType === "Materials" && newQty > 0) {
-      const newDelta = newSubType === "Consumption" ? -newQty : newQty;
+      const newDelta = newMaterialType === "usage" ? -newQty : newQty;
       await applyInventoryDelta(req.user._id, projectId, newCat, unit || tx.unit, newDelta, session);
     }
     let updatedAttachments = tx.attachments;
@@ -264,6 +282,9 @@ router.put("/:id", async (req, res) => {
     if (category      !== undefined) tx.category      = category;
     if (brand         !== undefined) tx.brand         = brand;
     if (subType       !== undefined) tx.subType       = subType;
+    if (type !== undefined || subType !== undefined || materialType !== undefined) {
+      tx.materialType = newMaterialType;
+    }
     if (unit          !== undefined) tx.unit          = unit;
     if (quantity      !== undefined) tx.quantity      = newQty;
     if (rate          !== undefined) tx.rate          = newRt;
@@ -296,7 +317,8 @@ router.delete("/:id", async (req, res) => {
     );
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
     if (tx.type === "Materials" && tx.quantity > 0) {
-      const reverseDelta = tx.subType === "Consumption" ? tx.quantity : -tx.quantity;
+      const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
+      const reverseDelta = txMaterialType === "usage" ? tx.quantity : -tx.quantity;
       await applyInventoryDelta(
         req.user._id, tx.project, tx.category, tx.unit, reverseDelta, session
       );

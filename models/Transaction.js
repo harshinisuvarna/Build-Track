@@ -26,6 +26,11 @@ const transactionSchema = new mongoose.Schema(
       enum: ["Purchase", "Consumption", "cement", "brick", "stone", ""],
       default: "",
     },
+    materialType: {
+      type: String,
+      enum: ["purchase", "usage", ""],
+      default: "",
+    },
     unit: {
       type: String,
       enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""],
@@ -134,4 +139,4 @@ transactionSchema.pre("save", async function () {
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });
-module.exports = mongoose.model("Transaction", transactionSchema);
+module.exports = mongoose.model("Transaction", transactionSchema);
