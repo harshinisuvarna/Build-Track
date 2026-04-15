@@ -16,6 +16,7 @@ import NewWorker       from "./screens/add_new_worker";
 import ManageSite      from "./screens/managesite_dashboard";
 import ManualEntryPage from "./screens/manual_entry";
 import WorkerDetails   from "./screens/worker_details_page";
+import InventoryPage   from "./screens/inventory_page";
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem("bt_token");
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/workers"     element={<Workers />} />
         <Route path="/transaction" element={<TransactionLog />} />
         <Route path="/projects"    element={<Projects />} />
+        <Route path="/inventory"   element={<InventoryPage />} />
         <Route path="/reports"     element={<Reports />} />
         <Route path="/settings"    element={<Settings />} />
         <Route path="/newproject"  element={<NewProject />} />

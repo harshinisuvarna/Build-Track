@@ -363,7 +363,7 @@ export default function TransactionLog() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  {["DATE", "DESCRIPTION", "TRANSACTION TYPE", "PROJECT", "QTY / UNIT / RATE", "AMOUNT (₹)", ""].map(
+                  {["DATE", "DESCRIPTION", "TRANSACTION TYPE", "PROJECT", "DETAILS", "AMOUNT (₹)", ""].map(
                     (col, i) => (
                       <th
                         key={col + i}
@@ -427,13 +427,31 @@ export default function TransactionLog() {
                         {resolveProjectName(t.project) || "N/A"}
                       </td>
                       <td style={{ padding: "14px 20px", fontSize: 13, color: "#555" }}>
-                        {t.type === "Materials" && t.quantity ? (
+                        {t.type === "Materials" && (t.quantity ?? null) !== null ? (
                           <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                             <span style={{ fontWeight: 600, color: "#3730a3" }}>
-                              {t.quantity} {t.unit || ""}
+                              {t.quantity ?? "-"} {t.unitType || t.unit || ""}
                             </span>
                             <span style={{ fontSize: 11, color: "#aaa" }}>
                               @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                            </span>
+                          </span>
+                        ) : t.type === "Wages" && (t.workDone ?? null) !== null ? (
+                          <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                            <span style={{ fontWeight: 600, color: "#166534" }}>
+                              {t.workDone ?? "-"} {t.rateType || "units"}
+                            </span>
+                            <span style={{ fontSize: 11, color: "#aaa" }}>
+                              @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                            </span>
+                          </span>
+                        ) : t.type === "Expense" && (t.usage ?? null) !== null ? (
+                          <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                            <span style={{ fontWeight: 600, color: "#991b1b" }}>
+                              {t.machineType ?? "-"}
+                            </span>
+                            <span style={{ fontSize: 11, color: "#aaa" }}>
+                              {t.usage ?? "-"} {t.rateType || "units"} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
                             </span>
                           </span>
                         ) : (
@@ -492,9 +510,17 @@ export default function TransactionLog() {
                         <div style={{ fontSize: 11, color: "#aaa" }}>
                           {new Date(t.date).toLocaleDateString()}
                         </div>
-                        {t.type === "Materials" && t.quantity ? (
+                        {t.type === "Materials" && (t.quantity ?? null) !== null ? (
                           <div style={{ fontSize: 11, color: "#3730a3", marginTop: 3, fontWeight: 600 }}>
-                            {t.quantity} {t.unit || ""} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                            {t.quantity ?? "-"} {t.unitType || t.unit || ""} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                          </div>
+                        ) : t.type === "Wages" && (t.workDone ?? null) !== null ? (
+                          <div style={{ fontSize: 11, color: "#166534", marginTop: 3, fontWeight: 600 }}>
+                            {t.workDone ?? "-"} {t.rateType || "units"} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
+                          </div>
+                        ) : t.type === "Expense" && (t.usage ?? null) !== null ? (
+                          <div style={{ fontSize: 11, color: "#991b1b", marginTop: 3, fontWeight: 600 }}>
+                            {t.machineType ?? "-"} · {t.usage ?? "-"} {t.rateType || "units"} @ ₹{(t.rate ?? 0).toLocaleString("en-IN")}
                           </div>
                         ) : null}
                       </div>

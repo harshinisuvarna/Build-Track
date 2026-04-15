@@ -33,6 +33,19 @@ export default function ManualEntryPage() {
   const [unit,      setUnit]      = useState("");
   const [rate,      setRate]      = useState("");
 
+  // ── New optional fields ──
+  const [brand,         setBrand]         = useState("");
+  const [unitType,      setUnitType]      = useState("");
+  const [rateType,      setRateType]      = useState("");
+  const [workDone,      setWorkDone]      = useState("");
+  const [usage,         setUsage]         = useState("");
+  const [machineType,   setMachineType]   = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentMode,   setPaymentMode]   = useState("");
+  const [paymentDate,   setPaymentDate]   = useState("");
+  const [remarks,       setRemarks]       = useState("");
+  const [attachments,   setAttachments]   = useState([]);
+
   const [saving,      setSaving]      = useState(false);
   const [errMsg,      setErrMsg]      = useState("");
   const [successMsg,  setSuccessMsg]  = useState("");
@@ -77,8 +90,16 @@ export default function ManualEntryPage() {
       const q = parseFloat(quantity) || 0;
       const r = parseFloat(rate)     || 0;
       if (q > 0 && r > 0) setAmount(String(q * r));
+    } else if (txType === "Wages") {
+      const wd = parseFloat(workDone) || 0;
+      const r  = parseFloat(rate)     || 0;
+      if (wd > 0 && r > 0) setAmount(String(wd * r));
+    } else if (txType === "Expense") {
+      const u = parseFloat(usage) || 0;
+      const r = parseFloat(rate)  || 0;
+      if (u > 0 && r > 0) setAmount(String(u * r));
     }
-  }, [quantity, rate, txType]);
+  }, [quantity, rate, workDone, usage, txType]);
 
   const handleSave = async () => {
     setErrMsg("");
@@ -107,6 +128,19 @@ export default function ManualEntryPage() {
         project: project || null,
         date:    date    || new Date().toISOString(),
         notes:   notes.trim(),
+        // ── New optional fields (conditionally appended) ──
+        ...(brand         && { brand }),
+        ...(unitType      && { unitType }),
+        ...(parseFloat(quantity) > 0 && { quantity: parseFloat(quantity) }),
+        ...(parseFloat(rate)     > 0 && { rate:     parseFloat(rate) }),
+        ...(parseFloat(workDone) > 0 && { workDone: parseFloat(workDone) }),
+        ...(parseFloat(usage)    > 0 && { usage:    parseFloat(usage) }),
+        ...(machineType   && { machineType }),
+        ...(rateType      && { rateType }),
+        ...(paymentStatus && { paymentStatus }),
+        ...(paymentMode   && { paymentMode }),
+        ...(paymentDate   && { paymentDate }),
+        ...(remarks       && { remarks }),
       };
 
       if (txType === "Materials") {
@@ -122,6 +156,9 @@ export default function ManualEntryPage() {
       setWorker(""); setProject("");
       setDate(new Date().toISOString().split("T")[0]);
       setQuantity(""); setUnit(""); setRate("");
+      setBrand(""); setUnitType(""); setRateType(""); setWorkDone("");
+      setUsage(""); setMachineType(""); setPaymentStatus("");
+      setPaymentMode(""); setPaymentDate(""); setRemarks(""); setAttachments([]);
 
       fetchTransactions();
       setTimeout(() => setSuccessMsg(""), 3000);
@@ -246,9 +283,8 @@ export default function ManualEntryPage() {
                   <div style={{ position: "relative" }}>
                     <select value={txType} onChange={e => {
                       setTxType(e.target.value);
-                      if (e.target.value !== "Materials") {
-                        setQuantity(""); setUnit(""); setRate("");
-                      }
+                      setQuantity(""); setUnit(""); setRate("");
+                      setWorkDone(""); setUsage(""); setMachineType(""); setRateType("");
                     }} style={selectStyle}>
                       <option value="">Select entry type</option>
                       {transactionTypes.map(t => <option key={t}>{t}</option>)}
@@ -302,6 +338,35 @@ export default function ManualEntryPage() {
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#9a3412", letterSpacing: "0.04em", marginBottom: 14 }}>
                     🧱 MATERIALS DETAILS
                   </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                    {/* Brand */}
+                    <div>
+                      <div style={labelStyle}>🏷️ Brand <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <input
+                        type="text"
+                        value={brand}
+                        onChange={e => setBrand(e.target.value)}
+                        placeholder="e.g. Ultratech, Tata"
+                        style={inputStyle}
+                      />
+                    </div>
+                    {/* Unit Type */}
+                    <div>
+                      <div style={labelStyle}>📐 Unit Type <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <div style={{ position: "relative" }}>
+                        <select value={unitType} onChange={e => setUnitType(e.target.value)} style={selectStyle}>
+                          <option value="">Select unit</option>
+                          <option value="kg">kg</option>
+                          <option value="bag">bag</option>
+                          <option value="ton">ton</option>
+                          <option value="MT">MT</option>
+                          <option value="sqft">sqft</option>
+                          <option value="truck">truck</option>
+                        </select>
+                        <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                      </div>
+                    </div>
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
                     {/* Quantity */}
                     <div>
@@ -345,10 +410,142 @@ export default function ManualEntryPage() {
                   {quantity && rate && parseFloat(quantity) > 0 && parseFloat(rate) > 0 && (
                     <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #fde4d0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <span style={{ fontSize: 13, color: "#9a3412" }}>
-                        {quantity} {unit || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
+                        {quantity} {unit || unitType || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
                       </span>
                       <span style={{ fontSize: 15, fontWeight: 800, color: "#ea580c" }}>
                         = ₹{(parseFloat(quantity) * parseFloat(rate)).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Wages Fields ── */}
+              {txType === "Wages" && (
+                <div style={{
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "18px 20px",
+                  marginBottom: 20,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#166534", letterSpacing: "0.04em", marginBottom: 14 }}>
+                    👷 WAGES DETAILS
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
+                    <div>
+                      <div style={labelStyle}>📏 Rate Type <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <div style={{ position: "relative" }}>
+                        <select value={rateType} onChange={e => setRateType(e.target.value)} style={selectStyle}>
+                          <option value="">Select rate type</option>
+                          <option value="day">Per Day</option>
+                          <option value="sqft">Per Sqft</option>
+                        </select>
+                        <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>💵 Rate <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 6 }}>
+                        <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 600 }}>₹</span>
+                        <input
+                          type="number" min="0"
+                          value={rate}
+                          onChange={e => setRate(e.target.value)}
+                          placeholder="0.00"
+                          style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500, fontFamily: "'Segoe UI', sans-serif" }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>🔢 Work Done <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(days / sqft)</span></div>
+                      <input
+                        type="number" min="0"
+                        value={workDone}
+                        onChange={e => setWorkDone(e.target.value)}
+                        placeholder="e.g. 5"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  {workDone && rate && parseFloat(workDone) > 0 && parseFloat(rate) > 0 && (
+                    <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 13, color: "#166534" }}>
+                        {workDone} {rateType || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "#16a34a" }}>
+                        = ₹{(parseFloat(workDone) * parseFloat(rate)).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Equipment / Expense Fields ── */}
+              {txType === "Expense" && (
+                <div style={{
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: 12,
+                  padding: "18px 20px",
+                  marginBottom: 20,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", letterSpacing: "0.04em", marginBottom: 14 }}>
+                    🚜 EQUIPMENT / EXPENSE DETAILS
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: 16 }}>
+                    <div>
+                      <div style={labelStyle}>⚙️ Machine Type <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <input
+                        type="text"
+                        value={machineType}
+                        onChange={e => setMachineType(e.target.value)}
+                        placeholder="e.g. JCB, Mixer"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <div style={labelStyle}>📏 Rate Type <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <div style={{ position: "relative" }}>
+                        <select value={rateType} onChange={e => setRateType(e.target.value)} style={selectStyle}>
+                          <option value="">Select rate type</option>
+                          <option value="hour">Per Hour</option>
+                          <option value="day">Per Day</option>
+                        </select>
+                        <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>💵 Rate <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span></div>
+                      <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 6 }}>
+                        <span style={{ fontSize: 13, color: "#dc2626", fontWeight: 600 }}>₹</span>
+                        <input
+                          type="number" min="0"
+                          value={rate}
+                          onChange={e => setRate(e.target.value)}
+                          placeholder="0.00"
+                          style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500, fontFamily: "'Segoe UI', sans-serif" }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>🔢 Usage <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(hrs / days)</span></div>
+                      <input
+                        type="number" min="0"
+                        value={usage}
+                        onChange={e => setUsage(e.target.value)}
+                        placeholder="e.g. 8"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  {usage && rate && parseFloat(usage) > 0 && parseFloat(rate) > 0 && (
+                    <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 13, color: "#991b1b" }}>
+                        {usage} {rateType || "units"} × ₹{parseFloat(rate).toLocaleString("en-IN")}
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "#dc2626" }}>
+                        = ₹{(parseFloat(usage) * parseFloat(rate)).toLocaleString("en-IN")}
                       </span>
                     </div>
                   )}
@@ -380,7 +577,7 @@ export default function ManualEntryPage() {
               </div>
 
               {/* Row 4: Notes */}
-              <div style={{ marginBottom: 28 }}>
+              <div style={{ marginBottom: 20 }}>
                 <div style={labelStyle}>📝 Description / Notes</div>
                 <textarea
                   value={notes} onChange={e => setNotes(e.target.value)}
@@ -394,6 +591,95 @@ export default function ManualEntryPage() {
                     resize: "vertical", boxSizing: "border-box", lineHeight: 1.6,
                   }}
                 />
+              </div>
+
+              {/* ── Payment Fields (all types) ── */}
+              <div style={{
+                background: "#f8faff",
+                border: "1px solid #e0e7ff",
+                borderRadius: 12,
+                padding: "18px 20px",
+                marginBottom: 20,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#3730a3", letterSpacing: "0.04em", marginBottom: 14 }}>
+                  💳 PAYMENT DETAILS <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(optional)</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+                  {/* Payment Status */}
+                  <div>
+                    <div style={labelStyle}>✅ Payment Status</div>
+                    <div style={{ position: "relative" }}>
+                      <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} style={selectStyle}>
+                        <option value="">Select status</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Advance">Advance</option>
+                      </select>
+                      <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                    </div>
+                  </div>
+                  {/* Payment Mode */}
+                  <div>
+                    <div style={labelStyle}>🏦 Payment Mode</div>
+                    <div style={{ position: "relative" }}>
+                      <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={selectStyle}>
+                        <option value="">Select mode</option>
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cheque">Cheque</option>
+                      </select>
+                      <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                    </div>
+                  </div>
+                  {/* Payment Date */}
+                  <div>
+                    <div style={labelStyle}>📅 Payment Date</div>
+                    <input
+                      type="date"
+                      value={paymentDate}
+                      onChange={e => setPaymentDate(e.target.value)}
+                      style={{ ...selectStyle, color: paymentDate ? "#1a1a1a" : "#aaa" }}
+                    />
+                  </div>
+                </div>
+                {/* Remarks */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={labelStyle}>💬 Remarks</div>
+                  <textarea
+                    value={remarks}
+                    onChange={e => setRemarks(e.target.value)}
+                    placeholder="Additional payment notes or instructions..."
+                    rows={2}
+                    style={{
+                      width: "100%", padding: "11px 14px",
+                      background: "#f9f9f9", border: "1px solid #e5e5e5",
+                      borderRadius: 10, fontSize: 14, color: "#1a1a1a",
+                      fontFamily: "'Segoe UI', sans-serif", outline: "none",
+                      resize: "vertical", boxSizing: "border-box", lineHeight: 1.6,
+                    }}
+                  />
+                </div>
+                {/* Attachments */}
+                <div>
+                  <div style={labelStyle}>📎 Attachments <span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>(UI only — not uploaded yet)</span></div>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={e => setAttachments(Array.from(e.target.files))}
+                    style={{
+                      width: "100%", padding: "8px 0",
+                      fontSize: 13, color: "#555",
+                      fontFamily: "'Segoe UI', sans-serif",
+                    }}
+                  />
+                  {attachments.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: "#888" }}>
+                      {attachments.length} file{attachments.length > 1 ? "s" : ""} selected
+                    </div>
+                  )}
+                </div>
               </div>
 
              {/* Buttons */}
@@ -418,6 +704,9 @@ export default function ManualEntryPage() {
                     setTxType(""); setTitle(""); setAmount(""); setNotes("");
                     setWorker(""); setProject("");
                     setQuantity(""); setUnit(""); setRate("");
+                    setBrand(""); setUnitType(""); setRateType(""); setWorkDone("");
+                    setUsage(""); setMachineType(""); setPaymentStatus("");
+                    setPaymentMode(""); setPaymentDate(""); setRemarks(""); setAttachments([]);
                   }}
                   style={{
                     padding: "14px 0", background: "#fff", color: "#555",

@@ -97,5 +97,10 @@ export const voiceAPI = {
   parse: (data) => api.post("/voice/parse", data),
 };
 
+export const inventoryAPI = {
+  getAll: () => api.get("/inventory"),
+  use: (data) => api.post("/inventory/use", data),
+};
+
 export { API_ORIGIN };
 export default api;
