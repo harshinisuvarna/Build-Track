@@ -8,9 +8,37 @@ const { protect }   = require("../middleware/auth");
 const upload        = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 const mongoose      = require("mongoose");
+const multer        = require("multer");
 router.use(protect);
 const parseId = (id) =>
   mongoose.Types.ObjectId.isValid(id) ? id : null;
+const runTransactionCreateUpload = (req, res) =>
+  new Promise((resolve, reject) => {
+    upload.fields([
+      { name: "attachments", maxCount: 5 },
+      { name: "paymentScreenshot", maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      if (err) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      resolve();
+    });
+  });
+const runTransactionUpdateUpload = (req, res) =>
+  new Promise((resolve, reject) => {
+    upload.array("attachments")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      if (err) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      resolve();
+    });
+  });
 async function resolveIds(userId, { worker, project }) {
   let workerId  = parseId(worker);
   let projectId = parseId(project);
@@ -92,10 +120,13 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
-router.post("/", upload.fields([
-  { name: "attachments",      maxCount: 5 },
-  { name: "paymentScreenshot", maxCount: 1 },
-]), async (req, res) => {
+router.post("/", async (req, res) => {
+  try {
+    await runTransactionCreateUpload(req, res);
+  } catch (uploadErr) {
+    return res.status(400).json({ message: uploadErr.message || "File upload error" });
+  }
+
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
@@ -170,7 +201,13 @@ router.post("/", upload.fields([
     session.endSession();
   }
 });
-router.put("/:id", upload.array("attachments"), async (req, res) => {
+router.put("/:id", async (req, res) => {
+  try {
+    await runTransactionUpdateUpload(req, res);
+  } catch (uploadErr) {
+    return res.status(400).json({ message: uploadErr.message || "File upload error" });
+  }
+
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
