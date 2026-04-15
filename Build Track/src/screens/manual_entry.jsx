@@ -129,10 +129,12 @@ export default function ManualEntryPage() {
         title:   title.trim(),
         amount:  Number(amount),
         type:    txType,
-        worker:  worker  || null,
-        project: project || null,
+        worker:  worker  || undefined,
+        project: project || undefined,
         date:    date    || new Date().toISOString(),
         notes:   notes.trim(),
+        // For Materials, also send `category` = title so the backend is satisfied
+        ...(txType === "Materials" && { category: title.trim() }),
         // ── New optional fields (conditionally appended) ──
         ...(brand         && { brand }),
         ...(unitType      && { unitType }),
@@ -154,7 +156,9 @@ export default function ManualEntryPage() {
         payload.rate     = parseFloat(rate)     || 0;
       }
 
+      console.log("[ManualEntry] Submitting payload:", payload);
       await transactionAPI.create(payload);
+      console.log("[ManualEntry] Transaction saved successfully.");
       setSuccessMsg("Entry saved successfully!");
 
       setTxType(""); setTitle(""); setAmount(""); setNotes("");
@@ -168,14 +172,14 @@ export default function ManualEntryPage() {
       fetchTransactions();
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
-      setErrMsg(err.response?.data?.message || "Failed to save entry. Try again.");
+      const status  = err.response?.status;
+      const message = err.response?.data?.message || err.friendlyMessage || err.message || "Failed to save entry. Try again.";
+      console.error("[ManualEntry] Save failed:", status, message, err);
+      setErrMsg(status ? `Error ${status}: ${message}` : message);
     } finally {
       setSaving(false);
     }
   };
-
-
-  /* ── Edit handlers ─────────────────────────────────────────────────── */
   const handleEdit = (tx) => {
     setEditTx({
       _id:           tx._id,
@@ -193,7 +197,6 @@ export default function ManualEntryPage() {
     });
     setEditErr("");
   };
-
   const handleEditSave = async () => {
     if (!editTx.title.trim()) { setEditErr("Title is required."); return; }
     if (!editTx.amount || Number(editTx.amount) < 0) { setEditErr("Valid amount is required."); return; }
@@ -210,9 +213,7 @@ export default function ManualEntryPage() {
         ...(editTx.quantity && { quantity: Number(editTx.quantity) }),
         ...(editTx.rate     && { rate:     Number(editTx.rate) }),
       };
-      // For Materials transactions the backend recalculates amount from qty*rate
       if (!editTx.quantity || !editTx.rate) payload.amount = Number(editTx.amount);
-
       await transactionAPI.update(editTx._id, payload);
       setToast({ msg: "Transaction updated!", type: "success" });
       setEditTx(null);
@@ -223,7 +224,6 @@ export default function ManualEntryPage() {
       setEditSaving(false);
     }
   };
-
   const handleDelete = (id) => {
     const tx = transactions.find(t => t._id === id);
     setConfirmDlg({
@@ -242,7 +242,6 @@ export default function ManualEntryPage() {
       },
     });
   };
-
   const selectStyle = {
     width: "100%", padding: "11px 14px",
     background: "#f9f9f9", border: "1px solid #e5e5e5",
@@ -257,7 +256,6 @@ export default function ManualEntryPage() {
     letterSpacing: "0.04em", marginBottom: 8,
     display: "flex", alignItems: "center", gap: 6,
   };
-
   return (
     <div style={{
       display: "flex", width: "100%", height: "100vh",
@@ -274,7 +272,6 @@ export default function ManualEntryPage() {
           onCancel={() => setConfirmDlg(null)}
         />
       )}
-
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
         {/* ── Top Bar ── */}
@@ -872,10 +869,6 @@ export default function ManualEntryPage() {
           </div>
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════════════
-           EDIT TRANSACTION MODAL
-      ══════════════════════════════════════════════════════════════════ */}
       {editTx && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
