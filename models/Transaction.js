@@ -110,25 +110,24 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-transactionSchema.pre("save", function (next) {
+// Mongoose v9: use async pre-save (no next() parameter needed)
+transactionSchema.pre("save", async function () {
   // Auto-calculate amount ONLY for Materials (qty × rate).
-  // For Wages / Expense / Income the user types the amount directly — do NOT overwrite it.
+  // For Wages / Expense / Income the user enters the amount directly — do NOT overwrite it.
   if (this.type === "Materials" && this.quantity && this.rate) {
     this.amount = this.quantity * this.rate;
   }
 
   // Auto-calculate payment balance
   if (this.paymentStatus === "Paid") {
-    this.paidAmount = this.amount;
+    this.paidAmount     = this.amount;
     this.remainingAmount = 0;
   } else if (this.paymentStatus === "Pending") {
-    this.paidAmount = 0;
+    this.paidAmount     = 0;
     this.remainingAmount = this.amount;
   } else if (this.paymentStatus === "Partial") {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
-
-  next();
 });
 
 

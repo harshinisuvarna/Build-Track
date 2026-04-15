@@ -92,7 +92,10 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
-router.post("/", upload.array("attachments"), async (req, res) => {
+router.post("/", upload.fields([
+  { name: "attachments",      maxCount: 5 },
+  { name: "paymentScreenshot", maxCount: 1 },
+]), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
@@ -111,9 +114,13 @@ router.post("/", upload.array("attachments"), async (req, res) => {
     if (type === "Materials" && !resolvedCategory)
       return res.status(400).json({ message: "Category is required for Materials" });
     const { workerId, projectId } = await resolveIds(req.user._id, { worker, project });
-    const attachments = req.files ? req.files.map((f) => getFileUrl(f)) : [];
-    const qty    = Number(quantity)   || 0;
-    const rt     = Number(rate)       || 0;
+    // upload.fields() gives req.files as { fieldName: [file, ...] }
+    const attachmentFiles  = (req.files?.attachments       || []).map(getFileUrl);
+    const screenshotFile   =  req.files?.paymentScreenshot?.[0];
+    const screenshotUrl    = screenshotFile ? getFileUrl(screenshotFile) : null;
+
+    const qty     = Number(quantity)   || 0;
+    const rt      = Number(rate)       || 0;
     const paidAmt = Number(paidAmount) || 0;
     if (qty < 0 || rt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
@@ -139,7 +146,8 @@ router.post("/", upload.array("attachments"), async (req, res) => {
       paymentDate,
       paidAmount:    paidAmt,
       remarks,
-      attachments,
+      attachments:   attachmentFiles,
+      screenshotUrl,
       amount:        finalAmount,
       ...(workDone    && { workDone:    Number(workDone) }),
       ...(usage       && { usage:       Number(usage) }),
