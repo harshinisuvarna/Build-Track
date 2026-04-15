@@ -28,7 +28,7 @@ const transactionSchema = new mongoose.Schema(
     },
     unit: {
       type: String,
-      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", ""],
+      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""],
       default: "unit",
     },
     quantity: {
@@ -76,7 +76,7 @@ const transactionSchema = new mongoose.Schema(
     },
     paymentMode: {
       type: String,
-      enum: ["Cash", "Bank", "UPI", "Cheque", ""],
+      enum: ["Cash", "Bank", "Bank Transfer", "UPI", "Cheque", ""],
       default: "Cash",
     },
     paymentDate: Date,
@@ -92,6 +92,11 @@ const transactionSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Payment screenshot uploaded to Cloudinary
+    screenshotUrl: {
+      type: String,
+      default: null,
+    },
     notes: {
       type: String,
       default: "",
@@ -106,8 +111,9 @@ const transactionSchema = new mongoose.Schema(
 );
 
 transactionSchema.pre("save", function (next) {
-  // Auto-calculate total amount
-  if (this.quantity && this.rate) {
+  // Auto-calculate amount ONLY for Materials (qty × rate).
+  // For Wages / Expense / Income the user types the amount directly — do NOT overwrite it.
+  if (this.type === "Materials" && this.quantity && this.rate) {
     this.amount = this.quantity * this.rate;
   }
 
@@ -120,11 +126,6 @@ transactionSchema.pre("save", function (next) {
     this.remainingAmount = this.amount;
   } else if (this.paymentStatus === "Partial") {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
-  }
-
-  // Hard validation for paidAmount
-  if (this.paidAmount > this.amount) {
-    return next(new Error("Paid amount cannot exceed total amount"));
   }
 
   next();
