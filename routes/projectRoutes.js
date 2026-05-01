@@ -60,7 +60,7 @@ router.get("/:id/stats", async (req, res) => {
           totalSpent: {
             $sum: {
               $cond: [
-                { $in: ["$type", ["Expense", "Wages", "Materials"]] },
+                { $in: ["$type", ["equipment", "labour", "material"]] },
                 "$amount",
                 0,
               ],
@@ -112,18 +112,18 @@ router.get("/:id/budget", async (req, res) => {
     const report = {
       materials: {
         budget: project.budget?.materials || 0,
-        actual: actualMap["Materials"] || 0,
-        remaining: (project.budget?.materials || 0) - (actualMap["Materials"] || 0)
+        actual: actualMap["material"] || 0, 
+        remaining: (project.budget?.materials || 0) - (actualMap["material"] || 0)
       },
       labour: {
         budget: project.budget?.labour || 0,
-        actual: actualMap["Wages"] || 0,
-        remaining: (project.budget?.labour || 0) - (actualMap["Wages"] || 0)
+        actual: actualMap["labour"] || 0, 
+        remaining: (project.budget?.labour || 0) - (actualMap["labour"] || 0)
       },
       equipment: {
         budget: project.budget?.equipment || 0,
-        actual: actualMap["Expense"] || 0,
-        remaining: (project.budget?.equipment || 0) - (actualMap["Expense"] || 0)
+        actual: actualMap["equipment"] || 0,
+        remaining: (project.budget?.equipment || 0) - (actualMap["equipment"] || 0)
       }
     };
 
@@ -241,4 +241,4 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router;

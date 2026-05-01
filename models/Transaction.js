@@ -54,7 +54,7 @@ const transactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["Wages", "Expense", "Income", "Materials"],
+      enum: ["labour", "equipment", "material", "Income"],
       required: true,
     },
     worker: {
@@ -77,7 +77,7 @@ const transactionSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ["Paid", "Partial", "Pending", ""],
-      default: "Pending",
+      default: "Pending",   
     },
     paymentMode: {
       type: String,
@@ -117,9 +117,9 @@ const transactionSchema = new mongoose.Schema(
 
 // Mongoose v9: use async pre-save (no next() parameter needed)
 transactionSchema.pre("save", async function () {
-  // Auto-calculate amount ONLY for Materials (qty × rate).
-  // For Wages / Expense / Income the user enters the amount directly — do NOT overwrite it.
-  if (this.type === "Materials" && this.quantity && this.rate) {
+  // Auto-calculate amount ONLY for material (qty × rate).
+  // For labour / equipment / Income the user enters the amount directly — do NOT overwrite it.
+  if (this.type === "material" && this.quantity && this.rate) {
     this.amount = this.quantity * this.rate;
   }
 

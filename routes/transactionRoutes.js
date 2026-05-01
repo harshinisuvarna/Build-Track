@@ -87,16 +87,20 @@ async function applyInventoryDelta(userId, projectId, category, unit, delta, ses
 }
 router.get("/", async (req, res) => {
   try {
-    const { type, search, category, project, startDate, endDate } = req.query;
+    // 1. Extract the new page and limit parameters, plus existing filters
+    const { type, search, category, project, startDate, endDate, page = 1, limit = 10 } = req.query;
     const query = { createdBy: req.user._id };
+
     if (type && type !== "All")   query.type     = type;
     if (category)                 query.category = category;
     if (project)                  query.project  = project;
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
       if (endDate)   query.date.$lte = new Date(endDate);
     }
+
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -104,11 +108,31 @@ router.get("/", async (req, res) => {
         { brand: { $regex: search, $options: "i" } },
       ];
     }
+
+    // 2. Calculate pagination logic
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // 3. Fetch data with pagination AND Expanded Details (populate)
     const transactions = await Transaction.find(query)
-      .populate("worker",  "name")
+      .populate("worker",  "name role")        // Expanded worker details
       .populate("project", "projectName")
-      .sort({ date: -1, createdAt: -1 });
-    res.json({ transactions });
+      .populate("approvedBy", "name")          // Expanded Approval details 
+      .sort({ date: -1, createdAt: -1 })
+      .skip(skip)                              // Apply skip
+      .limit(Number(limit));                   // Apply limit
+
+    // 4. Get total count so the frontend knows how many pages exist
+    const totalItems = await Transaction.countDocuments(query);
+
+    // 5. Send back structured response
+    res.json({ 
+      transactions,
+      pagination: {
+        totalItems,
+        currentPage: Number(page),
+        totalPages: Math.ceil(totalItems / Number(limit))
+      }
+    });
   } catch (err) {
     console.error("Get transactions error:", err);
     res.status(500).json({ message: "Failed to fetch transactions" });
@@ -147,10 +171,10 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Title is required" });
     if (!type)
       return res.status(400).json({ message: "Transaction type is required" });
-    const resolvedCategory = category || (type === "Materials" ? title.trim() : undefined);
-    if (type === "Materials" && !resolvedCategory)
+    const resolvedCategory = category || (type === "material" ? title.trim() : undefined);
+    if (type === "material" && !resolvedCategory)
       return res.status(400).json({ message: "Category is required for Materials" });
-    const normalizedMaterialType = type === "Materials"
+    const normalizedMaterialType = type === "material"
       ? normalizeMaterialType(materialType, subType)
       : "";
     const { workerId, projectId } = await resolveIds(req.user._id, { worker, project });
@@ -164,7 +188,7 @@ router.post("/", async (req, res) => {
     const paidAmt = Number(paidAmount) || 0;
     if (qty < 0 || rt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
-    const finalAmount = type === "Materials"
+    const finalAmount = type === "material"
       ? qty * rt
       : (Number(rawAmount) || qty * rt || 0);
     const transaction = new Transaction({
@@ -196,7 +220,7 @@ router.post("/", async (req, res) => {
       ...(rateType    && { rateType }),
     });
     await transaction.save({ session });
-    if (type === "Materials" && qty > 0 && projectId) {
+    if (type === "material" && qty > 0 && projectId) {
       const inventoryDelta = normalizedMaterialType === "usage" ? -qty : qty;
       await applyInventoryDelta(req.user._id, projectId, resolvedCategory, unit, inventoryDelta, session);
     }
@@ -235,7 +259,7 @@ router.put("/:id", async (req, res) => {
     } = req.body;
     if (title !== undefined && !String(title).trim())
       return res.status(400).json({ message: "Title cannot be empty" });
-    if (type && !["Wages", "Expense", "Income", "Materials"].includes(type))
+    if (type && !["labour", "equipment", "Income", "material"].includes(type))
       return res.status(400).json({ message: "Invalid transaction type" });
     const { workerId, projectId } = await resolveIds(req.user._id, {
       worker:  worker  ?? tx.worker,
@@ -248,7 +272,7 @@ router.put("/:id", async (req, res) => {
     const newPaidAmt = paidAmount !== undefined ? Number(paidAmount) : tx.paidAmount;
     const newType    = type     || tx.type;
     const newSubType = subType  !== undefined ? subType : tx.subType;
-    const newMaterialType = newType === "Materials"
+    const newMaterialType = newType === "material"
       ? normalizeMaterialType(
           materialType !== undefined ? materialType : tx.materialType,
           newSubType
@@ -259,12 +283,12 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
     if (newPaidAmt > newQty * newRt)
       return res.status(400).json({ message: "Paid amount cannot exceed total" });
-    if (tx.type === "Materials" && tx.quantity > 0) {
+    if (tx.type === "material" && tx.quantity > 0) {
       const oldType = normalizeMaterialType(tx.materialType, tx.subType);
       const oldDelta = oldType === "usage" ? tx.quantity : -tx.quantity; // reverse
       await applyInventoryDelta(req.user._id, tx.project, tx.category, tx.unit, oldDelta, session);
     }
-    if (newType === "Materials" && newQty > 0) {
+    if (newType === "material" && newQty > 0) {
       const newDelta = newMaterialType === "usage" ? -newQty : newQty;
       await applyInventoryDelta(req.user._id, projectId, newCat, unit || tx.unit, newDelta, session);
     }
@@ -316,7 +340,7 @@ router.delete("/:id", async (req, res) => {
       { session }
     );
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-    if (tx.type === "Materials" && tx.quantity > 0) {
+    if (tx.type === "material" && tx.quantity > 0) {
       const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
       const reverseDelta = txMaterialType === "usage" ? tx.quantity : -tx.quantity;
       await applyInventoryDelta(
