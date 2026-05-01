@@ -69,7 +69,7 @@ router.get("/financial", async (req, res) => {
     const projects = await Project.find({ createdBy: userId });
     
     // Wage Calculation Logic
-    const wageTransactions = transactions.filter((t) => t.type === "Wages");
+    const wageTransactions = transactions.filter((t) => t.type === "labour");
     const workerStats = {};
 
     wageTransactions.forEach((t) => {
@@ -107,7 +107,7 @@ router.get("/financial", async (req, res) => {
 
     // Category Breakdown Calculation
     let categoryBreakdown = {};
-    const materials = transactions.filter(t => t.type === "Materials");
+    const materials = transactions.filter(t => t.type === "material");
     materials.forEach(t => {
       const cat = t.category || "Uncategorized";
       if (!categoryBreakdown[cat]) categoryBreakdown[cat] = 0;
@@ -142,7 +142,7 @@ router.get("/financial/export-csv", async (req, res) => {
     const workersRecords = await Worker.find({ createdBy: userId });
     const wageTransactions = await Transaction.find({
       createdBy: userId,
-      type: "Wages",
+      type: "labour",
       date: { $gte: startDate, $lte: endDate },
     });
     const workerWageMap = {};
@@ -196,7 +196,7 @@ router.get("/financial/export-pdf", async (req, res) => {
     const workersRecords = await Worker.find({ createdBy: userId });
     const rangeDays = Math.max(1, Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)));
     const workingDays = Math.round(rangeDays * 0.86);
-    const wageTransactions = transactions.filter(t => t.type === "Wages");
+    const wageTransactions = transactions.filter(t => t.type === "labour");
     const workerWageMap = {};
     wageTransactions.forEach((t) => {
       const wId = t.worker?.toString();

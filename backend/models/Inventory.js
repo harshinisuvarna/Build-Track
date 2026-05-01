@@ -37,6 +37,11 @@ const inventorySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    threshold: {
+      type: Number,
+      min: 0,
+      default: 5,
+    },
   },
   { timestamps: true }
 );

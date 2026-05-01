@@ -8,19 +8,45 @@ const { protect }   = require("../middleware/auth");
 const upload        = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 const mongoose      = require("mongoose");
-
+const multer        = require("multer");
 router.use(protect);
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
 const parseId = (id) =>
   mongoose.Types.ObjectId.isValid(id) ? id : null;
-
-/** Resolve worker/project by ObjectId OR by name string */
+const normalizeMaterialType = (materialType, subType) => {
+  if (materialType === "purchase" || materialType === "usage") return materialType;
+  if (subType === "Consumption") return "usage";
+  return "purchase";
+};
+const runTransactionCreateUpload = (req, res) =>
+  new Promise((resolve, reject) => {
+    upload.fields([
+      { name: "attachments", maxCount: 5 },
+      { name: "paymentScreenshot", maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      if (err) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      resolve();
+    });
+  });
+const runTransactionUpdateUpload = (req, res) =>
+  new Promise((resolve, reject) => {
+    upload.array("attachments")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      if (err) {
+        return reject(Object.assign(err, { status: 400 }));
+      }
+      resolve();
+    });
+  });
 async function resolveIds(userId, { worker, project }) {
   let workerId  = parseId(worker);
   let projectId = parseId(project);
-
   if (!workerId && worker) {
     const wDoc = await Worker.findOne({ createdBy: userId, name: String(worker).trim() }).lean();
     workerId = wDoc?._id || null;
@@ -31,13 +57,9 @@ async function resolveIds(userId, { worker, project }) {
   }
   return { workerId, projectId };
 }
-
-/** Apply inventory delta (atomic, inside a session) */
 async function applyInventoryDelta(userId, projectId, category, unit, delta, session) {
   if (!delta || !category || !projectId) return;
-
   if (delta > 0) {
-    // Purchase: upsert
     await Inventory.updateOne(
       { createdBy: userId, project: projectId, materialName: category },
       {
@@ -47,7 +69,6 @@ async function applyInventoryDelta(userId, projectId, category, unit, delta, ses
       { upsert: true, session }
     );
   } else if (delta < 0) {
-    // Consumption: stock must exist and be sufficient
     const absQty = Math.abs(delta);
     const inv = await Inventory.findOne(
       { createdBy: userId, project: projectId, materialName: category },
@@ -64,22 +85,22 @@ async function applyInventoryDelta(userId, projectId, category, unit, delta, ses
     );
   }
 }
-
-// ─── GET /api/transactions ────────────────────────────────────────────────────
-
 router.get("/", async (req, res) => {
   try {
-    const { type, search, category, project, startDate, endDate } = req.query;
+    // 1. Extract the new page and limit parameters, plus existing filters
+    const { type, search, category, project, startDate, endDate, page = 1, limit = 10 } = req.query;
     const query = { createdBy: req.user._id };
 
     if (type && type !== "All")   query.type     = type;
     if (category)                 query.category = category;
     if (project)                  query.project  = project;
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
       if (endDate)   query.date.$lte = new Date(endDate);
     }
+
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -88,20 +109,35 @@ router.get("/", async (req, res) => {
       ];
     }
 
-    const transactions = await Transaction.find(query)
-      .populate("worker",  "name")
-      .populate("project", "projectName")
-      .sort({ date: -1, createdAt: -1 });
+    // 2. Calculate pagination logic
+    const skip = (Number(page) - 1) * Number(limit);
 
-    res.json({ transactions });
+    // 3. Fetch data with pagination AND Expanded Details (populate)
+    const transactions = await Transaction.find(query)
+      .populate("worker",  "name role")        // Expanded worker details
+      .populate("project", "projectName")
+      .populate("approvedBy", "name")          // Expanded Approval details 
+      .sort({ date: -1, createdAt: -1 })
+      .skip(skip)                              // Apply skip
+      .limit(Number(limit));                   // Apply limit
+
+    // 4. Get total count so the frontend knows how many pages exist
+    const totalItems = await Transaction.countDocuments(query);
+
+    // 5. Send back structured response
+    res.json({ 
+      transactions,
+      pagination: {
+        totalItems,
+        currentPage: Number(page),
+        totalPages: Math.ceil(totalItems / Number(limit))
+      }
+    });
   } catch (err) {
     console.error("Get transactions error:", err);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
-
-// ─── GET /api/transactions/:id ────────────────────────────────────────────────
-
 router.get("/:id", async (req, res) => {
   try {
     const tx = await Transaction.findOne({ _id: req.params.id, createdBy: req.user._id })
@@ -113,60 +149,61 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
+router.post("/", async (req, res) => {
+  try {
+    await runTransactionCreateUpload(req, res);
+  } catch (uploadErr) {
+    return res.status(400).json({ message: uploadErr.message || "File upload error" });
+  }
 
-// ─── POST /api/transactions ───────────────────────────────────────────────────
-
-router.post("/", upload.array("attachments"), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
     const {
       title, type, worker, project, date, notes,
       category, brand, subType, unit, quantity, rate,
+      materialType,
       paymentStatus, paymentMode, paymentDate, paidAmount, remarks,
+      workDone, usage, machineType, rateType, unitType,
+      amount: rawAmount,
     } = req.body;
-
-    // 1. Basic validations
     if (!title || !title.trim())
       return res.status(400).json({ message: "Title is required" });
     if (!type)
       return res.status(400).json({ message: "Transaction type is required" });
-    if (type === "Wages" && !worker)
-      return res.status(400).json({ message: "Worker is required for Wages" });
-    if (type === "Materials" && !category)
+    const resolvedCategory = category || (type === "material" ? title.trim() : undefined);
+    if (type === "material" && !resolvedCategory)
       return res.status(400).json({ message: "Category is required for Materials" });
-
-    // 2. Resolve IDs
+    const normalizedMaterialType = type === "material"
+      ? normalizeMaterialType(materialType, subType)
+      : "";
     const { workerId, projectId } = await resolveIds(req.user._id, { worker, project });
-    if (!projectId)
-      return res.status(400).json({ message: "Valid project is required" });
+    // upload.fields() gives req.files as { fieldName: [file, ...] }
+    const attachmentFiles  = (req.files?.attachments       || []).map(getFileUrl);
+    const screenshotFile   =  req.files?.paymentScreenshot?.[0];
+    const screenshotUrl    = screenshotFile ? getFileUrl(screenshotFile) : null;
 
-    // 3. Files
-    const attachments = req.files ? req.files.map((f) => getFileUrl(f)) : [];
-
-    // 4. Numeric handling
-    const qty    = Number(quantity)   || 0;
-    const rt     = Number(rate)       || 0;
+    const qty     = Number(quantity)   || 0;
+    const rt      = Number(rate)       || 0;
     const paidAmt = Number(paidAmount) || 0;
-
     if (qty < 0 || rt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
-    if (paidAmt > qty * rt)
-      return res.status(400).json({ message: "Paid amount cannot exceed total" });
-
-    // 5. Create transaction (session)
+    const finalAmount = type === "material"
+      ? qty * rt
+      : (Number(rawAmount) || qty * rt || 0);
     const transaction = new Transaction({
       createdBy:     req.user._id,
       title:         title.trim(),
       type,
-      worker:        workerId,
-      project:       projectId,
+      worker:        workerId  || null,
+      project:       projectId || null,
       date:          date || new Date(),
       notes,
-      category,
+      category:      resolvedCategory,
       brand,
       subType,
-      unit:          unit || "unit",
+      materialType: normalizedMaterialType,
+      unit:          unit || unitType || "unit",
       quantity:      qty,
       rate:          rt,
       paymentStatus: paymentStatus || "Pending",
@@ -174,17 +211,19 @@ router.post("/", upload.array("attachments"), async (req, res) => {
       paymentDate,
       paidAmount:    paidAmt,
       remarks,
-      attachments,
-      amount:        qty * rt,
+      attachments:   attachmentFiles,
+      screenshotUrl,
+      amount:        finalAmount,
+      ...(workDone    && { workDone:    Number(workDone) }),
+      ...(usage       && { usage:       Number(usage) }),
+      ...(machineType && { machineType }),
+      ...(rateType    && { rateType }),
     });
     await transaction.save({ session });
-
-    // 6. Inventory auto-update (atomic, same session)
-    if (type === "Materials" && qty > 0) {
-      const inventoryDelta = subType === "Consumption" ? -qty : qty;
-      await applyInventoryDelta(req.user._id, projectId, category, unit, inventoryDelta, session);
+    if (type === "material" && qty > 0 && projectId) {
+      const inventoryDelta = normalizedMaterialType === "usage" ? -qty : qty;
+      await applyInventoryDelta(req.user._id, projectId, resolvedCategory, unit, inventoryDelta, session);
     }
-
     await session.commitTransaction();
     res.status(201).json({ message: "Transaction saved", transaction });
   } catch (err) {
@@ -196,10 +235,13 @@ router.post("/", upload.array("attachments"), async (req, res) => {
     session.endSession();
   }
 });
+router.put("/:id", async (req, res) => {
+  try {
+    await runTransactionUpdateUpload(req, res);
+  } catch (uploadErr) {
+    return res.status(400).json({ message: uploadErr.message || "File upload error" });
+  }
 
-// ─── PUT /api/transactions/:id ────────────────────────────────────────────────
-
-router.put("/:id", upload.array("attachments"), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
@@ -209,58 +251,52 @@ router.put("/:id", upload.array("attachments"), async (req, res) => {
       { session }
     );
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
     const {
       title, type, worker, project, date, notes,
       category, brand, subType, unit, quantity, rate,
+      materialType,
       paymentStatus, paymentMode, paymentDate, paidAmount, remarks,
     } = req.body;
-
-    // 1. Validations
     if (title !== undefined && !String(title).trim())
       return res.status(400).json({ message: "Title cannot be empty" });
-    if (type && !["Wages", "Expense", "Income", "Materials"].includes(type))
+    if (type && !["labour", "equipment", "Income", "material"].includes(type))
       return res.status(400).json({ message: "Invalid transaction type" });
-
-    // 2. Resolve IDs
     const { workerId, projectId } = await resolveIds(req.user._id, {
       worker:  worker  ?? tx.worker,
       project: project ?? tx.project,
     });
     if (!projectId)
       return res.status(400).json({ message: "Valid project is required" });
-
-    // 3. Numeric
     const newQty    = quantity  !== undefined ? Number(quantity)   : tx.quantity;
     const newRt     = rate      !== undefined ? Number(rate)       : tx.rate;
     const newPaidAmt = paidAmount !== undefined ? Number(paidAmount) : tx.paidAmount;
     const newType    = type     || tx.type;
     const newSubType = subType  !== undefined ? subType : tx.subType;
+    const newMaterialType = newType === "material"
+      ? normalizeMaterialType(
+          materialType !== undefined ? materialType : tx.materialType,
+          newSubType
+        )
+      : "";
     const newCat     = category || tx.category;
-
     if (newQty < 0 || newRt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
     if (newPaidAmt > newQty * newRt)
       return res.status(400).json({ message: "Paid amount cannot exceed total" });
-
-    // 4. Reconcile inventory: undo old effect, apply new effect
-    if (tx.type === "Materials" && tx.quantity > 0) {
-      const oldDelta = tx.subType === "Consumption" ? tx.quantity : -tx.quantity; // reverse
+    if (tx.type === "material" && tx.quantity > 0) {
+      const oldType = normalizeMaterialType(tx.materialType, tx.subType);
+      const oldDelta = oldType === "usage" ? tx.quantity : -tx.quantity; // reverse
       await applyInventoryDelta(req.user._id, tx.project, tx.category, tx.unit, oldDelta, session);
     }
-    if (newType === "Materials" && newQty > 0) {
-      const newDelta = newSubType === "Consumption" ? -newQty : newQty;
+    if (newType === "material" && newQty > 0) {
+      const newDelta = newMaterialType === "usage" ? -newQty : newQty;
       await applyInventoryDelta(req.user._id, projectId, newCat, unit || tx.unit, newDelta, session);
     }
-
-    // 5. Handle new attachments
     let updatedAttachments = tx.attachments;
     if (req.files && req.files.length > 0) {
       const newFiles = req.files.map((f) => getFileUrl(f));
       updatedAttachments = [...updatedAttachments, ...newFiles];
     }
-
-    // 6. Apply updates
     if (title         !== undefined) tx.title         = title.trim();
     if (type          !== undefined) tx.type          = type;
     if (worker        !== undefined) tx.worker        = workerId;
@@ -270,6 +306,9 @@ router.put("/:id", upload.array("attachments"), async (req, res) => {
     if (category      !== undefined) tx.category      = category;
     if (brand         !== undefined) tx.brand         = brand;
     if (subType       !== undefined) tx.subType       = subType;
+    if (type !== undefined || subType !== undefined || materialType !== undefined) {
+      tx.materialType = newMaterialType;
+    }
     if (unit          !== undefined) tx.unit          = unit;
     if (quantity      !== undefined) tx.quantity      = newQty;
     if (rate          !== undefined) tx.rate          = newRt;
@@ -280,10 +319,8 @@ router.put("/:id", upload.array("attachments"), async (req, res) => {
     if (remarks       !== undefined) tx.remarks       = remarks;
     tx.attachments = updatedAttachments;
     tx.amount = newQty * newRt;
-
     await tx.save({ session });
     await session.commitTransaction();
-
     res.json({ message: "Transaction updated", transaction: tx });
   } catch (err) {
     await session.abortTransaction();
@@ -294,9 +331,6 @@ router.put("/:id", upload.array("attachments"), async (req, res) => {
     session.endSession();
   }
 });
-
-// ─── DELETE /api/transactions/:id ─────────────────────────────────────────────
-
 router.delete("/:id", async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -306,24 +340,19 @@ router.delete("/:id", async (req, res) => {
       { session }
     );
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
-    // Reverse inventory effect
-    if (tx.type === "Materials" && tx.quantity > 0) {
-      const reverseDelta = tx.subType === "Consumption" ? tx.quantity : -tx.quantity;
+    if (tx.type === "material" && tx.quantity > 0) {
+      const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
+      const reverseDelta = txMaterialType === "usage" ? tx.quantity : -tx.quantity;
       await applyInventoryDelta(
         req.user._id, tx.project, tx.category, tx.unit, reverseDelta, session
       );
     }
-
     await session.commitTransaction();
-
-    // Delete attachments after commit (non-critical, outside session)
     if (Array.isArray(tx.attachments)) {
       for (const url of tx.attachments) {
         await deleteFile(url).catch(() => {});
       }
     }
-
     res.json({ message: "Transaction deleted" });
   } catch (err) {
     await session.abortTransaction();
@@ -333,5 +362,4 @@ router.delete("/:id", async (req, res) => {
     session.endSession();
   }
 });
-
 module.exports = router;
