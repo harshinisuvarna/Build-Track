@@ -26,9 +26,14 @@ const transactionSchema = new mongoose.Schema(
       enum: ["Purchase", "Consumption", "cement", "brick", "stone", ""],
       default: "",
     },
+    materialType: {
+      type: String,
+      enum: ["purchase", "usage", ""],
+      default: "",
+    },
     unit: {
       type: String,
-      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", ""],
+      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""],
       default: "unit",
     },
     quantity: {
@@ -72,11 +77,11 @@ const transactionSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ["Paid", "Partial", "Pending", ""],
-      default: "Pending",
+      default: "Pending",   
     },
     paymentMode: {
       type: String,
-      enum: ["Cash", "Bank", "UPI", "Cheque", ""],
+      enum: ["Cash", "Bank", "Bank Transfer", "UPI", "Cheque", ""],
       default: "Cash",
     },
     paymentDate: Date,
@@ -88,10 +93,25 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    attachments: {
-      type: [String],
-      default: [],
+    approvalStatus: {
+      type: String,
+      enum: ['Pending', 'Approved', 'Rejected'],
+      default: 'Pending'
     },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    },
+    receipts: [{
+      fileUrl: { type: String, required: true },
+      uploadedAt: { type: Date, default: Date.now },
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
     notes: {
       type: String,
       default: "",
@@ -105,33 +125,28 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-transactionSchema.pre("save", function (next) {
-  // Auto-calculate total amount
-  if (this.quantity && this.rate) {
+// Mongoose v9: use async pre-save (no next() parameter needed)
+transactionSchema.pre("save", async function () {
+  // Auto-calculate amount ONLY for Materials (qty × rate).
+  // For Wages / Expense / Income the user enters the amount directly — do NOT overwrite it.
+  if (this.type === "Materials" && this.quantity && this.rate) {
     this.amount = this.quantity * this.rate;
   }
 
   // Auto-calculate payment balance
   if (this.paymentStatus === "Paid") {
-    this.paidAmount = this.amount;
+    this.paidAmount     = this.amount;
     this.remainingAmount = 0;
   } else if (this.paymentStatus === "Pending") {
-    this.paidAmount = 0;
+    this.paidAmount     = 0;
     this.remainingAmount = this.amount;
   } else if (this.paymentStatus === "Partial") {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
-
-  // Hard validation for paidAmount
-  if (this.paidAmount > this.amount) {
-    return next(new Error("Paid amount cannot exceed total amount"));
-  }
-
-  next();
 });
 
 
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });
-module.exports = mongoose.model("Transaction", transactionSchema);
+module.exports = mongoose.model("Transaction", transactionSchema);

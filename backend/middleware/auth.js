@@ -33,4 +33,15 @@ const protect = async (req, res, next) => {
     res.status(401).json({ message: "Invalid or expired token" });
   }
 };
-module.exports = { protect };
+
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (req.user && roles.includes(req.user.role)) {
+      next();
+    } else {
+      res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+  };
+};
+
+module.exports = { protect, authorize };

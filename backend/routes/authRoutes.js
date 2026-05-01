@@ -5,7 +5,7 @@ const nodemailer = require("nodemailer");
 const router = express.Router();
 const passport = require("passport");
 const User = require("../models/User");
-const { protect } = require("../middleware/auth");
+const { protect, authorize } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
 const SECRET = process.env.JWT_SECRET;
@@ -45,6 +45,39 @@ router.post("/register", async (req, res) => {
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ message: "Server error during registration" });
+  }
+});
+router.post("/provision", protect, authorize('Admin'), async (req, res) => {
+  try {
+    const { name, email, temporaryPassword, role } = req.body;
+
+    if (!name || !email || !temporaryPassword || !role) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    if (role !== 'Supervisor' && role !== 'Mason') {
+      return res.status(403).json({ message: "Forbidden role assignment" });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: temporaryPassword,
+      role
+    });
+
+    res.status(201).json({
+      message: "Account provisioned successfully",
+      user: { name, email, role }
+    });
+  } catch (err) {
+    console.error("Provisioning error:", err);
+    res.status(500).json({ message: "Server error during account provisioning" });
   }
 });
 router.post("/login", async (req, res) => {
