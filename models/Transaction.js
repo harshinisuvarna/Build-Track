@@ -77,7 +77,7 @@ const transactionSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ["Paid", "Partial", "Pending", ""],
-      default: "Pending",
+      default: "Pending",   
     },
     paymentMode: {
       type: String,
@@ -93,15 +93,25 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    attachments: {
-      type: [String],
-      default: [],
-    },
-    // Payment screenshot uploaded to Cloudinary
-    screenshotUrl: {
+    approvalStatus: {
       type: String,
-      default: null,
+      enum: ['Pending', 'Approved', 'Rejected'],
+      default: 'Pending'
     },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    },
+    receipts: [{
+      fileUrl: { type: String, required: true },
+      uploadedAt: { type: Date, default: Date.now },
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
     notes: {
       type: String,
       default: "",

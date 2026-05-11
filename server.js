@@ -27,26 +27,7 @@ app.use(compression());
 const productionOrigins = new Set(
   [process.env.FRONTEND_URL, process.env.CLIENT_URL].filter(Boolean)
 );
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (isProd) {
-        if (productionOrigins.has(origin)) return callback(null, true);
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
-      }
-      if (
-        origin.startsWith("http://localhost:") ||
-        origin.startsWith("http://127.0.0.1:")
-      ) {
-        return callback(null, true);
-      }
-      if (productionOrigins.has(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    credentials: true,
-  })
-);
+app.use(cors());
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 200,                  
