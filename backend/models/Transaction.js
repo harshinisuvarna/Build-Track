@@ -77,7 +77,7 @@ const transactionSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ["Paid", "Partial", "Pending", ""],
-      default: "Pending",   
+      default: "Pending",
     },
     paymentMode: {
       type: String,
@@ -135,10 +135,10 @@ transactionSchema.pre("save", async function () {
 
   // Auto-calculate payment balance
   if (this.paymentStatus === "Paid") {
-    this.paidAmount     = this.amount;
+    this.paidAmount = this.amount;
     this.remainingAmount = 0;
   } else if (this.paymentStatus === "Pending") {
-    this.paidAmount     = 0;
+    this.paidAmount = 0;
     this.remainingAmount = this.amount;
   } else if (this.paymentStatus === "Partial") {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
