@@ -28,7 +28,7 @@ const safeUser = (user) => ({
 });
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
     if (!name || !email || !password)
       return res.status(400).json({ message: "All fields required" });
     if (password.length < 6)
@@ -36,7 +36,7 @@ router.post("/register", async (req, res) => {
     const exists = await User.findOne({ email: email.toLowerCase().trim() });
     if (exists)
       return res.status(409).json({ message: "An account with this email already exists" });
-    const user = await User.create({ name: name.trim(), email, password });
+    const user = await User.create({ name: name.trim(), email, password, role: role || 'Mason' });
     res.status(201).json({
       message: "Account created successfully",
       token: makeToken(user),
