@@ -1,14 +1,14 @@
-const express       = require("express");
-const router        = express.Router();
-const Transaction   = require("../models/Transaction");
-const Worker        = require("../models/Worker");
-const Project       = require("../models/Project");
-const Inventory     = require("../models/Inventory");
-const { protect }   = require("../middleware/auth");
-const upload        = require("../config/multer");
+const express = require("express");
+const router = express.Router();
+const Transaction = require("../models/Transaction");
+const Worker = require("../models/Worker");
+const Project = require("../models/Project");
+const Inventory = require("../models/Inventory");
+const { protect } = require("../middleware/auth");
+const upload = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
-const mongoose      = require("mongoose");
-const multer        = require("multer");
+const mongoose = require("mongoose");
+const multer = require("multer");
 router.use(protect);
 const parseId = (id) =>
   mongoose.Types.ObjectId.isValid(id) ? id : null;
@@ -45,7 +45,7 @@ const runTransactionUpdateUpload = (req, res) =>
     });
   });
 async function resolveIds(userId, { worker, project }) {
-  let workerId  = parseId(worker);
+  let workerId = parseId(worker);
   let projectId = parseId(project);
   if (!workerId && worker) {
     const wDoc = await Worker.findOne({ createdBy: userId, name: String(worker).trim() }).lean();
@@ -89,13 +89,13 @@ router.get("/", async (req, res) => {
   try {
     const { type, search, category, project, startDate, endDate } = req.query;
     const query = { createdBy: req.user._id };
-    if (type && type !== "All")   query.type     = type;
-    if (category)                 query.category = category;
-    if (project)                  query.project  = project;
+    if (type && type !== "All") query.type = type;
+    if (category) query.category = category;
+    if (project) query.project = project;
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate)   query.date.$lte = new Date(endDate);
+      if (endDate) query.date.$lte = new Date(endDate);
     }
     if (search) {
       query.$or = [
@@ -105,7 +105,7 @@ router.get("/", async (req, res) => {
       ];
     }
     const transactions = await Transaction.find(query)
-      .populate("worker",  "name")
+      .populate("worker", "name")
       .populate("project", "projectName")
       .sort({ date: -1, createdAt: -1 });
     res.json({ transactions });
@@ -117,7 +117,7 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const tx = await Transaction.findOne({ _id: req.params.id, createdBy: req.user._id })
-      .populate("worker",  "name")
+      .populate("worker", "name")
       .populate("project", "projectName");
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
     res.json({ transaction: tx });
@@ -155,12 +155,12 @@ router.post("/", async (req, res) => {
       : "";
     const { workerId, projectId } = await resolveIds(req.user._id, { worker, project });
     // upload.fields() gives req.files as { fieldName: [file, ...] }
-    const attachmentFiles  = (req.files?.attachments       || []).map(getFileUrl);
-    const screenshotFile   =  req.files?.paymentScreenshot?.[0];
-    const screenshotUrl    = screenshotFile ? getFileUrl(screenshotFile) : null;
+    const attachmentFiles = (req.files?.attachments || []).map(getFileUrl);
+    const screenshotFile = req.files?.paymentScreenshot?.[0];
+    const screenshotUrl = screenshotFile ? getFileUrl(screenshotFile) : null;
 
-    const qty     = Number(quantity)   || 0;
-    const rt      = Number(rate)       || 0;
+    const qty = Number(quantity) || 0;
+    const rt = Number(rate) || 0;
     const paidAmt = Number(paidAmount) || 0;
     if (qty < 0 || rt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
@@ -168,32 +168,32 @@ router.post("/", async (req, res) => {
       ? qty * rt
       : (Number(rawAmount) || qty * rt || 0);
     const transaction = new Transaction({
-      createdBy:     req.user._id,
-      title:         title.trim(),
+      createdBy: req.user._id,
+      title: title.trim(),
       type,
-      worker:        workerId  || null,
-      project:       projectId || null,
-      date:          date || new Date(),
+      worker: workerId || null,
+      project: projectId || null,
+      date: date || new Date(),
       notes,
-      category:      resolvedCategory,
+      category: resolvedCategory,
       brand,
       subType,
       materialType: normalizedMaterialType,
-      unit:          unit || unitType || "unit",
-      quantity:      qty,
-      rate:          rt,
+      unit: unit || unitType || "unit",
+      quantity: qty,
+      rate: rt,
       paymentStatus: paymentStatus || "Pending",
-      paymentMode:   paymentMode   || "Cash",
+      paymentMode: paymentMode || "Cash",
       paymentDate,
-      paidAmount:    paidAmt,
+      paidAmount: paidAmt,
       remarks,
-      attachments:   attachmentFiles,
+      attachments: attachmentFiles,
       screenshotUrl,
-      amount:        finalAmount,
-      ...(workDone    && { workDone:    Number(workDone) }),
-      ...(usage       && { usage:       Number(usage) }),
+      amount: finalAmount,
+      ...(workDone && { workDone: Number(workDone) }),
+      ...(usage && { usage: Number(usage) }),
       ...(machineType && { machineType }),
-      ...(rateType    && { rateType }),
+      ...(rateType && { rateType }),
     });
     await transaction.save({ session });
     if (type === "Materials" && qty > 0 && projectId) {
@@ -238,23 +238,23 @@ router.put("/:id", async (req, res) => {
     if (type && !["Wages", "Expense", "Income", "Materials"].includes(type))
       return res.status(400).json({ message: "Invalid transaction type" });
     const { workerId, projectId } = await resolveIds(req.user._id, {
-      worker:  worker  ?? tx.worker,
+      worker: worker ?? tx.worker,
       project: project ?? tx.project,
     });
     if (!projectId)
       return res.status(400).json({ message: "Valid project is required" });
-    const newQty    = quantity  !== undefined ? Number(quantity)   : tx.quantity;
-    const newRt     = rate      !== undefined ? Number(rate)       : tx.rate;
+    const newQty = quantity !== undefined ? Number(quantity) : tx.quantity;
+    const newRt = rate !== undefined ? Number(rate) : tx.rate;
     const newPaidAmt = paidAmount !== undefined ? Number(paidAmount) : tx.paidAmount;
-    const newType    = type     || tx.type;
-    const newSubType = subType  !== undefined ? subType : tx.subType;
+    const newType = type || tx.type;
+    const newSubType = subType !== undefined ? subType : tx.subType;
     const newMaterialType = newType === "Materials"
       ? normalizeMaterialType(
-          materialType !== undefined ? materialType : tx.materialType,
-          newSubType
-        )
+        materialType !== undefined ? materialType : tx.materialType,
+        newSubType
+      )
       : "";
-    const newCat     = category || tx.category;
+    const newCat = category || tx.category;
     if (newQty < 0 || newRt < 0)
       return res.status(400).json({ message: "Quantity and Rate must be >= 0" });
     if (newPaidAmt > newQty * newRt)
@@ -273,26 +273,26 @@ router.put("/:id", async (req, res) => {
       const newFiles = req.files.map((f) => getFileUrl(f));
       updatedAttachments = [...updatedAttachments, ...newFiles];
     }
-    if (title         !== undefined) tx.title         = title.trim();
-    if (type          !== undefined) tx.type          = type;
-    if (worker        !== undefined) tx.worker        = workerId;
-    if (project       !== undefined) tx.project       = projectId;
-    if (date          !== undefined) tx.date          = date;
-    if (notes         !== undefined) tx.notes         = notes;
-    if (category      !== undefined) tx.category      = category;
-    if (brand         !== undefined) tx.brand         = brand;
-    if (subType       !== undefined) tx.subType       = subType;
+    if (title !== undefined) tx.title = title.trim();
+    if (type !== undefined) tx.type = type;
+    if (worker !== undefined) tx.worker = workerId;
+    if (project !== undefined) tx.project = projectId;
+    if (date !== undefined) tx.date = date;
+    if (notes !== undefined) tx.notes = notes;
+    if (category !== undefined) tx.category = category;
+    if (brand !== undefined) tx.brand = brand;
+    if (subType !== undefined) tx.subType = subType;
     if (type !== undefined || subType !== undefined || materialType !== undefined) {
       tx.materialType = newMaterialType;
     }
-    if (unit          !== undefined) tx.unit          = unit;
-    if (quantity      !== undefined) tx.quantity      = newQty;
-    if (rate          !== undefined) tx.rate          = newRt;
+    if (unit !== undefined) tx.unit = unit;
+    if (quantity !== undefined) tx.quantity = newQty;
+    if (rate !== undefined) tx.rate = newRt;
     if (paymentStatus !== undefined) tx.paymentStatus = paymentStatus;
-    if (paymentMode   !== undefined) tx.paymentMode   = paymentMode;
-    if (paymentDate   !== undefined) tx.paymentDate   = paymentDate;
-    if (paidAmount    !== undefined) tx.paidAmount    = newPaidAmt;
-    if (remarks       !== undefined) tx.remarks       = remarks;
+    if (paymentMode !== undefined) tx.paymentMode = paymentMode;
+    if (paymentDate !== undefined) tx.paymentDate = paymentDate;
+    if (paidAmount !== undefined) tx.paidAmount = newPaidAmt;
+    if (remarks !== undefined) tx.remarks = remarks;
     tx.attachments = updatedAttachments;
     tx.amount = newQty * newRt;
     await tx.save({ session });
@@ -326,7 +326,7 @@ router.delete("/:id", async (req, res) => {
     await session.commitTransaction();
     if (Array.isArray(tx.attachments)) {
       for (const url of tx.attachments) {
-        await deleteFile(url).catch(() => {});
+        await deleteFile(url).catch(() => { });
       }
     }
     res.json({ message: "Transaction deleted" });

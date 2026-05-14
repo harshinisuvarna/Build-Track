@@ -19,7 +19,7 @@ function getDateRange(query) {
   }
   return {
     startDate: new Date(year, month, 1, 0, 0, 0, 0),
-    endDate:   new Date(year, parseInt(month) + 1, 0, 23, 59, 59, 999),
+    endDate: new Date(year, parseInt(month) + 1, 0, 23, 59, 59, 999),
   };
 }
 function formatINR(n) {
@@ -43,9 +43,9 @@ router.get("/financial", async (req, res) => {
       date: { $gte: startDate, $lte: endDate },
     };
 
-    if (type)     query.type = type;
+    if (type) query.type = type;
     if (category) query.category = category;
-    if (project)  query.project = project;
+    if (project) query.project = project;
 
     const transactions = await Transaction.find(query)
       .populate("project", "projectName status")
@@ -67,7 +67,7 @@ router.get("/financial", async (req, res) => {
 
     const workersRecords = await Worker.find({ createdBy: userId });
     const projects = await Project.find({ createdBy: userId });
-    
+
     // Wage Calculation Logic
     const wageTransactions = transactions.filter((t) => t.type === "Wages");
     const workerStats = {};
