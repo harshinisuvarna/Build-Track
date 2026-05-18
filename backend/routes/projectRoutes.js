@@ -1,10 +1,10 @@
-const express     = require("express");
-const router      = express.Router();
-const multer      = require("multer");
-const Project     = require("../models/Project");
+const express = require("express");
+const router = express.Router();
+const multer = require("multer");
+const Project = require("../models/Project");
 const Transaction = require("../models/Transaction");
 const { protect } = require("../middleware/auth");
-const upload      = require("../config/multer");
+const upload = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 router.use(protect);
 const runUpload = (req, res) =>
@@ -27,8 +27,8 @@ router.get("/", async (req, res) => {
     if (search) {
       query.$or = [
         { projectName: { $regex: search, $options: "i" } },
-        { location:    { $regex: search, $options: "i" } },
-        { manager:     { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
+        { manager: { $regex: search, $options: "i" } },
       ];
     }
     const projects = await Project.find(query).sort({ createdAt: -1 });
@@ -112,12 +112,12 @@ router.get("/:id/budget", async (req, res) => {
     const report = {
       materials: {
         budget: project.budget?.materials || 0,
-        actual: actualMap["material"] || 0, 
+        actual: actualMap["material"] || 0,
         remaining: (project.budget?.materials || 0) - (actualMap["material"] || 0)
       },
       labour: {
         budget: project.budget?.labour || 0,
-        actual: actualMap["labour"] || 0, 
+        actual: actualMap["labour"] || 0,
         remaining: (project.budget?.labour || 0) - (actualMap["labour"] || 0)
       },
       equipment: {
@@ -139,30 +139,30 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
   try {
-    const { 
-      projectName, location, manager, 
+    const {
+      projectName, location, manager,
       budgetMaterials, budgetLabour, budgetEquipment,
-      startDate, scope, status, progress 
+      startDate, scope, status, progress
     } = req.body;
 
     if (!projectName || !projectName.trim())
       return res.status(400).json({ message: "Project name is required" });
 
     const project = await Project.create({
-      createdBy:   req.user._id,
+      createdBy: req.user._id,
       projectName: projectName.trim(),
-      location:    location  || "",
-      manager:     manager   || "",
+      location: location || "",
+      manager: manager || "",
       budget: {
         materials: Number(budgetMaterials) || 0,
-        labour:    Number(budgetLabour)    || 0,
+        labour: Number(budgetLabour) || 0,
         equipment: Number(budgetEquipment) || 0,
       },
-      startDate:   startDate || null,
-      scope:       scope     || "",
-      status:      status    || "Active",
-      progress:    Number(progress) || 0,
-      photo:       getFileUrl(req.files?.find(f => f.fieldname === "photo")) || null,
+      startDate: startDate || null,
+      scope: scope || "",
+      status: status || "Active",
+      progress: Number(progress) || 0,
+      photo: getFileUrl(req.files?.find(f => f.fieldname === "photo")) || null,
     });
     res.status(201).json({ message: "Project created", project });
   } catch (err) {
@@ -180,29 +180,29 @@ router.put("/:id", async (req, res) => {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
   try {
-    const { 
-      projectName, location, manager, 
+    const {
+      projectName, location, manager,
       budgetMaterials, budgetLabour, budgetEquipment,
-      startDate, scope, status, progress, removePhoto 
+      startDate, scope, status, progress, removePhoto
     } = req.body;
 
     const updateData = {};
     if (projectName !== undefined) updateData.projectName = projectName.trim();
-    if (location    !== undefined) updateData.location    = location;
-    if (manager     !== undefined) updateData.manager     = manager;
-    
+    if (location !== undefined) updateData.location = location;
+    if (manager !== undefined) updateData.manager = manager;
+
     // Handle nested budget update
     if (budgetMaterials !== undefined || budgetLabour !== undefined || budgetEquipment !== undefined) {
       updateData.budget = {};
       if (budgetMaterials !== undefined) updateData.budget.materials = Number(budgetMaterials);
-      if (budgetLabour    !== undefined) updateData.budget.labour    = Number(budgetLabour);
+      if (budgetLabour !== undefined) updateData.budget.labour = Number(budgetLabour);
       if (budgetEquipment !== undefined) updateData.budget.equipment = Number(budgetEquipment);
     }
 
-    if (startDate   !== undefined) updateData.startDate   = startDate || null;
-    if (scope       !== undefined) updateData.scope       = scope;
-    if (status      !== undefined) updateData.status      = status;
-    if (progress    !== undefined) updateData.progress    = Number(progress);
+    if (startDate !== undefined) updateData.startDate = startDate || null;
+    if (scope !== undefined) updateData.scope = scope;
+    if (status !== undefined) updateData.status = status;
+    if (progress !== undefined) updateData.progress = Number(progress);
 
     const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
     const photoFile = req.files?.find(f => f.fieldname === "photo");
