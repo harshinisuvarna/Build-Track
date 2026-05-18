@@ -83,28 +83,71 @@ router.post("/provision", protect, authorize('Admin'), async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
-      return res.status(400).json({ message: "Email and password are required" });
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user)
-      return res.status(401).json({ message: "Invalid email or password" });
-    if (!user.isActive)
-      return res.status(403).json({ message: "Account deactivated. Contact support." });
-    if (!user.password)
+
+    // ✅ VALIDATION
+    if (!email || !password) {
       return res.status(400).json({
-        message: "This account uses Google or GitHub login. Please use those buttons instead.",
+        message: "Email and password are required",
       });
+    }
+
+    // ✅ FIND USER
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // ✅ CHECK ACTIVE STATUS
+    if (!user.isActive) {
+      return res.status(403).json({
+        message: "Account deactivated. Contact support.",
+      });
+    }
+
+    // ✅ SOCIAL LOGIN CHECK
+    if (!user.password) {
+      return res.status(400).json({
+        message:
+          "This account uses Google or GitHub login. Please use those methods.",
+      });
+    }
+
+    // ✅ PASSWORD CHECK
     const isMatch = await user.matchPassword(password);
-    if (!isMatch)
-      return res.status(401).json({ message: "Invalid email or password" });
-    res.json({
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // 🔥 CREATE TOKEN (IMPORTANT FIX AREA)
+    const token = makeToken(user);
+
+    if (!token) {
+      return res.status(500).json({
+        message: "Failed to generate authentication token",
+      });
+    }
+
+    // ✅ RESPONSE (Flutter expects token like this)
+    return res.status(200).json({
+      success: true,
       message: "Login successful",
-      token: makeToken(user),
+      token: token,
       user: safeUser(user),
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server error during login" });
+
+    return res.status(500).json({
+      message: "Server error during login",
+    });
   }
 });
 router.get("/me", protect, (req, res) => {

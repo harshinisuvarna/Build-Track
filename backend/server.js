@@ -27,7 +27,14 @@ app.use(compression());
 const productionOrigins = new Set(
   [process.env.FRONTEND_URL, process.env.CLIENT_URL].filter(Boolean)
 );
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 200,                  
