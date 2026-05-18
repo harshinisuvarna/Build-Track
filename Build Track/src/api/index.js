@@ -9,11 +9,11 @@ const rawUrl = import.meta.env.VITE_API_URL;
 if (!rawUrl) {
   console.warn(
     "[BuildTrack] VITE_API_URL is not set. " +
-    "Create a .env file with VITE_API_URL=https://build-track.onrender.com"
+    "Create a .env file with VITE_API_URL=http://localhost:5001"
   );
 }
 
-const API_ORIGIN = normalizeOrigin(rawUrl) || "http://localhost:5000";
+const API_ORIGIN = normalizeOrigin(rawUrl) || "http://localhost:5001";
 const BASE = API_ORIGIN.endsWith("/api") ? API_ORIGIN : `${API_ORIGIN}/api`;
 
 const api = axios.create({ baseURL: BASE });
