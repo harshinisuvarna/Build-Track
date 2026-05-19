@@ -1,9 +1,11 @@
 const mongoose = require("mongoose");
+
 const toObjectIdOrNull = function (value) {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value === "object" && value?._id) value = value._id;
   return mongoose.Types.ObjectId.isValid(value) ? value : null;
 };
+
 const transactionSchema = new mongoose.Schema(
   {
     createdBy: {
@@ -26,14 +28,9 @@ const transactionSchema = new mongoose.Schema(
       enum: ["Purchase", "Consumption", "cement", "brick", "stone", ""],
       default: "",
     },
-    materialType: {
-      type: String,
-      enum: ["purchase", "usage", ""],
-      default: "",
-    },
     unit: {
       type: String,
-      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""],
+      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", ""],
       default: "unit",
     },
     quantity: {
@@ -46,7 +43,6 @@ const transactionSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
-    // AUTO CALCULATED
     amount: {
       type: Number,
       required: true,
@@ -73,7 +69,6 @@ const transactionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    // PAYMENT TRACKING
     paymentStatus: {
       type: String,
       enum: ["Paid", "Partial", "Pending", ""],
@@ -81,7 +76,7 @@ const transactionSchema = new mongoose.Schema(
     },
     paymentMode: {
       type: String,
-      enum: ["Cash", "Bank", "Bank Transfer", "UPI", "Cheque", ""],
+      enum: ["Cash", "Bank", "UPI", "Cheque", ""],
       default: "Cash",
     },
     paymentDate: Date,
@@ -93,25 +88,10 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    approvalStatus: {
-      type: String,
-      enum: ['Pending', 'Approved', 'Rejected'],
-      default: 'Pending'
+    attachments: {
+      type: [String],
+      default: [],
     },
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
-    },
-    approvedAt: {
-      type: Date,
-      default: null
-    },
-    receipts: [{
-      fileUrl: { type: String, required: true },
-      uploadedAt: { type: Date, default: Date.now },
-      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-    }],
     notes: {
       type: String,
       default: "",
@@ -125,15 +105,12 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Mongoose v9: use async pre-save (no next() parameter needed)
-transactionSchema.pre("save", async function () {
-  // Auto-calculate amount ONLY for Materials (qty × rate).
-  // For Wages / Expense / Income the user enters the amount directly — do NOT overwrite it.
-  if (this.type === "Materials" && this.quantity && this.rate) {
+// Synchronous hook with NO 'next' parameter to prevent crashes
+transactionSchema.pre("save", function () {
+  if (this.quantity && this.rate) {
     this.amount = this.quantity * this.rate;
   }
 
-  // Auto-calculate payment balance
   if (this.paymentStatus === "Paid") {
     this.paidAmount = this.amount;
     this.remainingAmount = 0;
@@ -143,10 +120,14 @@ transactionSchema.pre("save", async function () {
   } else if (this.paymentStatus === "Partial") {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
-});
 
+  if (this.paidAmount > this.amount) {
+    throw new Error("Paid amount cannot exceed total amount");
+  }
+});
 
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });
+
 module.exports = mongoose.model("Transaction", transactionSchema);
