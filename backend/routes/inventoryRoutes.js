@@ -4,8 +4,10 @@ const Inventory = require("../models/Inventory");
 const Transaction = require("../models/Transaction");
 const Project = require("../models/Project");
 const { protect } = require("../middleware/auth");
+const { createMaterial } = require("../controllers/inventoryController");
 
 router.use(protect);
+
 
 const DEFAULT_THRESHOLD = 5;
 const normalizeProjectId = (projectValue) => {
@@ -145,6 +147,9 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch inventory" });
   }
 });
+
+// POST /api/inventory — create a new material entry
+router.post("/", createMaterial);
 
 router.post("/use", async (req, res) => {
   try {

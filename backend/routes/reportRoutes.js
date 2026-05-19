@@ -1,22 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const PDFDocument = require("pdfkit");
+
 const Transaction = require("../models/Transaction");
 const Worker = require("../models/Worker");
 const Project = require("../models/Project");
+
 const { protect } = require("../middleware/auth");
 
 router.use(protect);
 
-// =========================
-// DATE RANGE
-// =========================
+/// =======================================================
+/// DATE RANGE
+/// =======================================================
+
 function getDateRange(query) {
   const { year, month, rangeStart, rangeEnd } = query;
 
   if (rangeStart && rangeEnd) {
     const start = new Date(rangeStart);
     const end = new Date(rangeEnd);
+
     end.setHours(23, 59, 59, 999);
 
     return {
@@ -27,65 +31,80 @@ function getDateRange(query) {
 
   return {
     startDate: new Date(year, month, 1, 0, 0, 0, 0),
-    endDate: new Date(year, parseInt(month) + 1, 0, 23, 59, 59, 999),
+
+    endDate: new Date(
+      year,
+      parseInt(month) + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    ),
   };
 }
 
-// =========================
-// FORMAT INR
-// =========================
+/// =======================================================
+/// FORMAT INR
+/// =======================================================
+
 function formatINR(n) {
   return `₹${(n || 0).toLocaleString("en-IN")}`;
 }
 
-// =========================
-// NORMALIZE STATUS
-// =========================
+/// =======================================================
+/// NORMALIZE PROJECT STATUS
+/// =======================================================
+
 function normalizeProjectStatus(status) {
   const s = String(status || "").toLowerCase();
 
-  if (s === "on track" || s === "completed") return "ON TRACK";
-  if (s === "review needed" || s === "on hold") return "REVIEW NEEDED";
+  if (s === "on track" || s === "completed") {
+    return "ON TRACK";
+  }
+
+  if (s === "review needed" || s === "on hold") {
+    return "REVIEW NEEDED";
+  }
 
   return "IN PROGRESS";
 }
 
-// =========================
-// FINANCIAL REPORT
-// =========================
+/// =======================================================
+/// FINANCIAL REPORT
+/// =======================================================
+
 router.get("/financial", async (req, res) => {
   try {
-    const { type, category, project } = req.query;
+    const { year, month, type, category, project } = req.query;
 
     const userId = req.user?._id;
 
     const { startDate, endDate } = getDateRange(req.query);
 
-    // =========================
-    // QUERY
-    // =========================
+    /// QUERY
+
     const query = {
+      createdBy: userId,
+
       date: {
         $gte: startDate,
         $lte: endDate,
       },
     };
 
-    if (userId) {
-      query.createdBy = userId;
-    }
-
     if (type) query.type = type;
     if (category) query.category = category;
     if (project) query.project = project;
+
+    /// TRANSACTIONS
 
     const transactions = await Transaction.find(query)
       .populate("project", "projectName status")
       .populate("worker", "_id name trade dailyWage");
 
-    // =========================
-    // FINANCIAL SUMMARY
-    // =========================
+    /// FINANCIAL SUMMARY
+
     const income = transactions
       .filter((t) => t.type === "Income")
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -100,17 +119,21 @@ router.get("/financial", async (req, res) => {
 
     const compliance =
       totalVolume > 0
-        ? Math.min(100, Math.max(0, (income / totalVolume) * 100))
+        ? Math.min(
+            100,
+            Math.max(0, (income / totalVolume) * 100)
+          )
         : 100;
 
-    // =========================
-    // WORKERS
-    // =========================
-    let workersRecords = [];
+    /// WORKERS
 
-    if (userId) {
-      workersRecords = await Worker.find({ createdBy: userId });
-    }
+    const workersRecords = await Worker.find({
+      createdBy: userId,
+    });
+
+    const projects = await Project.find({
+      createdBy: userId,
+    });
 
     const wageTransactions = transactions.filter(
       (t) => t.type === "Wages"
@@ -120,7 +143,8 @@ router.get("/financial", async (req, res) => {
 
     wageTransactions.forEach((t) => {
       const wId =
-        t.worker?._id?.toString() || t.worker?.toString();
+        t.worker?._id?.toString() ||
+        t.worker?.toString();
 
       if (!wId) return;
 
@@ -132,10 +156,14 @@ router.get("/financial", async (req, res) => {
         };
       }
 
-      workerStats[wId].totalPayout += Number(t.amount || 0);
+      workerStats[wId].totalPayout += Number(
+        t.amount || 0
+      );
 
       workerStats[wId].daySet.add(
-        new Date(t.date).toISOString().slice(0, 10)
+        new Date(t.date)
+          .toISOString()
+          .slice(0, 10)
       );
 
       if (!workerStats[wId].project && t.project) {
@@ -153,159 +181,266 @@ router.get("/financial", async (req, res) => {
           name: w.name,
           trade: w.trade,
           dailyWage: w.dailyWage,
+
           totalDays: stats.daySet.size,
-          estimatedMonthlyPayout: stats.totalPayout,
-          project: stats.project?.projectName || "Various",
-          projectStatus: normalizeProjectStatus(stats.project?.status),
+
+          estimatedMonthlyPayout:
+            stats.totalPayout,
+
+          project:
+            stats.project?.projectName ||
+            "Various",
+
+          projectStatus:
+            normalizeProjectStatus(
+              stats.project?.status
+            ),
         };
       });
 
-    // =========================
-    // CATEGORY BREAKDOWN
-    // =========================
+    /// CATEGORY BREAKDOWN
+
     const categoryBreakdown = {};
 
     transactions.forEach((t) => {
-      const cat = t.category || "Other";
+      const cat =
+        t.category || t.type || "Other";
 
       if (!categoryBreakdown[cat]) {
         categoryBreakdown[cat] = 0;
       }
 
-      categoryBreakdown[cat] += Number(t.amount || 0);
+      categoryBreakdown[cat] += Number(
+        t.amount || 0
+      );
     });
 
-    // =========================
-    // FIXED ANALYTICS (REAL DATA ONLY)
-    // =========================
+    /// =======================================================
+    /// ANALYTICS FOR CHART UI
+    /// =======================================================
 
-    const phases = [
-      "Foundation",
-      "Floor",
-      "Slab",
-      "Walls",
-      "Finishing",
-    ];
+    const analytics = {
+      material:
+        categoryBreakdown["Materials"] || 0,
 
-    const phaseMap = {
-      Foundation: 0,
-      Floor: 0,
-      Slab: 0,
-      Walls: 0,
-      Finishing: 0,
+      labour:
+        categoryBreakdown["Wages"] || 0,
+
+      equipment:
+        categoryBreakdown["Equipment"] || 0,
+
+      misc:
+        categoryBreakdown["Misc"] || 0,
+
+      targetCost: 1500,
     };
 
-    transactions.forEach((t) => {
-      if (phaseMap.hasOwnProperty(t.category)) {
-        phaseMap[t.category] += Number(t.amount || 0);
-      }
-    });
+    const latestActual =
+      analytics.material +
+      analytics.labour +
+      analytics.equipment +
+      analytics.misc;
 
-    const costPerSqftData = [
-      phaseMap.Foundation,
-      phaseMap.Floor,
-      phaseMap.Slab,
-      phaseMap.Walls,
-      phaseMap.Finishing,
-    ];
+    analytics.latestActual = latestActual;
 
-    const latestActual = costPerSqftData.reduce(
-      (sum, val) => sum + val,
-      0
-    );
+    analytics.chartStatus =
+      latestActual > analytics.targetCost
+        ? "OVER_BUDGET"
+        : "ON_TRACK";
 
-    const targetCost = 1500;
-
-    const chartStatus =
-      latestActual > targetCost ? "OVER_BUDGET" : "ON_TRACK";
-
-    // =========================
-    // RESPONSE
-    // =========================
+    /// RESPONSE
 
     res.json({
       income,
       expenses,
       profit,
       compliance,
-      workers,
-      categoryBreakdown,
-      transactionCount: transactions.length,
 
-      analytics: {
-        phases,
-        costPerSqftData,
-        targetCost,
-        latestActual,
-        chartStatus,
-      },
+      workers,
+
+      projects,
+
+      categoryBreakdown,
+
+      transactionCount:
+        transactions.length,
+
+      analytics,
     });
   } catch (err) {
-    console.error("Financial report error:", err);
-
-    res.status(500).json({
-      message: "Failed to fetch financial report",
-    });
-  }
-});
-
-// =========================
-// EXPORT CSV (UNCHANGED)
-// =========================
-router.get("/financial/export-csv", async (req, res) => {
-  try {
-    const { year, month } = req.query;
-    const userId = req.user._id;
-
-    const { startDate, endDate } = getDateRange(req.query);
-
-    const workersRecords = await Worker.find({ createdBy: userId });
-
-    const wageTransactions = await Transaction.find({
-      createdBy: userId,
-      type: "Wages",
-      date: { $gte: startDate, $lte: endDate },
-    });
-
-    const workerWageMap = {};
-
-    wageTransactions.forEach((t) => {
-      const wId = t.worker?.toString();
-      if (!workerWageMap[wId]) workerWageMap[wId] = 0;
-      workerWageMap[wId] += t.amount;
-    });
-
-    const header =
-      "Worker Name,Role,Project,Total Days,Daily Rate,Total Payout\n";
-
-    const rangeDays = Math.max(
-      1,
-      Math.round((endDate - startDate) / (1000 * 60 * 60 * 24))
+    console.error(
+      "Financial report error:",
+      err
     );
 
-    const workingDays = Math.round(rangeDays * 0.86);
-
-    const rows = workersRecords
-      .map((w) => {
-        const name = `"${(w.name || "").replace(/"/g, '""')}"`;
-        const trade = `"${(w.trade || "General Labor").replace(/"/g, '""')}"`;
-        const project = `"Various"`;
-        const totalDays = workingDays;
-        const rate = w.dailyWage || 0;
-        const actualPayout = workerWageMap[w._id.toString()] || 0;
-        const payout = actualPayout > 0 ? actualPayout : rate * workingDays;
-
-        return `${name},${trade},${project},${totalDays},${rate},${payout}`;
-      })
-      .join("\n");
-
-    const csv = header + rows;
-
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.send(csv);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to export CSV" });
+    res.status(500).json({
+      message:
+        "Failed to fetch financial report",
+    });
   }
 });
+
+/// =======================================================
+/// EXPORT CSV
+/// =======================================================
+
+router.get(
+  "/financial/export-csv",
+  async (req, res) => {
+    try {
+      const { year, month } = req.query;
+
+      const userId = req.user._id;
+
+      if (
+        !year ||
+        month === undefined ||
+        month === ""
+      ) {
+        return res.status(400).json({
+          message:
+            "Year and month are required",
+        });
+      }
+
+      const { startDate, endDate } =
+        getDateRange(req.query);
+
+      const rangeDays = Math.max(
+        1,
+        Math.round(
+          (endDate - startDate) /
+            (1000 * 60 * 60 * 24)
+        )
+      );
+
+      const workingDays = Math.round(
+        rangeDays * 0.86
+      );
+
+      const workersRecords = await Worker.find({
+        createdBy: userId,
+      });
+
+      const wageTransactions =
+        await Transaction.find({
+          createdBy: userId,
+          type: "Wages",
+
+          date: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        });
+
+      const workerWageMap = {};
+
+      wageTransactions.forEach((t) => {
+        const wId = t.worker?.toString();
+
+        if (wId) {
+          if (!workerWageMap[wId]) {
+            workerWageMap[wId] = 0;
+          }
+
+          workerWageMap[wId] += t.amount;
+        }
+      });
+
+      const header =
+        "Worker Name,Role,Project,Total Days,Daily Rate,Total Payout\n";
+
+      const rows = workersRecords
+        .map((w) => {
+          const name = `"${(
+            w.name || ""
+          ).replace(/"/g, '""')}"`;
+
+          const trade = `"${(
+            w.trade || "General Labor"
+          ).replace(/"/g, '""')}"`;
+
+          const project = `"Various"`;
+
+          const totalDays =
+            workingDays;
+
+          const rate =
+            w.dailyWage || 0;
+
+          const actualPayout =
+            workerWageMap[
+              w._id.toString()
+            ] || 0;
+
+          const payout =
+            actualPayout > 0
+              ? actualPayout
+              : rate * workingDays;
+
+          return `${name},${trade},${project},${totalDays},${rate},${payout}`;
+        })
+        .join("\n");
+
+      const csv = header + rows;
+
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      const filename = `BuildTrack_Wages_${
+        monthNames[parseInt(month)]
+      }_${year}.csv`;
+
+      res.setHeader(
+        "Content-Type",
+        "text/csv; charset=utf-8"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
+
+      res.send(csv);
+    } catch (err) {
+      res.status(500).json({
+        message: "Failed to export CSV",
+      });
+    }
+  }
+);
+
+/// =======================================================
+/// EXPORT PDF
+/// =======================================================
+
+router.get(
+  "/financial/export-pdf",
+  async (req, res) => {
+    try {
+      res.status(200).json({
+        message:
+          "PDF export route working",
+      });
+    } catch (err) {
+      res.status(500).json({
+        message:
+          "Failed to export PDF",
+      });
+    }
+  }
+);
 
 module.exports = router;
