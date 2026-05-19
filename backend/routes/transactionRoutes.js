@@ -103,4 +103,45 @@ router.post("/", upload.array("attachments"), async (req, res, next) => {
   }
 });
 
+// PUT update transaction payment details
+router.put("/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid transaction ID" });
+    }
+
+    const transaction = await Transaction.findOne({ _id: id, createdBy: req.user._id });
+    if (!transaction) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    const { paymentStatus, paidAmount, paymentMode, notes } = req.body;
+
+    if (paidAmount !== undefined) {
+      const prevPaid = transaction.paidAmount || 0;
+      const diff = Number(paidAmount) - prevPaid;
+      if (diff > 0) {
+        transaction.paymentHistory.push({
+          date: new Date(),
+          method: paymentMode || "Cash",
+          amount: diff,
+          note: notes || "",
+        });
+      }
+      transaction.paidAmount = Number(paidAmount);
+    }
+
+    if (paymentStatus !== undefined) transaction.paymentStatus = paymentStatus;
+    if (paymentMode !== undefined) transaction.paymentMode = paymentMode;
+    if (notes !== undefined) transaction.notes = notes;
+
+    await transaction.save();
+
+    res.json({ message: "Transaction payment updated successfully", transaction });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

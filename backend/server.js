@@ -103,8 +103,33 @@ mongoose
       } else {
         console.log("[Cleanup] Database is clean. No duplicate projects found.");
       }
+
+      // One-off backend DB cleanup for incorrect Labour/Equipment units
+      const invalidUnits = [
+        'kg', 'Kg', 'KG', 
+        'bag', 'Bag', 'BAG', 
+        'ton', 'Ton', 'TON', 'tons', 'Tons', 'TONS', 
+        'mt', 'Mt', 'MT', 
+        'truck', 'Truck', 'TRUCK'
+      ];
+      
+      const labourUpdateRes = await Transaction.updateMany(
+        { type: 'Wages', unit: { $in: invalidUnits } },
+        { $set: { unit: 'day' } }
+      );
+      if (labourUpdateRes.modifiedCount > 0) {
+        console.log(`[Cleanup] Migrated ${labourUpdateRes.modifiedCount} Labour entries with invalid units (kg/bag etc.) to 'day'`);
+      }
+      
+      const equipUpdateRes = await Transaction.updateMany(
+        { type: 'Expense', unit: { $in: invalidUnits } },
+        { $set: { unit: 'day' } }
+      );
+      if (equipUpdateRes.modifiedCount > 0) {
+        console.log(`[Cleanup] Migrated ${equipUpdateRes.modifiedCount} Equipment entries with invalid units (kg/bag etc.) to 'day'`);
+      }
     } catch (cleanupErr) {
-      console.error("[Cleanup] Error running project database cleanup:", cleanupErr);
+      console.error("[Cleanup] Error running database cleanup:", cleanupErr);
     }
   })
   .catch((err) => {

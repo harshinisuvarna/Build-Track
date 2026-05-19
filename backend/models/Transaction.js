@@ -101,6 +101,17 @@ const transactionSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    paymentHistory: {
+      type: [
+        {
+          date: { type: Date, default: Date.now },
+          method: String,
+          amount: Number,
+          note: String,
+        }
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
@@ -123,6 +134,16 @@ transactionSchema.pre("save", function () {
 
   if (this.paidAmount > this.amount) {
     throw new Error("Paid amount cannot exceed total amount");
+  }
+
+  // Populate initial payment event to history if needed
+  if (this.paidAmount > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
+    this.paymentHistory = [{
+      date: this.date || new Date(),
+      method: this.paymentMode || "Cash",
+      amount: this.paidAmount,
+      note: this.notes || "Initial payment on creation",
+    }];
   }
 });
 
