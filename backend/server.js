@@ -51,7 +51,62 @@ app.use(passport.initialize());
 
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(async () => {
+    console.log("✅ MongoDB connected");
+    
+    // One-off backend DB cleanup for duplicate projects
+    try {
+      const Project = require("./models/Project");
+      const Transaction = require("./models/Transaction");
+      
+      const allProjects = await Project.find({}).sort({ createdAt: -1 });
+      const groups = {};
+      
+      allProjects.forEach((p) => {
+        if (!p.projectName || !p.createdBy) return;
+        const key = `${p.createdBy.toString()}||${p.projectName.trim().toLowerCase()}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(p);
+      });
+
+      let duplicateCount = 0;
+      for (const key of Object.keys(groups)) {
+        const projects = groups[key];
+        if (projects.length > 1) {
+          duplicateCount++;
+          const keptProject = projects[0]; // Keep the most recently created one
+          const duplicatesToDelete = projects.slice(1);
+
+          console.log(`[Cleanup] Found duplicate projects for name "${keptProject.projectName}". Keeping ${keptProject._id}`);
+
+          for (const dup of duplicatesToDelete) {
+            // Re-assign transactions to the kept project
+            const updateRes = await Transaction.updateMany(
+              { project: dup._id },
+              { $set: { project: keptProject._id } }
+            );
+            if (updateRes.modifiedCount > 0) {
+              console.log(`[Cleanup] Reassigned ${updateRes.modifiedCount} transactions from duplicate ${dup._id} to kept project ${keptProject._id}`);
+            }
+            
+            // Delete the duplicate project
+            await Project.deleteOne({ _id: dup._id });
+            console.log(`[Cleanup] Deleted duplicate project document: ${dup._id}`);
+          }
+        }
+      }
+      
+      if (duplicateCount > 0) {
+        console.log(`[Cleanup] Successfully merged ${duplicateCount} duplicate project groups.`);
+      } else {
+        console.log("[Cleanup] Database is clean. No duplicate projects found.");
+      }
+    } catch (cleanupErr) {
+      console.error("[Cleanup] Error running project database cleanup:", cleanupErr);
+    }
+  })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
     process.exit(1);
