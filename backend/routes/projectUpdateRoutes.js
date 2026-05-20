@@ -60,6 +60,4 @@ router.post("/", upload.array("media"), async (req, res) => {
   }
 });
 
-
 module.exports = router;
-

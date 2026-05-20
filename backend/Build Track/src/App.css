@@ -1,0 +1,6 @@
+/* Bug 32: Cleared Vite boilerplate — only keep the #root reset */
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
