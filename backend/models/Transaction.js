@@ -309,6 +309,17 @@ const transactionSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    paymentHistory: {
+      type: [
+        {
+          date: { type: Date, default: Date.now },
+          method: String,
+          amount: Number,
+          note: String,
+        }
+      ],
+      default: [],
+    },
   },
 
   { timestamps: true }
@@ -318,10 +329,10 @@ const transactionSchema = new mongoose.Schema(
 // PRE SAVE
 // ======================================================
 
-transactionSchema.pre("save", async function () {
+// Synchronous hook with NO 'next' parameter to prevent crashes (Munesha's fix)
+transactionSchema.pre("save", function () {
 
-  // Auto amount calculation only for quantity-based entries
-
+  // Auto amount calculation (Pranesh's specific type check)
   if (
     ["Materials", "Equipment"].includes(this.type) &&
     this.quantity &&
@@ -331,42 +342,37 @@ transactionSchema.pre("save", async function () {
   }
 
   // Payment balance calculation
-
   if (this.paymentStatus === "Paid") {
     this.paidAmount = this.amount;
     this.remainingAmount = 0;
-  }
-
-  else if (this.paymentStatus === "Pending") {
+  } else if (this.paymentStatus === "Pending") {
     this.paidAmount = 0;
     this.remainingAmount = this.amount;
+  } else if (this.paymentStatus === "Partial") {
+    this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
 
-  else if (this.paymentStatus === "Partial") {
-    this.remainingAmount =
-      this.amount - (this.paidAmount || 0);
+  // Validation from main: Prevent overpayment
+  if (this.paidAmount > this.amount) {
+    throw new Error("Paid amount cannot exceed total amount");
+  }
+
+  // Populate initial payment event to history if needed (from main)
+  if (this.paidAmount > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
+    this.paymentHistory = [{
+      date: this.date || new Date(),
+      method: this.paymentMode || "Cash",
+      amount: this.paidAmount,
+      note: this.notes || "Initial payment on creation",
+    }];
   }
 });
 
 // ======================================================
 // INDEXES
 // ======================================================
+transactionSchema.index({ project: 1, createdBy: 1 });
+transactionSchema.index({ date: -1 });
+transactionSchema.index({ project: 1, type: 1 });
 
-transactionSchema.index({
-  project: 1,
-  createdBy: 1,
-});
-
-transactionSchema.index({
-  date: -1,
-});
-
-transactionSchema.index({
-  project: 1,
-  type: 1,
-});
-
-module.exports = mongoose.model(
-  "Transaction",
-  transactionSchema
-);
+module.exports = mongoose.model("Transaction", transactionSchema);

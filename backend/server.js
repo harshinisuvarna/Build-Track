@@ -6,20 +6,20 @@ if (missing.length) {
   console.error("   Add them to your .env file and restart the server.");
   process.exit(1);
 }
-const express      = require("express");
-const mongoose     = require("mongoose");
-const cors         = require("cors");
-const path         = require("path");
-const helmet       = require("helmet");
-const compression  = require("compression");
-const rateLimit    = require("express-rate-limit");
-const morgan       = require("morgan");
-const passport     = require("./config/passport");
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const path = require("path");
+const helmet = require("helmet");
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
+const passport = require("./config/passport");
 const app = express();
-const PORT        = Number(process.env.PORT) || 5001;
-const NODE_ENV    = process.env.NODE_ENV || "development";
+const PORT = Number(process.env.PORT) || 5001;
+const NODE_ENV = process.env.NODE_ENV || "development";
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
-const isProd      = NODE_ENV === "production";
+const isProd = NODE_ENV === "production";
 app.set("trust proxy", 1);
 app.use(helmet());
 app.disable("x-powered-by");
@@ -36,8 +36,8 @@ app.use(
   })
 );
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 200,                  
+  windowMs: 15 * 60 * 1000,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests — please try again later." },
@@ -49,11 +49,92 @@ app.use(morgan(isProd ? "combined" : "dev"));
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
   console.warn("⚠️  CLOUDINARY env vars not fully set — image uploads will fail!");
 }
+
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(async () => {
+    console.log("✅ MongoDB connected");
+
+    // One-off backend DB cleanup for duplicate projects
+    try {
+      const Project = require("./models/Project");
+      const Transaction = require("./models/Transaction");
+
+      const allProjects = await Project.find({}).sort({ createdAt: -1 });
+      const groups = {};
+
+      allProjects.forEach((p) => {
+        if (!p.projectName || !p.createdBy) return;
+        const key = `${p.createdBy.toString()}||${p.projectName.trim().toLowerCase()}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(p);
+      });
+
+      let duplicateCount = 0;
+      for (const key of Object.keys(groups)) {
+        const projects = groups[key];
+        if (projects.length > 1) {
+          duplicateCount++;
+          const keptProject = projects[0]; // Keep the most recently created one
+          const duplicatesToDelete = projects.slice(1);
+
+          console.log(`[Cleanup] Found duplicate projects for name "${keptProject.projectName}". Keeping ${keptProject._id}`);
+
+          for (const dup of duplicatesToDelete) {
+            // Re-assign transactions to the kept project
+            const updateRes = await Transaction.updateMany(
+              { project: dup._id },
+              { $set: { project: keptProject._id } }
+            );
+            if (updateRes.modifiedCount > 0) {
+              console.log(`[Cleanup] Reassigned ${updateRes.modifiedCount} transactions from duplicate ${dup._id} to kept project ${keptProject._id}`);
+            }
+
+            // Delete the duplicate project
+            await Project.deleteOne({ _id: dup._id });
+            console.log(`[Cleanup] Deleted duplicate project document: ${dup._id}`);
+          }
+        }
+      }
+
+      if (duplicateCount > 0) {
+        console.log(`[Cleanup] Successfully merged ${duplicateCount} duplicate project groups.`);
+      } else {
+        console.log("[Cleanup] Database is clean. No duplicate projects found.");
+      }
+
+      // One-off backend DB cleanup for incorrect Labour/Equipment units
+      const invalidUnits = [
+        'kg', 'Kg', 'KG',
+        'bag', 'Bag', 'BAG',
+        'ton', 'Ton', 'TON', 'tons', 'Tons', 'TONS',
+        'mt', 'Mt', 'MT',
+        'truck', 'Truck', 'TRUCK'
+      ];
+
+      const labourUpdateRes = await Transaction.updateMany(
+        { type: 'Wages', unit: { $in: invalidUnits } },
+        { $set: { unit: 'day' } }
+      );
+      if (labourUpdateRes.modifiedCount > 0) {
+        console.log(`[Cleanup] Migrated ${labourUpdateRes.modifiedCount} Labour entries with invalid units (kg/bag etc.) to 'day'`);
+      }
+
+      const equipUpdateRes = await Transaction.updateMany(
+        { type: 'Expense', unit: { $in: invalidUnits } },
+        { $set: { unit: 'day' } }
+      );
+      if (equipUpdateRes.modifiedCount > 0) {
+        console.log(`[Cleanup] Migrated ${equipUpdateRes.modifiedCount} Equipment entries with invalid units (kg/bag etc.) to 'day'`);
+      }
+    } catch (cleanupErr) {
+      console.error("[Cleanup] Error running database cleanup:", cleanupErr);
+    }
+  })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
     process.exit(1);
@@ -61,14 +142,14 @@ mongoose
 app.get("/", (_req, res) =>
   res.json({ status: "ok", app: "BuildTrack API 🏗️", env: NODE_ENV })
 );
-app.use("/api/auth",         require("./routes/authRoutes"));
-app.use("/api/workers",      require("./routes/workerRoutes"));
-app.use("/api/projects",     require("./routes/projectRoutes"));
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/workers", require("./routes/workerRoutes"));
+app.use("/api/projects", require("./routes/projectRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
-app.use("/api/inventory",    require("./routes/inventoryRoutes"));
-app.use("/api/dashboard",    require("./routes/dashboardRoutes"));
-app.use("/api/reports",      require("./routes/reportRoutes"));
-app.use("/api/voice",        require("./routes/voiceRoutes"));
+app.use("/api/inventory", require("./routes/inventoryRoutes"));
+app.use("/api/dashboard", require("./routes/dashboardRoutes"));
+app.use("/api/reports", require("./routes/reportRoutes"));
+app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
 app.get("/api/test", (_req, res) => res.json({ ok: true }));
 app.use((_req, res) => res.status(404).json({ message: "Route not found" }));

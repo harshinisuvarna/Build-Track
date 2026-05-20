@@ -345,6 +345,7 @@ router.get("/", async (req, res) => {
 
         query.date.$lte = end;
       }
+      transaction.paidAmount = Number(paidAmount);
     }
 
     if (search) {
@@ -529,9 +530,9 @@ router.post("/", async (req, res) => {
     const normalizedMaterialType =
       type === "Materials"
         ? normalizeMaterialType(
-            materialType,
-            subType
-          )
+          materialType,
+          subType
+        )
         : "";
 
     const {
@@ -558,8 +559,8 @@ router.post("/", async (req, res) => {
     const screenshotUrl =
       screenshotFile
         ? getFileUrl(
-            screenshotFile
-          )
+          screenshotFile
+        )
         : null;
 
     /// VALUES
@@ -663,7 +664,7 @@ router.post("/", async (req, res) => {
     ) {
       const inventoryDelta =
         normalizedMaterialType ===
-        "usage"
+          "usage"
           ? -qty
           : qty;
 
@@ -849,12 +850,12 @@ router.put("/:id", async (req, res) => {
     const newMaterialType =
       newType === "Materials"
         ? normalizeMaterialType(
-            materialType ||
-              tx.materialType,
+          materialType ||
+          tx.materialType,
 
-            subType ||
-              tx.subType
-          )
+          subType ||
+          tx.subType
+        )
         : "";
 
     if (
@@ -864,7 +865,7 @@ router.put("/:id", async (req, res) => {
     ) {
       const newDelta =
         newMaterialType ===
-        "usage"
+          "usage"
           ? -newQty
           : newQty;
 
@@ -872,7 +873,7 @@ router.put("/:id", async (req, res) => {
         req.user._id,
         projectId,
         category ||
-          tx.category,
+        tx.category,
         unit || tx.unit,
         newDelta,
         session
@@ -939,7 +940,7 @@ router.put("/:id", async (req, res) => {
 
     if (
       materialType !==
-        undefined ||
+      undefined ||
       subType !== undefined
     ) {
       tx.materialType =
@@ -1061,7 +1062,7 @@ router.delete("/:id", async (req, res) => {
 
       const reverseDelta =
         txMaterialType ===
-        "usage"
+          "usage"
           ? tx.quantity
           : -tx.quantity;
 
@@ -1086,7 +1087,7 @@ router.delete("/:id", async (req, res) => {
     ) {
       for (const url of tx.attachments) {
         await deleteFile(url).catch(
-          () => {}
+          () => { }
         );
       }
     }
