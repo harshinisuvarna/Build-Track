@@ -1,309 +1,101 @@
 const mongoose = require("mongoose");
 
 const toObjectIdOrNull = function (value) {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
-
-  if (typeof value === "object" && value?._id) {
-    value = value._id;
-  }
-
-  return mongoose.Types.ObjectId.isValid(value)
-    ? value
-    : null;
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "object" && value?._id) value = value._id;
+  return mongoose.Types.ObjectId.isValid(value) ? value : null;
 };
 
 const transactionSchema = new mongoose.Schema(
   {
-    // ======================================================
-    // OWNER
-    // ======================================================
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
-    // ======================================================
-    // BASIC INFO
-    // ======================================================
-
     title: {
       type: String,
       required: true,
       trim: true,
     },
-
     category: {
       type: String,
       trim: true,
-      default: "General",
     },
-
-    brand: {
-      type: String,
-      trim: true,
-    },
-
-    // ======================================================
-    // MATERIAL SUB TYPES
-    // ======================================================
-
+    brand: String,
     subType: {
       type: String,
-
-      enum: [
-        "Purchase",
-        "Consumption",
-
-        "cement",
-        "brick",
-        "stone",
-        "sand",
-        "steel",
-        "paint",
-        "electrical",
-        "plumbing",
-
-        "",
-      ],
-
+      enum: ["Purchase", "Consumption", "cement", "brick", "stone", ""],
       default: "",
     },
-
-    materialType: {
-      type: String,
-
-      enum: [
-        "purchase",
-        "usage",
-        "",
-      ],
-
-      default: "",
-    },
-
-    // ======================================================
-    // UNITS
-    // ======================================================
-
     unit: {
       type: String,
-
-      enum: [
-        "kg",
-        "bag",
-        "sqft",
-        "sqm",
-        "day",
-        "hour",
-        "unit",
-        "ton",
-        "MT",
-        "truck",
-        "ltr",
-        "rft",
-        "",
-      ],
-
+      enum: ["kg", "bag", "sqft", "day", "hour", "unit", "ton", "MT", "truck", ""],
       default: "unit",
     },
-
-    // ======================================================
-    // QUANTITY & RATE
-    // ======================================================
-
     quantity: {
       type: Number,
       min: 0,
       default: 0,
     },
-
     rate: {
       type: Number,
       min: 0,
       default: 0,
     },
-
-    // ======================================================
-    // OPTIONAL ANALYTICS FIELDS
-    // ======================================================
-
-    sqftArea: {
-      type: Number,
-      default: 0,
-    },
-
-    floor: {
-      type: String,
-      trim: true,
-    },
-
-    phase: {
-      type: String,
-      trim: true,
-    },
-
-    // ======================================================
-    // AUTO CALCULATED
-    // ======================================================
-
     amount: {
       type: Number,
       required: true,
       min: 0,
     },
-
-    // ======================================================
-    // TRANSACTION TYPE
-    // ======================================================
-
     type: {
       type: String,
-
-      enum: [
-        "Wages",
-        "Expense",
-        "Income",
-        "Materials",
-        "Equipment",
-      ],
-
+      enum: ["Wages", "Expense", "Income", "Materials"],
       required: true,
     },
-
-    // ======================================================
-    // RELATIONS
-    // ======================================================
-
     worker: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Worker",
       default: null,
       set: toObjectIdOrNull,
     },
-
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
       default: null,
       set: toObjectIdOrNull,
     },
-
-    // ======================================================
-    // DATE
-    // ======================================================
-
     date: {
       type: Date,
       default: Date.now,
     },
-
-    // ======================================================
-    // PAYMENT TRACKING
-    // ======================================================
-
     paymentStatus: {
       type: String,
-
-      enum: [
-        "Paid",
-        "Partial",
-        "Pending",
-        "",
-      ],
-
+      enum: ["Paid", "Partial", "Pending", ""],
       default: "Pending",
     },
-
     paymentMode: {
       type: String,
-
-      enum: [
-        "Cash",
-        "Bank",
-        "Bank Transfer",
-        "UPI",
-        "Cheque",
-        "",
-      ],
-
+      enum: ["Cash", "Bank", "Bank Transfer", "Card", "UPI", "Cheque", ""],
       default: "Cash",
     },
-
     paymentDate: Date,
-
     paidAmount: {
       type: Number,
       default: 0,
     },
-
     remainingAmount: {
       type: Number,
       default: 0,
     },
-
-    // ======================================================
-    // APPROVAL
-    // ======================================================
-
-    approvalStatus: {
-      type: String,
-
-      enum: [
-        "Pending",
-        "Approved",
-        "Rejected",
-      ],
-
-      default: "Pending",
+    attachments: {
+      type: [String],
+      default: [],
     },
-
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-
-    approvedAt: {
-      type: Date,
-      default: null,
-    },
-
-    // ======================================================
-    // RECEIPTS
-    // ======================================================
-
-    receipts: [
-      {
-        fileUrl: {
-          type: String,
-          required: true,
-        },
-
-        uploadedAt: {
-          type: Date,
-          default: Date.now,
-        },
-
-        uploadedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-      },
-    ],
-
-    // ======================================================
-    // NOTES
-    // ======================================================
-
     notes: {
       type: String,
       default: "",
     },
-
     remarks: {
       type: String,
       default: "",
@@ -321,27 +113,15 @@ const transactionSchema = new mongoose.Schema(
       default: [],
     },
   },
-
   { timestamps: true }
 );
 
-// ======================================================
-// PRE SAVE
-// ======================================================
-
-// Synchronous hook with NO 'next' parameter to prevent crashes (Munesha's fix)
+// Synchronous hook with NO 'next' parameter to prevent crashes
 transactionSchema.pre("save", function () {
-
-  // Auto amount calculation (Pranesh's specific type check)
-  if (
-    ["Materials", "Equipment"].includes(this.type) &&
-    this.quantity &&
-    this.rate
-  ) {
+  if (this.quantity && this.rate) {
     this.amount = this.quantity * this.rate;
   }
 
-  // Payment balance calculation
   if (this.paymentStatus === "Paid") {
     this.paidAmount = this.amount;
     this.remainingAmount = 0;
@@ -352,12 +132,11 @@ transactionSchema.pre("save", function () {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
 
-  // Validation from main: Prevent overpayment
   if (this.paidAmount > this.amount) {
     throw new Error("Paid amount cannot exceed total amount");
   }
 
-  // Populate initial payment event to history if needed (from main)
+  // Populate initial payment event to history if needed
   if (this.paidAmount > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
     this.paymentHistory = [{
       date: this.date || new Date(),
@@ -368,9 +147,6 @@ transactionSchema.pre("save", function () {
   }
 });
 
-// ======================================================
-// INDEXES
-// ======================================================
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });
