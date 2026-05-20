@@ -29,12 +29,26 @@ function getDateRange(query) {
     };
   }
 
+  const parsedYear =
+    parseInt(year) || new Date().getFullYear();
+
+  const parsedMonth =
+    parseInt(month) || new Date().getMonth();
+
   return {
-    startDate: new Date(year, month, 1, 0, 0, 0, 0),
+    startDate: new Date(
+      parsedYear,
+      parsedMonth,
+      1,
+      0,
+      0,
+      0,
+      0
+    ),
 
     endDate: new Date(
-      year,
-      parseInt(month) + 1,
+      parsedYear,
+      parsedMonth + 1,
       0,
       23,
       59,
@@ -49,7 +63,9 @@ function getDateRange(query) {
 /// =======================================================
 
 function formatINR(n) {
-  return `₹${(n || 0).toLocaleString("en-IN")}`;
+  return `₹${Number(n || 0).toLocaleString(
+    "en-IN"
+  )}`;
 }
 
 /// =======================================================
@@ -59,11 +75,17 @@ function formatINR(n) {
 function normalizeProjectStatus(status) {
   const s = String(status || "").toLowerCase();
 
-  if (s === "on track" || s === "completed") {
+  if (
+    s === "completed" ||
+    s === "planning"
+  ) {
     return "ON TRACK";
   }
 
-  if (s === "review needed" || s === "on hold") {
+  if (
+    s === "on hold" ||
+    s === "cancelled"
+  ) {
     return "REVIEW NEEDED";
   }
 
@@ -76,13 +98,20 @@ function normalizeProjectStatus(status) {
 
 router.get("/financial", async (req, res) => {
   try {
-    const { year, month, type, category, project } = req.query;
+    const {
+      type,
+      category,
+      project,
+    } = req.query;
 
     const userId = req.user?._id;
 
-    const { startDate, endDate } = getDateRange(req.query);
+    const { startDate, endDate } =
+      getDateRange(req.query);
 
+    /// =======================================================
     /// QUERY
+    /// =======================================================
 
     const query = {
       createdBy: userId,
@@ -93,51 +122,137 @@ router.get("/financial", async (req, res) => {
       },
     };
 
-    if (type) query.type = type;
-    if (category) query.category = category;
-    if (project) query.project = project;
+    if (type && type !== "All") {
+      query.type = type;
+    }
 
+    if (category) {
+      query.category = category;
+    }
+
+    if (project) {
+      query.project = project;
+    }
+
+    /// =======================================================
     /// TRANSACTIONS
+    /// =======================================================
 
-    const transactions = await Transaction.find(query)
-      .populate("project", "projectName status")
-      .populate("worker", "_id name trade dailyWage");
+    const transactions =
+      await Transaction.find(query)
+        .populate(
+          "project",
+          "projectName status budget progress"
+        )
+        .populate(
+          "worker",
+          "_id name trade dailyWage"
+        )
+        .sort({
+          date: -1,
+          createdAt: -1,
+        });
 
+    /// =======================================================
     /// FINANCIAL SUMMARY
+    /// =======================================================
 
     const income = transactions
       .filter((t) => t.type === "Income")
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      .reduce(
+        (sum, t) =>
+          sum + Number(t.amount || 0),
+        0
+      );
 
     const expenses = transactions
       .filter((t) => t.type !== "Income")
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      .reduce(
+        (sum, t) =>
+          sum + Number(t.amount || 0),
+        0
+      );
 
     const profit = income - expenses;
 
-    const totalVolume = income + expenses;
+    const totalVolume =
+      income + expenses;
 
     const compliance =
       totalVolume > 0
         ? Math.min(
             100,
-            Math.max(0, (income / totalVolume) * 100)
+            Math.max(
+              0,
+              (income / totalVolume) * 100
+            )
           )
         : 100;
 
+    /// =======================================================
+    /// PROJECT ANALYTICS
+    /// =======================================================
+
+    const projects =
+      await Project.find({
+        createdBy: userId,
+      });
+
+    const projectAnalytics =
+      projects.map((p) => {
+        const pTransactions =
+          transactions.filter(
+            (t) =>
+              t.project?._id?.toString() ===
+              p._id.toString()
+          );
+
+        const spent = pTransactions.reduce(
+          (sum, t) =>
+            sum + Number(t.amount || 0),
+          0
+        );
+
+        const totalBudget =
+          Number(p.budget?.total || 0);
+
+        const remaining =
+          totalBudget - spent;
+
+        const utilization =
+          totalBudget > 0
+            ? (
+                (spent / totalBudget) *
+                100
+              ).toFixed(1)
+            : 0;
+
+        return {
+          _id: p._id,
+          projectName: p.projectName,
+          status: p.status,
+          progress: p.progress || 0,
+
+          totalBudget,
+          spentAmount: spent,
+          remainingBudget: remaining,
+          utilization,
+        };
+      });
+
+    /// =======================================================
     /// WORKERS
+    /// =======================================================
 
-    const workersRecords = await Worker.find({
-      createdBy: userId,
-    });
+    const workersRecords =
+      await Worker.find({
+        createdBy: userId,
+      });
 
-    const projects = await Project.find({
-      createdBy: userId,
-    });
-
-    const wageTransactions = transactions.filter(
-      (t) => t.type === "Wages"
-    );
+    const wageTransactions =
+      transactions.filter(
+        (t) => t.type === "Wages"
+      );
 
     const workerStats = {};
 
@@ -156,9 +271,8 @@ router.get("/financial", async (req, res) => {
         };
       }
 
-      workerStats[wId].totalPayout += Number(
-        t.amount || 0
-      );
+      workerStats[wId].totalPayout +=
+        Number(t.amount || 0);
 
       workerStats[wId].daySet.add(
         new Date(t.date)
@@ -166,29 +280,46 @@ router.get("/financial", async (req, res) => {
           .slice(0, 10)
       );
 
-      if (!workerStats[wId].project && t.project) {
-        workerStats[wId].project = t.project;
+      if (
+        !workerStats[wId].project &&
+        t.project
+      ) {
+        workerStats[wId].project =
+          t.project;
       }
     });
 
     const workers = workersRecords
-      .filter((w) => workerStats[w._id.toString()])
+      .filter((w) =>
+        workerStats[w._id.toString()]
+      )
       .map((w) => {
-        const stats = workerStats[w._id.toString()];
+        const stats =
+          workerStats[
+            w._id.toString()
+          ];
 
         return {
           _id: w._id,
-          name: w.name,
-          trade: w.trade,
-          dailyWage: w.dailyWage,
 
-          totalDays: stats.daySet.size,
+          name: w.name,
+
+          trade:
+            w.trade ||
+            "General Labor",
+
+          dailyWage:
+            w.dailyWage || 0,
+
+          totalDays:
+            stats.daySet.size,
 
           estimatedMonthlyPayout:
             stats.totalPayout,
 
           project:
-            stats.project?.projectName ||
+            stats.project
+              ?.projectName ||
             "Various",
 
           projectStatus:
@@ -198,21 +329,65 @@ router.get("/financial", async (req, res) => {
         };
       });
 
+    /// =======================================================
     /// CATEGORY BREAKDOWN
+    /// =======================================================
 
-    const categoryBreakdown = {};
+    const categoryBreakdown = {
+      Materials: 0,
+      Wages: 0,
+      Expense: 0,
+      Income: 0,
+      Equipment: 0,
+      Misc: 0,
+    };
 
     transactions.forEach((t) => {
-      const cat =
-        t.category || t.type || "Other";
-
-      if (!categoryBreakdown[cat]) {
-        categoryBreakdown[cat] = 0;
-      }
-
-      categoryBreakdown[cat] += Number(
+      const amount = Number(
         t.amount || 0
       );
+
+      const typeKey =
+        t.type || "Misc";
+
+      if (
+        categoryBreakdown[typeKey] ===
+        undefined
+      ) {
+        categoryBreakdown[typeKey] = 0;
+      }
+
+      categoryBreakdown[typeKey] +=
+        amount;
+    });
+
+    /// =======================================================
+    /// MONTHLY TREND
+    /// =======================================================
+
+    const monthlyTrend = {};
+
+    transactions.forEach((t) => {
+      const d = new Date(t.date);
+
+      const key = `${d.getFullYear()}-${String(
+        d.getMonth() + 1
+      ).padStart(2, "0")}`;
+
+      if (!monthlyTrend[key]) {
+        monthlyTrend[key] = {
+          income: 0,
+          expenses: 0,
+        };
+      }
+
+      if (t.type === "Income") {
+        monthlyTrend[key].income +=
+          Number(t.amount || 0);
+      } else {
+        monthlyTrend[key].expenses +=
+          Number(t.amount || 0);
+      }
     });
 
     /// =======================================================
@@ -221,16 +396,24 @@ router.get("/financial", async (req, res) => {
 
     const analytics = {
       material:
-        categoryBreakdown["Materials"] || 0,
+        categoryBreakdown[
+          "Materials"
+        ] || 0,
 
       labour:
-        categoryBreakdown["Wages"] || 0,
+        categoryBreakdown[
+          "Wages"
+        ] || 0,
 
       equipment:
-        categoryBreakdown["Equipment"] || 0,
+        categoryBreakdown[
+          "Equipment"
+        ] || 0,
 
       misc:
-        categoryBreakdown["Misc"] || 0,
+        categoryBreakdown[
+          "Expense"
+        ] || 0,
 
       targetCost: 1500,
     };
@@ -241,31 +424,74 @@ router.get("/financial", async (req, res) => {
       analytics.equipment +
       analytics.misc;
 
-    analytics.latestActual = latestActual;
+    analytics.latestActual =
+      latestActual;
 
     analytics.chartStatus =
-      latestActual > analytics.targetCost
+      latestActual >
+      analytics.targetCost
         ? "OVER_BUDGET"
         : "ON_TRACK";
 
+    /// =======================================================
+    /// RECENT TRANSACTIONS
+    /// =======================================================
+
+    const recentTransactions =
+      transactions
+        .slice(0, 10)
+        .map((t) => ({
+          _id: t._id,
+
+          title: t.title,
+
+          type: t.type,
+
+          amount: t.amount,
+
+          date: t.date,
+
+          category: t.category,
+
+          project:
+            t.project?.projectName ||
+            "N/A",
+
+          worker:
+            t.worker?.name || "N/A",
+        }));
+
+    /// =======================================================
     /// RESPONSE
+    /// =======================================================
 
     res.json({
+      success: true,
+
       income,
       expenses,
       profit,
       compliance,
 
-      workers,
-
-      projects,
-
-      categoryBreakdown,
-
       transactionCount:
         transactions.length,
 
+      workers,
+
+      projects: projectAnalytics,
+
+      categoryBreakdown,
+
       analytics,
+
+      monthlyTrend,
+
+      recentTransactions,
+
+      dateRange: {
+        startDate,
+        endDate,
+      },
     });
   } catch (err) {
     console.error(
@@ -274,6 +500,8 @@ router.get("/financial", async (req, res) => {
     );
 
     res.status(500).json({
+      success: false,
+
       message:
         "Failed to fetch financial report",
     });
@@ -288,120 +516,72 @@ router.get(
   "/financial/export-csv",
   async (req, res) => {
     try {
-      const { year, month } = req.query;
-
       const userId = req.user._id;
-
-      if (
-        !year ||
-        month === undefined ||
-        month === ""
-      ) {
-        return res.status(400).json({
-          message:
-            "Year and month are required",
-        });
-      }
 
       const { startDate, endDate } =
         getDateRange(req.query);
 
-      const rangeDays = Math.max(
-        1,
-        Math.round(
-          (endDate - startDate) /
-            (1000 * 60 * 60 * 24)
-        )
-      );
-
-      const workingDays = Math.round(
-        rangeDays * 0.86
-      );
-
-      const workersRecords = await Worker.find({
-        createdBy: userId,
-      });
-
       const wageTransactions =
         await Transaction.find({
           createdBy: userId,
+
           type: "Wages",
 
           date: {
             $gte: startDate,
             $lte: endDate,
           },
-        });
-
-      const workerWageMap = {};
-
-      wageTransactions.forEach((t) => {
-        const wId = t.worker?.toString();
-
-        if (wId) {
-          if (!workerWageMap[wId]) {
-            workerWageMap[wId] = 0;
-          }
-
-          workerWageMap[wId] += t.amount;
-        }
-      });
+        })
+          .populate(
+            "worker",
+            "name trade dailyWage"
+          )
+          .populate(
+            "project",
+            "projectName"
+          );
 
       const header =
-        "Worker Name,Role,Project,Total Days,Daily Rate,Total Payout\n";
+        "Worker Name,Role,Project,Date,Daily Rate,Amount\n";
 
-      const rows = workersRecords
-        .map((w) => {
-          const name = `"${(
-            w.name || ""
-          ).replace(/"/g, '""')}"`;
+      const rows = wageTransactions
+        .map((t) => {
+          const worker =
+            t.worker || {};
 
-          const trade = `"${(
-            w.trade || "General Labor"
-          ).replace(/"/g, '""')}"`;
+          const project =
+            t.project || {};
 
-          const project = `"Various"`;
+          return [
+            `"${(
+              worker.name || ""
+            ).replace(/"/g, '""')}"`,
 
-          const totalDays =
-            workingDays;
+            `"${(
+              worker.trade ||
+              "General Labor"
+            ).replace(/"/g, '""')}"`,
 
-          const rate =
-            w.dailyWage || 0;
+            `"${(
+              project.projectName ||
+              "Various"
+            ).replace(/"/g, '""')}"`,
 
-          const actualPayout =
-            workerWageMap[
-              w._id.toString()
-            ] || 0;
+            new Date(t.date)
+              .toISOString()
+              .slice(0, 10),
 
-          const payout =
-            actualPayout > 0
-              ? actualPayout
-              : rate * workingDays;
+            worker.dailyWage || 0,
 
-          return `${name},${trade},${project},${totalDays},${rate},${payout}`;
+            t.amount || 0,
+          ].join(",");
         })
         .join("\n");
 
-      const csv = header + rows;
+      const csv =
+        header + rows;
 
-      const monthNames = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-
-      const filename = `BuildTrack_Wages_${
-        monthNames[parseInt(month)]
-      }_${year}.csv`;
+      const filename = `BuildTrack_Wages_Report.csv`;
 
       res.setHeader(
         "Content-Type",
@@ -415,8 +595,14 @@ router.get(
 
       res.send(csv);
     } catch (err) {
+      console.error(
+        "CSV export error:",
+        err
+      );
+
       res.status(500).json({
-        message: "Failed to export CSV",
+        message:
+          "Failed to export CSV",
       });
     }
   }
@@ -430,11 +616,134 @@ router.get(
   "/financial/export-pdf",
   async (req, res) => {
     try {
-      res.status(200).json({
-        message:
-          "PDF export route working",
-      });
+      const userId = req.user._id;
+
+      const { startDate, endDate } =
+        getDateRange(req.query);
+
+      const transactions =
+        await Transaction.find({
+          createdBy: userId,
+
+          date: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        }).populate(
+          "project",
+          "projectName"
+        );
+
+      const income = transactions
+        .filter(
+          (t) => t.type === "Income"
+        )
+        .reduce(
+          (sum, t) =>
+            sum +
+            Number(t.amount || 0),
+          0
+        );
+
+      const expenses = transactions
+        .filter(
+          (t) => t.type !== "Income"
+        )
+        .reduce(
+          (sum, t) =>
+            sum +
+            Number(t.amount || 0),
+          0
+        );
+
+      const profit =
+        income - expenses;
+
+      res.setHeader(
+        "Content-Type",
+        "application/pdf"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="financial-report.pdf"'
+      );
+
+      const doc =
+        new PDFDocument({
+          margin: 40,
+        });
+
+      doc.pipe(res);
+
+      doc
+        .fontSize(22)
+        .text(
+          "BuildTrack Financial Report",
+          {
+            align: "center",
+          }
+        );
+
+      doc.moveDown();
+
+      doc
+        .fontSize(12)
+        .text(
+          `Generated: ${new Date().toLocaleString()}`
+        );
+
+      doc.moveDown();
+
+      doc.text(
+        `Income: ${formatINR(income)}`
+      );
+
+      doc.text(
+        `Expenses: ${formatINR(
+          expenses
+        )}`
+      );
+
+      doc.text(
+        `Profit: ${formatINR(profit)}`
+      );
+
+      doc.moveDown();
+
+      doc
+        .fontSize(16)
+        .text(
+          "Recent Transactions"
+        );
+
+      doc.moveDown(0.5);
+
+      transactions
+        .slice(0, 15)
+        .forEach((t) => {
+          doc
+            .fontSize(11)
+            .text(
+              `${new Date(
+                t.date
+              ).toLocaleDateString()} | ${
+                t.title
+              } | ${
+                t.type
+              } | ${formatINR(
+                t.amount
+              )}`
+            );
+        });
+
+      doc.end();
     } catch (err) {
+      console.error(
+        "PDF export error:",
+        err
+      );
+
       res.status(500).json({
         message:
           "Failed to export PDF",
