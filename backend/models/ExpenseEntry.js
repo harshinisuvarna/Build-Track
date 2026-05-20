@@ -45,7 +45,7 @@ const expenseEntrySchema = new mongoose.Schema(
         paymentDate: { type: Date },
         paymentMode: {
             type: String,
-            enum: ["Cash", "UPI", "Bank Transfer", "Cheque"]
+            enum: ["Cash", "UPI", "Bank", "Bank Transfer", "Cheque", "Card", ""]
         },
         paymentReference: { type: String }, // UTR or Cheque No
 
