@@ -67,6 +67,7 @@ const projectSchema = new mongoose.Schema(
           "Institutional",
           "Commercial",
           "Industrial",
+          "Business / Commercial",
         ],
         required: true,
       },
