@@ -28,6 +28,32 @@ const normalizeProjectBudget = (project) => {
   return p;
 };
 
+const getProjectSpentAmount = async (projectId) => {
+  try {
+    const mongoose = require("mongoose");
+    const result = await Transaction.aggregate([
+      { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+      {
+        $group: {
+          _id: null,
+          totalSpent: {
+            $sum: {
+              $cond: [
+                { $in: ["$type", ["Expense", "Wages", "Materials", "Equipment"]] },
+                "$amount",
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+    return result[0]?.totalSpent || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 const runUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.any()(req, res, (err) => {
@@ -62,7 +88,13 @@ router.get("/", async (req, res) => {
     }
 
     const projects = await Project.find(query).sort({ createdAt: -1 });
-    const normalizedProjects = projects.map(p => normalizeProjectBudget(p));
+    const normalizedProjects = await Promise.all(
+      projects.map(async (p) => {
+        const normalized = normalizeProjectBudget(p);
+        normalized.spentAmount = await getProjectSpentAmount(p._id);
+        return normalized;
+      })
+    );
     res.json({ projects: normalizedProjects });
   } catch {
     res.status(500).json({ message: "Failed to fetch projects" });
@@ -76,7 +108,9 @@ router.get("/:id", async (req, res) => {
   try {
     const project = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
     if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json({ project: normalizeProjectBudget(project) });
+    const normalized = normalizeProjectBudget(project);
+    normalized.spentAmount = await getProjectSpentAmount(project._id);
+    res.json({ project: normalized });
   } catch {
     res.status(500).json({ message: "Failed to fetch project" });
   }
@@ -244,7 +278,9 @@ router.post("/", async (req, res) => {
       selectedPhases: typeof selectedPhases === 'string' ? JSON.parse(selectedPhases) : (selectedPhases || []),
     });
 
-    res.status(201).json({ message: "Project created", project });
+    const normalized = normalizeProjectBudget(project);
+    normalized.spentAmount = await getProjectSpentAmount(project._id);
+    res.status(201).json({ message: "Project created", project: normalized });
   } catch (err) {
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
@@ -341,7 +377,9 @@ router.put("/:id", async (req, res) => {
     );
 
     if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json({ message: "Project updated", project });
+    const normalized = normalizeProjectBudget(project);
+    normalized.spentAmount = await getProjectSpentAmount(project._id);
+    res.json({ message: "Project updated", project: normalized });
   } catch (err) {
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
