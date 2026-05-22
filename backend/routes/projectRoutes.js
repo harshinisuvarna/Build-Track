@@ -9,6 +9,51 @@ const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 
 router.use(protect);
 
+const normalizeProjectBudget = (project) => {
+  if (!project) return project;
+  const p = project.toObject ? project.toObject() : project;
+  if (!p.budget) {
+    p.budget = { total: 0, material: 0, labour: 0, equipment: 0, misc: 0 };
+  } else {
+    p.budget.material = Number(p.budget.material) || 0;
+    p.budget.labour = Number(p.budget.labour) || 0;
+    p.budget.equipment = Number(p.budget.equipment) || 0;
+    p.budget.misc = Number(p.budget.misc) || 0;
+    p.budget.total = Number(p.budget.total) || 0;
+    
+    if (p.budget.total === 0) {
+      p.budget.total = p.budget.material + p.budget.labour + p.budget.equipment + p.budget.misc;
+    }
+  }
+  return p;
+};
+
+const getProjectSpentAmount = async (projectId) => {
+  try {
+    const mongoose = require("mongoose");
+    const result = await Transaction.aggregate([
+      { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+      {
+        $group: {
+          _id: null,
+          totalSpent: {
+            $sum: {
+              $cond: [
+                { $in: ["$type", ["Expense", "Wages", "Materials", "Equipment"]] },
+                "$amount",
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+    return result[0]?.totalSpent || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 const runUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.any()(req, res, (err) => {
@@ -43,7 +88,14 @@ router.get("/", async (req, res) => {
     }
 
     const projects = await Project.find(query).sort({ createdAt: -1 });
-    res.json({ projects });
+    const normalizedProjects = await Promise.all(
+      projects.map(async (p) => {
+        const normalized = normalizeProjectBudget(p);
+        normalized.spentAmount = await getProjectSpentAmount(p._id);
+        return normalized;
+      })
+    );
+    res.json({ projects: normalizedProjects });
   } catch {
     res.status(500).json({ message: "Failed to fetch projects" });
   }
@@ -56,7 +108,9 @@ router.get("/:id", async (req, res) => {
   try {
     const project = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
     if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json({ project });
+    const normalized = normalizeProjectBudget(project);
+    normalized.spentAmount = await getProjectSpentAmount(project._id);
+    res.json({ project: normalized });
   } catch {
     res.status(500).json({ message: "Failed to fetch project" });
   }
@@ -97,7 +151,8 @@ router.get("/:id/stats", async (req, res) => {
     ]);
 
     const { totalSpent = 0, totalIncome = 0 } = result[0] || {};
-    const totalBudget = Number(project.budget?.total) || 0; // Updated to use budget.total
+    const normalized = normalizeProjectBudget(project);
+    const totalBudget = normalized.budget.total;
     const remainingBudget = totalBudget - totalSpent;
 
     res.json({
@@ -185,6 +240,18 @@ router.post("/", async (req, res) => {
     const safeClientName = clientName || "Internal Client";
     const safeBuildingType = buildingType || { mainType: "Residential", subType: "Independent" };
 
+    // Resolve both plural (backend) and singular (flutter client) budget naming conventions
+    const resolvedMaterial = Number(budgetMaterials !== undefined ? budgetMaterials : req.body.budgetMaterial) || 0;
+    const resolvedLabour = Number(budgetLabour !== undefined ? budgetLabour : req.body.budgetLabour) || 0;
+    const resolvedEquipment = Number(budgetEquipment !== undefined ? budgetEquipment : req.body.budgetEquipment) || 0;
+    const resolvedMisc = Number(req.body.budgetMisc !== undefined ? req.body.budgetMisc : (req.body.budget?.misc !== undefined ? req.body.budget.misc : 0)) || 0;
+    
+    // Resolve totalBudget either at the root or within nested budget object
+    let resolvedTotal = Number(totalBudget !== undefined ? totalBudget : (req.body.budget?.total !== undefined ? req.body.budget.total : req.body.totalBudget));
+    if (isNaN(resolvedTotal) || resolvedTotal === 0) {
+      resolvedTotal = resolvedMaterial + resolvedLabour + resolvedEquipment + resolvedMisc;
+    }
+
     const project = await Project.create({
       createdBy: req.user._id,
       projectName: projectName.trim(),
@@ -194,11 +261,11 @@ router.post("/", async (req, res) => {
       location: location || "",
       manager: manager || "",
       budget: {
-        total: Number(totalBudget) || (Number(budgetMaterials) + Number(budgetLabour) + Number(budgetEquipment)) || 0,
-        material: Number(budgetMaterials) || 0, // Aligned to schema
-        labour: Number(budgetLabour) || 0,
-        equipment: Number(budgetEquipment) || 0,
-        misc: 0
+        total: resolvedTotal || 0,
+        material: resolvedMaterial,
+        labour: resolvedLabour,
+        equipment: resolvedEquipment,
+        misc: resolvedMisc
       },
       startDate: startDate || null,
       scope: scope || "",
@@ -211,7 +278,9 @@ router.post("/", async (req, res) => {
       selectedPhases: typeof selectedPhases === 'string' ? JSON.parse(selectedPhases) : (selectedPhases || []),
     });
 
-    res.status(201).json({ message: "Project created", project });
+    const normalized = normalizeProjectBudget(project);
+    normalized.spentAmount = await getProjectSpentAmount(project._id);
+    res.status(201).json({ message: "Project created", project: normalized });
   } catch (err) {
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
@@ -238,6 +307,9 @@ router.put("/:id", async (req, res) => {
       selectedPhaseNames, trackedActivityKeys, completedActivityKeys, selectedPhases
     } = req.body;
 
+    const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
+    if (!existing) return res.status(404).json({ message: "Project not found" });
+
     const updateData = {};
     if (projectName !== undefined) updateData.projectName = projectName.trim();
     if (location !== undefined) updateData.location = location;
@@ -245,13 +317,29 @@ router.put("/:id", async (req, res) => {
     if (clientName !== undefined) updateData.clientName = clientName;
     if (buildingType !== undefined) updateData.buildingType = buildingType;
 
-    // Handle nested budget update cleanly
-    if (budgetMaterials !== undefined || budgetLabour !== undefined || budgetEquipment !== undefined || totalBudget !== undefined) {
-      updateData.budget = {};
-      if (budgetMaterials !== undefined) updateData.budget.material = Number(budgetMaterials); // Schema alignment
-      if (budgetLabour !== undefined) updateData.budget.labour = Number(budgetLabour);
-      if (budgetEquipment !== undefined) updateData.budget.equipment = Number(budgetEquipment);
-      if (totalBudget !== undefined) updateData.budget.total = Number(totalBudget);
+    // Resolve both plural (backend) and singular (flutter client) budget naming conventions
+    const inputMaterial = budgetMaterials !== undefined ? budgetMaterials : req.body.budgetMaterial;
+    const inputLabour = budgetLabour !== undefined ? budgetLabour : req.body.budgetLabour;
+    const inputEquipment = budgetEquipment !== undefined ? budgetEquipment : req.body.budgetEquipment;
+    const inputMisc = req.body.budgetMisc !== undefined ? req.body.budgetMisc : (req.body.budget?.misc !== undefined ? req.body.budget.misc : undefined);
+    
+    // Resolve totalBudget either at the root or within nested budget object
+    const inputTotal = totalBudget !== undefined ? totalBudget : (req.body.budget?.total !== undefined ? req.body.budget.total : req.body.totalBudget);
+
+    if (inputMaterial !== undefined || inputLabour !== undefined || inputEquipment !== undefined || inputMisc !== undefined || inputTotal !== undefined) {
+      const existingBudget = existing.budget || {};
+      
+      const material = inputMaterial !== undefined ? (Number(inputMaterial) || 0) : (existingBudget.material || 0);
+      const labour = inputLabour !== undefined ? (Number(inputLabour) || 0) : (existingBudget.labour || 0);
+      const equipment = inputEquipment !== undefined ? (Number(inputEquipment) || 0) : (existingBudget.equipment || 0);
+      const misc = inputMisc !== undefined ? (Number(inputMisc) || 0) : (existingBudget.misc || 0);
+      
+      let total = inputTotal !== undefined ? (Number(inputTotal) || 0) : (existingBudget.total || 0);
+      if (total === 0) {
+        total = material + labour + equipment + misc;
+      }
+      
+      updateData.budget = { total, material, labour, equipment, misc };
     }
 
     if (startDate !== undefined) updateData.startDate = startDate || null;
@@ -272,7 +360,6 @@ router.put("/:id", async (req, res) => {
       updateData.selectedPhases = typeof selectedPhases === 'string' ? JSON.parse(selectedPhases) : selectedPhases;
     }
 
-    const existing = await Project.findOne({ _id: req.params.id, createdBy: req.user._id });
     const photoFile = req.files?.find(f => f.fieldname === "photo");
 
     if (photoFile && existing) {
@@ -290,7 +377,9 @@ router.put("/:id", async (req, res) => {
     );
 
     if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json({ message: "Project updated", project });
+    const normalized = normalizeProjectBudget(project);
+    normalized.spentAmount = await getProjectSpentAmount(project._id);
+    res.json({ message: "Project updated", project: normalized });
   } catch (err) {
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");

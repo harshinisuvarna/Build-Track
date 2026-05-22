@@ -972,8 +972,17 @@ router.put("/:id", async (req, res) => {
     if (
       paidAmount !== undefined
     ) {
-      tx.paidAmount =
-        Number(paidAmount) || 0;
+      const newPaidAmount = Number(paidAmount) || 0;
+      const delta = newPaidAmount - tx.paidAmount;
+      if (delta > 0) {
+        tx.paymentHistory.push({
+          date: paymentDate || new Date(),
+          method: paymentMode || tx.paymentMode || "Cash",
+          amount: delta,
+          note: remarks || notes || "Additional payment",
+        });
+      }
+      tx.paidAmount = newPaidAmount;
     }
 
     if (remarks !== undefined) {
