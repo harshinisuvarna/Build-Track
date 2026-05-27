@@ -1,92 +1,61 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    provider: {
-      type: String,
-      enum: ["local", "google", "github"],
-      default: "local",
-    },
-    providerId: {
-      type: String,
-      default: null,
-    },
-    profilePhoto: {
-      type: String,
-      default: null,
-    },
-    role: {
-      type: String,
-      enum: ['Admin', 'Supervisor', 'Mason'],
-      default: 'Mason'
-    },
-    password: {
-      type: String,
-      minlength: 6,
-      default: null,
-    },
-    googleId: {
-      type: String,
-      default: null,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    resetPasswordToken: {
-      type: String,
-      default: null,
-    },
-    resetPasswordExpires: {
-      type: Date,
-      default: null,
-    },
-    twoFactorEnabled: {
-      type: Boolean,
-      default: false,
-    },
-    tokenVersion: {
-      type: Number,
-      default: 0,
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    provider: { type: String, enum: ["local", "google", "github"], default: "local" },
+    providerId: { type: String, default: null },
+    profilePhoto: { type: String, default: null },
+    role: { type: String, enum: ['Admin', 'Supervisor', 'Mason'], default: 'Mason' },
+    password: { type: String, minlength: 6, default: null },
+    googleId: { type: String, default: null },
+    isActive: { type: Boolean, default: true },
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
+    twoFactorEnabled: { type: Boolean, default: false },
+    tokenVersion: { type: Number, default: 0 },
+
+    // ── Subscription ──────────────────────────────────────────────
+    subscription: {
+      plan: {
+        type: String,
+        enum: ['free', 'starter', 'growth', 'pro', 'business', 'enterprise'],
+        default: 'free',
+      },
+      status: {
+        type: String,
+        enum: ['active', 'expired', 'unknown'],
+        default: 'active',
+      },
+      renewalDate: { type: Date, default: null },
+      purchaseToken: { type: String, default: null },
     },
   },
   { timestamps: true }
 );
+
 userSchema.pre("validate", function () {
-  if (this.googleId) {
-    this.provider = "google";
-    this.providerId = this.googleId;
-    return;
-  }
-  if (this.password) {
-    this.provider = "local";
-    this.providerId = null;
-  }
+  if (this.googleId) { this.provider = "google"; this.providerId = this.googleId; return; }
+  if (this.password)  { this.provider = "local";  this.providerId = null; }
 });
+
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
+
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  if (!this.password) return false; // OAuth user — no password set
+  if (!this.password) return false;
   return bcrypt.compare(enteredPassword, this.password);
 };
+
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   delete obj.__v;
   return obj;
 };
+
 module.exports = mongoose.model("User", userSchema);
