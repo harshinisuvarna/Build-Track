@@ -57,6 +57,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    subscription: {
+      plan: { type: String, default: "free" },
+      status: { type: String, default: "active" },
+      renewalDate: { type: Date, default: null },
+      purchaseToken: { type: String, default: null }
+    },
     tokenVersion: {
       type: Number,
       default: 0,

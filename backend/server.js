@@ -161,6 +161,8 @@ app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
+app.use("/api/tasks", require("./routes/taskRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
 app.get("/api/test", (_req, res) => res.json({ ok: true }));
 app.use((_req, res) => res.status(404).json({ message: "Route not found" }));
 app.use((err, _req, res, _next) => {
