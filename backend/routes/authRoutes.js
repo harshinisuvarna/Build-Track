@@ -29,22 +29,32 @@ const safeUser = (user) => ({
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ message: "All fields required" });
-    if (password.length < 6)
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    console.log(`[Auth] Register request received for email: ${email}`);
+    
+    if (!name || !email || !password) {
+      console.warn(`[Auth] Registration failed: Missing required fields`);
+      return res.status(400).json({ success: false, message: "All fields required" });
+    }
+    if (password.length < 6) {
+      console.warn(`[Auth] Registration failed: Password too short`);
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
     const exists = await User.findOne({ email: email.toLowerCase().trim() });
-    if (exists)
-      return res.status(409).json({ message: "An account with this email already exists" });
+    if (exists) {
+      console.warn(`[Auth] Registration failed: Email ${email} already exists`);
+      return res.status(409).json({ success: false, message: "An account with this email already exists" });
+    }
     const user = await User.create({ name: name.trim(), email, password, role: role || 'Mason' });
+    console.log(`[Auth] User registered successfully: ${user._id}`);
     res.status(201).json({
+      success: true,
       message: "Account created successfully",
       token: makeToken(user),
       user: safeUser(user),
     });
   } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ message: "Server error during registration" });
+    console.error("[Auth] Register error:", err.message);
+    res.status(500).json({ success: false, message: "Server error during registration" });
   }
 });
 router.post("/provision", protect, authorize('Admin'), async (req, res) => {
@@ -83,10 +93,13 @@ router.post("/provision", protect, authorize('Admin'), async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`[Auth] Login request received for email: ${email}`);
 
     // ✅ VALIDATION
     if (!email || !password) {
+      console.warn(`[Auth] Login failed: Missing email or password`);
       return res.status(400).json({
+        success: false,
         message: "Email and password are required",
       });
     }
@@ -97,23 +110,28 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
+      console.warn(`[Auth] Login failed: User not found for ${email}`);
       return res.status(401).json({
+        success: false,
         message: "Invalid email or password",
       });
     }
 
     // ✅ CHECK ACTIVE STATUS
     if (!user.isActive) {
+      console.warn(`[Auth] Login failed: Account deactivated for ${email}`);
       return res.status(403).json({
+        success: false,
         message: "Account deactivated. Contact support.",
       });
     }
 
     // ✅ SOCIAL LOGIN CHECK
     if (!user.password) {
+      console.warn(`[Auth] Login failed: Social auth only user ${email}`);
       return res.status(400).json({
-        message:
-          "This account uses Google or GitHub login. Please use those methods.",
+        success: false,
+        message: "This account uses Google or GitHub login. Please use those methods.",
       });
     }
 
@@ -121,7 +139,9 @@ router.post("/login", async (req, res) => {
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
+      console.warn(`[Auth] Login failed: Password mismatch for ${email}`);
       return res.status(401).json({
+        success: false,
         message: "Invalid email or password",
       });
     }
@@ -130,12 +150,15 @@ router.post("/login", async (req, res) => {
     const token = makeToken(user);
 
     if (!token) {
+      console.error(`[Auth] Token generation failed for ${email}`);
       return res.status(500).json({
+        success: false,
         message: "Failed to generate authentication token",
       });
     }
 
     // ✅ RESPONSE (Flutter expects token like this)
+    console.log(`[Auth] Login successful for user: ${user._id}`);
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -143,9 +166,10 @@ router.post("/login", async (req, res) => {
       user: safeUser(user),
     });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("[Auth] Login error:", err.message);
 
     return res.status(500).json({
+      success: false,
       message: "Server error during login",
     });
   }
