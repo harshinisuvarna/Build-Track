@@ -97,8 +97,26 @@ const mapUiStatusToBackend = (uiStatus) => {
 };
 
 const canAccessProjectFilter = (req, projectId = null) => {
-  if (projectId) return { _id: projectId, createdBy: req.user.id };
-  return { createdBy: req.user.id };
+  const isAdmin = req.user?.role === "Admin";
+
+  if (isAdmin) {
+    if (projectId) return { _id: projectId, createdBy: req.user.id };
+    return { createdBy: req.user.id };
+  }
+
+  const assignedProjectId = req.user?.projectId
+    ? String(req.user.projectId)
+    : null;
+
+  const orConditions = [{ createdBy: req.user.id }];
+  if (assignedProjectId) {
+    orConditions.push({ _id: assignedProjectId });
+  }
+
+  if (projectId) {
+    return { _id: projectId, $or: orConditions };
+  }
+  return { $or: orConditions };
 };
 
 const canManageProjectFilter = (req, projectId = null) => {
