@@ -147,11 +147,29 @@ mongoose
   })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1);
   });
+
+// Database connectivity check middleware
+const dbCheck = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    console.error(`[DBCheck] Blocked request to ${req.originalUrl}: Database not connected (readyState: ${mongoose.connection.readyState})`);
+    return res.status(503).json({
+      success: false,
+      message: "Database is temporarily unavailable. Please try again later.",
+    });
+  }
+  next();
+};
+
 app.get("/", (_req, res) =>
   res.json({ status: "ok", app: "BuildTrack API 🏗️", env: NODE_ENV })
 );
+
+app.get("/api/test", (_req, res) => res.json({ ok: true }));
+
+// Apply database connectivity check to all other /api routes
+app.use("/api", dbCheck);
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 console.log("✅ users routes mounted");
@@ -163,15 +181,17 @@ app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
-app.get("/api/test", (_req, res) => res.json({ ok: true }));
-app.use((_req, res) => res.status(404).json({ message: "Route not found" }));
+app.use("/api/tasks", require("./routes/taskRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
+
+app.use((_req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 app.use((err, _req, res, _next) => {
   if (!isProd) console.error(err.stack);
   else console.error(`[ERROR] ${err.message}`);
   if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ message: "File too large. Maximum size is 5 MB." });
+    return res.status(413).json({ success: false, message: "File too large. Maximum size is 5 MB." });
   }
-  res.status(err.status || 500).json({ message: err.message || "Internal server error" });
+  res.status(err.status || 500).json({ success: false, message: err.message || "Internal server error" });
 });
 const server = app.listen(PORT, () =>
   console.log(`🚀 Server running on port ${PORT} [${NODE_ENV}]`)
