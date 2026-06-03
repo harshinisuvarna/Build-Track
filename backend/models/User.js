@@ -25,7 +25,6 @@ const userSchema = new mongoose.Schema(
       ref: "Project",
       default: null,
     },
-
     password: { type: String, minlength: 6, default: null },
     googleId: { type: String, default: null },
     isActive: { type: Boolean, default: true },

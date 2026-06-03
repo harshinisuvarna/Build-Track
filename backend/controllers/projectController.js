@@ -3,9 +3,10 @@ const Project = require("../models/Project");
 const getProjectConfig = async (req, res) => {
   try {
     const projectId = req.params.id;
-    const project = await Project.findById(projectId).select(
-      "selectedPhases completedActivityKeys"
-    );
+    const project = await Project.findOne({
+      _id: projectId,
+      createdBy: req.user._id,
+    }).select("selectedPhases completedActivityKeys");
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });

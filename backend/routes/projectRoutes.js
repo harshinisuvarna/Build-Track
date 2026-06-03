@@ -97,21 +97,11 @@ const mapUiStatusToBackend = (uiStatus) => {
 };
 
 const canAccessProjectFilter = (req, projectId = null) => {
-  const isAdmin = req.user?.role === "Admin";
-  if (isAdmin) return projectId ? { _id: projectId } : {};
-
-  const assignedProjectId = req.user?.projectId ? String(req.user.projectId) : null;
-  const orConditions = [{ createdBy: req.user.id }];
-
-  if (assignedProjectId) orConditions.push({ _id: assignedProjectId });
-
-  if (projectId) return { _id: projectId, $or: orConditions };
-  return { $or: orConditions };
+  if (projectId) return { _id: projectId, createdBy: req.user.id };
+  return { createdBy: req.user.id };
 };
 
 const canManageProjectFilter = (req, projectId = null) => {
-  const isAdmin = req.user?.role === "Admin";
-  if (isAdmin) return projectId ? { _id: projectId } : {};
   if (projectId) return { _id: projectId, createdBy: req.user.id };
   return { createdBy: req.user.id };
 };
@@ -161,6 +151,9 @@ router.get("/", requirePermission("view_projects"), async (req, res) => {
     }
 
     const projects = await Project.find(query).sort({ createdAt: -1 });
+
+    console.log("Authenticated User:", req.user.id);
+    console.log("Projects Returned:", projects.length);
 
     const normalizedProjects = await Promise.all(
       projects.map(async (p) => {
