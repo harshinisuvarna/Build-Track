@@ -1,4 +1,10 @@
 require("dotenv").config();
+// Set public DNS servers to resolve MongoDB Atlas SRV queries if local ISP DNS fails
+try {
+  require("dns").setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+} catch (dnsErr) {
+  console.warn("⚠️ Failed to set public DNS servers:", dnsErr.message);
+}
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
