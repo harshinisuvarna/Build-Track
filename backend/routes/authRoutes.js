@@ -267,6 +267,7 @@ router.post("/login", async (req, res) => {
     const token = makeToken(user);
 
     console.log(`[Auth] Login successful for user: ${user._id}`);
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
