@@ -171,6 +171,8 @@ app.get("/api/test", (_req, res) => res.json({ ok: true }));
 app.use("/api", dbCheck);
 
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
+console.log("✅ users routes mounted");
 app.use("/api/workers", require("./routes/workerRoutes"));
 app.use("/api/projects", require("./routes/projectRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
