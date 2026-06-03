@@ -7,9 +7,13 @@ router.use(protect);
 
 router.get("/", async (req, res) => {
   try {
-    const { project } = req.query;
-    const query = { createdBy: req.user._id };
-    if (project) query.project = project;
+    if (project) {
+      const pDoc = await Project.findOne({ _id: project, createdBy: req.user._id });
+      if (!pDoc) {
+        return res.status(403).json({ message: "Access denied to this project" });
+      }
+      query.project = project;
+    }
 
     const inventory = await Inventory.find(query).sort({ materialName: 1 }).populate("project", "projectName");
     res.json({ inventory });
@@ -26,6 +30,11 @@ router.post("/add", async (req, res) => {
 
     const qty = parseFloat(purchased) || 0;
     if (qty <= 0) return res.status(400).json({ message: "Valid quantity is required" });
+
+    const pDoc = await Project.findOne({ _id: project, createdBy: req.user._id });
+    if (!pDoc) {
+      return res.status(403).json({ message: "Access denied to this project" });
+    }
 
     let item = await Inventory.findOne({ project, materialName, createdBy: req.user._id });
     if (item) {
@@ -62,7 +71,12 @@ router.post("/use", async (req, res) => {
     if (!project) return res.status(400).json({ message: "Project is required" });
     if (qty <= 0) return res.status(400).json({ message: "Valid used quantity is required" });
 
-    let item = await Inventory.findOne({ project: project, materialName });
+    const pDoc = await Project.findOne({ _id: project, createdBy: req.user._id });
+    if (!pDoc) {
+      return res.status(403).json({ message: "Access denied to this project" });
+    }
+
+    let item = await Inventory.findOne({ project: project, materialName, createdBy: req.user._id });
 
     if (!item) {
       return res.status(404).json({ message: "Material not found in inventory for this project. Purchase it first." });

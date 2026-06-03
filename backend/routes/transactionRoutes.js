@@ -150,26 +150,33 @@ async function resolveIds(
   { worker, project }
 ) {
   let workerId = parseId(worker);
-
   let projectId = parseId(project);
 
-  if (!workerId && worker) {
+  if (workerId) {
+    const wDoc = await Worker.findOne({
+      _id: workerId,
+      createdBy: userId,
+    }).lean();
+    if (!wDoc) workerId = null;
+  } else if (worker) {
     const wDoc = await Worker.findOne({
       createdBy: userId,
-
       name: String(worker).trim(),
     }).lean();
-
     workerId = wDoc?._id || null;
   }
 
-  if (!projectId && project) {
+  if (projectId) {
+    const pDoc = await Project.findOne({
+      _id: projectId,
+      createdBy: userId,
+    }).lean();
+    if (!pDoc) projectId = null;
+  } else if (project) {
     const pDoc = await Project.findOne({
       createdBy: userId,
-
       projectName: String(project).trim(),
     }).lean();
-
     projectId = pDoc?._id || null;
   }
 
@@ -322,6 +329,10 @@ router.get("/", async (req, res) => {
     }
 
     if (project) {
+      const pDoc = await Project.findOne({ _id: project, createdBy: req.user._id });
+      if (!pDoc) {
+        return res.status(403).json({ message: "Access denied to this project" });
+      }
       query.project = project;
     }
 
