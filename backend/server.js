@@ -1,9 +1,66 @@
 require("dotenv").config();
-// Set public DNS servers to resolve MongoDB Atlas SRV queries if local ISP DNS fails
-try {
-  require("dns").setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
-} catch (dnsErr) {
-  console.warn("⚠️ Failed to set public DNS servers:", dnsErr.message);
+
+// ─── DNS fix: resolve MongoDB Atlas SRV via Google DNS to bypass ISP DNS failures ───
+const dns = require("dns");
+dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+async function resolveMongoSrvUri(uri) {
+  if (!uri || !uri.startsWith("mongodb+srv://")) return uri;
+  try {
+    const url = new URL(uri);
+    const host = url.hostname; // e.g. cluster0.ehqxxl8.mongodb.net
+    const userInfo = url.username
+      ? `${url.username}:${encodeURIComponent(decodeURIComponent(url.password))}@`
+      : "";
+    const dbName = url.pathname || "/";
+
+    // Resolve SRV records
+    const srvRecords = await new Promise((resolve, reject) => {
+      dns.resolveSrv(`_mongodb._tcp.${host}`, (err, records) => {
+        if (err) reject(err);
+        else resolve(records);
+      });
+    });
+
+    // Resolve TXT records (contains replicaSet + authSource)
+    let txtOptions = {};
+    try {
+      const txtRecords = await new Promise((resolve, reject) => {
+        dns.resolveTxt(host, (err, records) => {
+          if (err) reject(err);
+          else resolve(records);
+        });
+      });
+      const optStr = txtRecords.flat().join("&");
+      optStr.split("&").forEach((pair) => {
+        const [k, v] = pair.split("=");
+        if (k && v) txtOptions[k] = v;
+      });
+    } catch (_) {
+      // TXT is optional
+    }
+
+    // Build host list from SRV
+    const hosts = srvRecords
+      .map((r) => `${r.name}:${r.port}`)
+      .join(",");
+
+    // Merge query params: SRV defaults + TXT options + original URI params
+    const params = new URLSearchParams({
+      tls: "true",
+      authSource: "admin",
+      retryWrites: "true",
+      w: "majority",
+      ...txtOptions,
+      ...Object.fromEntries(url.searchParams),
+    });
+
+    const directUri = `mongodb://${userInfo}${hosts}${dbName}?${params.toString()}`;
+    console.log(`[DNS] SRV resolved → direct URI built for host: ${host}`);
+    return directUri;
+  } catch (err) {
+    console.warn(`[DNS] SRV resolution failed (${err.message}), using original URI`);
+    return uri;
+  }
 }
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
@@ -68,9 +125,12 @@ if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !pr
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(async () => {
+
+// Resolve SRV URI before connecting (fixes local ISP DNS failures)
+resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
+  console.log("[MongoDB] Connecting...");
+  return mongoose.connect(resolvedUri, { serverSelectionTimeoutMS: 15000 });
+}).then(async () => {
     console.log("✅ MongoDB connected");
 
     // One-off backend DB cleanup for duplicate projects
