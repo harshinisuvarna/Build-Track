@@ -64,10 +64,23 @@ const normalizeRole = (role, fallback = "Mason") => {
 
 const getUserId = (req) => req.user?._id || req.user?.id;
 
-// Public register: used by Create Workspace screen to create first admin account
+// Full permissions granted to every self-registered admin
+const ADMIN_PERMISSIONS = [
+  "view_projects",
+  "add_entries",
+  "approve_payments",
+  "mark_paid",
+  "view_reports",
+  "manage_team",
+];
+
+// Public register: used by Create Workspace screen — always creates an Admin.
+// Every user who self-registers is creating THEIR OWN workspace, so they must
+// be Admin with full permissions. Only provisioned sub-users (via /provision)
+// get restricted roles.
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role, permissions, projectId } = req.body;
+    const { name, email, password, projectId } = req.body;
     console.log(`[Auth] Register request received for email: ${email}`);
 
     if (!name || !email || !password) {
@@ -87,41 +100,22 @@ router.post("/register", async (req, res) => {
 
     const exists = await User.findOne({ email: cleanEmail });
     if (exists) {
-      console.warn(`[Auth] Registration failed: Email ${email} already exists`);
+      console.warn(`[Auth] Registration failed: Email ${cleanEmail} already exists`);
       return res
         .status(409)
         .json({ success: false, message: "An account with this email already exists" });
     }
 
-    const userCount = await User.countDocuments();
-
-    const finalRole =
-      userCount === 0 ? "Admin" : normalizeRole(role, "Mason");
-
-    const finalPermissions =
-      userCount === 0
-        ? [
-            "view_projects",
-            "add_entries",
-            "approve_payments",
-            "mark_paid",
-            "view_reports",
-            "manage_team",
-          ]
-        : normalizePermissions(permissions);
-
-    const finalProjectId = toObjectIdOrNull(projectId);
-
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
       password,
-      role: finalRole,
-      permissions: finalPermissions,
-      projectId: finalProjectId,
+      role: "Admin",
+      permissions: ADMIN_PERMISSIONS,
+      projectId: toObjectIdOrNull(projectId),
     });
 
-    console.log(`[Auth] User registered successfully: ${user._id}`);
+    console.log(`[Auth] Admin registered successfully: ${user._id}`);
     return res.status(201).json({
       success: true,
       message: "Account created successfully",
@@ -130,13 +124,11 @@ router.post("/register", async (req, res) => {
     });
   } catch (err) {
     console.error("[Auth] Register error:", err);
-
     if (err.code === 11000) {
       return res
         .status(409)
         .json({ success: false, message: "An account with this email already exists" });
     }
-
     return res.status(500).json({ success: false, message: "Server error during registration" });
   }
 });
@@ -257,17 +249,23 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const token = makeToken(user);
+    // ── Auto-heal: if this account somehow ended up with a broken role or no
+    // permissions (e.g. from an old merge-conflict registration bug), fix it
+    // in-place so the user can access their own projects immediately.
+    const validRoles = ["Admin", "Supervisor", "Mason"];
+    const needsHeal =
+      !validRoles.includes(user.role) ||
+      (user.role === "Admin" && user.permissions.length === 0);
 
-    if (!token) {
-      console.error(`[Auth] Token generation failed for ${email}`);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to generate authentication token",
-      });
+    if (needsHeal) {
+      console.warn(`[Auth] Healing broken account role/permissions for ${email} (was: "${user.role}")`);
+      user.role = "Admin";
+      user.permissions = ADMIN_PERMISSIONS;
+      await user.save();
     }
 
-    // ✅ RESPONSE (Flutter expects token like this)
+    const token = makeToken(user);
+
     console.log(`[Auth] Login successful for user: ${user._id}`);
     return res.status(200).json({
       success: true,
@@ -277,7 +275,6 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("[Auth] Login error:", err.message);
-
     return res.status(500).json({
       success: false,
       message: "Server error during login",
