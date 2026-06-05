@@ -146,6 +146,11 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
     },
 
+    activity: {
+      type: String,
+      trim: true,
+    },
+
     // ======================================================
     // AUTO CALCULATED
     // ======================================================

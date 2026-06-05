@@ -473,6 +473,9 @@ router.post("/", async (req, res) => {
       req,
       res
     );
+    console.log('===== REQUEST BODY =====');
+    console.log(req.body);
+    console.log('========================');
   } catch (uploadErr) {
     return res.status(400).json({
       message:
@@ -511,6 +514,9 @@ router.post("/", async (req, res) => {
       remarks,
 
       amount: rawAmount,
+      floor,
+      phase,
+      activity,
     } = req.body;
 
     /// VALIDATIONS
@@ -660,6 +666,10 @@ router.post("/", async (req, res) => {
           attachmentFiles,
 
         screenshotUrl,
+
+        floor,
+        phase,
+        activity,
       });
 
     await transaction.save({
@@ -728,6 +738,9 @@ router.put("/:id", async (req, res) => {
       req,
       res
     );
+    console.log('===== REQUEST BODY =====');
+    console.log(req.body);
+    console.log('========================');
   } catch (uploadErr) {
     return res.status(400).json({
       message:
@@ -787,6 +800,9 @@ router.put("/:id", async (req, res) => {
       remarks,
 
       amount: rawAmount,
+      floor,
+      phase,
+      activity,
     } = req.body;
 
     const {
@@ -942,6 +958,15 @@ router.put("/:id", async (req, res) => {
 
     if (unit !== undefined)
       tx.unit = unit;
+
+    if (floor !== undefined)
+      tx.floor = floor;
+
+    if (phase !== undefined)
+      tx.phase = phase;
+
+    if (activity !== undefined)
+      tx.activity = activity;
 
     if (quantity !== undefined)
       tx.quantity = newQty;
