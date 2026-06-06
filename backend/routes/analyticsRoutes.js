@@ -3,17 +3,14 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const ExpenseEntry = require("../models/ExpenseEntry");
-const { protect } = require("../middleware/auth");
+const { protect, canAccessProjectFilter } = require("../middleware/auth");
 
 router.get("/:projectId", protect, async (req, res) => {
     try {
         const { projectId } = req.params;
 
         // 1. Fetch the Project to get the Budgets
-        const project = await Project.findOne({
-            _id: projectId,
-            createdBy: req.user._id
-        }).lean();
+        const project = await Project.findOne(canAccessProjectFilter(req, projectId)).lean();
 
         if (!project) {
             return res.status(404).json({ message: "Project not found" });

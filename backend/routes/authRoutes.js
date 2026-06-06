@@ -18,8 +18,6 @@ const FRONTEND =
   process.env.CLIENT_URL ||
   "http://localhost:5173";
 
-const ALLOWED_ROLES = ["Admin", "Supervisor", "Mason"];
-
 const makeToken = (user) =>
   jwt.sign(
     {
@@ -31,32 +29,59 @@ const makeToken = (user) =>
     { expiresIn: "7d" }
   );
 
-const safeUser = (user) => ({
-  id: user._id || user.id,
-  name: user.name,
-  email: user.email,
-  role: user.role || "Mason",
-  permissions: Array.isArray(user.permissions) ? user.permissions : [],
-  projectId: user.projectId || null,
-  profilePhoto: user.profilePhoto || null,
-  provider: user.provider || "local",
-  isActive: user.isActive,
-  twoFactorEnabled: !!user.twoFactorEnabled,
-  createdAt: user.createdAt,
-  updatedAt: user.updatedAt,
-});
+// ── safeUser: returns projectIds array + legacy projectId for compat ──────────
+const safeUser = (user) => {
+  // Normalise projectIds — could be ObjectIds or strings
+  const projectIds = Array.isArray(user.projectIds)
+    ? user.projectIds
+        .filter(Boolean)
+        .map((id) => id.toString())
+    : [];
+
+  // Legacy single projectId — use first of projectIds if not set
+  const legacyProjectId =
+    user.projectId?.toString() || projectIds[0] || null;
+
+  return {
+    id: user._id || user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role || "Mason",
+    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    // ✅ NEW: array of project IDs this user can access
+    projectIds,
+    // ✅ KEPT: single projectId for backward compat
+    projectId: legacyProjectId,
+    profilePhoto: user.profilePhoto || null,
+    provider: user.provider || "local",
+    isActive: user.isActive,
+    twoFactorEnabled: !!user.twoFactorEnabled,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+};
 
 const normalizePermissions = (permissions) => {
   if (!Array.isArray(permissions)) return [];
   return [...new Set(permissions.map((p) => String(p).trim()).filter(Boolean))];
 };
 
-const toObjectIdOrNull = (value) => {
-  if (!value) return null;
-  return mongoose.Types.ObjectId.isValid(value) ? value : null;
+// Converts a string or array of strings to an array of valid ObjectIds
+const toObjectIdArray = (value) => {
+  if (!value) return [];
+  const arr = Array.isArray(value) ? value : [value];
+  return arr
+    .filter((v) => v && mongoose.Types.ObjectId.isValid(v))
+    .map((v) => new mongoose.Types.ObjectId(v));
 };
 
-// ✅ AFTER — keeps custom role names, only falls back if empty
+const toObjectIdOrNull = (value) => {
+  if (!value) return null;
+  return mongoose.Types.ObjectId.isValid(value)
+    ? new mongoose.Types.ObjectId(value)
+    : null;
+};
+
 const normalizeRole = (role, fallback = "Mason") => {
   const clean = String(role || "").trim();
   return clean.length > 0 ? clean : fallback;
@@ -64,35 +89,69 @@ const normalizeRole = (role, fallback = "Mason") => {
 
 const getUserId = (req) => req.user?._id || req.user?.id;
 
-// Full permissions granted to every self-registered admin
 const ADMIN_PERMISSIONS = [
+  "create_project",
+  "edit_project",
+  "delete_project",
+  "view_all_projects",
+  "view_assigned_project",
+  "manage_building_type",
+  "manage_floors",
+  "manage_phases",
+  "manage_activities",
+  "manage_checklists",
+  "manage_contractors",
+  "manage_users",
+  "assign_roles",
+  "assign_project",
+  "submit_daily_update",
+  "upload_photos",
+  "upload_videos",
+  "submit_checklist",
+  "report_issue",
+  "report_delay",
+  "approve_updates",
+  "reject_updates",
+  "add_supervisor_remarks",
+  "view_progress_dashboard",
+  "view_issue_tracker",
+  "view_delay_tracker",
+  "view_media_gallery",
+  "view_reports",
+  "manage_expenses",
+  "approve_payments",
+  "view_payment_reports",
+  "upload_documents",
+  "view_documents",
+  "manage_material_master",
+  "manage_labour_master",
+  "manage_equipment_master",
+  "view_contractor_performance",
+  // Legacy keys kept for backward compat with existing assigned users
   "view_projects",
   "add_entries",
-  "approve_payments",
   "mark_paid",
   "view_reports",
   "manage_team",
 ];
 
-// Public register: used by Create Workspace screen — always creates an Admin.
-// Every user who self-registers is creating THEIR OWN workspace, so they must
-// be Admin with full permissions. Only provisioned sub-users (via /provision)
-// get restricted roles.
+// ── PUBLIC REGISTER — always creates Admin ───────────────────────────────────
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, projectId } = req.body;
     console.log(`[Auth] Register request received for email: ${email}`);
 
     if (!name || !email || !password) {
-      console.warn(`[Auth] Registration failed: Missing required fields`);
-      return res.status(400).json({ success: false, message: "All fields required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields required" });
     }
 
     if (String(password).length < 6) {
-      console.warn(`[Auth] Registration failed: Password too short`);
-      return res
-        .status(400)
-        .json({ success: false, message: "Password must be at least 6 characters" });
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
     }
 
     const cleanEmail = String(email).toLowerCase().trim();
@@ -100,11 +159,14 @@ router.post("/register", async (req, res) => {
 
     const exists = await User.findOne({ email: cleanEmail });
     if (exists) {
-      console.warn(`[Auth] Registration failed: Email ${cleanEmail} already exists`);
-      return res
-        .status(409)
-        .json({ success: false, message: "An account with this email already exists" });
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email already exists",
+      });
     }
+
+    const projectIds = toObjectIdArray(projectId);
+    const legacyProjectId = toObjectIdOrNull(projectId);
 
     const user = await User.create({
       name: cleanName,
@@ -112,7 +174,8 @@ router.post("/register", async (req, res) => {
       password,
       role: "Admin",
       permissions: ADMIN_PERMISSIONS,
-      projectId: toObjectIdOrNull(projectId),
+      projectIds,
+      projectId: legacyProjectId,
     });
 
     console.log(`[Auth] Admin registered successfully: ${user._id}`);
@@ -125,15 +188,18 @@ router.post("/register", async (req, res) => {
   } catch (err) {
     console.error("[Auth] Register error:", err);
     if (err.code === 11000) {
-      return res
-        .status(409)
-        .json({ success: false, message: "An account with this email already exists" });
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email already exists",
+      });
     }
-    return res.status(500).json({ success: false, message: "Server error during registration" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error during registration" });
   }
 });
 
-// Admin-only user provisioning
+// ── ADMIN PROVISION — creates Supervisor / Mason / Custom role ───────────────
 router.post("/provision", protect, authorize("Admin"), async (req, res) => {
   try {
     const {
@@ -143,7 +209,8 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       password,
       role,
       permissions,
-      projectId,
+      projectIds,   // ✅ now accepts array
+      projectId,    // legacy single — still supported
     } = req.body;
 
     const finalPassword = temporaryPassword || password;
@@ -162,9 +229,10 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
     const cleanName = String(name).trim();
     const cleanRole = normalizeRole(role, "Mason");
 
-    // ✅ REPLACE WITH — only block Admin provisioning (security)
     if (cleanRole.toLowerCase() === "admin") {
-      return res.status(400).json({ message: "Cannot provision another Admin account" });
+      return res
+        .status(400)
+        .json({ message: "Cannot provision another Admin account" });
     }
 
     const existingUser = await User.findOne({ email: cleanEmail });
@@ -172,13 +240,23 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       return res.status(409).json({ message: "User already exists" });
     }
 
+    // ✅ Accept both projectIds array and legacy single projectId
+    const finalProjectIds = projectIds
+      ? toObjectIdArray(projectIds)
+      : toObjectIdArray(projectId);
+
+    const legacyProjectId =
+      finalProjectIds.length > 0 ? finalProjectIds[0] : toObjectIdOrNull(projectId);
+
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
       password: finalPassword,
       role: cleanRole,
       permissions: normalizePermissions(permissions),
-      projectId: toObjectIdOrNull(projectId),
+      projectIds: finalProjectIds,
+      projectId: legacyProjectId,
+      createdBy: req.user._id,
     });
 
     return res.status(201).json({
@@ -187,24 +265,22 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
     });
   } catch (err) {
     console.error("Provisioning error:", err);
-
     if (err.code === 11000) {
       return res.status(409).json({ message: "User already exists" });
     }
-
     return res
       .status(500)
       .json({ message: "Server error during account provisioning" });
   }
 });
 
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     console.log(`[Auth] Login request received for email: ${email}`);
 
     if (!email || !password) {
-      console.warn(`[Auth] Login failed: Missing email or password`);
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
@@ -216,56 +292,45 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
-      console.warn(`[Auth] Login failed: User not found for ${email}`);
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
     if (!user.isActive) {
-      console.warn(`[Auth] Login failed: Account deactivated for ${email}`);
-      return res.status(403).json({
-        success: false,
-        message: "Account deactivated. Contact support.",
-      });
+      return res
+        .status(403)
+        .json({ success: false, message: "Account deactivated. Contact support." });
     }
 
     if (!user.password) {
-      console.warn(`[Auth] Login failed: Social auth only user ${email}`);
       return res.status(400).json({
         success: false,
-        message: "This account uses Google or GitHub login. Please use those methods.",
+        message:
+          "This account uses Google or GitHub login. Please use those methods.",
       });
     }
 
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
-      console.warn(`[Auth] Login failed: Password mismatch for ${email}`);
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password" });
     }
 
-    // ── Auto-heal: if this account somehow ended up with a broken role or no
-    // permissions (e.g. from an old merge-conflict registration bug), fix it
-    // in-place so the user can access their own projects immediately.
-    const validRoles = ["Admin", "Supervisor", "Mason"];
+    // Auto-heal broken admin accounts
     const needsHeal =
-      !validRoles.includes(user.role) ||
-      (user.role === "Admin" && user.permissions.length === 0);
+      user.role === "Admin" && user.permissions.length === 0;
 
     if (needsHeal) {
-      console.warn(`[Auth] Healing broken account role/permissions for ${email} (was: "${user.role}")`);
-      user.role = "Admin";
+      console.warn(
+        `[Auth] Healing broken admin permissions for ${email}`
+      );
       user.permissions = ADMIN_PERMISSIONS;
       await user.save();
     }
 
     const token = makeToken(user);
-
     console.log(`[Auth] Login successful for user: ${user._id}`);
 
     return res.status(200).json({
@@ -276,10 +341,9 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("[Auth] Login error:", err.message);
-    return res.status(500).json({
-      success: false,
-      message: "Server error during login",
-    });
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error during login" });
   }
 });
 
@@ -291,48 +355,34 @@ router.put("/profile", protect, async (req, res) => {
   try {
     const { name, email, role } = req.body;
     const user = await User.findById(getUserId(req));
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     if (name) user.name = String(name).trim();
     if (email) user.email = String(email).trim().toLowerCase();
-
     if (role && req.user.role === "Admin") {
       user.role = normalizeRole(role, user.role);
     }
 
     await user.save();
-
     return res.json({ message: "Profile updated", user: safeUser(user) });
   } catch (err) {
     console.error("Profile update error:", err);
-
     if (err.code === 11000) {
       return res
         .status(409)
         .json({ message: "Email already in use by another account" });
     }
-
     return res.status(500).json({ message: "Failed to update profile" });
   }
 });
 
 router.put("/photo", protect, upload.single("photo"), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No photo uploaded" });
-    }
-
+    if (!req.file) return res.status(400).json({ message: "No photo uploaded" });
     const user = await User.findById(getUserId(req));
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ message: "User not found" });
     user.profilePhoto = getFileUrl(req.file);
     await user.save();
-
     return res.json({
       message: "Photo updated",
       profilePhoto: user.profilePhoto,
@@ -346,17 +396,9 @@ router.put("/photo", protect, upload.single("photo"), async (req, res) => {
 
 router.get("/google", (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.status(503).json({
-      message:
-        "Google login is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.",
-    });
+    return res.status(503).json({ message: "Google login is not configured." });
   }
-
-  passport.authenticate("google", { scope: ["profile", "email"] })(
-    req,
-    res,
-    next
-  );
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
 
 router.get(
@@ -376,26 +418,14 @@ router.get(
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
 
-    if (!email) {
-      return res.status(400).json({ message: "Email is required" });
-    }
-
-    const user = await User.findOne({
-      email: String(email).toLowerCase().trim(),
-    });
-
+    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
     if (!user) {
-      return res.json({
-        message: "If that email is registered, a reset link has been sent.",
-      });
+      return res.json({ message: "If that email is registered, a reset link has been sent." });
     }
-
     if (!user.password) {
-      return res.json({
-        message:
-          "This account uses Google or GitHub login. Please use those instead.",
-      });
+      return res.json({ message: "This account uses Google or GitHub login." });
     }
 
     const token = crypto.randomBytes(32).toString("hex");
@@ -411,42 +441,22 @@ router.post("/forgot-password", async (req, res) => {
           host: process.env.SMTP_HOST,
           port: Number(process.env.SMTP_PORT) || 587,
           secure: process.env.SMTP_SECURE === "true",
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
         });
-
         await transporter.sendMail({
           from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
           to: user.email,
           subject: "BuildTrack — Password Reset",
-          html: [
-            `<h2>Password Reset Request</h2>`,
-            `<p>Click the link below to reset your password (valid for 1 hour):</p>`,
-            `<a href="${resetUrl}">${resetUrl}</a>`,
-            `<p>If you didn't request this, you can safely ignore this email.</p>`,
-          ].join(""),
+          html: `<h2>Password Reset</h2><p><a href="${resetUrl}">${resetUrl}</a></p>`,
         });
-
-        if (process.env.NODE_ENV !== "production") {
-          console.log(`Password reset email sent to ${user.email}`);
-        }
       } catch (mailErr) {
         console.error("Failed to send reset email:", mailErr.message);
       }
     } else if (process.env.NODE_ENV !== "production") {
-      console.log("──────────────────────────────────────────");
-      console.log(
-        "PASSWORD RESET LINK (configure SMTP_HOST/USER/PASS to send via email):"
-      );
-      console.log(`   ${resetUrl}`);
-      console.log("──────────────────────────────────────────");
+      console.log(`PASSWORD RESET LINK: ${resetUrl}`);
     }
 
-    return res.json({
-      message: "If that email is registered, a reset link has been sent.",
-    });
+    return res.json({ message: "If that email is registered, a reset link has been sent." });
   } catch (err) {
     console.error("Forgot password error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -456,36 +466,24 @@ router.post("/forgot-password", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
-
     if (!token || !password) {
-      return res
-        .status(400)
-        .json({ message: "Token and new password are required" });
+      return res.status(400).json({ message: "Token and new password are required" });
     }
-
     if (String(password).length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 6 characters" });
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
-
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: new Date() },
     });
-
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired reset token" });
     }
-
     user.password = password;
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     await user.save();
-
-    return res.json({
-      message: "Password has been reset successfully. You can now log in.",
-    });
+    return res.json({ message: "Password has been reset successfully." });
   } catch (err) {
     console.error("Reset password error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -495,38 +493,23 @@ router.post("/reset-password", async (req, res) => {
 router.put("/change-password", protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-
     if (!currentPassword || !newPassword) {
-      return res
-        .status(400)
-        .json({ message: "Current and new passwords are required" });
+      return res.status(400).json({ message: "Current and new passwords are required" });
     }
-
     if (String(newPassword).length < 6) {
-      return res
-        .status(400)
-        .json({ message: "New password must be at least 6 characters" });
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
     }
-
     const user = await User.findById(getUserId(req));
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ message: "User not found" });
     if (!user.password) {
-      return res.status(400).json({
-        message: "This account uses OAuth login and has no password to change.",
-      });
+      return res.status(400).json({ message: "This account uses OAuth login." });
     }
-
     const isMatch = await user.matchPassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
-
     user.password = newPassword;
     await user.save();
-
     return res.json({ message: "Password changed successfully" });
   } catch (err) {
     console.error("Change password error:", err);
@@ -537,21 +520,14 @@ router.put("/change-password", protect, async (req, res) => {
 router.put("/toggle-2fa", protect, async (req, res) => {
   try {
     const user = await User.findById(getUserId(req));
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ message: "User not found" });
     user.twoFactorEnabled = !user.twoFactorEnabled;
     await user.save();
-
     return res.json({
-      message: user.twoFactorEnabled
-        ? "Two-factor authentication enabled"
-        : "Two-factor authentication disabled",
+      message: user.twoFactorEnabled ? "2FA enabled" : "2FA disabled",
       twoFactorEnabled: user.twoFactorEnabled,
     });
   } catch (err) {
-    console.error("Toggle 2FA error:", err);
     return res.status(500).json({ message: "Failed to toggle 2FA" });
   }
 });
@@ -559,18 +535,11 @@ router.put("/toggle-2fa", protect, async (req, res) => {
 router.post("/sign-out-all", protect, async (req, res) => {
   try {
     const user = await User.findById(getUserId(req));
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ message: "User not found" });
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
-
-    return res.json({
-      message: "All sessions signed out. Please log in again on all your devices.",
-    });
+    return res.json({ message: "All sessions signed out." });
   } catch (err) {
-    console.error("Sign out all error:", err);
     return res.status(500).json({ message: "Failed to sign out all sessions" });
   }
 });
@@ -578,16 +547,11 @@ router.post("/sign-out-all", protect, async (req, res) => {
 router.delete("/account", protect, async (req, res) => {
   try {
     const user = await User.findById(getUserId(req));
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ message: "User not found" });
     user.isActive = false;
     await user.save();
-
     return res.json({ message: "Account has been deactivated permanently." });
   } catch (err) {
-    console.error("Delete account error:", err);
     return res.status(500).json({ message: "Failed to delete account" });
   }
 });

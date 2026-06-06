@@ -3,7 +3,7 @@ const router = express.Router();
 const Transaction = require("../models/Transaction");
 const Project = require("../models/Project");
 const Worker = require("../models/Worker");
-const { protect } = require("../middleware/auth");
+const { protect, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
 router.use(protect);
 router.get("/summary", async (req, res) => {
   try {
@@ -11,8 +11,20 @@ router.get("/summary", async (req, res) => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+
+    const projectFilter = canAccessProjectFilter(req);
+    const accessibleProjects = await Project.find(projectFilter).select("_id");
+    const projectIds = accessibleProjects.map((p) => p._id);
+
+    let matchFilter = { date: { $gte: monthStart, $lt: monthEnd } };
+    if (req.user.role !== "Admin") {
+      matchFilter.project = { $in: projectIds };
+    } else {
+      matchFilter.createdBy = userId;
+    }
+
     const statsResult = await Transaction.aggregate([
-      { $match: { createdBy: userId, date: { $gte: monthStart, $lt: monthEnd } } },
+      { $match: matchFilter },
       {
         $group: {
           _id: null,
@@ -22,14 +34,19 @@ router.get("/summary", async (req, res) => {
       },
     ]);
     const { totalIncome = 0, totalExpenses = 0 } = statsResult[0] || {};
-    const activeWorkers = await Worker.countDocuments({ createdBy: userId, status: "Active" });
+    const adminId = await getAdminId(req.user);
+    const activeWorkers = await Worker.countDocuments({ createdBy: adminId, status: "Active" });
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
-    const weeklyTransactions = await Transaction.find({
-      createdBy: userId,
-      date: { $gte: sevenDaysAgo },
-    }).sort({ date: 1 });
+    let weeklyFilter = { date: { $gte: sevenDaysAgo } };
+    if (req.user.role !== "Admin") {
+      weeklyFilter.project = { $in: projectIds };
+    } else {
+      weeklyFilter.createdBy = userId;
+    }
+
+    const weeklyTransactions = await Transaction.find(weeklyFilter).sort({ date: 1 });
     const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
     const weeklyChart = [];
     for (let i = 6; i >= 0; i--) {
@@ -49,11 +66,18 @@ router.get("/summary", async (req, res) => {
         }
       }
     });
-    const recentProjects = await Project.find({ createdBy: userId })
+    const recentProjects = await Project.find(canAccessProjectFilter(req))
       .sort({ createdAt: -1 })
       .limit(4);
 
-    const recentActivity = await Transaction.find({ createdBy: userId })
+    let activityFilter = {};
+    if (req.user.role !== "Admin") {
+      activityFilter.project = { $in: projectIds };
+    } else {
+      activityFilter.createdBy = userId;
+    }
+
+    const recentActivity = await Transaction.find(activityFilter)
       .sort({ date: -1 })
       .limit(5);
     res.json({

@@ -17,9 +17,15 @@ const inventorySchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    openingStock: {
-      type: Number,
-      default: 0,
+    category: {
+      type: String,
+      default: "material",
+      trim: true,
+    },
+    unit: {
+      type: String,
+      default: "units",
+      trim: true,
     },
     purchased: {
       type: Number,
@@ -33,20 +39,29 @@ const inventorySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    unit: {
-      type: String,
-      default: "",
-    },
     threshold: {
       type: Number,
-      min: 0,
-      default: 5,
+      default: 10,
     },
   },
   { timestamps: true }
 );
 
-// Unique material name per project
-inventorySchema.index({ project: 1, materialName: 1 }, { unique: true });
+// ── CRITICAL FIX ─────────────────────────────────────────────────────────────
+// The old index was { createdBy, materialName } which collided when:
+//   - Two different projects both have a material called "structural"
+//   - A non-admin user's entries use the admin's createdBy (via getAdminId)
+//
+// The correct unique constraint is { createdBy, project, materialName }:
+// one inventory record per material per project per organisation.
+//
+// ACTION REQUIRED on first deploy:
+//   db.inventories.dropIndex("createdBy_1_materialName_1")
+// MongoDB will then create the new index automatically on next server start.
+// ─────────────────────────────────────────────────────────────────────────────
+inventorySchema.index(
+  { createdBy: 1, project: 1, materialName: 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model("Inventory", inventorySchema);
