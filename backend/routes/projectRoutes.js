@@ -4,7 +4,12 @@ const multer = require("multer");
 const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const Transaction = require("../models/Transaction");
-const { protect, requirePermission } = require("../middleware/auth");
+const {
+  protect,
+  requirePermission,
+  canAccessProjectFilter,
+  canManageProjectFilter,
+} = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 
@@ -96,41 +101,20 @@ const mapUiStatusToBackend = (uiStatus) => {
   return "Active";
 };
 
-const canAccessProjectFilter = (req, projectId = null) => {
-  const isAdmin = req.user?.role === "Admin";
-
-  if (isAdmin) {
-    if (projectId) return { _id: projectId, createdBy: req.user.id };
-    return { createdBy: req.user.id };
-  }
-
-  const assignedProjectId = req.user?.projectId
-    ? String(req.user.projectId)
-    : null;
-
-  const orConditions = [{ createdBy: req.user.id }];
-  if (assignedProjectId) {
-    orConditions.push({ _id: assignedProjectId });
-  }
-
-  if (projectId) {
-    return { _id: projectId, $or: orConditions };
-  }
-  return { $or: orConditions };
-};
-
-const canManageProjectFilter = (req, projectId = null) => {
-  if (projectId) return { _id: projectId, createdBy: req.user.id };
-  return { createdBy: req.user.id };
-};
-
+// ── ownedByCurrentUserFilter — used by /mine (AssignRole project list) ──────
 const ownedByCurrentUserFilter = (req, projectId = null) => {
   if (projectId) return { _id: projectId, createdBy: req.user.id };
   return { createdBy: req.user.id };
 };
 
+// ── VIEW PERMISSION KEYS ────────────────────────────────────────────────────
+// Both the legacy key ("view_projects") and the new key ("view_assigned_project")
+// are accepted on all read routes so that supervisors and masons provisioned
+// with either key can access their projects without a 403.
+const VIEW_PROJECTS = ["view_projects", "view_assigned_project"];
+
 // GET MY OWN PROJECTS ONLY
-router.get("/mine", requirePermission("view_projects"), async (req, res) => {
+router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const projects = await Project.find(ownedByCurrentUserFilter(req)).sort({ createdAt: -1 });
 
@@ -150,7 +134,7 @@ router.get("/mine", requirePermission("view_projects"), async (req, res) => {
 });
 
 // GET ALL PROJECTS
-router.get("/", requirePermission("view_projects"), async (req, res) => {
+router.get("/", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const { status, search } = req.query;
     const query = canAccessProjectFilter(req);
@@ -171,6 +155,7 @@ router.get("/", requirePermission("view_projects"), async (req, res) => {
     const projects = await Project.find(query).sort({ createdAt: -1 });
 
     console.log("Authenticated User:", req.user.id);
+    console.log("User Role:", req.user.role);
     console.log("Projects Returned:", projects.length);
 
     const normalizedProjects = await Promise.all(
@@ -189,7 +174,7 @@ router.get("/", requirePermission("view_projects"), async (req, res) => {
 });
 
 // GET SINGLE PROJECT
-router.get("/:id", requirePermission("view_projects"), async (req, res) => {
+router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
@@ -204,7 +189,7 @@ router.get("/:id", requirePermission("view_projects"), async (req, res) => {
 });
 
 // GET PROJECT STATS
-router.get("/:id/stats", requirePermission("view_projects"), async (req, res) => {
+router.get("/:id/stats", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
@@ -252,7 +237,7 @@ router.get("/:id/stats", requirePermission("view_projects"), async (req, res) =>
 });
 
 // GET PROJECT BUDGET
-router.get("/:id/budget", requirePermission("view_projects"), async (req, res) => {
+router.get("/:id/budget", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
@@ -296,7 +281,7 @@ router.get("/:id/budget", requirePermission("view_projects"), async (req, res) =
 });
 
 // CREATE PROJECT
-router.post("/", requirePermission("manage_team"), async (req, res) => {
+router.post("/", requirePermission(["create_project", "manage_team"]), async (req, res) => {
   try {
     await runUpload(req, res);
   } catch (uploadErr) {
@@ -418,7 +403,7 @@ router.post("/", requirePermission("manage_team"), async (req, res) => {
 });
 
 // UPDATE PROJECT
-router.put("/:id", requirePermission("manage_team"), async (req, res) => {
+router.put("/:id", requirePermission(["edit_project", "manage_team"]), async (req, res) => {
   try {
     await runUpload(req, res);
   } catch (uploadErr) {
@@ -581,7 +566,7 @@ router.put("/:id", requirePermission("manage_team"), async (req, res) => {
 });
 
 // DELETE PROJECT
-router.delete("/:id", requirePermission("manage_team"), async (req, res) => {
+router.delete("/:id", requirePermission(["delete_project", "manage_team"]), async (req, res) => {
   try {
     const project = await Project.findOneAndDelete(canManageProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });

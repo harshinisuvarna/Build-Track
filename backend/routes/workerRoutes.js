@@ -1,14 +1,18 @@
 const express     = require("express");
 const router      = express.Router();
 const Worker      = require("../models/Worker");
-const { protect } = require("../middleware/auth");
+const { protect, requirePermission, getAdminId } = require("../middleware/auth");
 const upload      = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
+
 router.use(protect);
+router.use(requirePermission(["manage_labour_master", "manage_team"]));
+
 router.get("/", async (req, res) => {
   try {
     const { status, search } = req.query;
-    const query = { createdBy: req.user._id };
+    const adminId = await getAdminId(req.user);
+    const query = { createdBy: adminId };
     if (status && status !== "All") query.status = status;
     if (search) {
       query.$or = [
@@ -25,10 +29,11 @@ router.get("/", async (req, res) => {
 });
 router.get("/stats/summary", async (req, res) => {
   try {
+    const adminId = await getAdminId(req.user);
     const [total, active, inactive] = await Promise.all([
-      Worker.countDocuments({ createdBy: req.user._id }),
-      Worker.countDocuments({ createdBy: req.user._id, status: "Active" }),
-      Worker.countDocuments({ createdBy: req.user._id, status: "Inactive" }),
+      Worker.countDocuments({ createdBy: adminId }),
+      Worker.countDocuments({ createdBy: adminId, status: "Active" }),
+      Worker.countDocuments({ createdBy: adminId, status: "Inactive" }),
     ]);
     res.json({ total, active, inactive });
   } catch {
@@ -37,8 +42,9 @@ router.get("/stats/summary", async (req, res) => {
 });
 router.get("/supervisors", async (req, res) => {
   try {
+    const adminId = await getAdminId(req.user);
     const supervisors = await Worker.find({
-      createdBy: req.user._id,
+      createdBy: adminId,
       trade:     "Supervisor",
     })
       .select("name trade status")
@@ -51,7 +57,8 @@ router.get("/supervisors", async (req, res) => {
 });
 router.get("/:id", async (req, res) => {
   try {
-    const worker = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
+    const adminId = await getAdminId(req.user);
+    const worker = await Worker.findOne({ _id: req.params.id, createdBy: adminId });
     if (!worker) return res.status(404).json({ message: "Worker not found" });
     res.json({ worker });
   } catch {
@@ -68,8 +75,9 @@ const createHandler = async (req, res) => {
     const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
     const photo = getFileUrl(photoFile);
     const documents = (req.files || []).filter(f => f.fieldname === "documents").map(f => getFileUrl(f));
+    const adminId = await getAdminId(req.user);
     const worker = await Worker.create({
-      createdBy:   req.user._id,
+      createdBy:   adminId,
       name:        name.trim(),
       trade:       trade || "General Labor",
       mobile:      mobile || "",
@@ -109,8 +117,9 @@ router.put(
       };
       const photoFile = req.files?.find(f => f.fieldname === "photo") || null;
       const newDocuments = (req.files || []).filter(f => f.fieldname === "documents").map(f => getFileUrl(f));
+      const adminId = await getAdminId(req.user);
       if (photoFile) {
-        const existing = await Worker.findOne({ _id: req.params.id, createdBy: req.user._id });
+        const existing = await Worker.findOne({ _id: req.params.id, createdBy: adminId });
         if (existing?.photo) await deleteFile(existing.photo);
         updateData.photo = getFileUrl(photoFile);
       }
@@ -118,7 +127,7 @@ router.put(
         updateData.documents = newDocuments;
       }
       const worker = await Worker.findOneAndUpdate(
-        { _id: req.params.id, createdBy: req.user._id },
+        { _id: req.params.id, createdBy: adminId },
         updateData,
         { new: true, runValidators: true }
       );
@@ -136,7 +145,8 @@ router.put(
 );
 router.delete("/:id", async (req, res) => {
   try {
-    const worker = await Worker.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });
+    const adminId = await getAdminId(req.user);
+    const worker = await Worker.findOneAndDelete({ _id: req.params.id, createdBy: adminId });
     if (!worker) return res.status(404).json({ message: "Worker not found" });
     if (worker.photo) await deleteFile(worker.photo);
     if (Array.isArray(worker.documents) && worker.documents.length > 0) {

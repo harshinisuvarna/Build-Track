@@ -2,20 +2,19 @@ const express = require("express");
 const router = express.Router();
 const ProjectUpdate = require("../models/ProjectUpdate");
 const Project = require("../models/Project");
-const { protect } = require("../middleware/auth");
+const { protect, canAccessProjectFilter } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
 router.use(protect);
 router.get("/:projectId", async (req, res) => {
   try {
-    const pDoc = await Project.findOne({ _id: req.params.projectId, createdBy: req.user._id });
+    const pDoc = await Project.findOne(canAccessProjectFilter(req, req.params.projectId));
     if (!pDoc) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
 
     const updates = await ProjectUpdate.find({
       project: req.params.projectId,
-      createdBy: req.user._id,
     }).sort({ createdAt: -1 });
     res.json({ updates });
   } catch (err) {
@@ -41,7 +40,7 @@ router.post("/", upload.array("media"), async (req, res) => {
       return res.status(400).json({ message: "Project and Stage are required" });
     }
 
-    const existing = await Project.findOne({ _id: project, createdBy: req.user._id });
+    const existing = await Project.findOne(canAccessProjectFilter(req, project));
     if (!existing) {
       return res.status(403).json({ message: "Access denied to this project" });
     }

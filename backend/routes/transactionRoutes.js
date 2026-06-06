@@ -9,7 +9,7 @@ const Worker = require("../models/Worker");
 const Project = require("../models/Project");
 const Inventory = require("../models/Inventory");
 
-const { protect } = require("../middleware/auth");
+const { protect, requirePermission, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
 
 const upload = require("../config/multer");
 
@@ -25,49 +25,22 @@ router.use(protect);
 /// =======================================================
 
 const parseId = (id) =>
-  mongoose.Types.ObjectId.isValid(id)
-    ? id
-    : null;
+  mongoose.Types.ObjectId.isValid(id) ? id : null;
 
-const normalizeMaterialType = (
-  materialType,
-  subType
-) => {
-  if (
-    materialType === "purchase" ||
-    materialType === "usage"
-  ) {
+const normalizeMaterialType = (materialType, subType) => {
+  if (materialType === "purchase" || materialType === "usage") {
     return materialType;
   }
-
-  if (subType === "Consumption") {
-    return "usage";
-  }
-
+  if (subType === "Consumption") return "usage";
   return "purchase";
 };
 
-const calculateAmount = ({
-  type,
-  quantity,
-  rate,
-  rawAmount,
-}) => {
+const calculateAmount = ({ type, quantity, rate, rawAmount }) => {
   const qty = Number(quantity) || 0;
-
   const rt = Number(rate) || 0;
-
-  const directAmount =
-    Number(rawAmount) || 0;
-
-  if (type === "Materials") {
-    return qty * rt;
-  }
-
-  if (directAmount > 0) {
-    return directAmount;
-  }
-
+  const directAmount = Number(rawAmount) || 0;
+  if (type === "Materials") return qty * rt;
+  if (directAmount > 0) return directAmount;
   return qty * rt;
 };
 
@@ -75,68 +48,23 @@ const calculateAmount = ({
 /// FILE UPLOADS
 /// =======================================================
 
-const runTransactionCreateUpload = (
-  req,
-  res
-) =>
+const runTransactionCreateUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.fields([
-      {
-        name: "attachments",
-        maxCount: 5,
-      },
-
-      {
-        name: "paymentScreenshot",
-        maxCount: 1,
-      },
+      { name: "attachments", maxCount: 5 },
+      { name: "paymentScreenshot", maxCount: 1 },
     ])(req, res, (err) => {
-      if (
-        err instanceof multer.MulterError
-      ) {
-        return reject(
-          Object.assign(err, {
-            status: 400,
-          })
-        );
-      }
-
-      if (err) {
-        return reject(
-          Object.assign(err, {
-            status: 400,
-          })
-        );
-      }
-
+      if (err instanceof multer.MulterError) return reject(Object.assign(err, { status: 400 }));
+      if (err) return reject(Object.assign(err, { status: 400 }));
       resolve();
     });
   });
 
-const runTransactionUpdateUpload = (
-  req,
-  res
-) =>
+const runTransactionUpdateUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.array("attachments")(req, res, (err) => {
-      if (
-        err instanceof multer.MulterError
-      ) {
-        return reject(
-          Object.assign(err, {
-            status: 400,
-          })
-        );
-      }
-
-      if (err) {
-        return reject(
-          Object.assign(err, {
-            status: 400,
-          })
-        );
-      }
-
+      if (err instanceof multer.MulterError) return reject(Object.assign(err, { status: 400 }));
+      if (err) return reject(Object.assign(err, { status: 400 }));
       resolve();
     });
   });
@@ -145,154 +73,106 @@ const runTransactionUpdateUpload = (
 /// RESOLVE IDS
 /// =======================================================
 
-async function resolveIds(
-  userId,
-  { worker, project }
-) {
+async function resolveIds(userId, { worker, project }) {
   let workerId = parseId(worker);
   let projectId = parseId(project);
 
   if (workerId) {
-    const wDoc = await Worker.findOne({
-      _id: workerId,
-      createdBy: userId,
-    }).lean();
+    const wDoc = await Worker.findOne({ _id: workerId, createdBy: userId }).lean();
     if (!wDoc) workerId = null;
   } else if (worker) {
-    const wDoc = await Worker.findOne({
-      createdBy: userId,
-      name: String(worker).trim(),
-    }).lean();
+    const wDoc = await Worker.findOne({ createdBy: userId, name: String(worker).trim() }).lean();
     workerId = wDoc?._id || null;
   }
 
   if (projectId) {
-    const pDoc = await Project.findOne({
-      _id: projectId,
-      createdBy: userId,
-    }).lean();
+    const pDoc = await Project.findOne({ _id: projectId, createdBy: userId }).lean();
     if (!pDoc) projectId = null;
   } else if (project) {
-    const pDoc = await Project.findOne({
-      createdBy: userId,
-      projectName: String(project).trim(),
-    }).lean();
+    const pDoc = await Project.findOne({ createdBy: userId, projectName: String(project).trim() }).lean();
     projectId = pDoc?._id || null;
   }
 
-  return {
-    workerId,
-    projectId,
-  };
+  return { workerId, projectId };
 }
 
 /// =======================================================
-/// INVENTORY
+/// INVENTORY DELTA
+/// FIX: scope by { createdBy, project, materialName }
+/// so the same material can exist in multiple projects
+/// without hitting the unique index.
 /// =======================================================
 
 async function applyInventoryDelta(
-  userId,
-  projectId,
+  adminId,      // always the organisation's admin _id (from getAdminId)
+  projectId,    // the specific project this entry belongs to
   category,
   unit,
   delta,
   session
 ) {
-  if (
-    !delta ||
-    !category ||
-    !projectId
-  ) {
-    return;
-  }
+  if (!delta || !category || !projectId) return;
 
-  /// PURCHASE
-
+  // ── PURCHASE (delta > 0) ─────────────────────────────────────────────────
   if (delta > 0) {
     await Inventory.updateOne(
       {
-        createdBy: userId,
-
-        project: projectId,
-
+        createdBy: adminId,
+        project: projectId,       // FIX: include project in filter
         materialName: category,
       },
-
       {
         $inc: {
           purchased: delta,
-
           closingStock: delta,
         },
-
         $setOnInsert: {
           unit: unit || "",
         },
       },
-
       {
         upsert: true,
-
         session,
       }
     );
   }
 
-  /// USAGE
-
+  // ── USAGE (delta < 0) ────────────────────────────────────────────────────
   else if (delta < 0) {
     const absQty = Math.abs(delta);
 
-    const inv =
-      await Inventory.findOne(
-        {
-          createdBy: userId,
-
-          project: projectId,
-
-          materialName: category,
-        },
-
-        null,
-
-        { session }
-      );
+    const inv = await Inventory.findOne(
+      {
+        createdBy: adminId,
+        project: projectId,       // FIX: include project in filter
+        materialName: category,
+      },
+      null,
+      { session }
+    );
 
     if (!inv) {
       throw Object.assign(
-        new Error(
-          "No stock found for this material"
-        ),
-
-        {
-          status: 400,
-        }
+        new Error("No stock found for this material in this project"),
+        { status: 400 }
       );
     }
 
     if (inv.closingStock < absQty) {
       throw Object.assign(
-        new Error(
-          "Insufficient stock"
-        ),
-
-        {
-          status: 400,
-        }
+        new Error(`Insufficient stock — only ${inv.closingStock} ${inv.unit || "units"} available`),
+        { status: 400 }
       );
     }
 
     await Inventory.updateOne(
       { _id: inv._id },
-
       {
         $inc: {
           used: absQty,
-
           closingStock: -absQty,
         },
       },
-
       { session }
     );
   }
@@ -300,6 +180,9 @@ async function applyInventoryDelta(
 
 /// =======================================================
 /// GET ALL TRANSACTIONS
+/// FIX: honour optional ?createdBy= query param so the
+/// mobile app can fetch only a specific user's entries
+/// (used for "Recent Entries" and autocomplete suggestions).
 /// =======================================================
 
 router.get("/", async (req, res) => {
@@ -311,25 +194,36 @@ router.get("/", async (req, res) => {
       project,
       startDate,
       endDate,
+      // FIX: new optional query param — scopes results to a specific user
+      createdBy: queryCreatedBy,
     } = req.query;
 
-    const query = {
-      createdBy: req.user._id,
-    };
+    const query = {};
 
-    if (
-      type &&
-      type !== "All"
-    ) {
-      query.type = type;
+    if (req.user.role !== "Admin") {
+      // Non-admin: scope to assigned projects
+      const projectFilter = canAccessProjectFilter(req);
+      const projects = await Project.find(projectFilter).select("_id");
+      const projectIds = projects.map((p) => p._id);
+      query.project = { $in: projectIds };
+    } else {
+      // Admin: scope to their own transactions
+      query.createdBy = req.user._id;
     }
 
-    if (category) {
-      query.category = category;
+    // ── FIX: if caller passes ?createdBy=<userId>, further filter by that
+    // user's entries within the already-scoped result set.
+    // This is safe — non-admins are already scoped to assigned projects above,
+    // so passing createdBy only narrows the result, never broadens it.
+    if (queryCreatedBy && mongoose.Types.ObjectId.isValid(queryCreatedBy)) {
+      query.createdBy = new mongoose.Types.ObjectId(queryCreatedBy);
     }
+
+    if (type && type !== "All") query.type = type;
+    if (category) query.category = category;
 
     if (project) {
-      const pDoc = await Project.findOne({ _id: project, createdBy: req.user._id });
+      const pDoc = await Project.findOne(canAccessProjectFilter(req, project));
       if (!pDoc) {
         return res.status(403).json({ message: "Access denied to this project" });
       }
@@ -338,83 +232,38 @@ router.get("/", async (req, res) => {
 
     if (startDate || endDate) {
       query.date = {};
-
-      if (startDate) {
-        query.date.$gte =
-          new Date(startDate);
-      }
-
+      if (startDate) query.date.$gte = new Date(startDate);
       if (endDate) {
         const end = new Date(endDate);
-
-        end.setHours(
-          23,
-          59,
-          59,
-          999
-        );
-
+        end.setHours(23, 59, 59, 999);
         query.date.$lte = end;
       }
-      transaction.paidAmount = Number(paidAmount);
     }
 
     if (search) {
       query.$or = [
-        {
-          title: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-
-        {
-          notes: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-
-        {
-          brand: {
-            $regex: search,
-            $options: "i",
-          },
-        },
+        { title: { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } },
+        { brand: { $regex: search, $options: "i" } },
       ];
     }
 
-    const transactions =
-      await Transaction.find(query)
-        .populate(
-          "worker",
-          "name trade"
-        )
+    // ── Optional limit param (used by mobile "recent entries" fetch) ─────────
+    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 0;
 
-        .populate(
-          "project",
-          "projectName status progress"
-        )
+    let txQuery = Transaction.find(query)
+      .populate("worker", "name trade")
+      .populate("project", "projectName status progress")
+      .sort({ date: -1, createdAt: -1 });
 
-        .sort({
-          date: -1,
+    if (limitParam > 0) txQuery = txQuery.limit(limitParam);
 
-          createdAt: -1,
-        });
+    const transactions = await txQuery;
 
-    res.json({
-      transactions,
-    });
+    res.json({ transactions });
   } catch (err) {
-    console.error(
-      "Get transactions error:",
-      err
-    );
-
-    res.status(500).json({
-      message:
-        "Failed to fetch transactions",
-    });
+    console.error("Get transactions error:", err);
+    res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
 
@@ -424,42 +273,36 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const tx =
-      await Transaction.findOne({
-        _id: req.params.id,
+    const tx = await Transaction.findById(req.params.id)
+      .populate("worker", "name trade")
+      .populate("project", "projectName status progress createdBy");
 
-        createdBy: req.user._id,
-      })
-        .populate(
-          "worker",
-          "name trade"
-        )
+    if (!tx) return res.status(404).json({ message: "Transaction not found" });
 
-        .populate(
-          "project",
-          "projectName status progress"
-        );
+    if (req.user.role !== "Admin") {
+      const assignedIds = Array.isArray(req.user.projectIds)
+        ? req.user.projectIds.filter(Boolean).map((id) => id.toString())
+        : [];
+      const legacyId = req.user.projectId ? req.user.projectId.toString() : null;
+      const allAssigned = legacyId && !assignedIds.includes(legacyId)
+        ? [...assignedIds, legacyId]
+        : assignedIds;
 
-    if (!tx) {
-      return res.status(404).json({
-        message:
-          "Transaction not found",
-      });
+      if (!tx.project || !allAssigned.includes(tx.project._id.toString())) {
+        return res.status(403).json({ message: "Access denied to this transaction" });
+      }
+    } else {
+      if (tx.project && tx.project.createdBy.toString() !== req.user._id.toString()) {
+        if (tx.createdBy.toString() !== req.user._id.toString()) {
+          return res.status(403).json({ message: "Access denied to this transaction" });
+        }
+      }
     }
 
-    res.json({
-      transaction: tx,
-    });
+    res.json({ transaction: tx });
   } catch (err) {
-    console.error(
-      "Get transaction error:",
-      err
-    );
-
-    res.status(500).json({
-      message:
-        "Failed to fetch transaction",
-    });
+    console.error("Get transaction error:", err);
+    res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
 
@@ -467,149 +310,95 @@ router.get("/:id", async (req, res) => {
 /// CREATE TRANSACTION
 /// =======================================================
 
-router.post("/", async (req, res) => {
+router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   try {
     await runTransactionCreateUpload(
       req,
       res
     );
-    console.log('===== REQUEST BODY =====');
-    console.log(req.body);
-    console.log('========================');
   } catch (uploadErr) {
-    return res.status(400).json({
-      message:
-        uploadErr.message ||
-        "File upload error",
+    return res.status(400).json({ message: uploadErr.message || "File upload error" });
+  }
+
+  const { paymentStatus, paidAmount } = req.body;
+  const userPermissions = req.user.permissions || [];
+  const canMarkPaid =
+    req.user.role === "Admin" ||
+    userPermissions.includes("approve_payments") ||
+    userPermissions.includes("mark_paid");
+
+  if ((paymentStatus === "Paid" || Number(paidAmount) > 0) && !canMarkPaid) {
+    return res.status(403).json({
+      message: "Insufficient permissions to record payments or mark as Paid",
     });
   }
 
-  const session =
-    await mongoose.startSession();
-
+  const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const {
-      title,
-      type,
-      worker,
-      project,
-      date,
-      notes,
-
-      category,
-      brand,
-      subType,
-      unit,
-      quantity,
-      rate,
-
+      title, type, worker, project, date, notes,
+      category, brand, subType, unit, quantity, rate,
       materialType,
-
-      paymentStatus,
-      paymentMode,
-      paymentDate,
-      paidAmount,
+      paymentStatus: _paymentStatus,
+      paymentMode, paymentDate, paidAmount: _paidAmount,
       remarks,
-
       amount: rawAmount,
       floor,
       phase,
       activity,
     } = req.body;
 
-    /// VALIDATIONS
-
-    if (
-      !title ||
-      !title.trim()
-    ) {
-      return res.status(400).json({
-        message:
-          "Title is required",
-      });
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: "Title is required" });
     }
-
     if (!type) {
-      return res.status(400).json({
-        message:
-          "Transaction type is required",
-      });
+      return res.status(400).json({ message: "Transaction type is required" });
     }
 
     const resolvedCategory =
-      category ||
-      (type === "Materials"
-        ? title.trim()
-        : undefined);
+      category || (type === "Materials" ? title.trim() : undefined);
 
     const normalizedMaterialType =
-      type === "Materials"
-        ? normalizeMaterialType(
-          materialType,
-          subType
-        )
-        : "";
+      type === "Materials" ? normalizeMaterialType(materialType, subType) : "";
 
-    const {
-      workerId,
-      projectId,
-    } = await resolveIds(
-      req.user._id,
-      {
-        worker,
-        project,
-      }
-    );
+    // FIX: resolveIds uses admin's _id for project lookup since non-admin
+    // users don't own the project themselves. Use getAdminId for consistency.
+    const adminId = await getAdminId(req.user);
 
-    /// FILES
+    // For project lookup: non-admins are assigned to projects they don't own,
+    // so we look up by _id directly (canAccessProjectFilter already validated access).
+    let workerId = parseId(worker);
+    let projectId = parseId(project);
 
-    const attachmentFiles = (
-      req.files?.attachments || []
-    ).map(getFileUrl);
-
-    const screenshotFile =
-      req.files
-        ?.paymentScreenshot?.[0];
-
-    const screenshotUrl =
-      screenshotFile
-        ? getFileUrl(
-          screenshotFile
-        )
-        : null;
-
-    /// VALUES
-
-    const qty =
-      Number(quantity) || 0;
-
-    const rt =
-      Number(rate) || 0;
-
-    const paidAmt =
-      Number(paidAmount) || 0;
-
-    if (qty < 0 || rt < 0) {
-      return res.status(400).json({
-        message:
-          "Quantity and rate must be positive",
-      });
+    if (workerId) {
+      const wDoc = await Worker.findOne({ _id: workerId, createdBy: adminId }).lean();
+      if (!wDoc) workerId = null;
+    } else if (worker) {
+      const wDoc = await Worker.findOne({ createdBy: adminId, name: String(worker).trim() }).lean();
+      workerId = wDoc?._id || null;
     }
 
-    const finalAmount =
-      calculateAmount({
-        type,
+    if (projectId) {
+      // Validate this user can access this project
+      const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
+      if (!pDoc) projectId = null;
+    }
 
-        quantity: qty,
+    const attachmentFiles = (req.files?.attachments || []).map(getFileUrl);
+    const screenshotFile = req.files?.paymentScreenshot?.[0];
+    const screenshotUrl = screenshotFile ? getFileUrl(screenshotFile) : null;
 
-        rate: rt,
+    const qty = Number(quantity) || 0;
+    const rt = Number(rate) || 0;
+    const paidAmt = Number(_paidAmount) || 0;
 
-        rawAmount,
-      });
+    if (qty < 0 || rt < 0) {
+      return res.status(400).json({ message: "Quantity and rate must be positive" });
+    }
 
-    /// CREATE
+    const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, rawAmount });
 
     const transaction =
       new Transaction({
@@ -666,32 +455,19 @@ router.post("/", async (req, res) => {
           attachmentFiles,
 
         screenshotUrl,
-
-        floor,
-        phase,
-        activity,
       });
 
-    await transaction.save({
-      session,
-    });
+    await transaction.save({ session });
 
-    /// INVENTORY
-
-    if (
-      type === "Materials" &&
-      qty > 0 &&
-      projectId
-    ) {
+    // FIX: pass adminId (org admin) AND projectId to applyInventoryDelta
+    // so inventory is scoped to { adminId, projectId, materialName }
+    if (type === "Materials" && qty > 0 && projectId) {
       const inventoryDelta =
-        normalizedMaterialType ===
-          "usage"
-          ? -qty
-          : qty;
+        normalizedMaterialType === "usage" ? -qty : qty;
 
       await applyInventoryDelta(
-        req.user._id,
-        projectId,
+        adminId,      // organisation's admin (owns inventory records)
+        projectId,    // FIX: scope inventory to this specific project
         resolvedCategory,
         unit,
         inventoryDelta,
@@ -702,26 +478,15 @@ router.post("/", async (req, res) => {
     await session.commitTransaction();
 
     res.status(201).json({
-      message:
-        "Transaction saved successfully",
-
+      message: "Transaction saved successfully",
       transaction,
     });
   } catch (err) {
     await session.abortTransaction();
-
-    console.error(
-      "Create transaction error:",
-      err
-    );
-
-    const status =
-      err.status || 500;
-
+    console.error("Create transaction error:", err);
+    const status = err.status || 500;
     res.status(status).json({
-      message:
-        err.message ||
-        "Failed to save transaction",
+      message: err.message || "Failed to save transaction",
     });
   } finally {
     session.endSession();
@@ -738,130 +503,98 @@ router.put("/:id", async (req, res) => {
       req,
       res
     );
-    console.log('===== REQUEST BODY =====');
-    console.log(req.body);
-    console.log('========================');
   } catch (uploadErr) {
-    return res.status(400).json({
-      message:
-        uploadErr.message ||
-        "File upload error",
-    });
+    return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
 
-  const session =
-    await mongoose.startSession();
-
+  const { paymentStatus, paidAmount } = req.body;
+  const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const tx =
-      await Transaction.findOne(
-        {
-          _id: req.params.id,
+    const tx = await Transaction.findById(req.params.id).session(session);
+    if (!tx) return res.status(404).json({ message: "Transaction not found" });
 
-          createdBy:
-            req.user._id,
-        },
+    if (req.user.role !== "Admin") {
+      const assignedIds = Array.isArray(req.user.projectIds)
+        ? req.user.projectIds.filter(Boolean).map((id) => id.toString())
+        : [];
+      const legacyId = req.user.projectId ? req.user.projectId.toString() : null;
+      const allAssigned = legacyId && !assignedIds.includes(legacyId)
+        ? [...assignedIds, legacyId]
+        : assignedIds;
 
-        null,
+      if (!tx.project || !allAssigned.includes(tx.project.toString())) {
+        return res.status(403).json({ message: "Access denied to this transaction" });
+      }
+    } else {
+      if (tx.project) {
+        const pDoc = await Project.findById(tx.project).session(session);
+        if (pDoc && pDoc.createdBy.toString() !== req.user._id.toString()) {
+          if (tx.createdBy.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Access denied to this transaction" });
+          }
+        }
+      }
+    }
 
-        { session }
-      );
+    const userPermissions = req.user.permissions || [];
+    const canMarkPaid =
+      req.user.role === "Admin" ||
+      userPermissions.includes("approve_payments") ||
+      userPermissions.includes("mark_paid");
 
-    if (!tx) {
-      return res.status(404).json({
-        message:
-          "Transaction not found",
-      });
+    if ((paymentStatus === "Paid" || paidAmount !== undefined) && !canMarkPaid) {
+      if (paymentStatus === "Paid" || (paidAmount !== undefined && Number(paidAmount) !== tx.paidAmount)) {
+        return res.status(403).json({
+          message: "Insufficient permissions to record payments or mark as Paid",
+        });
+      }
     }
 
     const {
-      title,
-      type,
-      worker,
-      project,
-      date,
-      notes,
-
-      category,
-      brand,
-      subType,
-      unit,
-      quantity,
-      rate,
-
+      title, type, worker, project, date, notes,
+      category, brand, subType, unit, quantity, rate,
       materialType,
-
-      paymentStatus,
-      paymentMode,
-      paymentDate,
-      paidAmount,
+      paymentStatus: _paymentStatus, paymentMode, paymentDate,
+      paidAmount: _paidAmount,
       remarks,
-
       amount: rawAmount,
       floor,
       phase,
       activity,
     } = req.body;
 
-    const {
-      workerId,
-      projectId,
-    } = await resolveIds(
-      req.user._id,
-      {
-        worker:
-          worker ?? tx.worker,
+    const adminId = await getAdminId(req.user);
 
-        project:
-          project ?? tx.project,
-      }
-    );
+    let workerId = parseId(worker ?? tx.worker);
+    let projectId = parseId(project ?? tx.project);
 
-    const newQty =
-      quantity !== undefined
-        ? Number(quantity)
-        : tx.quantity;
+    if (workerId) {
+      const wDoc = await Worker.findOne({ _id: workerId, createdBy: adminId }).lean();
+      if (!wDoc) workerId = null;
+    }
+    if (projectId) {
+      const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
+      if (!pDoc) projectId = null;
+    }
 
-    const newRt =
-      rate !== undefined
-        ? Number(rate)
-        : tx.rate;
+    const newQty = quantity !== undefined ? Number(quantity) : tx.quantity;
+    const newRt = rate !== undefined ? Number(rate) : tx.rate;
+    const finalAmount = calculateAmount({
+      type: type || tx.type,
+      quantity: newQty,
+      rate: newRt,
+      rawAmount: rawAmount ?? tx.amount,
+    });
 
-    const finalAmount =
-      calculateAmount({
-        type: type || tx.type,
-
-        quantity: newQty,
-
-        rate: newRt,
-
-        rawAmount:
-          rawAmount ??
-          tx.amount,
-      });
-
-    /// REVERSE OLD INVENTORY
-
-    if (
-      tx.type === "Materials" &&
-      tx.quantity > 0
-    ) {
-      const oldType =
-        normalizeMaterialType(
-          tx.materialType,
-          tx.subType
-        );
-
-      const reverseDelta =
-        oldType === "usage"
-          ? tx.quantity
-          : -tx.quantity;
-
+    // Reverse old inventory (using old project scope)
+    if (tx.type === "Materials" && tx.quantity > 0) {
+      const oldType = normalizeMaterialType(tx.materialType, tx.subType);
+      const reverseDelta = oldType === "usage" ? tx.quantity : -tx.quantity;
       await applyInventoryDelta(
-        req.user._id,
-        tx.project,
+        adminId,
+        tx.project,   // use the OLD project for reversal
         tx.category,
         tx.unit,
         reverseDelta,
@@ -869,65 +602,29 @@ router.put("/:id", async (req, res) => {
       );
     }
 
-    /// APPLY NEW INVENTORY
+    // Apply new inventory (using new project scope)
+    const newType = type || tx.type;
+    const newMaterialType = newType === "Materials"
+      ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
+      : "";
 
-    const newType =
-      type || tx.type;
-
-    const newMaterialType =
-      newType === "Materials"
-        ? normalizeMaterialType(
-          materialType ||
-          tx.materialType,
-
-          subType ||
-          tx.subType
-        )
-        : "";
-
-    if (
-      newType === "Materials" &&
-      newQty > 0 &&
-      projectId
-    ) {
-      const newDelta =
-        newMaterialType ===
-          "usage"
-          ? -newQty
-          : newQty;
-
+    if (newType === "Materials" && newQty > 0 && projectId) {
+      const newDelta = newMaterialType === "usage" ? -newQty : newQty;
       await applyInventoryDelta(
-        req.user._id,
-        projectId,
-        category ||
-        tx.category,
+        adminId,
+        projectId,    // use the NEW project for application
+        category || tx.category,
         unit || tx.unit,
         newDelta,
         session
       );
     }
 
-    /// ATTACHMENTS
-
-    let updatedAttachments =
-      tx.attachments || [];
-
-    if (
-      req.files &&
-      req.files.length > 0
-    ) {
-      const newFiles =
-        req.files.map((f) =>
-          getFileUrl(f)
-        );
-
-      updatedAttachments = [
-        ...updatedAttachments,
-        ...newFiles,
-      ];
+    let updatedAttachments = tx.attachments || [];
+    if (req.files && req.files.length > 0) {
+      const newFiles = req.files.map((f) => getFileUrl(f));
+      updatedAttachments = [...updatedAttachments, ...newFiles];
     }
-
-    /// UPDATE
 
     if (title !== undefined)
       tx.title = title.trim();
@@ -958,15 +655,6 @@ router.put("/:id", async (req, res) => {
 
     if (unit !== undefined)
       tx.unit = unit;
-
-    if (floor !== undefined)
-      tx.floor = floor;
-
-    if (phase !== undefined)
-      tx.phase = phase;
-
-    if (activity !== undefined)
-      tx.activity = activity;
 
     if (quantity !== undefined)
       tx.quantity = newQty;
@@ -1005,10 +693,8 @@ router.put("/:id", async (req, res) => {
         paymentDate;
     }
 
-    if (
-      paidAmount !== undefined
-    ) {
-      const newPaidAmount = Number(paidAmount) || 0;
+    if (_paidAmount !== undefined) {
+      const newPaidAmount = Number(_paidAmount) || 0;
       const delta = newPaidAmount - tx.paidAmount;
       if (delta > 0) {
         tx.paymentHistory.push({
@@ -1021,43 +707,19 @@ router.put("/:id", async (req, res) => {
       tx.paidAmount = newPaidAmount;
     }
 
-    if (remarks !== undefined) {
-      tx.remarks = remarks;
-    }
-
-    tx.attachments =
-      updatedAttachments;
-
+    if (remarks !== undefined) tx.remarks = remarks;
+    tx.attachments = updatedAttachments;
     tx.amount = finalAmount;
 
-    await tx.save({
-      session,
-    });
-
+    await tx.save({ session });
     await session.commitTransaction();
 
-    res.json({
-      message:
-        "Transaction updated successfully",
-
-      transaction: tx,
-    });
+    res.json({ message: "Transaction updated successfully", transaction: tx });
   } catch (err) {
     await session.abortTransaction();
-
-    console.error(
-      "Update transaction error:",
-      err
-    );
-
-    const status =
-      err.status || 500;
-
-    res.status(status).json({
-      message:
-        err.message ||
-        "Failed to update transaction",
-    });
+    console.error("Update transaction error:", err);
+    const status = err.status || 500;
+    res.status(status).json({ message: err.message || "Failed to update transaction" });
   } finally {
     session.endSession();
   }
@@ -1068,52 +730,47 @@ router.put("/:id", async (req, res) => {
 /// =======================================================
 
 router.delete("/:id", async (req, res) => {
-  const session =
-    await mongoose.startSession();
-
+  const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const tx =
-      await Transaction.findOneAndDelete(
-        {
-          _id: req.params.id,
+    const tx = await Transaction.findById(req.params.id).session(session);
+    if (!tx) return res.status(404).json({ message: "Transaction not found" });
 
-          createdBy:
-            req.user._id,
-        },
+    if (req.user.role !== "Admin") {
+      const assignedIds = Array.isArray(req.user.projectIds)
+        ? req.user.projectIds.filter(Boolean).map((id) => id.toString())
+        : [];
+      const legacyId = req.user.projectId ? req.user.projectId.toString() : null;
+      const allAssigned = legacyId && !assignedIds.includes(legacyId)
+        ? [...assignedIds, legacyId]
+        : assignedIds;
 
-        { session }
-      );
-
-    if (!tx) {
-      return res.status(404).json({
-        message:
-          "Transaction not found",
-      });
+      if (!tx.project || !allAssigned.includes(tx.project.toString())) {
+        return res.status(403).json({ message: "Access denied to this transaction" });
+      }
+    } else {
+      if (tx.project) {
+        const pDoc = await Project.findById(tx.project).session(session);
+        if (pDoc && pDoc.createdBy.toString() !== req.user._id.toString()) {
+          if (tx.createdBy.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Access denied to this transaction" });
+          }
+        }
+      }
     }
 
-    /// REVERSE INVENTORY
+    await Transaction.deleteOne({ _id: tx._id }).session(session);
 
-    if (
-      tx.type === "Materials" &&
-      tx.quantity > 0
-    ) {
-      const txMaterialType =
-        normalizeMaterialType(
-          tx.materialType,
-          tx.subType
-        );
-
-      const reverseDelta =
-        txMaterialType ===
-          "usage"
-          ? tx.quantity
-          : -tx.quantity;
+    // Reverse inventory on delete
+    if (tx.type === "Materials" && tx.quantity > 0) {
+      const adminId = await getAdminId(req.user);
+      const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
+      const reverseDelta = txMaterialType === "usage" ? tx.quantity : -tx.quantity;
 
       await applyInventoryDelta(
-        req.user._id,
-        tx.project,
+        adminId,
+        tx.project,   // FIX: scope to the transaction's project
         tx.category,
         tx.unit,
         reverseDelta,
@@ -1123,36 +780,17 @@ router.delete("/:id", async (req, res) => {
 
     await session.commitTransaction();
 
-    /// DELETE FILES
-
-    if (
-      Array.isArray(
-        tx.attachments
-      )
-    ) {
+    if (Array.isArray(tx.attachments)) {
       for (const url of tx.attachments) {
-        await deleteFile(url).catch(
-          () => { }
-        );
+        await deleteFile(url).catch(() => {});
       }
     }
 
-    res.json({
-      message:
-        "Transaction deleted successfully",
-    });
+    res.json({ message: "Transaction deleted successfully" });
   } catch (err) {
     await session.abortTransaction();
-
-    console.error(
-      "Delete transaction error:",
-      err
-    );
-
-    res.status(500).json({
-      message:
-        "Failed to delete transaction",
-    });
+    console.error("Delete transaction error:", err);
+    res.status(500).json({ message: "Failed to delete transaction" });
   } finally {
     session.endSession();
   }
