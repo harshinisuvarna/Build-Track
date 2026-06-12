@@ -243,11 +243,13 @@ const transactionSchema = new mongoose.Schema(
     paidAmount: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     remainingAmount: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     // ======================================================
@@ -327,7 +329,7 @@ const transactionSchema = new mongoose.Schema(
     },
   },
 
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 // ======================================================
@@ -346,6 +348,15 @@ transactionSchema.pre("save", function () {
     this.amount = this.quantity * this.rate;
   }
 
+  // Validation: Prevent overpayment — runs BEFORE status overwrites
+  // so it catches ALL statuses, not just "Partial"
+  if (this.paidAmount > this.amount) {
+    throw Object.assign(
+      new Error("Paid amount cannot exceed total amount"),
+      { status: 400 }
+    );
+  }
+
   // Payment balance calculation
   if (this.paymentStatus === "Paid") {
     this.paidAmount = this.amount;
@@ -355,11 +366,6 @@ transactionSchema.pre("save", function () {
     this.remainingAmount = this.amount;
   } else if (this.paymentStatus === "Partial") {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
-  }
-
-  // Validation from main: Prevent overpayment
-  if (this.paidAmount > this.amount) {
-    throw new Error("Paid amount cannot exceed total amount");
   }
 
   // Populate initial payment event to history if needed (from main)
