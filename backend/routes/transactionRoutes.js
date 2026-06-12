@@ -35,6 +35,13 @@ const normalizeMaterialType = (materialType, subType) => {
   return "purchase";
 };
 
+const parseAmount = (value) => {
+  if (value === undefined || value === null || value === "") return 0;
+  const cleaned = String(value).replace(/[₹,\s]/g, "").trim();
+  const num = Number(cleaned);
+  return isNaN(num) ? 0 : num;
+};
+
 const calculateAmount = ({ type, quantity, rate, rawAmount }) => {
   const qty = Number(quantity) || 0;
   const rt = Number(rate) || 0;
@@ -392,7 +399,7 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
 
     const qty = Number(quantity) || 0;
     const rt = Number(rate) || 0;
-    const paidAmt = Number(_paidAmount) || 0;
+    const paidAmt = parseAmount(_paidAmount);
 
     if (qty < 0 || rt < 0) {
       return res.status(400).json({ message: "Quantity and rate must be positive" });
@@ -484,7 +491,9 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
   } catch (err) {
     await session.abortTransaction();
     console.error("Create transaction error:", err);
-    const status = err.status || 500;
+    let status = err.status || 500;
+    if (err.name === "ValidationError") status = 400;
+    else if (err.name === "VersionError") status = 409;
     res.status(status).json({
       message: err.message || "Failed to save transaction",
     });
@@ -694,7 +703,7 @@ router.put("/:id", async (req, res) => {
     }
 
     if (_paidAmount !== undefined) {
-      const newPaidAmount = Number(_paidAmount) || 0;
+      const newPaidAmount = parseAmount(_paidAmount);
       const delta = newPaidAmount - tx.paidAmount;
       if (delta > 0) {
         tx.paymentHistory.push({
@@ -718,7 +727,9 @@ router.put("/:id", async (req, res) => {
   } catch (err) {
     await session.abortTransaction();
     console.error("Update transaction error:", err);
-    const status = err.status || 500;
+    let status = err.status || 500;
+    if (err.name === "ValidationError") status = 400;
+    else if (err.name === "VersionError") status = 409;
     res.status(status).json({ message: err.message || "Failed to update transaction" });
   } finally {
     session.endSession();
