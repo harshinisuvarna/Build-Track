@@ -30,6 +30,35 @@ const getProfile = async (req, res) => {
   }
 };
 
+// @desc  Update profile photo
+// @route PUT /api/users/profile/photo
+const updateProfilePhoto = async (req, res) => {
+  console.log('updateProfilePhoto called');
+  console.log('req.user:', req.user);
+  console.log('body keys:', Object.keys(req.body));
+  console.log('profilePhoto length:', req.body.profilePhoto?.length);
+  try {
+    const { profilePhoto } = req.body;
+    if (!profilePhoto) {
+      return res.status(400).json({ message: "No photo provided" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profilePhoto },
+      { new: true, runValidators: false }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 
 // PUT /api/users/subscription
 const updateSubscription = async (req, res) => {
@@ -72,4 +101,4 @@ const getSubscription = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, updateSubscription, getSubscription, getProfile };
+module.exports = { updateProfile, updateSubscription, getSubscription, getProfile ,updateProfilePhoto};

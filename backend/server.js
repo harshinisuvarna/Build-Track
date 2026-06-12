@@ -249,7 +249,6 @@ app.use("/api/reports", require("./routes/aiReportRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
 app.use("/api/tasks", require("./routes/taskRoutes"));
-app.use("/api/users", require("./routes/userRoutes"));
 
 app.use((_req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 app.use((err, _req, res, _next) => {
