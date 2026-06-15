@@ -78,6 +78,8 @@ const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const passport = require("./config/passport");
+// Add this with your other requires at the top
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const app = express();
 const PORT = Number(process.env.PORT) || 5001;
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -249,6 +251,7 @@ app.use("/api/reports", require("./routes/aiReportRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
 app.use("/api/tasks", require("./routes/taskRoutes"));
+app.use('/api/subscriptions', subscriptionRoutes);
 
 app.use((_req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 app.use((err, _req, res, _next) => {
