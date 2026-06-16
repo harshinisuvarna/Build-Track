@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+console.log('AirPay Merchant ID loaded:', !!process.env.AIRPAY_MERCHANT_ID);
+
 // ─── DNS fix: resolve MongoDB Atlas SRV via Google DNS to bypass ISP DNS failures ───
 const dns = require("dns");
 dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
