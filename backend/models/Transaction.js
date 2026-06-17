@@ -141,12 +141,27 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
     },
 
+    floorId: {
+      type: String,
+      trim: true,
+    },
+
     phase: {
       type: String,
       trim: true,
     },
 
+    phaseId: {
+      type: String,
+      trim: true,
+    },
+
     activity: {
+      type: String,
+      trim: true,
+    },
+
+    activityId: {
       type: String,
       trim: true,
     },

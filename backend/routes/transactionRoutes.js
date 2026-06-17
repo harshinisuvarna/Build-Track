@@ -353,8 +353,11 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
       remarks,
       amount: rawAmount,
       floor,
+      floorId,
       phase,
+      phaseId,
       activity,
+      activityId,
     } = req.body;
 
     if (!title || !title.trim()) {
@@ -407,62 +410,69 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
 
     const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, rawAmount });
 
-    const transaction =
-      new Transaction({
-        createdBy: req.user._id,
+      const transaction =
+        new Transaction({
+          createdBy: req.user._id,
 
-        title: title.trim(),
+          title: title.trim(),
 
-        type,
+          type,
 
-        worker:
-          workerId || null,
+          worker:
+            workerId || null,
 
-        project:
-          projectId || null,
+          project:
+            projectId || null,
 
-        date:
-          date || new Date(),
+          date:
+            date || new Date(),
 
-        notes,
+          notes,
 
-        category:
-          resolvedCategory,
+          category:
+            resolvedCategory,
 
-        brand,
+          brand,
 
-        subType,
+          subType,
 
-        materialType:
-          normalizedMaterialType,
+          materialType:
+            normalizedMaterialType,
 
-        unit:
-          unit || "unit",
+          unit:
+            unit || "unit",
 
-        quantity: qty,
+          quantity: qty,
 
-        rate: rt,
+          rate: rt,
 
-        amount: finalAmount,
+          amount: finalAmount,
 
-        paymentStatus:
-          paymentStatus ||
-          "Pending",
+          floor,
+          floorId,
+          phase,
+          phaseId,
+          activity,
+          activityId,
 
-        paymentMode:
-          paymentMode || "Cash",
+          paymentStatus:
+            paymentStatus ||
+            "Pending",
 
-        paymentDate,
+          paymentMode:
+            paymentMode || "Cash",
 
-        paidAmount: paidAmt,
+          paymentDate,
 
-        remarks,
+          paidAmount: paidAmt,
 
-        attachments:
-          attachmentFiles,
+          remarks,
 
-        screenshotUrl,
-      });
+          attachments:
+            attachmentFiles,
+
+          screenshotUrl,
+        });
 
     await transaction.save({ session });
 
@@ -570,8 +580,11 @@ router.put("/:id", async (req, res) => {
       remarks,
       amount: rawAmount,
       floor,
+      floorId,
       phase,
+      phaseId,
       activity,
+      activityId,
     } = req.body;
 
     const adminId = await getAdminId(req.user);
@@ -716,7 +729,13 @@ router.put("/:id", async (req, res) => {
       tx.paidAmount = newPaidAmount;
     }
 
-    if (remarks !== undefined) tx.remarks = remarks;
+    if (remarks !== undefined)  tx.remarks     = remarks;
+    if (floor !== undefined)    tx.floor       = floor;
+    if (floorId !== undefined)  tx.floorId     = floorId;
+    if (phase !== undefined)    tx.phase       = phase;
+    if (phaseId !== undefined)  tx.phaseId     = phaseId;
+    if (activity !== undefined) tx.activity    = activity;
+    if (activityId !== undefined) tx.activityId = activityId;
     tx.attachments = updatedAttachments;
     tx.amount = finalAmount;
 
