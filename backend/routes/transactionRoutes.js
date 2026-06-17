@@ -358,6 +358,9 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
       phaseId,
       activity,
       activityId,
+      supplier,
+      gst,
+      isWithGst,
     } = req.body;
 
     if (!title || !title.trim()) {
@@ -433,6 +436,11 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
             resolvedCategory,
 
           brand,
+
+          supplier,
+
+          gst,
+          isWithGst,
 
           subType,
 
@@ -526,6 +534,10 @@ router.put("/:id", async (req, res) => {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
 
+  console.log('=== UPDATE TRANSACTION REQUEST ===');
+  console.log('ID:', req.params.id);
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+
   const { paymentStatus, paidAmount } = req.body;
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -585,6 +597,9 @@ router.put("/:id", async (req, res) => {
       phaseId,
       activity,
       activityId,
+      supplier,
+      gst,
+      isWithGst,
     } = req.body;
 
     const adminId = await getAdminId(req.user);
@@ -671,6 +686,15 @@ router.put("/:id", async (req, res) => {
 
     if (brand !== undefined)
       tx.brand = brand;
+
+    if (supplier !== undefined)
+      tx.supplier = supplier;
+
+    if (gst !== undefined)
+      tx.gst = gst;
+
+    if (isWithGst !== undefined)
+      tx.isWithGst = isWithGst;
 
     if (subType !== undefined)
       tx.subType = subType;

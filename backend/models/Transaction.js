@@ -47,6 +47,21 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
     },
 
+    supplier: {
+      type: String,
+      trim: true,
+    },
+
+    gst: {
+      type: Number,
+      default: 0,
+    },
+
+    isWithGst: {
+      type: Boolean,
+      default: false,
+    },
+
     // ======================================================
     // MATERIAL SUB TYPES
     // ======================================================
