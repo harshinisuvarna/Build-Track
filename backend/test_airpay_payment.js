@@ -98,7 +98,12 @@ async function testPayment() {
 
     try {
       const response = await axios.post(postUrl, formBody, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://build-track.onrender.com',
+          'Referer': 'https://build-track.onrender.com/',
+          'x-api-key': process.env.AIRPAY_API_KEY || ''
+        },
         maxRedirects: 5,
         validateStatus: () => true,
       });

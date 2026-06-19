@@ -134,7 +134,7 @@ async function buildPaymentPayload({
   const accessToken     = await getAccessToken();
   const amountFormatted = Number(amount).toFixed(2);
 
-  const privatekey = generatePrivateKey(cfg.secret, cfg.username, cfg.password);
+  const privatekey = generatePrivateKey(process.env.AIRPAY_API_KEY || cfg.secret, cfg.username, cfg.password);
 
   // Exactly the fields from the Simple Transaction PHP sample, snake_case.
   const transactionData = {
@@ -151,6 +151,7 @@ async function buildPaymentPayload({
     buyer_state:     'NA',
     buyer_country:   'India',
     buyer_pincode:   '000000',
+    merchant_id:     cfg.merchantId,
   };
 
   const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
