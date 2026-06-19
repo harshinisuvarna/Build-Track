@@ -91,11 +91,14 @@ router.post('/callback', async (req, res) => {
       console.log('AirPay callback decrypted:', JSON.stringify(result));
     }
 
-    const orderid       = result.orderid || result.order_id;
-    const transactionId = result.ap_transactionid || result.transactionid || result.transaction_id;
+    const dataObj = result.data || result;
+
+    const orderid       = dataObj.orderid || dataObj.order_id || result.orderid;
+    const transactionId = dataObj.ap_transactionid || dataObj.transactionid || dataObj.transaction_id || result.transactionid;
     const paymentStatus = (
-      result.transaction_payment_status ||
-      result.payment_status ||
+      dataObj.transaction_status ||
+      dataObj.transaction_payment_status ||
+      dataObj.payment_status ||
       result.status ||
       ''
     ).toString().toUpperCase();
@@ -106,7 +109,7 @@ router.post('/callback', async (req, res) => {
       return res.redirect('buildtrack://payment/failure?reason=order_not_found');
     }
 
-    if (paymentStatus === 'SUCCESS') {
+    if (paymentStatus === 'SUCCESS' || paymentStatus === '200') {
       const now     = new Date();
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + (PLAN_DURATION_DAYS[sub.plan] || 30));
