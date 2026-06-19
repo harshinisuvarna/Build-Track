@@ -26,7 +26,7 @@ const fs    = require('fs');
 const path  = require('path');
 const axios = require('axios');
 const { exec } = require('child_process');
-const { buildPaymentPayload } = require('./utils/airpayService');
+const { buildPaymentPayload } = require('./utils/airpayservice');
 
 function openInBrowser(filePath) {
   const cmd = process.platform === 'win32'

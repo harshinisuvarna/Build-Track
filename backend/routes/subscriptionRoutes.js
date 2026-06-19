@@ -2,7 +2,7 @@ const express    = require('express');
 const router     = express.Router();
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/auth');
-const { buildPaymentPayload, decryptCallbackData } = require('../utils/airpayService');
+const { buildPaymentPayload, decryptCallbackData } = require('../utils/airpayservice');
 
 // Your Render deployment URL — AirPay posts the callback here
 const BACKEND_URL = process.env.BACKEND_URL
