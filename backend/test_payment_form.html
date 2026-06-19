@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>AirPay Payment Test</title></head>
+<body>
+  <p>Submitting to AirPay sandbox — do not close this tab...</p>
+  <form id="f" action="https://payments.airpay.co.in/pay/v4/?token=8e40ef7a96fdf457b1d2cb7d798e35e57d6a1bf5" method="POST">
+    <input type="hidden" name="privatekey"   value="bcb609df68a9b11b01535054c03000d727007034956929c228ce5df9d44fc30e" />
+    <input type="hidden" name="merchant_id"  value="335854" />
+    <input type="hidden" name="encdata"      value="5fb9a897f615ffb5BF4H/d7J4HzC2XBx0yXruHj135qTd/mOWkQBGtsULCyq0vJEIJfZnIn/hNYlGl8bbFWNYtqbn2AzxgTZj5bwKiKkp6ql+izsRL9UJrvxOxSwWCdDDJXLu+1lNPurx0udAGA/VxygOlwrKtbALDjKbtlhXLrat3EKhHrzcYyEYtKu/8nxVS/emtRQ9KUKpfoHWjdMlCuWBw4buxNMz7aEOig078MedEgow8CU++uj0lEtqZr1xNNtdFYwHX8t9quaf7ZjozYz5/BcQZzixXJyAfuOzcltqHAZXGqYQ0czR29FQ48oF1TMzO/NRWiTfEdIeK+ts5VpLOveJ2CcBCOzjrqPyTOIABoaNolXw5HT54nYjDB96l0NsvlTBp0ng8BiVwxTHR8BGjb5if03iGMIF0rVzJEaPiLz5SSRhMQxNHk=" />
+    <input type="hidden" name="checksum"     value="17ac61bc6a13aa0177b23d09e791494fbd3970e908a465cb62691d95e9c0c9e7" />
+  </form>
+  <script>document.getElementById('f').submit();</script>
+</body>
+</html>

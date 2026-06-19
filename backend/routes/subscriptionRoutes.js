@@ -1,32 +1,21 @@
-const express = require('express');
-const router = express.Router();
+const express    = require('express');
+const router     = express.Router();
 const Subscription = require('../models/Subscription');
-const { generateChecksum } = require('../utils/airpayChecksum');
 const { protect } = require('../middleware/auth');
+const { buildPaymentPayload, decryptCallbackData } = require('../utils/airpayService');
 
-// ── AirPay sandbox credentials ────────────────────────────────────
-// TODO: Replace with real values from your teammate
-const AIRPAY_MERCHANT_ID = process.env.AIRPAY_MERCHANT_ID;
-const AIRPAY_SECRET_KEY  = process.env.AIRPAY_SECRET_KEY;
-const AIRPAY_USERNAME    = process.env.AIRPAY_USERNAME;
-const AIRPAY_PASSWORD    = process.env.AIRPAY_PASSWORD;
-const AIRPAY_CLIENT_ID   = process.env.AIRPAY_CLIENT_ID;  // for future use
-const AIRPAY_API_KEY     = process.env.AIRPAY_API_KEY;    // for future use
-const BACKEND_URL        = process.env.BACKEND_URL;
+// Your Render deployment URL — AirPay posts the callback here
+const BACKEND_URL = process.env.BACKEND_URL
+  || 'https://build-track.onrender.com';
 
-// AirPay sandbox payment page URL
-const AIRPAY_SANDBOX_URL = 'https://payments.airpay.co.in/pay/index.php';
-
-// ── Plan prices in INR paise (amount × 100) ───────────────────────
 const PLAN_PRICES = {
-  starter:    49800,   // ₹498
-  growth:     99900,   // ₹999
-  pro:        149900,  // ₹1499
-  business:   249900,  // ₹2499
-  enterprise: 499900,  // ₹4999
+  starter:    498,
+  growth:     999,
+  pro:       1499,
+  business:  2499,
+  enterprise: 4999,
 };
 
-// ── Plan durations in days ────────────────────────────────────────
 const PLAN_DURATION_DAYS = {
   starter:    30,
   growth:     30,
@@ -37,142 +26,126 @@ const PLAN_DURATION_DAYS = {
 
 // =================================================================
 // POST /api/subscriptions/initiate
-// Flutter calls this to get all AirPay payment params
 // =================================================================
 router.post('/initiate', protect, async (req, res) => {
   try {
     const { plan } = req.body;
-    const userId = req.user._id;
+    const userId   = req.user._id;
 
-    // Validate plan
     if (!PLAN_PRICES[plan]) {
       return res.status(400).json({ message: 'Invalid plan' });
     }
 
-    // Generate a unique order ID
-    const orderId  = `BT_${userId}_${Date.now()}`;
-    const amount   = (PLAN_PRICES[plan] / 100).toFixed(2); // e.g. "498.00"
-    const currency = '356'; // INR ISO 4217 numeric code
+    const orderId = `BT${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const amount  = PLAN_PRICES[plan];
 
-    // Save pending subscription to DB first
-    const sub = await Subscription.create({
+    await Subscription.create({
       userId,
       plan,
-      status:        'pending',
-      amount:        PLAN_PRICES[plan] / 100,
+      status: 'pending',
+      amount,
       airpayOrderId: orderId,
     });
 
     const user = req.user;
+    const nameParts = (user.name || 'BuildTrack User').split(' ');
 
-    // Build checksum — field order matters, must match AirPay docs exactly
-    const checksumFields = [
-      AIRPAY_MERCHANT_ID,
+    const { postUrl, formFields } = await buildPaymentPayload({
       orderId,
       amount,
-      currency,
-      'DIRECT',                          // itemcode — always DIRECT
-      user.email || 'test@test.com',
-    ];
-    const checksum = generateChecksum(AIRPAY_SECRET_KEY, checksumFields);
+      buyerEmail:     user.email     || 'test@buildtrack.com',
+      buyerPhone:     user.phone     || '9999999999',
+      buyerFirstName: nameParts[0]   || 'BuildTrack',
+      buyerLastName:  nameParts.slice(1).join(' ') || 'User',
+      returnUrl:      `${BACKEND_URL}/api/subscriptions/callback`,
+    });
 
-    // Return all params Flutter needs to build the payment form
     res.json({
       success: true,
       paymentParams: {
-        merchantid:    AIRPAY_MERCHANT_ID,
-        username:      AIRPAY_USERNAME,
-        password:      AIRPAY_PASSWORD,
-        orderid:       orderId,
-        amount:        amount,
-        currency:      currency,
-        itemcode:      'DIRECT',
-        customeremail: user.email   || 'test@test.com',
-        customerphone: user.phone   || '9999999999',
-        customername:  user.name    || 'BuildTrack User',
-        checksum:      checksum,
-        returnurl:     `${BACKEND_URL}/api/subscriptions/callback`,
-        airpayUrl:     AIRPAY_SANDBOX_URL,
+        airpayUrl: postUrl,
+        ...formFields,
       },
-      subscriptionId: sub._id,
+      orderId,
     });
   } catch (err) {
-    console.error('Initiate error:', err);
-    res.status(500).json({ message: 'Failed to initiate payment' });
+    console.error('Initiate error:', err.message);
+    res.status(500).json({
+      message: 'Failed to initiate payment',
+      detail:  err.message,
+    });
   }
 });
 
 // =================================================================
 // POST /api/subscriptions/callback
-// AirPay posts here after payment — NO protect middleware here
+// AirPay posts here — no auth middleware
 // =================================================================
 router.post('/callback', async (req, res) => {
   try {
-    const {
-      orderid,
-      transactionid,
-      status,   // 'SUCCESS' or 'FAILURE'
-    } = req.body;
+    console.log('AirPay callback raw body:', JSON.stringify(req.body));
 
-    console.log('AirPay callback received:', req.body);
+    let result = req.body;
+    if (req.body.response) {
+      result = decryptCallbackData(req.body.response);
+      console.log('AirPay callback decrypted:', JSON.stringify(result));
+    }
+
+    const orderid       = result.orderid || result.order_id;
+    const transactionId = result.ap_transactionid || result.transactionid || result.transaction_id;
+    const paymentStatus = (
+      result.transaction_payment_status ||
+      result.payment_status ||
+      result.status ||
+      ''
+    ).toString().toUpperCase();
 
     const sub = await Subscription.findOne({ airpayOrderId: orderid });
     if (!sub) {
-      console.error('Callback: order not found:', orderid);
+      console.error('No matching subscription for orderid:', orderid);
       return res.redirect('buildtrack://payment/failure?reason=order_not_found');
     }
 
-    if (status === 'SUCCESS') {
+    if (paymentStatus === 'SUCCESS') {
       const now     = new Date();
-      const days    = PLAN_DURATION_DAYS[sub.plan] || 30;
       const endDate = new Date(now);
-      endDate.setDate(endDate.getDate() + days);
+      endDate.setDate(endDate.getDate() + (PLAN_DURATION_DAYS[sub.plan] || 30));
 
       await Subscription.findByIdAndUpdate(sub._id, {
-        status:        'active',
-        transactionId: transactionid,
-        startDate:     now,
-        endDate:       endDate,
+        status: 'active',
+        transactionId,
+        startDate: now,
+        endDate,
       });
 
-      console.log(`Subscription activated: ${sub.plan} for user ${sub.userId}`);
-
       return res.redirect(
-        `buildtrack://payment/success?plan=${sub.plan}&txn=${transactionid}`
+        `buildtrack://payment/success?plan=${sub.plan}&txn=${transactionId}`
       );
     } else {
       await Subscription.findByIdAndUpdate(sub._id, {
-        status:        'failed',
-        transactionId: transactionid,
+        status: 'failed',
+        transactionId,
       });
-
-      console.log(`Payment failed for order: ${orderid}`);
-
-      return res.redirect(
-        'buildtrack://payment/failure?reason=payment_failed'
-      );
+      return res.redirect('buildtrack://payment/failure?reason=payment_failed');
     }
   } catch (err) {
-    console.error('Callback error:', err);
+    console.error('Callback error:', err.message);
     res.redirect('buildtrack://payment/failure?reason=server_error');
   }
 });
 
 // =================================================================
 // GET /api/subscriptions/status
-// Flutter calls this to check current active subscription
 // =================================================================
 router.get('/status', protect, async (req, res) => {
   try {
     const sub = await Subscription.findOne({
-      userId: req.user._id,
-      status: 'active',
+      userId:  req.user._id,
+      status:  'active',
       endDate: { $gt: new Date() },
     }).sort({ createdAt: -1 });
 
-    if (!sub) {
-      return res.json({ hasSubscription: false, plan: null });
-    }
+    if (!sub) return res.json({ hasSubscription: false, plan: null });
 
     res.json({
       hasSubscription: true,
@@ -183,7 +156,6 @@ router.get('/status', protect, async (req, res) => {
       transactionId: sub.transactionId,
     });
   } catch (err) {
-    console.error('Status error:', err);
     res.status(500).json({ message: 'Failed to fetch status' });
   }
 });
