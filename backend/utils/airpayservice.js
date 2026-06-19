@@ -1,45 +1,31 @@
 // ============================================================================
-// AirPay v4 service layer
+// AirPay service layer — rebuilt to match AirPay's OFFICIAL Node SDK
+// (index.js + PDF integration guide, provided directly by AirPay).
 //
-// CONFIRMED via live OAuth2 test:
-//   - Encryption key for OAuth2 = md5(username + "~:~" + password)
+// This mirrors the actual route handler structure from their SDK:
+//   1. Build snake_case dataObject (buyer_email, buyer_firstname, ...,
+//      merchant_id) from your form input.
+//   2. privatekey = sha256(secret + '@' + username + ':|:' + password)
+//   3. checksum   = sha256(sorted-values-of-dataObject + today's date)
+//   4. encdata    = AES-256-CBC encrypt(JSON.stringify(dataObject), key)
+//      where key = md5(username + '~:~' + password)
+//   5. Separately: get an OAuth2 access_token (same encrypt/checksum
+//      primitives, different payload: client_id/client_secret/grant_type/
+//      merchant_id), append it to the payment URL as ?token=...
+//   6. The actual HTML form posted to AirPay sends: mid, data (the
+//      encrypted blob from step 4), privatekey, checksum — to:
+//      https://payments.airpay.co.in/pay/v4/index.php?token=<access_token>
 //
-// REWRITTEN (this version) to match the official "Simple Transaction" doc:
-//   https://docs.airpay.co.in/v4/payments/simple-transaction/
-//
-// KEY FINDING: the previous version was sending ALL buyer/order fields as
-// individual plaintext form fields (buyerEmail, amount, orderid, ...).
-// AirPay's Simple Transaction endpoint does NOT accept that. Per the docs'
-// own PHP sample, the POST body must contain ONLY 4 fields:
-//
-//     privatekey   = sha256(secret + "@" + username + ":|:" + password)
-//     merchant_id   = your merchant id
-//     encdata       = AES-256-CBC encrypted JSON of the transaction fields
-//     checksum      = sha256(sorted-values-concatenated + today's date)
-//
-// The transaction fields that go INSIDE encdata (and are used to compute
-// the checksum) use snake_case names, NOT camelCase:
-//     orderid, amount, currency_code, iso_currency,
-//     buyer_email, buyer_phone, buyer_firstname, buyer_lastname,
-//     buyer_address, buyer_city, buyer_state, buyer_country, buyer_pincode
-//
-// UNVERIFIED / NEXT THING TO CHECK IF THIS STILL FAILS:
-//   The Simple Transaction PHP sample encrypts with a variable called
-//   $secretKey, separate from $secret (used in privatekey) and the OAuth2
-//   creds. The docs don't define $secretKey anywhere else, so this code
-//   currently assumes it's the SAME md5(username~:~password) key that was
-//   empirically confirmed for OAuth2 — i.e. one encryption key used
-//   everywhere. If AirPay still rejects this, the most likely fix is that
-//   $secretKey is actually a distinct value from your AirPay dashboard
-//   (sometimes called "Encryption Key" or "AES Key", separate from
-//   Client Secret) — ask AirPay support to confirm if unsure.
+// Token URL (note the /token.php suffix, confirmed from SDK source):
+//   https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/token.php
 // ============================================================================
 const axios = require('axios');
 const {
+  generatePrivateKey,
+  generateChecksum,
+  checksumcal,
   encrypt,
   decrypt,
-  generateChecksum,
-  generatePrivateKey,
   generateEncryptionKeyFromCreds,
 } = require('./airpayCrypto');
 
@@ -62,8 +48,9 @@ function getConfig() {
   return cfg;
 }
 
-const AIRPAY_OAUTH_URL        = 'https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/';
-const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/';
+// Confirmed from SDK source — note the /token.php suffix.
+const AIRPAY_OAUTH_URL = 'https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/token.php';
+const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/index.php';
 
 let cachedToken    = null;
 let tokenExpiresAt = 0;
@@ -91,16 +78,52 @@ async function getAccessToken() {
   formBody.append('encdata',     encdata);
   formBody.append('checksum',    checksum);
 
+  console.log('\n── OAuth2 request ──');
+  console.log('URL:', AIRPAY_OAUTH_URL);
+  console.log('merchant_id:', cfg.merchantId);
+  console.log('checksum:', checksum);
+  console.log('────────────────────\n');
+
   const response = await axios.post(AIRPAY_OAUTH_URL, formBody, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
+  console.log('HTTP status:', response.status);
+  console.log('Raw response.data:', JSON.stringify(response.data));
+
   if (!response.data.response) {
-    throw new Error('AirPay OAuth2: no "response" field in reply');
+    throw new Error('AirPay OAuth2: no "response" field in reply. Raw: ' + JSON.stringify(response.data));
   }
 
-  const decrypted = decrypt(response.data.response, encryptionKey);
-  const result    = JSON.parse(decrypted);
+  const rawResponseStr = response.data.response;
+  console.log('\n── Decryption diagnostics ──');
+  console.log('encryptionKey used:', encryptionKey, '(length', encryptionKey.length, ')');
+  console.log('typeof rawResponseStr:', typeof rawResponseStr);
+  console.log('raw response string length:', rawResponseStr.length);
+  console.log('JSON-escaped raw value (to catch hidden whitespace/quotes):', JSON.stringify(rawResponseStr));
+  console.log('first 16 chars (NOT used as IV in this version):', rawResponseStr.substring(0, 16));
+  console.log('rest length (should be valid base64, i.e. divisible by 4):', rawResponseStr.length - 16, '-> divisible by 4?', (rawResponseStr.length - 16) % 4 === 0);
+
+  let decrypted;
+  try {
+    decrypted = decrypt(rawResponseStr, encryptionKey);
+    console.log('decrypted (raw):', decrypted);
+    console.log('decrypted length:', decrypted.length);
+  } catch (decryptErr) {
+    console.log('❌ decrypt() THREW an error:', decryptErr.message);
+    throw decryptErr;
+  }
+  console.log('────────────────────────────\n');
+
+  let result;
+  try {
+    result = JSON.parse(decrypted);
+  } catch (parseErr) {
+    throw new Error(
+      `Decryption produced non-JSON output (decryption likely used the wrong key/IV). ` +
+      `Raw decrypted text: ${JSON.stringify(decrypted)} — Parse error: ${parseErr.message}`
+    );
+  }
 
   if (result.status !== 'success' || !result.data?.access_token) {
     throw new Error(
@@ -114,7 +137,11 @@ async function getAccessToken() {
   return cachedToken;
 }
 
-// ── STEP 2: Build payment payload (Simple Transaction) ────────────
+// ── STEP 2: Build payment payload ────────────────────────────────
+// Mirrors the SDK route handler exactly: builds the snake_case
+// dataObject, computes privatekey/checksum from it, encrypts it into
+// `data`, and returns everything needed for the form (mid, data,
+// privatekey, checksum) plus the token-bearing post URL.
 async function buildPaymentPayload({
   orderId,
   amount,
@@ -122,65 +149,54 @@ async function buildPaymentPayload({
   buyerPhone,
   buyerFirstName,
   buyerLastName,
-  returnUrl, // NOTE: Simple Transaction's documented fields don't include
-             // a return-url param in the request body itself — the
-             // success/failure redirect URL is configured on AirPay's
-             // merchant dashboard, not passed per-request. Kept as a
-             // param here in case you're also using it for your own
-             // bookkeeping/logs, but it is NOT sent to AirPay below.
+  buyerAddress = 'NA',
+  buyerCity    = 'NA',
+  buyerState   = 'NA',
+  buyerCountry = 'India',
+  buyerPinCode = '000000',
 }) {
   const cfg             = getConfig();
   const encryptionKey   = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
   const accessToken     = await getAccessToken();
-  const amountFormatted = Number(amount).toFixed(2);
+  const amountFormatted = String(amount); // AirPay expects a string with 2 decimals, e.g. "1.00"
 
-  const privatekey = generatePrivateKey(cfg.secret, cfg.username, cfg.password);
-
-  // Exactly the fields from the Simple Transaction PHP sample, snake_case.
-  const transactionData = {
-    orderid:         orderId,
-    amount:           amountFormatted,
-    currency_code:   '356',
-    iso_currency:    'INR',
+  // Exactly the snake_case dataObject from the SDK's route handler.
+  const dataObject = {
     buyer_email:     buyerEmail,
-    buyer_phone:     buyerPhone,
     buyer_firstname: buyerFirstName,
     buyer_lastname:  buyerLastName,
-    buyer_address:   'NA',
-    buyer_city:      'NA',
-    buyer_state:     'NA',
-    buyer_country:   'India',
-    buyer_pincode:   '000000',
+    buyer_address:   buyerAddress,
+    buyer_city:      buyerCity,
+    buyer_state:     buyerState,
+    buyer_country:   buyerCountry,
+    amount:          amountFormatted,
+    orderid:         orderId,
+    buyer_phone:     buyerPhone,
+    buyer_pincode:   buyerPinCode,
+    iso_currency:    'INR',
+    currency_code:   '356',
+    merchant_id:     cfg.merchantId,
   };
 
-  const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
-  const checksum = generateChecksum(transactionData);
-
-  // Diagnostic only — the exact string that gets SHA-256 hashed into the
-  // checksum above. Useful to hand to AirPay support if they ask you to
-  // confirm what was hashed, since it's otherwise irreversible.
-  const sortedKeys = Object.keys(transactionData).sort();
-  const rawChecksumInput = sortedKeys.map(k => transactionData[k]).join('');
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const privatekey = generatePrivateKey(cfg.secret, cfg.username, cfg.password);
+  const { checksum, debugString } = checksumcal(dataObject);
+  const encryptedData = encrypt(JSON.stringify(dataObject), encryptionKey);
 
   console.log('\n── Payment fields (plain, pre-encryption) ──');
-  console.log(JSON.stringify(transactionData, null, 2));
+  console.log(JSON.stringify(dataObject, null, 2));
   console.log('privatekey:', privatekey);
-  console.log('encryptionKey used for encdata:', encryptionKey, '(md5 of username~:~password)');
-  console.log('raw checksum input (sorted values concatenated):', rawChecksumInput);
-  console.log('+ date appended:', rawChecksumInput + dateStr);
-  console.log('checksum:  ', checksum);
-  console.log('encdata (first 30 chars):', encdata.substring(0, 30) + '...');
-  console.log('────────────────────────────────────────────\n');
+  console.log('checksum input string (sorted values + date):', debugString);
+  console.log('checksum:', checksum);
+  console.log('encrypted data (first 30 chars):', encryptedData.substring(0, 30) + '...');
+  console.log('─────────────────────────────────────────────\n');
 
   return {
-    postUrl: `${AIRPAY_PAYMENT_BASE_URL}?token=${accessToken}`,
-    // Per the docs' PHP sample, these are the ONLY 4 fields to POST.
+    postUrl: `${AIRPAY_PAYMENT_BASE_URL}?token=${encodeURIComponent(accessToken)}`,
+    // Matches the SDK's rendered template fields exactly: mid, data, privatekey, checksum
     formFields: {
+      mid: cfg.merchantId,
+      data: encryptedData,
       privatekey,
-      merchant_id: cfg.merchantId,
-      encdata,
       checksum,
     },
   };

@@ -1,12 +1,24 @@
-const express    = require('express');
-const router     = express.Router();
+// ============================================================================
+// AirPay subscription routes — rebuilt to match the official SDK's actual
+// route structure (index.js), but organized to use airpayService.js /
+// airpayCrypto.js instead of inlining crypto logic directly in the route.
+//
+// Flow:
+//   POST /api/subscriptions/initiate  -> builds payment payload, returns
+//                                         { mid, data, privatekey, checksum,
+//                                           postUrl } for the frontend to
+//                                         auto-submit as a form (mirrors the
+//                                         SDK's sendtoairpay.pug behavior).
+//   POST /api/subscriptions/callback  -> AirPay posts the encrypted
+//                                         `response` field here after
+//                                         payment; decrypt and update DB.
+// ============================================================================
+const express = require('express');
+const router  = express.Router();
+const { check } = require('express-validator');
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/auth');
 const { buildPaymentPayload, decryptCallbackData } = require('../utils/airpayService');
-
-// Your Render deployment URL — AirPay posts the callback here
-const BACKEND_URL = process.env.BACKEND_URL
-  || 'https://build-track.onrender.com';
 
 const PLAN_PRICES = {
   starter:    498,
@@ -53,19 +65,19 @@ router.post('/initiate', protect, async (req, res) => {
     const { postUrl, formFields } = await buildPaymentPayload({
       orderId,
       amount,
-      buyerEmail:     user.email     || 'test@buildtrack.com',
-      buyerPhone:     user.phone     || '9999999999',
-      buyerFirstName: nameParts[0]   || 'BuildTrack',
+      buyerEmail:     user.email   || 'test@buildtrack.com',
+      buyerPhone:     user.phone   || '9999999999',
+      buyerFirstName: nameParts[0] || 'BuildTrack',
       buyerLastName:  nameParts.slice(1).join(' ') || 'User',
-      returnUrl:      `${BACKEND_URL}/api/subscriptions/callback`,
     });
 
+    // Mirrors the SDK's rendered template — frontend should auto-submit
+    // these exact fields (mid, data, privatekey, checksum) as a POST
+    // form to postUrl.
     res.json({
       success: true,
-      paymentParams: {
-        airpayUrl: postUrl,
-        ...formFields,
-      },
+      postUrl,
+      formFields,
       orderId,
     });
   } catch (err) {
@@ -91,12 +103,19 @@ router.post('/callback', async (req, res) => {
       console.log('AirPay callback decrypted:', JSON.stringify(result));
     }
 
-    const orderid       = result.orderid || result.order_id;
-    const transactionId = result.ap_transactionid || result.transactionid || result.transaction_id;
+    // Per the PDF's documented response fields (section C.2):
+    //   TRANSACTIONID, APTRANSACTIONID, AMOUNT, TRANSACTIONSTATUS,
+    //   MESSAGE, ap_SecureHash, CUSTOMVAR
+    // The decrypted JSON shape may nest these under `data` (matching the
+    // SDK's `token.data.*` access pattern) — handle both shapes.
+    const data = result.data || result;
+
+    const orderid       = data.orderid || data.TRANSACTIONID || data.order_id;
+    const transactionId = data.ap_transactionid || data.APTRANSACTIONID || data.transactionid;
     const paymentStatus = (
-      result.transaction_payment_status ||
-      result.payment_status ||
-      result.status ||
+      data.transaction_status ||
+      data.TRANSACTIONSTATUS ||
+      data.status ||
       ''
     ).toString().toUpperCase();
 
@@ -106,7 +125,11 @@ router.post('/callback', async (req, res) => {
       return res.redirect('buildtrack://payment/failure?reason=order_not_found');
     }
 
-    if (paymentStatus === 'SUCCESS') {
+    // Per the PDF: TRANSACTIONSTATUS successful = 200 (a numeric/string
+    // status code), not the word "SUCCESS" — adjust the check accordingly.
+    const isSuccess = paymentStatus === '200' || paymentStatus === 'SUCCESS';
+
+    if (isSuccess) {
       const now     = new Date();
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + (PLAN_DURATION_DAYS[sub.plan] || 30));
