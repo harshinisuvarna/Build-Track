@@ -15,7 +15,7 @@ const fs    = require('fs');
 const path  = require('path');
 const axios = require('axios');
 const { exec } = require('child_process');
-const { buildPaymentPayload } = require('./utils/airpayService');
+const { buildPaymentPayload } = require('./utils/airpayservice');
 
 function openInBrowser(filePath) {
   const cmd = process.platform === 'win32'
@@ -99,7 +99,12 @@ console.log("=======================\n");
 
     try {
       const response = await axios.post(postUrl, formBody, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://build-track.onrender.com',
+          'Referer': 'https://build-track.onrender.com/',
+          'x-api-key': process.env.AIRPAY_API_KEY || ''
+        },
         maxRedirects: 5,
         validateStatus: () => true,
       });
