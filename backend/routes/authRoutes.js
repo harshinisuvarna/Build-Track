@@ -596,4 +596,45 @@ router.get("/users", protect, authorize("Admin"), async (req, res) => {
   }
 });
 
+// PUT /api/auth/users/:id — Admin updates a provisioned user
+router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
+  try {
+    const { name, email, role, permissions, projectIds, overseesRoles, password } = req.body;
+
+    const user = await User.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,   // can only edit users you provisioned
+    });
+
+    if (!user) return res.status(404).json({ message: "User not found or access denied" });
+
+    if (name)  user.name  = String(name).trim();
+    if (email) user.email = String(email).toLowerCase().trim();
+    if (role && String(role).toLowerCase() !== 'admin') {
+      user.role = String(role).trim();
+    }
+    if (Array.isArray(permissions)) {
+      user.permissions = [...new Set(permissions.map(p => String(p).trim()).filter(Boolean))];
+    }
+    if (Array.isArray(projectIds)) {
+      user.projectIds = toObjectIdArray(projectIds);
+      user.projectId  = user.projectIds[0] || null;
+    }
+    if (Array.isArray(overseesRoles)) {
+      user.overseesRoles = overseesRoles;
+    }
+    if (password && String(password).length >= 6) {
+      user.password = password;
+    }
+
+    await user.save();
+    return res.status(200).json({ message: "User updated", user: safeUser(user) });
+  } catch (err) {
+    console.error("Update user error:", err);
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "Email already in use" });
+    }
+    return res.status(500).json({ message: "Server error" });
+  }
+});
 module.exports = router;
