@@ -9,9 +9,11 @@ const {
   requirePermission,
   canAccessProjectFilter,
   canManageProjectFilter,
+  getAdminId,
 } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
+const Subscription = require("../models/Subscription");
 
 router.use(protect);
 
@@ -289,6 +291,30 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
   }
 
   try {
+    const adminId = await getAdminId(req.user);
+    const activeSub = await Subscription.findOne({
+      userId: adminId,
+      status: 'active',
+      endDate: { $gt: new Date() }
+    }).sort({ createdAt: -1 });
+
+    let limit = 1; // free plan limit
+    if (activeSub) {
+      const plan = activeSub.plan || 'free';
+      if (plan === 'starter') limit = 2;
+      else if (plan === 'growth') limit = 4;
+      else if (plan === 'pro') limit = 6;
+      else if (plan === 'business') limit = 12;
+      else if (plan === 'enterprise') limit = -1;
+    }
+
+    if (limit !== -1) {
+      const count = await Project.countDocuments({ createdBy: adminId });
+      if (count >= limit) {
+        return res.status(403).json({ message: `Project limit reached for your current plan (${limit} projects). Please upgrade your subscription.` });
+      }
+    }
+
     const body = req.body;
 
     if (!body.projectName || !body.projectName.trim()) {
