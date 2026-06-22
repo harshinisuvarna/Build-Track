@@ -1,0 +1,114 @@
+const express = require("express");
+const router = express.Router();
+const Transaction = require("../models/Transaction");
+const ProjectUpdate = require("../models/ProjectUpdate");
+const User = require("../models/User");
+const mongoose = require("mongoose");
+const { protect } = require("../middleware/auth");
+
+// GET /api/approvals/pending
+router.get("/pending", protect, async (req, res) => {
+  try {
+    const user = req.user;
+
+    console.log(`[Approvals] Request from: ${user.name} | role: ${user.role} | id: ${user._id}`);
+    console.log(`[Approvals] overseesRoles: ${JSON.stringify(user.overseesRoles)}`);
+    console.log(`[Approvals] createdBy: ${user.createdBy}`);
+
+    let txQuery = { approvalStatus: "Pending" };
+    let puQuery = { approvalStatus: "Pending" };
+
+    if (user.role === "Admin") {
+      // Admin sees pending entries from ALL users they provisioned
+      const provisionedUsers = await User.find({
+        createdBy: user._id,
+      }).select("_id");
+
+      console.log(`[Approvals] Admin - provisioned users found: ${provisionedUsers.length}`);
+
+      if (provisionedUsers.length === 0) {
+        return res.json({ transactions: [], projectUpdates: [] });
+      }
+
+      const provisionedIds = provisionedUsers.map((u) => u._id);
+      txQuery.createdBy = { $in: provisionedIds };
+      puQuery.createdBy = { $in: provisionedIds };
+
+    } else {
+      // Supervisor (or any non-admin): 
+      // Find which admin created this supervisor
+      const supervisorDoc = await User.findById(user._id).select("createdBy overseesRoles");
+      const overseesRoles = supervisorDoc?.overseesRoles || [];
+
+      console.log(`[Approvals] Supervisor overseesRoles from DB: ${JSON.stringify(overseesRoles)}`);
+
+      if (overseesRoles.length === 0) {
+        console.log(`[Approvals] No overseesRoles set — returning empty`);
+        return res.json({ transactions: [], projectUpdates: [] });
+      }
+
+      // Find the admin who created this supervisor
+      const adminId = supervisorDoc?.createdBy;
+      console.log(`[Approvals] Supervisor's admin: ${adminId}`);
+
+      if (!adminId) {
+        console.log(`[Approvals] No createdBy on supervisor — returning empty`);
+        return res.json({ transactions: [], projectUpdates: [] });
+      }
+
+      // Find all users created by the same admin whose role is in overseesRoles
+      // Use case-insensitive comparison
+      const allOrgUsers = await User.find({
+        createdBy: adminId,
+      }).select("_id name role");
+
+      console.log(`[Approvals] All org users: ${JSON.stringify(allOrgUsers.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
+
+      // Case-insensitive role matching
+      const overseesRolesLower = overseesRoles.map((r) => r.toLowerCase().trim());
+      const usersToOversee = allOrgUsers.filter((u) =>
+        overseesRolesLower.includes((u.role || "").toLowerCase().trim())
+      );
+
+      console.log(`[Approvals] Users to oversee: ${JSON.stringify(usersToOversee.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
+
+      if (usersToOversee.length === 0) {
+        return res.json({ transactions: [], projectUpdates: [] });
+      }
+
+      const overseeIds = usersToOversee.map((u) => u._id);
+      txQuery.createdBy = { $in: overseeIds };
+      puQuery.createdBy = { $in: overseeIds };
+    }
+
+    console.log(`[Approvals] Final txQuery: ${JSON.stringify(txQuery)}`);
+
+    const pendingTransactions = await Transaction.find(txQuery)
+      .populate("worker", "name trade")
+      .populate("project", "projectName")
+      .populate("createdBy", "name role")
+      .sort({ createdAt: -1 });
+
+    console.log(`[Approvals] Found ${pendingTransactions.length} pending transactions`);
+
+    let pendingProjectUpdates = [];
+    try {
+      pendingProjectUpdates = await ProjectUpdate.find(puQuery)
+        .populate("project", "projectName")
+        .populate("createdBy", "name role")
+        .sort({ createdAt: -1 });
+    } catch (err) {
+      console.log("[Approvals] ProjectUpdate error:", err.message);
+    }
+
+    res.json({
+      transactions: pendingTransactions,
+      projectUpdates: pendingProjectUpdates,
+    });
+  } catch (err) {
+    console.error("[Approvals] Error:", err);
+    res.status(500).json({ message: "Server error fetching approvals" });
+  }
+});
+
+module.exports = router;

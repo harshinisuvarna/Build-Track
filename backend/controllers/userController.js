@@ -39,13 +39,15 @@ const updateProfilePhoto = async (req, res) => {
   console.log('profilePhoto length:', req.body.profilePhoto?.length);
   try {
     const { profilePhoto } = req.body;
-    if (!profilePhoto) {
+    if (profilePhoto === undefined) {
       return res.status(400).json({ message: "No photo provided" });
     }
 
+    const updatePhoto = (profilePhoto === null || profilePhoto === "") ? null : profilePhoto;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { profilePhoto },
+      { profilePhoto: updatePhoto },
       { new: true, runValidators: false }
     ).select("-password");
 
@@ -100,5 +102,29 @@ const getSubscription = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+// PUT /api/users/:id/oversight
+const assignOversightRoles = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { overseesRoles } = req.body; // array of roles e.g. ["Mason", "Plumber"]
 
-module.exports = { updateProfile, updateSubscription, getSubscription, getProfile ,updateProfilePhoto};
+    if (!Array.isArray(overseesRoles)) {
+      return res.status(400).json({ message: "overseesRoles must be an array" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.overseesRoles = overseesRoles;
+    await user.save();
+
+    return res.status(200).json({ user });
+  } catch (err) {
+    console.error("Assign oversight error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles };
