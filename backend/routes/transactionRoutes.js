@@ -42,11 +42,13 @@ const parseAmount = (value) => {
   return isNaN(num) ? 0 : num;
 };
 
-const calculateAmount = ({ type, quantity, rate, rawAmount }) => {
+const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   const qty = Number(quantity) || 0;
   const rt = Number(rate) || 0;
+  const ot = Number(overtime) || 0;
   const directAmount = Number(rawAmount) || 0;
   if (type === "Materials") return qty * rt;
+  if (type === "Wages") return (qty * rt) + ot;
   if (directAmount > 0) return directAmount;
   return qty * rt;
 };
@@ -361,6 +363,7 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
       supplier,
       gst,
       isWithGst,
+      overtime,
     } = req.body;
 
     const txApprovalStatus = req.user.role === "Admin" ? "Approved" : "Pending";
@@ -375,8 +378,7 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
       return res.status(400).json({ message: "Transaction type is required" });
     }
 
-    const resolvedCategory =
-      category || (type === "Materials" ? title.trim() : undefined);
+    const resolvedCategory = category !== undefined ? category : "";
 
     const normalizedMaterialType =
       type === "Materials" ? normalizeMaterialType(materialType, subType) : "";
@@ -410,13 +412,14 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
 
     const qty = Number(quantity) || 0;
     const rt = Number(rate) || 0;
+    const ot = Number(overtime) || 0;
     const paidAmt = parseAmount(_paidAmount);
 
     if (qty < 0 || rt < 0) {
       return res.status(400).json({ message: "Quantity and rate must be positive" });
     }
 
-    const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, rawAmount });
+    const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, overtime: ot, rawAmount });
 
       const transaction =
         new Transaction({
@@ -458,6 +461,8 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
           quantity: qty,
 
           rate: rt,
+
+          overtime: ot,
 
           amount: finalAmount,
 
@@ -609,6 +614,7 @@ router.put("/:id", async (req, res) => {
       supplier,
       gst,
       isWithGst,
+      overtime,
     } = req.body;
 
     const adminId = await getAdminId(req.user);
@@ -627,10 +633,12 @@ router.put("/:id", async (req, res) => {
 
     const newQty = quantity !== undefined ? Number(quantity) : tx.quantity;
     const newRt = rate !== undefined ? Number(rate) : tx.rate;
+    const newOt = overtime !== undefined ? Number(overtime) : tx.overtime;
     const finalAmount = calculateAmount({
       type: type || tx.type,
       quantity: newQty,
       rate: newRt,
+      overtime: newOt,
       rawAmount: rawAmount ?? tx.amount,
     });
 
@@ -716,6 +724,9 @@ router.put("/:id", async (req, res) => {
 
     if (rate !== undefined)
       tx.rate = newRt;
+
+    if (overtime !== undefined)
+      tx.overtime = newOt;
 
     if (
       materialType !==
