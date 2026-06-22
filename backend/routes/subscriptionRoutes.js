@@ -139,11 +139,19 @@ router.post('/callback', async (req, res) => {
 
 // =================================================================
 // GET /api/subscriptions/status
+// Admins check their own subscription. Provisioned users (Supervisor,
+// Mason, custom roles, etc.) have no Subscription of their own — they
+// inherit whatever plan the Admin who created them is on.
 // =================================================================
 router.get('/status', protect, async (req, res) => {
   try {
+    const isAdmin = (req.user.role || '').toLowerCase() === 'admin';
+    const billingUserId = isAdmin
+      ? req.user._id
+      : (req.user.createdBy || req.user._id);
+
     const sub = await Subscription.findOne({
-      userId:  req.user._id,
+      userId:  billingUserId,
       status:  'active',
       endDate: { $gt: new Date() },
     }).sort({ createdAt: -1 });
