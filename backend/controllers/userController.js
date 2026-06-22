@@ -100,5 +100,29 @@ const getSubscription = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+// PUT /api/users/:id/oversight
+const assignOversightRoles = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { overseesRoles } = req.body; // array of roles e.g. ["Mason", "Plumber"]
 
-module.exports = { updateProfile, updateSubscription, getSubscription, getProfile ,updateProfilePhoto};
+    if (!Array.isArray(overseesRoles)) {
+      return res.status(400).json({ message: "overseesRoles must be an array" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.overseesRoles = overseesRoles;
+    await user.save();
+
+    return res.status(200).json({ user });
+  } catch (err) {
+    console.error("Assign oversight error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles };

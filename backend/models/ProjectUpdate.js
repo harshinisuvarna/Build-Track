@@ -30,6 +30,24 @@ const projectUpdateSchema = new mongoose.Schema(
     endDate: Date,
     media: [String], // URLs/filenames for photos/videos
     remarks: String,
+    approvalStatus: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

@@ -186,6 +186,24 @@ resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
       } else {
         console.log("[Cleanup] Database is clean. No duplicate projects found.");
       }
+      // One-off: Set overseesRoles for supervisors who have none
+try {
+  const supervisorUpdateRes = await require('./models/User').updateMany(
+    { 
+      role: 'Supervisor', 
+      $or: [
+        { overseesRoles: { $exists: false } },
+        { overseesRoles: { $size: 0 } }
+      ]
+    },
+    { $set: { overseesRoles: ['Mason', 'Contractor', 'Labourer'] } }
+  );
+  if (supervisorUpdateRes.modifiedCount > 0) {
+    console.log(`[Cleanup] Set default overseesRoles for ${supervisorUpdateRes.modifiedCount} supervisors`);
+  }
+} catch (cleanupErr) {
+  console.error('[Cleanup] overseesRoles patch error:', cleanupErr);
+}
 
       // One-off backend DB cleanup for incorrect Labour/Equipment units
       const invalidUnits = [
@@ -253,6 +271,7 @@ app.use("/api/reports", require("./routes/aiReportRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
 app.use("/api/tasks", require("./routes/taskRoutes"));
+app.use("/api/approvals", require("./routes/approvalsRoutes"));
 app.use('/api/subscriptions', subscriptionRoutes);
 
 app.use((_req, res) => res.status(404).json({ success: false, message: "Route not found" }));

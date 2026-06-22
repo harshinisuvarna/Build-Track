@@ -2,10 +2,12 @@ const express = require("express");
 const router = express.Router();
 const ProjectUpdate = require("../models/ProjectUpdate");
 const Project = require("../models/Project");
-const { protect, canAccessProjectFilter } = require("../middleware/auth");
+const { protect, canAccessProjectFilter, requirePermission } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
+
 router.use(protect);
+
 router.get("/:projectId", async (req, res) => {
   try {
     const pDoc = await Project.findOne(canAccessProjectFilter(req, req.params.projectId));
@@ -15,12 +17,13 @@ router.get("/:projectId", async (req, res) => {
 
     const updates = await ProjectUpdate.find({
       project: req.params.projectId,
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).populate("createdBy", "name role profilePhoto").populate("approvedBy", "name");
     res.json({ updates });
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch project updates" });
   }
 });
+
 function calculateProgress(stage) {
   const stageMap = {
     "Foundation": 10,
@@ -33,6 +36,7 @@ function calculateProgress(stage) {
   };
   return stageMap[stage] || 0;
 }
+
 router.post("/", upload.array("media"), async (req, res) => {
   try {
     const { project, stage, workDone, startDate, endDate, remarks } = req.body;
@@ -55,21 +59,69 @@ router.post("/", upload.array("media"), async (req, res) => {
       endDate,
       remarks,
       media,
+      approvalStatus: "Pending",
     });
-    const progressVal = calculateProgress(stage);
-    if (progressVal > 0) {
-      if (progressVal > (existing.progress || 0)) {
-        existing.progress = progressVal;
-        await existing.save();
-      }
-    }
-    res.status(201).json({ message: "Project update saved", update });
+
+    res.status(201).json({ message: "Project update saved as Pending", update });
   } catch (err) {
     console.error("Create project update error:", err);
     res.status(500).json({ message: "Failed to save project update" });
   }
 });
 
+router.put("/:id/approve", requirePermission(["approve_updates"]), async (req, res) => {
+  try {
+    const update = await ProjectUpdate.findById(req.params.id);
+    if (!update) return res.status(404).json({ message: "Project update not found" });
+
+    if (update.createdBy.toString() === req.user._id.toString() && req.user.role !== "Admin") {
+      return res.status(403).json({ message: "You cannot approve your own update" });
+    }
+
+    const existing = await Project.findOne(canAccessProjectFilter(req, update.project));
+    if (!existing) return res.status(403).json({ message: "Access denied to this project" });
+
+    update.approvalStatus = "Approved";
+    update.approvedBy = req.user._id;
+    update.approvedAt = new Date();
+    await update.save();
+
+    const progressVal = calculateProgress(update.stage);
+    if (progressVal > 0) {
+      if (progressVal > (existing.progress || 0)) {
+        existing.progress = progressVal;
+        await existing.save();
+      }
+    }
+
+    res.json({ message: "Project update approved", update });
+  } catch (err) {
+    console.error("Approve project update error:", err);
+    res.status(500).json({ message: "Failed to approve project update" });
+  }
+});
+
+router.put("/:id/reject", requirePermission(["approve_updates", "reject_updates"]), async (req, res) => {
+  try {
+    const { rejectionReason } = req.body;
+    const update = await ProjectUpdate.findById(req.params.id);
+    if (!update) return res.status(404).json({ message: "Project update not found" });
+
+    const existing = await Project.findOne(canAccessProjectFilter(req, update.project));
+    if (!existing) return res.status(403).json({ message: "Access denied to this project" });
+
+    update.approvalStatus = "Rejected";
+    update.approvedBy = req.user._id;
+    update.approvedAt = new Date();
+    update.rejectionReason = rejectionReason || "";
+    await update.save();
+
+    res.json({ message: "Project update rejected", update });
+  } catch (err) {
+    console.error("Reject project update error:", err);
+    res.status(500).json({ message: "Failed to reject project update" });
+  }
+});
 
 module.exports = router;
 

@@ -363,6 +363,11 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
       isWithGst,
     } = req.body;
 
+    const txApprovalStatus = req.user.role === "Admin" ? "Approved" : "Pending";
+console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, approvalStatus: ${txApprovalStatus}, createdBy: ${req.user._id}`);
+    const approvedBy = req.user.role === "Admin" ? req.user._id : null;
+    const approvedAt = req.user.role === "Admin" ? new Date() : null;
+
     if (!title || !title.trim()) {
       return res.status(400).json({ message: "Title is required" });
     }
@@ -480,13 +485,17 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
             attachmentFiles,
 
           screenshotUrl,
+          
+          approvalStatus: txApprovalStatus,
+          approvedBy: approvedBy,
+          approvedAt: approvedAt,
         });
 
     await transaction.save({ session });
 
     // FIX: pass adminId (org admin) AND projectId to applyInventoryDelta
     // so inventory is scoped to { adminId, projectId, materialName }
-    if (type === "Materials" && qty > 0 && projectId) {
+    if (type === "Materials" && qty > 0 && projectId && txApprovalStatus === "Approved") {
       const inventoryDelta =
         normalizedMaterialType === "usage" ? -qty : qty;
 
@@ -626,7 +635,7 @@ router.put("/:id", async (req, res) => {
     });
 
     // Reverse old inventory (using old project scope)
-    if (tx.type === "Materials" && tx.quantity > 0) {
+    if (tx.type === "Materials" && tx.quantity > 0 && tx.approvalStatus === "Approved") {
       const oldType = normalizeMaterialType(tx.materialType, tx.subType);
       const reverseDelta = oldType === "usage" ? tx.quantity : -tx.quantity;
       await applyInventoryDelta(
@@ -645,7 +654,7 @@ router.put("/:id", async (req, res) => {
       ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
       : "";
 
-    if (newType === "Materials" && newQty > 0 && projectId) {
+    if (newType === "Materials" && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
       const newDelta = newMaterialType === "usage" ? -newQty : newQty;
       await applyInventoryDelta(
         adminId,
@@ -817,7 +826,7 @@ router.delete("/:id", async (req, res) => {
     await Transaction.deleteOne({ _id: tx._id }).session(session);
 
     // Reverse inventory on delete
-    if (tx.type === "Materials" && tx.quantity > 0) {
+    if (tx.type === "Materials" && tx.quantity > 0 && tx.approvalStatus === "Approved") {
       const adminId = await getAdminId(req.user);
       const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
       const reverseDelta = txMaterialType === "usage" ? tx.quantity : -tx.quantity;
@@ -847,6 +856,81 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to delete transaction" });
   } finally {
     session.endSession();
+  }
+});
+
+/// =======================================================
+/// APPROVE TRANSACTION
+/// =======================================================
+router.put("/:id/approve", requirePermission(["approve_payments", "add_entries"]), async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const tx = await Transaction.findById(req.params.id).session(session);
+    if (!tx) return res.status(404).json({ message: "Transaction not found" });
+
+    if (tx.approvalStatus === "Approved") {
+      return res.status(400).json({ message: "Transaction is already approved" });
+    }
+
+    tx.approvalStatus = "Approved";
+    tx.approvedBy = req.user._id;
+    tx.approvedAt = new Date();
+
+    const adminId = await getAdminId(req.user);
+
+    // Apply inventory since it's now approved
+    if (tx.type === "Materials" && tx.quantity > 0 && tx.project) {
+      const materialType = normalizeMaterialType(tx.materialType, tx.subType);
+      const inventoryDelta = materialType === "usage" ? -tx.quantity : tx.quantity;
+
+      await applyInventoryDelta(
+        adminId,
+        tx.project,
+        tx.category,
+        tx.unit,
+        inventoryDelta,
+        session
+      );
+    }
+
+    await tx.save({ session });
+    await session.commitTransaction();
+
+    res.json({ message: "Transaction approved successfully", transaction: tx });
+  } catch (err) {
+    await session.abortTransaction();
+    console.error("Approve transaction error:", err);
+    res.status(500).json({ message: "Failed to approve transaction" });
+  } finally {
+    session.endSession();
+  }
+});
+
+/// =======================================================
+/// REJECT TRANSACTION
+/// =======================================================
+router.put("/:id/reject", requirePermission(["approve_payments", "add_entries"]), async (req, res) => {
+  try {
+    const { rejectionReason } = req.body;
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: "Transaction not found" });
+
+    if (tx.approvalStatus === "Approved") {
+      return res.status(400).json({ message: "Cannot reject an already approved transaction" });
+    }
+
+    tx.approvalStatus = "Rejected";
+    tx.approvedBy = req.user._id;
+    tx.approvedAt = new Date();
+    tx.rejectionReason = rejectionReason || "";
+    await tx.save();
+
+    res.json({ message: "Transaction rejected", transaction: tx });
+  } catch (err) {
+    console.error("Reject transaction error:", err);
+    res.status(500).json({ message: "Failed to reject transaction" });
   }
 });
 

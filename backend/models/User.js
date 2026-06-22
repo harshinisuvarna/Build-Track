@@ -30,6 +30,13 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
+    // ── NEW: Dynamic Supervisor permissions ──────────────
+    // Roles that this user (if Supervisor) is allowed to oversee/approve
+    overseesRoles: {
+      type: [String],
+      default: [],
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

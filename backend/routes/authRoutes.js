@@ -11,6 +11,7 @@ const User = require("../models/User");
 const { protect, authorize } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
+const Subscription = require("../models/Subscription");
 
 const SECRET = process.env.JWT_SECRET;
 const FRONTEND =
@@ -214,6 +215,29 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
     } = req.body;
 
     const finalPassword = temporaryPassword || password;
+
+    const activeSub = await Subscription.findOne({
+      userId: req.user._id,
+      status: 'active',
+      endDate: { $gt: new Date() }
+    }).sort({ createdAt: -1 });
+
+    let limit = 2; // free plan limit
+    if (activeSub) {
+      const plan = activeSub.plan || 'free';
+      if (plan === 'starter') limit = 5;
+      else if (plan === 'growth') limit = 8;
+      else if (plan === 'pro') limit = 15;
+      else if (plan === 'business') limit = 25;
+      else if (plan === 'enterprise') limit = -1;
+    }
+
+    if (limit !== -1) {
+      const count = await User.countDocuments({ $or: [{ _id: req.user._id }, { createdBy: req.user._id }] });
+      if (count >= limit) {
+        return res.status(403).json({ message: `User limit reached for your current plan (${limit} users). Please upgrade your subscription.` });
+      }
+    }
 
     if (!name || !email || !finalPassword || !role) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -553,6 +577,22 @@ router.delete("/account", protect, async (req, res) => {
     return res.json({ message: "Account has been deactivated permanently." });
   } catch (err) {
     return res.status(500).json({ message: "Failed to delete account" });
+  }
+});
+
+// GET /api/auth/users — Admin-only: list all provisioned users in this org
+router.get("/users", protect, authorize("Admin"), async (req, res) => {
+  try {
+    const users = await User.find({
+      $or: [
+        { _id: req.user._id },           // include self
+        { createdBy: req.user._id },      // include provisioned users
+      ],
+    }).select("-password -resetPasswordToken -resetPasswordExpires");
+    return res.json({ users });
+  } catch (err) {
+    console.error("GET /auth/users error:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
