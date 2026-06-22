@@ -39,13 +39,15 @@ const updateProfilePhoto = async (req, res) => {
   console.log('profilePhoto length:', req.body.profilePhoto?.length);
   try {
     const { profilePhoto } = req.body;
-    if (!profilePhoto) {
+    if (profilePhoto === undefined) {
       return res.status(400).json({ message: "No photo provided" });
     }
 
+    const updatePhoto = (profilePhoto === null || profilePhoto === "") ? null : profilePhoto;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { profilePhoto },
+      { profilePhoto: updatePhoto },
       { new: true, runValidators: false }
     ).select("-password");
 
