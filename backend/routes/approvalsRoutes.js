@@ -111,9 +111,10 @@ router.get("/pending", protect, async (req, res) => {
   }
 });
 
-// GET /api/approvals/history — recently approved/rejected transactions
+// GET /api/approvals/history
 router.get("/history", protect, async (req, res) => {
   try {
+    const Transaction = require("../models/Transaction");
     const user = req.user;
     let userIds = [];
 
@@ -122,12 +123,18 @@ router.get("/history", protect, async (req, res) => {
         createdBy: user._id,
       }).select("_id");
       userIds = provisionedUsers.map((u) => u._id);
+
+      if (userIds.length === 0) {
+        return res.json({ transactions: [] });
+      }
     } else {
-      // Supervisor — same logic as /pending
+      // Supervisor
       const supervisorDoc = await User.findById(user._id)
         .select("createdBy overseesRoles");
       const overseesRoles = supervisorDoc?.overseesRoles || [];
       const adminId = supervisorDoc?.createdBy;
+
+      console.log(`[History] Supervisor: ${user._id}, overseesRoles: ${JSON.stringify(overseesRoles)}, adminId: ${adminId}`);
 
       if (!adminId || overseesRoles.length === 0) {
         return res.json({ transactions: [] });
@@ -144,24 +151,25 @@ router.get("/history", protect, async (req, res) => {
         overseesRolesLower.includes((u.role || "").toLowerCase().trim())
       );
 
+      console.log(`[History] Users to oversee: ${usersToOversee.length}`);
       userIds = usersToOversee.map((u) => u._id);
+
+      if (userIds.length === 0) {
+        return res.json({ transactions: [] });
+      }
     }
 
-    if (userIds.length === 0) {
-      return res.json({ transactions: [] });
-    }
-
-    // Last 20 approved or rejected, sorted by approvedAt desc
-    const history = await require("../models/Transaction")
-      .find({
-        createdBy: { $in: userIds },
-        approvalStatus: { $in: ["Approved", "Rejected"] },
-      })
+    const history = await Transaction.find({
+      createdBy: { $in: userIds },
+      approvalStatus: { $in: ["Approved", "Rejected"] },
+    })
       .populate("createdBy", "name role")
       .populate("project", "projectName")
       .populate("approvedBy", "name")
-      .sort({ approvedAt: -1 })
+      .sort({ approvedAt: -1, updatedAt: -1 })
       .limit(20);
+
+    console.log(`[History] Found ${history.length} historical transactions`);
 
     res.json({ transactions: history });
   } catch (err) {
