@@ -39,7 +39,7 @@ const transactionSchema = new mongoose.Schema(
     category: {
       type: String,
       trim: true,
-      default: "General",
+      default: "",
     },
 
     brand: {
@@ -137,6 +137,12 @@ const transactionSchema = new mongoose.Schema(
     },
 
     rate: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    overtime: {
       type: Number,
       min: 0,
       default: 0,
