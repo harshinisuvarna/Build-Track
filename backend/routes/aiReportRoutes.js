@@ -93,6 +93,83 @@ function detectIntent(q) {
   };
 }
 
+// ─── Merge current intent with prior turns (conversational memory) ──────────
+//
+// Since there's no LLM in this route, "memory" means: if the current
+// question doesn't specify something (a date range, a type), but a recent
+// user turn did, carry that forward — UNLESS the current question clearly
+// specifies its own value for that slot, in which case it wins.
+
+const FOLLOWUP_HINTS = /\b(instead|what about|and|also|same|now|this time)\b/i;
+
+function mergeWithHistory(intent, question, history) {
+  if (!Array.isArray(history) || history.length === 0) return intent;
+
+  // Only look at prior USER turns, most recent first.
+  const priorUserQuestions = history
+    .filter((h) => h.role === "user" && h.text && h.text.trim())
+    .map((h) => h.text)
+    .reverse();
+
+  if (priorUserQuestions.length === 0) return intent;
+
+  const looksLikeFollowUp =
+    FOLLOWUP_HINTS.test(question) || question.trim().split(/\s+/).length <= 4;
+
+  // Walk backwards through prior questions, re-detecting their intent,
+  // and fill in any slot the CURRENT question left empty.
+  for (const prevQ of priorUserQuestions) {
+    const prevIntent = detectIntent(prevQ);
+
+    // Date window: only inherit if current question has no date signal
+    // AND (this is a short follow-up OR current question matched nothing date-wise)
+    const currentHasDateSignal =
+      intent.dateRangeMatch || intent.monthMatch || intent.isToday ||
+      intent.isYesterday || intent.isThisWeek || intent.isThisMonth || intent.isLastMonth;
+    const prevHasDateSignal =
+      prevIntent.dateRangeMatch || prevIntent.monthMatch || prevIntent.isToday ||
+      prevIntent.isYesterday || prevIntent.isThisWeek || prevIntent.isThisMonth || prevIntent.isLastMonth;
+
+    if (!currentHasDateSignal && prevHasDateSignal && looksLikeFollowUp) {
+      intent.dateRangeMatch = prevIntent.dateRangeMatch;
+      intent.monthMatch     = prevIntent.monthMatch;
+      intent.isToday        = prevIntent.isToday;
+      intent.isYesterday    = prevIntent.isYesterday;
+      intent.isThisWeek     = prevIntent.isThisWeek;
+      intent.isThisMonth    = prevIntent.isThisMonth;
+      intent.isLastMonth    = prevIntent.isLastMonth;
+    }
+
+    // Type filter: only inherit if current question names NO type at all
+    // (so "labour instead" still correctly switches type, since isLabour
+    // would already be true on intent and this branch is skipped for type).
+    const currentHasTypeSignal =
+      intent.isMaterial || intent.isLabour || intent.isEquipment || intent.isExpense;
+    const prevHasTypeSignal =
+      prevIntent.isMaterial || prevIntent.isLabour || prevIntent.isEquipment || prevIntent.isExpense;
+
+    if (!currentHasTypeSignal && prevHasTypeSignal && looksLikeFollowUp) {
+      intent.isMaterial  = prevIntent.isMaterial;
+      intent.isLabour    = prevIntent.isLabour;
+      intent.isEquipment = prevIntent.isEquipment;
+      intent.isExpense   = prevIntent.isExpense;
+    }
+
+    // Specific material: only inherit if current question names none
+    if (!intent.specificMaterial && prevIntent.specificMaterial && looksLikeFollowUp) {
+      intent.specificMaterial = prevIntent.specificMaterial;
+    }
+
+    // Stop once we've found one prior turn with usable signal — don't keep
+    // walking further back and overwriting with even older context.
+    if (prevHasDateSignal || prevHasTypeSignal || prevIntent.specificMaterial) {
+      break;
+    }
+  }
+
+  return intent;
+}
+
 // ─── Resolve date window from intent ─────────────────────────────────────────
 
 function resolveDateWindow(intent) {
@@ -170,12 +247,14 @@ function parseShortDate(str, referenceYear) {
 
 router.post("/ai-chat", async (req, res) => {
   try {
-    const { question, projectId } = req.body;
+    const { question, projectId, history = [] } = req.body;
     if (!question || !question.trim()) {
       return res.status(400).json({ error: "question is required" });
     }
 
-    const intent  = detectIntent(question);
+    let intent  = detectIntent(question);
+    intent = mergeWithHistory(intent, question, history);
+
     const scope   = await baseTxQuery(req);
     const adminId = await getAdminId(req.user);
 

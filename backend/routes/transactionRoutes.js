@@ -873,7 +873,7 @@ router.delete("/:id", async (req, res) => {
 /// =======================================================
 /// APPROVE TRANSACTION
 /// =======================================================
-router.put("/:id/approve", requirePermission(["approve_payments", "add_entries"]), async (req, res) => {
+router.put("/:id/approve", requirePermission(["approve_payments", "add_entries", "approve_updates"]), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -922,7 +922,7 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries"]
 /// =======================================================
 /// REJECT TRANSACTION
 /// =======================================================
-router.put("/:id/reject", requirePermission(["approve_payments", "add_entries"]), async (req, res) => {
+router.put("/:id/reject", requirePermission(["approve_payments", "add_entries", "approve_updates"]), async (req, res) => {
   try {
     const { rejectionReason } = req.body;
     const tx = await Transaction.findById(req.params.id);
