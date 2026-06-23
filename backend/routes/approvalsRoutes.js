@@ -111,4 +111,63 @@ router.get("/pending", protect, async (req, res) => {
   }
 });
 
+// GET /api/approvals/history — recently approved/rejected transactions
+router.get("/history", protect, async (req, res) => {
+  try {
+    const user = req.user;
+    let userIds = [];
+
+    if (user.role === "Admin") {
+      const provisionedUsers = await User.find({
+        createdBy: user._id,
+      }).select("_id");
+      userIds = provisionedUsers.map((u) => u._id);
+    } else {
+      // Supervisor — same logic as /pending
+      const supervisorDoc = await User.findById(user._id)
+        .select("createdBy overseesRoles");
+      const overseesRoles = supervisorDoc?.overseesRoles || [];
+      const adminId = supervisorDoc?.createdBy;
+
+      if (!adminId || overseesRoles.length === 0) {
+        return res.json({ transactions: [] });
+      }
+
+      const allOrgUsers = await User.find({
+        createdBy: adminId,
+      }).select("_id role");
+
+      const overseesRolesLower = overseesRoles.map(r =>
+        r.toLowerCase().trim()
+      );
+      const usersToOversee = allOrgUsers.filter(u =>
+        overseesRolesLower.includes((u.role || "").toLowerCase().trim())
+      );
+
+      userIds = usersToOversee.map((u) => u._id);
+    }
+
+    if (userIds.length === 0) {
+      return res.json({ transactions: [] });
+    }
+
+    // Last 20 approved or rejected, sorted by approvedAt desc
+    const history = await require("../models/Transaction")
+      .find({
+        createdBy: { $in: userIds },
+        approvalStatus: { $in: ["Approved", "Rejected"] },
+      })
+      .populate("createdBy", "name role")
+      .populate("project", "projectName")
+      .populate("approvedBy", "name")
+      .sort({ approvedAt: -1 })
+      .limit(20);
+
+    res.json({ transactions: history });
+  } catch (err) {
+    console.error("[Approvals History] Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
