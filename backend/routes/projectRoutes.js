@@ -438,6 +438,7 @@ router.put("/:id", requirePermission(["edit_project", "manage_team"]), async (re
 
   try {
     const body = req.body;
+    console.log("PUT /projects/:id body.selectedPhases:", JSON.stringify(body.selectedPhases));
     const existing = await Project.findOne(canManageProjectFilter(req, req.params.id));
     if (!existing) return res.status(404).json({ message: "Project not found" });
 
