@@ -210,14 +210,16 @@ router.get("/", async (req, res) => {
     const query = {};
 
     if (req.user.role !== "Admin") {
-      // Non-admin: scope to assigned projects
+      // Non-admin: scope to assigned projects only
       const projectFilter = canAccessProjectFilter(req);
       const projects = await Project.find(projectFilter).select("_id");
       const projectIds = projects.map((p) => p._id);
       query.project = { $in: projectIds };
     } else {
-      // Admin: scope to their own transactions
-      query.createdBy = req.user._id;
+      // Admin: scope to ALL projects they own (not just their own entries)
+      const adminProjects = await Project.find({ createdBy: req.user._id }).select("_id");
+      const adminProjectIds = adminProjects.map((p) => p._id);
+      query.project = { $in: adminProjectIds };
     }
 
     // ── FIX: if caller passes ?createdBy=<userId>, further filter by that
@@ -272,6 +274,25 @@ router.get("/", async (req, res) => {
     res.json({ transactions });
   } catch (err) {
     console.error("Get transactions error:", err);
+    res.status(500).json({ message: "Failed to fetch transactions" });
+  }
+});
+
+/// =======================================================
+/// GET MY TRANSACTIONS (current user only, used by Mason dashboard)
+/// =======================================================
+router.get("/my", async (req, res) => {
+  try {
+    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 10;
+
+    const transactions = await Transaction.find({ createdBy: req.user._id })
+      .populate("project", "projectName")
+      .sort({ date: -1, createdAt: -1 })
+      .limit(limitParam);
+
+    res.json({ transactions });
+  } catch (err) {
+    console.error("Get my transactions error:", err);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
