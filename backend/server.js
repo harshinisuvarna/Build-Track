@@ -120,8 +120,8 @@ const limiter = rateLimit({
   message: { message: "Too many requests — please try again later." },
 });
 app.use("/api/", limiter);
-app.use(express.json({ limit: "5mb" }));
-app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
   console.warn("⚠️  CLOUDINARY env vars not fully set — image uploads will fail!");
@@ -278,8 +278,8 @@ app.use((_req, res) => res.status(404).json({ success: false, message: "Route no
 app.use((err, _req, res, _next) => {
   if (!isProd) console.error(err.stack);
   else console.error(`[ERROR] ${err.message}`);
-  if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ success: false, message: "File too large. Maximum size is 5 MB." });
+  if (err.type === "entity.too.large" || err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ success: false, message: "File too large. Maximum size is 50 MB." });
   }
   res.status(err.status || 500).json({ success: false, message: err.message || "Internal server error" });
 });
