@@ -316,7 +316,7 @@ const transactionSchema = new mongoose.Schema(
     },
 
     // ======================================================
-    // RECEIPTS
+    // RECEIPTS & ATTACHMENTS
     // ======================================================
 
     receipts: [
@@ -337,6 +337,16 @@ const transactionSchema = new mongoose.Schema(
         },
       },
     ],
+
+    attachments: {
+      type: [String],
+      default: [],
+    },
+
+    screenshotUrl: {
+      type: String,
+      default: null,
+    },
 
     // ======================================================
     // NOTES
