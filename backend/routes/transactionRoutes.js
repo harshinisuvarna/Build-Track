@@ -50,7 +50,7 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   const directAmount = Number(rawAmount) || 0;
   if (type === "Materials") return qty * rt;
   if (type === "Wages") return (qty * rt) + ot;
-  if (directAmount > 0) return directAmount;
+  if (directAmount !== 0) return directAmount;
   return qty * rt;
 };
 
