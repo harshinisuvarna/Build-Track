@@ -268,6 +268,7 @@ app.use("/api/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/reports", require("./routes/aiReportRoutes"));
+app.use("/api/reports/dashboard", require("./routes/aiDashboardRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
 app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
 app.use("/api/tasks", require("./routes/taskRoutes"));
