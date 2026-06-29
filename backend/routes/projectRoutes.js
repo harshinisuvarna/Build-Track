@@ -70,6 +70,24 @@ const getProjectSpentAmount = async (projectId) => {
   }
 };
 
+const getProjectIncomeAmount = async (projectId) => {
+  try {
+    const result = await Transaction.aggregate([
+      { $match: { project: new mongoose.Types.ObjectId(projectId), type: "Income" } },
+      {
+        $group: {
+          _id: null,
+          totalIncome: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    return result[0]?.totalIncome || 0;
+  } catch (e) {
+    return 0;
+  }
+};
+
 const runUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.any()(req, res, (err) => {
@@ -124,6 +142,7 @@ router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
       projects.map(async (p) => {
         const normalized = normalizeProjectBudget(p);
         normalized.spentAmount = await getProjectSpentAmount(p._id);
+        normalized.totalIncome = await getProjectIncomeAmount(p._id);
         return normalized;
       })
     );
@@ -164,6 +183,7 @@ router.get("/", requirePermission(VIEW_PROJECTS), async (req, res) => {
       projects.map(async (p) => {
         const normalized = normalizeProjectBudget(p);
         normalized.spentAmount = await getProjectSpentAmount(p._id);
+        normalized.totalIncome = await getProjectIncomeAmount(p._id);
         return normalized;
       })
     );
@@ -183,6 +203,7 @@ router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
 
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
+    normalized.totalIncome = await getProjectIncomeAmount(project._id);
 
     res.json({ project: normalized });
   } catch (err) {
@@ -438,6 +459,7 @@ router.put("/:id", requirePermission(["edit_project", "manage_team"]), async (re
 
   try {
     const body = req.body;
+    console.log("PUT /projects/:id body.selectedPhases:", JSON.stringify(body.selectedPhases));
     const existing = await Project.findOne(canManageProjectFilter(req, req.params.id));
     if (!existing) return res.status(404).json({ message: "Project not found" });
 

@@ -194,7 +194,6 @@ const transactionSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      min: 0,
     },
 
     // ======================================================
@@ -279,13 +278,11 @@ const transactionSchema = new mongoose.Schema(
     paidAmount: {
       type: Number,
       default: 0,
-      min: 0,
     },
 
     remainingAmount: {
       type: Number,
       default: 0,
-      min: 0,
     },
 
     // ======================================================
@@ -316,7 +313,7 @@ const transactionSchema = new mongoose.Schema(
     },
 
     // ======================================================
-    // RECEIPTS
+    // RECEIPTS & ATTACHMENTS
     // ======================================================
 
     receipts: [
@@ -337,6 +334,16 @@ const transactionSchema = new mongoose.Schema(
         },
       },
     ],
+
+    attachments: {
+      type: [String],
+      default: [],
+    },
+
+    screenshotUrl: {
+      type: String,
+      default: null,
+    },
 
     // ======================================================
     // NOTES
@@ -386,7 +393,7 @@ transactionSchema.pre("save", function () {
 
   // Validation: Prevent overpayment — runs BEFORE status overwrites
   // so it catches ALL statuses, not just "Partial"
-  if (this.paidAmount > this.amount) {
+  if (Math.abs(this.paidAmount || 0) > Math.abs(this.amount || 0)) {
     throw Object.assign(
       new Error("Paid amount cannot exceed total amount"),
       { status: 400 }
@@ -405,7 +412,7 @@ transactionSchema.pre("save", function () {
   }
 
   // Populate initial payment event to history if needed (from main)
-  if (this.paidAmount > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
+  if (Math.abs(this.paidAmount || 0) > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
     this.paymentHistory = [{
       date: this.date || new Date(),
       method: this.paymentMode || "Cash",

@@ -17,6 +17,7 @@ const {
   getFileUrl,
   deleteFile,
 } = require("../config/fileHelpers");
+const cloudinary = require("../config/cloudinary");
 
 router.use(protect);
 
@@ -49,7 +50,7 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   const directAmount = Number(rawAmount) || 0;
   if (type === "Materials") return qty * rt;
   if (type === "Wages") return (qty * rt) + ot;
-  if (directAmount > 0) return directAmount;
+  if (directAmount !== 0) return directAmount;
   return qty * rt;
 };
 
@@ -428,6 +429,16 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
     }
 
     const attachmentFiles = (req.files?.attachments || []).map(getFileUrl);
+    if (req.body.receiptImage) {
+      try {
+        const uploadResult = await cloudinary.uploader.upload(req.body.receiptImage, {
+          folder: "buildtrack",
+        });
+        attachmentFiles.push(uploadResult.secure_url);
+      } catch (uploadErr) {
+        console.error("Cloudinary receiptImage upload error:", uploadErr);
+      }
+    }
     const screenshotFile = req.files?.paymentScreenshot?.[0];
     const screenshotUrl = screenshotFile ? getFileUrl(screenshotFile) : null;
 
@@ -695,10 +706,20 @@ router.put("/:id", async (req, res) => {
       );
     }
 
-    let updatedAttachments = tx.attachments || [];
+    let updatedAttachments = req.body.attachments !== undefined ? req.body.attachments : (tx.attachments || []);
     if (req.files && req.files.length > 0) {
       const newFiles = req.files.map((f) => getFileUrl(f));
       updatedAttachments = [...updatedAttachments, ...newFiles];
+    }
+    if (req.body.receiptImage) {
+      try {
+        const uploadResult = await cloudinary.uploader.upload(req.body.receiptImage, {
+          folder: "buildtrack",
+        });
+        updatedAttachments = [uploadResult.secure_url];
+      } catch (uploadErr) {
+        console.error("Cloudinary receiptImage update error:", uploadErr);
+      }
     }
 
     if (title !== undefined)
