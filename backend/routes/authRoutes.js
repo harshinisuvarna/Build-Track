@@ -446,7 +446,10 @@ router.post("/forgot-password", async (req, res) => {
 
     const user = await User.findOne({ email: String(email).toLowerCase().trim() });
     if (!user) {
-      return res.json({ message: "If that email is registered, a reset link has been sent." });
+      return res.json({ 
+  message: "If that email is registered, a reset link has been sent.",
+  ...(process.env.NODE_ENV !== 'production' && { resetToken: token })
+});
     }
     if (!user.password) {
       return res.json({ message: "This account uses Google or GitHub login." });
