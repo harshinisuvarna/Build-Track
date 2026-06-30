@@ -463,9 +463,15 @@ router.post("/forgot-password", async (req, res) => {
       try {
         const transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT) || 587,
+          port: Number(process.env.SMTP_PORT) || 465,
           secure: process.env.SMTP_SECURE === "true",
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 10000,
           auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+          tls: {
+            rejectUnauthorized: false,
+          },
         });
         await transporter.sendMail({
           from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
