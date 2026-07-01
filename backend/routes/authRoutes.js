@@ -454,55 +454,59 @@ router.post("/forgot-password", async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
-    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
+    user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
     await user.save();
 
     const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
 
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT) || 465,
-          secure: process.env.SMTP_SECURE === "true",
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-          socketTimeout: 10000,
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-          tls: {
-            rejectUnauthorized: false,
-          },
-        });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
-          to: user.email,
-          subject: "BuildTrack — Password Reset",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #333;">Password Reset Request</h2>
-              <p style="color: #555; line-height: 1.5;">
-                We received a request to reset your BuildTrack password. 
-                Use the token below in the app to set a new password. 
-                This token expires in <strong>1 hour</strong>.
-              </p>
-              <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-                <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
-                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
-                  ${token}
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  try {
+    const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+    const ses = new SESClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+    await ses.send(new SendEmailCommand({
+      Source: process.env.SES_FROM_EMAIL,
+      Destination: { ToAddresses: [user.email] },
+      Message: {
+        Subject: { Data: 'BuildTrack — Password Reset' },
+        Body: {
+          Html: {
+            Data: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color: #333;">Password Reset Request</h2>
+                <p style="color: #555; line-height: 1.5;">
+                  We received a request to reset your BuildTrack password.
+                  Use the token below in the app to set a new password.
+                  This token expires in <strong>30 minutes</strong>.
+                </p>
+                <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+                  <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
+                  <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 1px;">
+                    ${token}
+                  </p>
+                </div>
+                <p style="color: #888; font-size: 13px;">
+                  If you didn't request this, you can safely ignore this email.
+                  This token expires in 30 minutes and can only be used once.
                 </p>
               </div>
-              <p style="color: #888; font-size: 13px;">
-                If you didn't request this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
-        });
-      } catch (mailErr) {
-        console.error("Failed to send reset email:", mailErr.message);
+            `
+          }
+        }
       }
-    } else if (process.env.NODE_ENV !== "production") {
-      console.log(`PASSWORD RESET LINK: ${resetUrl}`);
-    }
+    }));
+    console.log('Reset email sent via SES to:', user.email);
+  } catch (mailErr) {
+    console.error("SES error:", mailErr.message);
+  }
+} else {
+  console.log(`[DEV] PASSWORD RESET TOKEN: ${token}`);
+}
 
     return res.json({ message: "If that email is registered, a reset link has been sent." });
   } catch (err) {
