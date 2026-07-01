@@ -460,39 +460,91 @@ router.post("/forgot-password", async (req, res) => {
     const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
 
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: process.env.SMTP_SECURE === "true",
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
-          to: user.email,
-          subject: "BuildTrack — Password Reset",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #333;">Password Reset Request</h2>
-              <p style="color: #555; line-height: 1.5;">
-                We received a request to reset your BuildTrack password. 
-                Use the token below in the app to set a new password. 
-                This token expires in <strong>1 hour</strong>.
-              </p>
-              <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-                <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
-                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
-                  ${token}
+      let emailSent = false;
+      const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
+
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const { Resend } = require('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'BuildTrack <onboarding@resend.dev>',
+            to: user.email,
+            subject: 'BuildTrack — Password Reset',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color: #333;">Password Reset Request</h2>
+                <p style="color: #555; line-height: 1.5;">
+                  We received a request to reset your BuildTrack password. 
+                  Click the link below or use the token in the app to set a new password. 
+                  This token expires in <strong>1 hour</strong>.
+                </p>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+                </div>
+                <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+                  <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
+                  <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
+                    ${token}
+                  </p>
+                </div>
+                <p style="color: #888; font-size: 13px;">
+                  If you didn't request this, you can safely ignore this email.
                 </p>
               </div>
-              <p style="color: #888; font-size: 13px;">
-                If you didn't request this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
-        });
-      } catch (mailErr) {
-        console.error("Failed to send reset email:", mailErr.message);
+            `,
+          });
+          emailSent = true;
+          console.log("[Auth] Password reset email sent via Resend.");
+        } catch (resendErr) {
+          console.error("[Auth] Resend failed, falling back to Nodemailer SMTP:", resendErr.message);
+        }
+      }
+
+      if (!emailSent && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT) || 587,
+            secure: process.env.SMTP_SECURE === "true",
+            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+          });
+          await transporter.sendMail({
+            from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
+            to: user.email,
+            subject: "BuildTrack — Password Reset",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color: #333;">Password Reset Request</h2>
+                <p style="color: #555; line-height: 1.5;">
+                  We received a request to reset your BuildTrack password. 
+                  Click the link below or use the token in the app to set a new password. 
+                  This token expires in <strong>1 hour</strong>.
+                </p>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+                </div>
+                <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+                  <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
+                  <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
+                    ${token}
+                  </p>
+                </div>
+                <p style="color: #888; font-size: 13px;">
+                  If you didn't request this, you can safely ignore this email.
+                </p>
+              </div>
+            `,
+          });
+          emailSent = true;
+          console.log("[Auth] Password reset email sent via Nodemailer SMTP.");
+        } catch (smtpErr) {
+          console.error("[Auth] Nodemailer SMTP failed:", smtpErr.message);
+        }
+      }
+
+      if (!emailSent && process.env.NODE_ENV !== "production") {
+        console.log(`PASSWORD RESET LINK: ${resetUrl}`);
       }
     } else if (process.env.NODE_ENV !== "production") {
       console.log(`PASSWORD RESET LINK: ${resetUrl}`);
