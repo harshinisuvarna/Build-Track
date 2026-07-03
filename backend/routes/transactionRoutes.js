@@ -8,6 +8,7 @@ const Transaction = require("../models/Transaction");
 const Worker = require("../models/Worker");
 const Project = require("../models/Project");
 const Inventory = require("../models/Inventory");
+const User = require("../models/User");
 
 const { protect, requirePermission, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
 
@@ -223,11 +224,26 @@ router.get("/", async (req, res) => {
       query.project = { $in: adminProjectIds };
     }
 
-    // ── FIX: if caller passes ?createdBy=<userId>, further filter by that
-    // user's entries within the already-scoped result set.
-    // This is safe — non-admins are already scoped to assigned projects above,
-    // so passing createdBy only narrows the result, never broadens it.
-    if (queryCreatedBy && mongoose.Types.ObjectId.isValid(queryCreatedBy)) {
+    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 0;
+    const filterByViewAccess = req.query.filterByViewAccess;
+
+    if (filterByViewAccess === 'true') {
+      if (req.user.role !== "Admin") {
+        const supervisorDoc = await User.findById(req.user._id).select("createdBy overseesRoles");
+        const overseesRoles = supervisorDoc?.overseesRoles || [];
+        
+        let viewableUserIds = [req.user._id];
+
+        if (overseesRoles.length > 0 && supervisorDoc?.createdBy) {
+          const allOrgUsers = await User.find({ createdBy: supervisorDoc.createdBy }).select("_id role");
+          const overseesRolesLower = overseesRoles.map(r => r.toLowerCase().trim());
+          const usersToOversee = allOrgUsers.filter(u => overseesRolesLower.includes((u.role || "").toLowerCase().trim()));
+          viewableUserIds.push(...usersToOversee.map(u => u._id));
+        }
+
+        query.createdBy = { $in: viewableUserIds };
+      }
+    } else if (queryCreatedBy && mongoose.Types.ObjectId.isValid(queryCreatedBy)) {
       query.createdBy = new mongoose.Types.ObjectId(queryCreatedBy);
     }
 
@@ -261,7 +277,7 @@ router.get("/", async (req, res) => {
     }
 
     // ── Optional limit param (used by mobile "recent entries" fetch) ─────────
-    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 0;
+    // limitParam was moved up to before the query builder is defined
 
     let txQuery = Transaction.find(query)
       .populate("worker", "name trade")
