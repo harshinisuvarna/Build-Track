@@ -37,7 +37,7 @@ export default function OAuthCallback() {
         setStatus("Success! Taking you to your dashboard…");
 
         setTimeout(() => {
-          window.location.href = "/";
+          navigate("/", { replace: true });
         }, 800);
 
       } catch (err) {
