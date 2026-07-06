@@ -96,7 +96,7 @@ export default function SignUpPage() {
       });
       localStorage.setItem("bt_token", data.token);
       localStorage.setItem("bt_user",  JSON.stringify(data.user));
-      window.location.assign("/");
+      navigate("/", { replace: true });
     } catch (err) {
       const msg =
         err.friendlyMessage ||

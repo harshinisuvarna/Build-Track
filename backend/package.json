@@ -17,6 +17,7 @@
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@aws-sdk/client-ses": "^3.1077.0",
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
@@ -36,7 +37,8 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
-    "pdfkit": "^0.18.0"
+    "pdfkit": "^0.18.0",
+    "resend": "^6.16.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
