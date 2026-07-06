@@ -3,6 +3,17 @@ const AIProvider = require("./aiProvider");
 const aiDebugLogger = require("../../utils/aiDebugLogger");
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GroqAuthError — Thrown on 401/403 so callers can distinguish auth failures
+// ─────────────────────────────────────────────────────────────────────────────
+class GroqAuthError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.name = "GroqAuthError";
+    this.statusCode = statusCode;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GroqProvider — Drop-in replacement for GeminiProvider
 // Model: llama-3.3-70b-versatile (free tier: 14,400 req/day, 6000 req/min)
 // Switch: set GROQ_API_KEY in your .env file
@@ -65,6 +76,17 @@ class GroqProvider extends AIProvider {
           const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
           console.warn(`[GroqProvider] 429 rate limit hit. Retrying in ${waitTime}ms (attempt ${attempt}/${maxAttempts})...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else if (error.response?.status === 401 || error.response?.status === 403) {
+          // ── Auth failure — throw a typed error the route can catch ──
+          const code = error.response.status;
+          console.error(`[GroqProvider] ${code} Auth Error — API key invalid or revoked`);
+          if (error.response?.data) {
+            console.error("[GroqProvider] Error body:", JSON.stringify(error.response.data));
+          }
+          throw new GroqAuthError(
+            "The Groq API key is invalid or expired. Please update the API key in the Render environment variables.",
+            code
+          );
         } else {
           // Log the actual error body for easier debugging
           if (error.response?.data) {
@@ -215,4 +237,6 @@ ${JSON.stringify(currentContext, null, 2)}
   }
 }
 
-module.exports = new GroqProvider();
+const groqProviderInstance = new GroqProvider();
+module.exports = groqProviderInstance;
+module.exports.GroqAuthError = GroqAuthError;
