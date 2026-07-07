@@ -134,6 +134,27 @@ When user says "compare X vs Y" or "X versus Y":
 
 {{PROJECTS_PLACEHOLDER}}
 
+════════════ COLUMN SELECTION RULES ════════════
+
+Master list of display columns you can choose from:
+  "Purchased Date", "Project", "Type", "Description", "Brand",
+  "Floor", "Phase", "Activity", "Unit", "Qty", "Status",
+  "Amount (INR)", "Worker", "Supplier", "Rate", "Payment Date"
+
+Pick columns based on what is relevant to the user's query:
+
+  Labour queries → ["Purchased Date", "Project", "Description", "Worker", "Qty", "Amount (INR)"]
+  Material queries → ["Purchased Date", "Project", "Description", "Brand", "Qty", "Amount (INR)"]
+  Equipment queries → ["Purchased Date", "Project", "Description", "Brand", "Amount (INR)"]
+  Payment/status queries → ["Purchased Date", "Project", "Description", "Status", "Amount (INR)"]
+  Comparison queries → ["Purchased Date", "Description", "Brand", "Qty", "Rate", "Amount (INR)"]
+  Default (general) → ["Purchased Date", "Project", "Type", "Description", "Amount (INR)"]
+
+If the user explicitly asks for specific columns (e.g. "show brand and activity"),
+include those columns plus sensible context columns (Date, Description, Amount).
+
+Always include "Purchased Date" and "Amount (INR)" unless the user explicitly excludes them.
+
 ════════════ OUTPUT FORMAT ════════════
 
 Return ONLY this JSON. No markdown. No explanation outside the JSON.
@@ -144,6 +165,7 @@ Return ONLY this JSON. No markdown. No explanation outside the JSON.
   "sort": { "date": -1 } | null,
   "limit": 200 | null,
   "aggregateBy": "brand" | "project" | null,
+  "requested_columns": ["Purchased Date", "Project", "Description", "Amount (INR)"],
   "explanation": "<one sentence what this query fetches>"
 }
 `;
@@ -169,13 +191,25 @@ async function generateMongoQuery(userQuery, projectScopeIds, adminId, projectsL
     .replace(/```\s*$/i, "")
     .trim();
 
-  const plan = JSON.parse(cleaned);
+  let plan;
+  try {
+    plan = JSON.parse(cleaned);
+  } catch (parseErr) {
+    console.error("[AI QUERY] Failed to parse AI response:", cleaned);
+    throw new Error("AI returned invalid JSON. Please retry your query.");
+  }
+
+  // Ensure requested_columns always has a sensible default
+  if (!plan.requested_columns || !Array.isArray(plan.requested_columns) || plan.requested_columns.length === 0) {
+    plan.requested_columns = ["Purchased Date", "Project", "Type", "Description", "Amount (INR)"];
+  }
   
   console.log(`\n[AI QUERY PLAN]`);
   console.log(`  Explanation : ${plan.explanation}`);
   console.log(`  Collection  : ${plan.collection}`);
   console.log(`  Filter      : ${JSON.stringify(plan.filter)}`);
   console.log(`  AggregateBy : ${plan.aggregateBy || "none"}`);
+  console.log(`  Columns     : ${plan.requested_columns.join(", ")}`);
   
   return plan;
 }
