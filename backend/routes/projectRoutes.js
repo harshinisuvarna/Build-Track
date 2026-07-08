@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
+const csv = require("csv-parser");
+const { Readable } = require("stream");
 const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const Transaction = require("../models/Transaction");
@@ -625,6 +627,66 @@ router.delete("/:id", requirePermission(["delete_project", "manage_team"]), asyn
   } catch (err) {
     res.status(500).json({ message: "Failed to delete project" });
   }
+});
+
+// IMPORT CSV ROUTE
+const memoryUpload = multer({ storage: multer.memoryStorage() });
+
+router.post("/import-phases", memoryUpload.single("csvFile"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  const results = [];
+  const phasesMap = new Map();
+
+  const stream = Readable.from(req.file.buffer);
+
+  stream
+    .pipe(csv())
+    .on("data", (row) => {
+      const phaseName = row["Phase"];
+      const activityName = row["Particular"];
+      if (!phaseName || !activityName) return;
+
+      if (!phasesMap.has(phaseName)) {
+        phasesMap.set(phaseName, {
+          id: new mongoose.Types.ObjectId().toString(),
+          phaseName: phaseName,
+          isCustom: true,
+          activities: [],
+        });
+      }
+
+      const phase = phasesMap.get(phaseName);
+
+      phase.activities.push({
+        id: new mongoose.Types.ObjectId().toString(),
+        name: activityName,
+        isCustom: true,
+        completed: false,
+        qty: parseFloat(row["Qty"]) || 0,
+        unit: row["Unit"] || "",
+        materialRate: parseFloat(row["Material_Rate"]) || 0,
+        materialAmount: parseFloat(row["Material_Amount"]) || 0,
+        labourRate: parseFloat(row["Labour_Rate"]) || 0,
+        labourAmount: parseFloat(row["Labour_Amount"]) || 0,
+        equipmentRate: parseFloat(row["Equipment_Rate"]) || 0,
+        equipmentAmount: parseFloat(row["Equipment_Amount"]) || 0,
+        totalAmount: parseFloat(row["Total_Amount"]) || 0,
+      });
+    })
+    .on("end", () => {
+      const phasesArray = Array.from(phasesMap.values());
+      res.status(200).json({
+        message: "CSV parsed successfully",
+        phases: phasesArray,
+      });
+    })
+    .on("error", (error) => {
+      console.error("Error parsing CSV:", error);
+      res.status(500).json({ message: "Failed to parse CSV file" });
+    });
 });
 
 module.exports = router;
