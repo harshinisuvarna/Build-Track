@@ -428,5 +428,6 @@ transactionSchema.pre("save", function () {
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });
+transactionSchema.index({ project: 1, activityId: 1, approvalStatus: 1, type: 1 });
 
 module.exports = mongoose.model("Transaction", transactionSchema);

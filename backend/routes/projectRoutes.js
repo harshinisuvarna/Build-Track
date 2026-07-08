@@ -88,6 +88,130 @@ const getProjectIncomeAmount = async (projectId) => {
   }
 };
 
+const computeActivityBudgetSummaries = async (projectId, activities) => {
+  if (!activities || activities.length === 0) return new Map();
+
+  const TYPES = {
+    MATERIALS: "Materials",
+    WAGES: "Wages",
+    EQUIPMENT: "Equipment",
+    EXPENSE: "Expense"
+  };
+
+  const summaries = new Map();
+  const nowStr = new Date().toISOString();
+
+  // Helper to initialize default/zero budget structure
+  const makeDefaultBudget = (act) => {
+    const matAlloc = Number(act.budgetMaterial || 0);
+    const labAlloc = Number(act.budgetLabour || 0);
+    const equAlloc = Number(act.budgetEquipment || 0);
+    const totAlloc = matAlloc + labAlloc + equAlloc;
+
+    return {
+      material: { allocated: matAlloc, spent: 0, remaining: matAlloc, utilization: 0, progress: 0 },
+      labour: { allocated: labAlloc, spent: 0, remaining: labAlloc, utilization: 0, progress: 0 },
+      equipment: { allocated: equAlloc, spent: 0, remaining: equAlloc, utilization: 0, progress: 0 },
+      total: { allocated: totAlloc, spent: 0, remaining: totAlloc, utilization: 0, progress: 0 },
+      budgetLastCalculatedAt: nowStr
+    };
+  };
+
+  // Pre-populate with default zeros to handle "no entries" case cleanly
+  for (const act of activities) {
+    const aid = act.id || act._id?.toString();
+    summaries.set(aid, makeDefaultBudget(act));
+  }
+
+  try {
+    const activityIds = activities.map(a => a.id).filter(Boolean);
+    if (activityIds.length === 0) return summaries;
+
+    const rows = await Transaction.aggregate([
+      {
+        $match: {
+          project: new mongoose.Types.ObjectId(projectId),
+          approvalStatus: "Approved",
+          activityId: { $in: activityIds },
+        },
+      },
+      {
+        $group: {
+          _id: { activityId: "$activityId", type: "$type" },
+          spent: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    // Build a nested map: activityId → type → spent
+    const spendMap = new Map();
+    for (const row of rows) {
+      const aid = row._id.activityId;
+      const type = row._id.type;
+      if (!spendMap.has(aid)) spendMap.set(aid, {});
+      spendMap.get(aid)[type] = row.spent;
+    }
+
+    for (const act of activities) {
+      const aid = act.id || act._id?.toString();
+      const typeSpend = spendMap.get(aid) || {};
+
+      const matSpent = typeSpend[TYPES.MATERIALS] || 0;
+      const labSpent = typeSpend[TYPES.WAGES] || 0;
+      const equSpent = (typeSpend[TYPES.EQUIPMENT] || 0) + (typeSpend[TYPES.EXPENSE] || 0);
+      const totSpent = matSpent + labSpent + equSpent;
+
+      const matAlloc = Number(act.budgetMaterial || 0);
+      const labAlloc = Number(act.budgetLabour || 0);
+      const equAlloc = Number(act.budgetEquipment || 0);
+      const totAlloc = matAlloc + labAlloc + equAlloc;
+
+      const pct = (alloc, spent) =>
+        alloc > 0 ? parseFloat(((spent / alloc) * 100).toFixed(2)) : 0;
+
+      const prog = (alloc, spent) =>
+        alloc > 0 ? parseFloat(Math.min(spent / alloc, 1.0).toFixed(4)) : 0.0;
+
+      summaries.set(aid, {
+        material: {
+          allocated: matAlloc,
+          spent: matSpent,
+          remaining: matAlloc - matSpent,
+          utilization: pct(matAlloc, matSpent),
+          progress: prog(matAlloc, matSpent)
+        },
+        labour: {
+          allocated: labAlloc,
+          spent: labSpent,
+          remaining: labAlloc - labSpent,
+          utilization: pct(labAlloc, labSpent),
+          progress: prog(labAlloc, labSpent)
+        },
+        equipment: {
+          allocated: equAlloc,
+          spent: equSpent,
+          remaining: equAlloc - equSpent,
+          utilization: pct(equAlloc, equSpent),
+          progress: prog(equAlloc, equSpent)
+        },
+        total: {
+          allocated: totAlloc,
+          spent: totSpent,
+          remaining: totAlloc - totSpent,
+          utilization: pct(totAlloc, totSpent),
+          progress: prog(totAlloc, totSpent)
+        },
+        budgetLastCalculatedAt: nowStr
+      });
+    }
+  } catch (err) {
+    console.error("[computeActivityBudgetSummaries] error:", err);
+    // On failure, return the pre-populated default zeros so endpoint doesn't crash
+  }
+
+  return summaries;
+};
+
 const runUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.any()(req, res, (err) => {
@@ -205,8 +329,34 @@ router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
     normalized.spentAmount = await getProjectSpentAmount(project._id);
     normalized.totalIncome = await getProjectIncomeAmount(project._id);
 
+    // Compute and enrich activity budgets
+    if (normalized.selectedPhases && normalized.selectedPhases.length > 0) {
+      const allActivities = normalized.selectedPhases.flatMap(p => p.activities || []);
+      const summaries = await computeActivityBudgetSummaries(project._id, allActivities);
+
+      for (const phase of normalized.selectedPhases) {
+        if (!phase.activities) continue;
+        for (const act of phase.activities) {
+          const aid = act.id || act._id?.toString();
+          // Ensure default allocation fields exist
+          act.budgetMaterial = Number(act.budgetMaterial || 0);
+          act.budgetLabour = Number(act.budgetLabour || 0);
+          act.budgetEquipment = Number(act.budgetEquipment || 0);
+
+          act.budget = summaries.get(aid) || {
+            material: { allocated: act.budgetMaterial, spent: 0, remaining: act.budgetMaterial, utilization: 0, progress: 0 },
+            labour: { allocated: act.budgetLabour, spent: 0, remaining: act.budgetLabour, utilization: 0, progress: 0 },
+            equipment: { allocated: act.budgetEquipment, spent: 0, remaining: act.budgetEquipment, utilization: 0, progress: 0 },
+            total: { allocated: act.budgetMaterial + act.budgetLabour + act.budgetEquipment, spent: 0, remaining: act.budgetMaterial + act.budgetLabour + act.budgetEquipment, utilization: 0, progress: 0 },
+            budgetLastCalculatedAt: new Date().toISOString()
+          };
+        }
+      }
+    }
+
     res.json({ project: normalized });
   } catch (err) {
+    console.error("GET /projects/:id error:", err);
     res.status(500).json({ message: "Failed to fetch project" });
   }
 });
