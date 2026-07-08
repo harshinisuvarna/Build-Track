@@ -752,6 +752,30 @@ router.put("/:id", requirePermission(["edit_project", "manage_team"]), async (re
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
 
+    // Compute and enrich activity budgets
+    if (normalized.selectedPhases && normalized.selectedPhases.length > 0) {
+      const allActivities = normalized.selectedPhases.flatMap(p => p.activities || []);
+      const summaries = await computeActivityBudgetSummaries(project._id, allActivities);
+
+      for (const phase of normalized.selectedPhases) {
+        if (!phase.activities) continue;
+        for (const act of phase.activities) {
+          const aid = act.id || act._id?.toString();
+          act.budgetMaterial = Number(act.budgetMaterial || 0);
+          act.budgetLabour = Number(act.budgetLabour || 0);
+          act.budgetEquipment = Number(act.budgetEquipment || 0);
+
+          act.budget = summaries.get(aid) || {
+            material: { allocated: act.budgetMaterial, spent: 0, remaining: act.budgetMaterial, utilization: 0, progress: 0 },
+            labour: { allocated: act.budgetLabour, spent: 0, remaining: act.budgetLabour, utilization: 0, progress: 0 },
+            equipment: { allocated: act.budgetEquipment, spent: 0, remaining: act.budgetEquipment, utilization: 0, progress: 0 },
+            total: { allocated: act.budgetMaterial + act.budgetLabour + act.budgetEquipment, spent: 0, remaining: act.budgetMaterial + act.budgetLabour + act.budgetEquipment, utilization: 0, progress: 0 },
+            budgetLastCalculatedAt: new Date().toISOString()
+          };
+        }
+      }
+    }
+
     res.json({ message: "Project updated", project: normalized });
   } catch (err) {
     console.error("UPDATE project error:", err);
