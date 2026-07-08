@@ -345,6 +345,14 @@ const transactionSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Receipt proof uploaded when recording a payment via
+    // the Fulfillment & Payment screen — separate from `attachments`
+    // (which holds the original invoice/bill).
+    paymentReceipt: {
+      type: String,
+      default: null,
+    },
+
     // ======================================================
     // NOTES
     // ======================================================
@@ -366,6 +374,7 @@ const transactionSchema = new mongoose.Schema(
           method: String,
           amount: Number,
           note: String,
+          receipt: String,
         }
       ],
       default: [],
@@ -379,10 +388,9 @@ const transactionSchema = new mongoose.Schema(
 // PRE SAVE
 // ======================================================
 
-// Synchronous hook with NO 'next' parameter to prevent crashes (Munesha's fix)
 transactionSchema.pre("save", function () {
 
-  // Auto amount calculation (Pranesh's specific type check)
+  // Auto amount calculation
   if (
     ["Materials", "Equipment"].includes(this.type) &&
     this.quantity &&
@@ -392,7 +400,6 @@ transactionSchema.pre("save", function () {
   }
 
   // Validation: Prevent overpayment — runs BEFORE status overwrites
-  // so it catches ALL statuses, not just "Partial"
   if (Math.abs(this.paidAmount || 0) > Math.abs(this.amount || 0)) {
     throw Object.assign(
       new Error("Paid amount cannot exceed total amount"),
@@ -411,10 +418,12 @@ transactionSchema.pre("save", function () {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
 
-  // Populate initial payment event to history if needed (from main)
+  // FIX: use paymentDate (actual date payment was made), not date
+  // (which is the purchase/entry date) — these were being conflated,
+  // making Payment History always show the same timestamp as Purchase Date.
   if (Math.abs(this.paidAmount || 0) > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
     this.paymentHistory = [{
-      date: this.date || new Date(),
+      date: this.paymentDate || this.date || new Date(),
       method: this.paymentMode || "Cash",
       amount: this.paidAmount,
       note: this.notes || "Initial payment on creation",
