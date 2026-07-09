@@ -445,16 +445,66 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
     }
 
     const attachmentFiles = (req.files?.attachments || []).map(getFileUrl);
-    if (req.body.receiptImage) {
-      try {
-        const uploadResult = await cloudinary.uploader.upload(req.body.receiptImage, {
-          folder: "buildtrack",
-        });
-        attachmentFiles.push(uploadResult.secure_url);
-      } catch (uploadErr) {
-        console.error("Cloudinary receiptImage upload error:", uploadErr);
+
+// FIX: mobile app sends attachments as base64 data URIs in the JSON body
+// (not multipart files). The old code silently dropped these.
+if (req.body.attachments) {
+  let bodyAttachments = req.body.attachments;
+  if (typeof bodyAttachments === "string") {
+    try {
+      bodyAttachments = JSON.parse(bodyAttachments);
+    } catch {
+      bodyAttachments = [bodyAttachments];
+    }
+  }
+  if (Array.isArray(bodyAttachments)) {
+    for (const att of bodyAttachments) {
+      if (!att) continue;
+      if (typeof att === "string" && att.startsWith("data:")) {
+        try {
+          const uploadResult = await cloudinary.uploader.upload(att, {
+            folder: "buildtrack",
+          });
+          attachmentFiles.push(uploadResult.secure_url);
+        } catch (uploadErr) {
+          console.error("Cloudinary attachment upload error:", uploadErr);
+        }
+      } else {
+        // already a URL (e.g. re-saved from an existing entry)
+        attachmentFiles.push(att);
       }
     }
+  }
+}
+
+if (req.body.receiptImage) {
+  try {
+    const uploadResult = await cloudinary.uploader.upload(req.body.receiptImage, {
+      folder: "buildtrack",
+    });
+    attachmentFiles.push(uploadResult.secure_url);
+  } catch (uploadErr) {
+    console.error("Cloudinary receiptImage upload error:", uploadErr);
+  }
+}
+
+// Payment receipt captured via the "Pay Now" toggle at entry-creation time
+let paymentReceiptUrl = null;
+if (req.body.paymentReceipt) {
+  if (typeof req.body.paymentReceipt === "string" && req.body.paymentReceipt.startsWith("data:")) {
+    try {
+      const uploadResult = await cloudinary.uploader.upload(req.body.paymentReceipt, {
+        folder: "buildtrack/payment-receipts",
+      });
+      paymentReceiptUrl = uploadResult.secure_url;
+    } catch (uploadErr) {
+      console.error("Cloudinary paymentReceipt upload error:", uploadErr);
+    }
+  } else {
+    paymentReceiptUrl = req.body.paymentReceipt;
+  }
+}
+
     const screenshotFile = req.files?.paymentScreenshot?.[0];
     const screenshotUrl = screenshotFile ? getFileUrl(screenshotFile) : null;
 
@@ -538,7 +588,17 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
             attachmentFiles,
 
           screenshotUrl,
-          
+
+          paymentReceipt: paymentReceiptUrl,
+
+          paymentHistory: paidAmt > 0 ? [{
+            date: paymentDate || date || new Date(),
+            method: paymentMode || "Cash",
+            amount: paidAmt,
+            note: notes || "Initial payment on creation",
+            receipt: paymentReceiptUrl || undefined,
+          }] : [],
+
           approvalStatus: txApprovalStatus,
           approvedBy: approvedBy,
           approvedAt: approvedAt,
@@ -651,6 +711,7 @@ router.put("/:id", async (req, res) => {
       materialType,
       paymentStatus: _paymentStatus, paymentMode, paymentDate,
       paidAmount: _paidAmount,
+      paymentReceipt,
       remarks,
       amount: rawAmount,
       floor,
@@ -735,6 +796,25 @@ router.put("/:id", async (req, res) => {
         updatedAttachments = [uploadResult.secure_url];
       } catch (uploadErr) {
         console.error("Cloudinary receiptImage update error:", uploadErr);
+      }
+    }
+
+    // Payment receipt (separate from invoice attachments) — uploaded from
+    // the Fulfillment & Payment screen when recording/settling a payment.
+    let newPaymentReceiptUrl = null;
+    if (paymentReceipt) {
+      if (typeof paymentReceipt === "string" && paymentReceipt.startsWith("data:")) {
+        try {
+          const uploadResult = await cloudinary.uploader.upload(paymentReceipt, {
+            folder: "buildtrack/payment-receipts",
+          });
+          newPaymentReceiptUrl = uploadResult.secure_url;
+        } catch (uploadErr) {
+          console.error("Cloudinary paymentReceipt upload error:", uploadErr);
+        }
+      } else {
+        // already a URL (e.g. unchanged from a previous save)
+        newPaymentReceiptUrl = paymentReceipt;
       }
     }
 
@@ -826,9 +906,14 @@ router.put("/:id", async (req, res) => {
           method: paymentMode || tx.paymentMode || "Cash",
           amount: delta,
           note: remarks || notes || "Additional payment",
+          receipt: newPaymentReceiptUrl || undefined,
         });
       }
       tx.paidAmount = newPaidAmount;
+    }
+
+    if (newPaymentReceiptUrl) {
+      tx.paymentReceipt = newPaymentReceiptUrl;
     }
 
     if (remarks !== undefined)  tx.remarks     = remarks;

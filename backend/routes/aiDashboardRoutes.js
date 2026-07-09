@@ -3,6 +3,7 @@ const router = express.Router();
 const Project = require("../models/Project");
 const { protect, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
 const aiProvider = require("../services/ai/groqProvider.js");
+const { GroqAuthError } = require("../services/ai/groqProvider.js");
 const { generateMongoQuery } = require("../services/reports/mongoAiQueryGenerator");
 const { executeAiQuery } = require("../services/reports/mongoAiExecutor");
 
@@ -20,13 +21,64 @@ async function buildBaseScope(req) {
   return { isAdmin, adminId, projectFilter, projectScopeIds, projects };
 }
 
+// ─── Map display columns to underlying MongoDB/Executor fields ───────────────
+const COLUMN_TO_FIELD_MAP = {
+  "Purchased Date": "date",
+  "Project": "projectName",
+  "Type": "category",
+  "Description": "item",
+  "Brand": "brand",
+  "Floor": "phase",
+  "Phase": "phase",
+  "Activity": "activity",
+  "Unit": "unit",
+  "Qty": "quantity",
+  "Status": "paymentStatus",
+  "Amount (INR)": "amount",
+  "Worker": "worker",
+  "Supplier": "supplier",
+  "Rate": "rate",
+  "Payment Date": "date"
+};
+
+// ─── Format rows dynamically based on AI requested columns ───────────────────
+function formatDynamicRows(rows, requestedColumns, tableType) {
+  return rows.map((r, idx) => {
+    const mobileRow = { number: idx + 1 }; // Always prepend row number
+    
+    for (const colName of requestedColumns) {
+      if (colName === "Amount (INR)" && tableType === "inventory") {
+        mobileRow[colName] = r.closingStock ?? 0;
+      } else {
+        const fieldKey = COLUMN_TO_FIELD_MAP[colName];
+        if (fieldKey && r[fieldKey] !== undefined && r[fieldKey] !== null && r[fieldKey] !== "") {
+          // Special formatting for Quantity to include unit
+          if (colName === "Qty" && r.unit && r.unit !== "-") {
+             mobileRow[colName] = `${r.quantity} ${r.unit}`;
+          } else {
+             mobileRow[colName] = r[fieldKey];
+          }
+        } else {
+          mobileRow[colName] = "-";
+        }
+      }
+    }
+    return mobileRow;
+  });
+}
+
 router.post("/query", async (req, res) => {
   const reqId = Math.random().toString(16).slice(2, 7).toUpperCase();
 
   try {
     const { query } = req.body;
     if (!query || !query.trim()) {
-      return res.status(400).json({ error: "Query is required" });
+      return res.status(400).json({ 
+        success: false,
+        error: "Query is required",
+        message: "Please provide a search query.",
+        statusCode: 400
+      });
     }
 
     // 1. Get user's project scope
@@ -36,13 +88,37 @@ router.post("/query", async (req, res) => {
       name: p.projectName
     }));
 
-    // 2. AI generates the MongoDB query plan
-    const queryPlan = await generateMongoQuery(
-      query,
-      baseScope.projectScopeIds,
-      baseScope.adminId,
-      projectsList
-    );
+    // 2. AI generates the MongoDB query plan (can throw GroqAuthError)
+    let queryPlan;
+    try {
+      queryPlan = await generateMongoQuery(
+        query,
+        baseScope.projectScopeIds,
+        baseScope.adminId,
+        projectsList
+      );
+    } catch (aiError) {
+      // ── Graceful handling: Groq auth failure ──────────────────
+      if (aiError instanceof GroqAuthError || aiError.name === "GroqAuthError") {
+        console.error(`[${reqId}] GroqAuthError: ${aiError.message}`);
+        return res.status(500).json({
+          success: false,
+          error: "AI Service Authentication Failed",
+          message: aiError.message,
+          developer_details: `Caught ${aiError.statusCode || 401} from Groq`,
+          statusCode: 500
+        });
+      }
+      // ── Graceful handling: JSON parse / other AI errors ────────
+      console.error(`[${reqId}] AI Query Generation Error:`, aiError.message);
+      return res.status(500).json({
+        success: false,
+        error: "AI Query Generation Failed",
+        message: aiError.message || "The AI service returned an unexpected response. Please try again.",
+        developer_details: aiError.message,
+        statusCode: 500
+      });
+    }
 
     // 3. Execute safely
     const analyticsData = await executeAiQuery(
@@ -52,15 +128,27 @@ router.post("/query", async (req, res) => {
 
     console.log(`[${reqId}] Query: "${query}" → ${analyticsData.rowCount} rows from ${queryPlan.collection}`);
 
-    // 4. Generate AI summary
+    // 4. Format rows dynamically based on the AI's requested columns
+    const mobileRows = formatDynamicRows(analyticsData.rows, queryPlan.requested_columns, analyticsData.tableType);
+    const total = analyticsData.tableType === "inventory"
+      ? (analyticsData.totalPurchased || 0)
+      : (analyticsData.totalAmount || 0);
+
+    // 5. Generate AI summary
     let summary = `Found ${analyticsData.rowCount} records.`;
     try {
       summary = await aiProvider.generateSummary(analyticsData, query, reqId);
     } catch(e) {
-      console.error("Summary generation failed:", e.message);
+      // ── Summary is non-critical; log and continue with default ──
+      if (e instanceof GroqAuthError || e.name === "GroqAuthError") {
+        console.error(`[${reqId}] Summary skipped (auth error): ${e.message}`);
+        summary = `Found ${analyticsData.rowCount} records. (AI summary unavailable — API key issue)`;
+      } else {
+        console.error(`[${reqId}] Summary generation failed:`, e.message);
+      }
     }
 
-    // 5. Generate follow-ups
+    // 6. Generate follow-ups
     let followUps = ["Export CSV", "Filter by project", "Show summary"];
     try {
       followUps = await aiProvider.generateFollowups({
@@ -71,7 +159,7 @@ router.post("/query", async (req, res) => {
       }, reqId);
     } catch(e) {}
 
-    // 6. Generate alerts (low stock warnings)
+    // 7. Generate alerts (low stock warnings)
     let alerts = [];
     try {
       if (queryPlan.collection === "inventories") {
@@ -91,6 +179,7 @@ router.post("/query", async (req, res) => {
       }
     } catch(e) {}
 
+    // 8. Return strict response with Excel-style table schema
     return res.json({
       success: true,
       data: {
@@ -98,7 +187,9 @@ router.post("/query", async (req, res) => {
         metrics: analyticsData.metrics,
         table: {
           type: analyticsData.tableType,
-          rows: analyticsData.rows,
+          columns: queryPlan.requested_columns,
+          rows: mobileRows,
+          total,
           totalAmount: analyticsData.totalAmount,
           totalPurchased: analyticsData.totalPurchased,
           rowCount: analyticsData.rowCount
@@ -113,10 +204,26 @@ router.post("/query", async (req, res) => {
     });
 
   } catch (error) {
+    // ── Final safety net — catch anything unexpected ──────────────
     console.error(`[${reqId}] AI Dashboard Error:`, error.message);
-    const status = [401, 403].includes(error.response?.status) ? 502 : 500;
-    return res.status(status).json({
-      error: error.message || "Internal server error"
+
+    // Check if it's a Groq auth error that somehow wasn't caught above
+    if (error instanceof GroqAuthError || error.name === "GroqAuthError") {
+      return res.status(500).json({
+        success: false,
+        error: "AI Service Authentication Failed",
+        message: error.message,
+        developer_details: `Caught ${error.statusCode || 401} from Groq`,
+        statusCode: 500
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+      message: error.message || "An unexpected error occurred. Please try again.",
+      developer_details: error.message,
+      statusCode: 500
     });
   }
 });
