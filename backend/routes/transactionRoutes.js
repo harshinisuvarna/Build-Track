@@ -1088,4 +1088,154 @@ router.put("/:id/reject", requirePermission(["approve_payments", "add_entries", 
   }
 });
 
+/// =======================================================
+/// PROJECT PHASE BUDGET UPDATE HELPER
+/// =======================================================
+async function updateProjectPhaseBudget(projectId, phaseId, activityId, type, amount, session) {
+  if (!projectId || !phaseId || !activityId || !amount) return;
+  
+  const incPayload = {
+    "selectedPhases.$[phase].activities.$[activity].totalAmount": amount
+  };
+  
+  if (type === "Materials") {
+    incPayload["selectedPhases.$[phase].activities.$[activity].materialAmount"] = amount;
+  } else if (type === "Wages") {
+    incPayload["selectedPhases.$[phase].activities.$[activity].labourAmount"] = amount;
+  } else if (type === "Expense") {
+    incPayload["selectedPhases.$[phase].activities.$[activity].equipmentAmount"] = amount;
+  }
+
+  await Project.updateOne(
+    { _id: projectId },
+    { $inc: incPayload },
+    {
+      arrayFilters: [
+        { "phase.id": phaseId },
+        { "activity.id": activityId }
+      ],
+      session
+    }
+  );
+}
+
+/// =======================================================
+/// CREATE TRANSACTIONS (BULK)
+/// =======================================================
+router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
+  const { transactions } = req.body;
+  
+  if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
+    return res.status(400).json({ message: "No transactions provided for bulk upload" });
+  }
+
+  const results = {
+    total: transactions.length,
+    successCount: 0,
+    failedCount: 0,
+    failures: []
+  };
+
+  const adminId = await getAdminId(req.user);
+  const txApprovalStatus = req.user.role === "Admin" ? "Approved" : "Pending";
+  const approvedBy = req.user.role === "Admin" ? req.user._id : null;
+  const approvedAt = req.user.role === "Admin" ? new Date() : null;
+
+  for (let i = 0; i < transactions.length; i++) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const payload = transactions[i];
+      const {
+        title, type, worker, project, date, notes,
+        category, brand, subType, unit, quantity, rate,
+        materialType, paymentStatus, paymentMode, paymentDate, paidAmount: _paidAmount,
+        remarks, amount: rawAmount, floor, floorId, phase, phaseId, activity, activityId,
+        supplier, gst, isWithGst, overtime
+      } = payload;
+
+      if (!title || !title.trim()) throw new Error("Title is required");
+      if (!type) throw new Error("Transaction type is required");
+
+      const resolvedCategory = category !== undefined ? category : "";
+      const normalizedMaterialType = type === "Materials" ? normalizeMaterialType(materialType, subType) : "";
+
+      let workerId = parseId(worker);
+      let projectId = parseId(project);
+
+      if (workerId) {
+        const wDoc = await Worker.findOne({ _id: workerId, createdBy: adminId }).lean();
+        if (!wDoc) workerId = null;
+      } else if (worker) {
+        const wDoc = await Worker.findOne({ createdBy: adminId, name: String(worker).trim() }).lean();
+        workerId = wDoc?._id || null;
+      }
+
+      if (projectId) {
+        const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
+        if (!pDoc) throw new Error(`Access denied or Project not found for project: ${project}`);
+      } else {
+        throw new Error("Valid Project ID is required");
+      }
+
+      const qty = Number(quantity) || 0;
+      const rt = Number(rate) || 0;
+      const ot = Number(overtime) || 0;
+      const paidAmt = parseAmount(_paidAmount);
+
+      if (qty < 0 || rt < 0) throw new Error("Quantity and rate must be positive");
+
+      const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, overtime: ot, rawAmount });
+
+      const transaction = new Transaction({
+        createdBy: req.user._id,
+        title: title.trim(),
+        type, worker: workerId || null, project: projectId,
+        date: date || new Date(), notes, category: resolvedCategory, brand, supplier,
+        gst, isWithGst, subType, materialType: normalizedMaterialType,
+        unit: unit || "unit", quantity: qty, rate: rt, overtime: ot, amount: finalAmount,
+        floor, floorId, phase, phaseId, activity, activityId,
+        paymentStatus: paymentStatus || "Pending", paymentMode: paymentMode || "Cash",
+        paymentDate, paidAmount: paidAmt, remarks,
+        paymentHistory: paidAmt > 0 ? [{
+          date: paymentDate || date || new Date(),
+          method: paymentMode || "Cash", amount: paidAmt, note: notes || "Initial payment on bulk creation"
+        }] : [],
+        approvalStatus: txApprovalStatus, approvedBy, approvedAt
+      });
+
+      await transaction.save({ session });
+
+      if (type === "Materials" && qty > 0 && projectId && txApprovalStatus === "Approved") {
+        const inventoryDelta = normalizedMaterialType === "usage" ? -qty : qty;
+        await applyInventoryDelta(adminId, projectId, resolvedCategory, unit, inventoryDelta, session);
+      }
+
+      // Update Phase budget reflection
+      if (projectId && phaseId && activityId && txApprovalStatus === "Approved") {
+        await updateProjectPhaseBudget(projectId, phaseId, activityId, type, finalAmount, session);
+      }
+
+      await session.commitTransaction();
+      results.successCount++;
+    } catch (err) {
+      await session.abortTransaction();
+      results.failedCount++;
+      results.failures.push({
+        index: i,
+        title: transactions[i].title || 'Unknown',
+        reason: err.message || "Failed to save transaction"
+      });
+    } finally {
+      session.endSession();
+    }
+  }
+
+  res.status(207).json({
+    message: "Bulk processing completed",
+    results
+  });
+});
+
 module.exports = router;
