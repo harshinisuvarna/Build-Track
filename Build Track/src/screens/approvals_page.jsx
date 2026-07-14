@@ -16,7 +16,7 @@ function formatDate(dateStr) {
 }
 
 const typeStyles = {
-  Materials: { bg: '#EEF0FF', color: '#173EEA' },
+  Materials: { bg: '#ECEBFF', color: '#6C63FF' },
   Wages: { bg: '#E8F5E9', color: '#2E7D32' },
   Expense: { bg: '#FFF3E0', color: '#E65100' },
   Income: { bg: '#F3E8FF', color: '#7C3AED' },

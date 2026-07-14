@@ -64,8 +64,8 @@ export default function OAuthCallback() {
       <div style={{
         width: 52,
         height: 52,
-        border: "4px solid rgba(23,62,234,0.2)",
-        borderTopColor: "#173EEA",
+        border: "4px solid rgba(108,99,255,0.2)",
+        borderTopColor: "#6C63FF",
         borderRadius: "50%",
         animation: "spin 0.8s linear infinite",
       }} />
@@ -73,7 +73,7 @@ export default function OAuthCallback() {
       {/* Logo */}
       <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-1px" }}>
         <span style={{ color: "#fff" }}>Build</span>
-        <span style={{ color: "#67C8FF" }}>Track</span>
+        <span style={{ color: "#8B83FF" }}>Track</span>
       </div>
 
       {/* Status text */}

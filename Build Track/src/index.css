@@ -5,7 +5,7 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #111827;
+  color: #1F2937;
   background-color: #F5F6FA;
 
   font-synthesis: none;
@@ -15,11 +15,11 @@
 }
 
 a {
-  color: #4361EE;
+  color: #6C63FF;
   text-decoration: none;
 }
 a:hover {
-  color: #3451d1;
+  color: #5B55E8;
   text-decoration: none;
 }
 
@@ -28,7 +28,7 @@ body {
   padding: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: #F5F6FA;
-  color: #111827;
+  color: #1F2937;
 }
 
 *,

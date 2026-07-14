@@ -4,7 +4,7 @@ import { colors, radius } from '../../styles/designTokens';
 const typeStyles = {
   success: { bg: '#E6F9F0', border: '#86EFAC', text: '#15803D', icon: '✅' },
   error: { bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B', icon: '⚠️' },
-  info: { bg: '#EEF2FF', border: '#93C5FD', text: '#173EEA', icon: 'ℹ️' },
+  info: { bg: '#EEF2FF', border: '#93C5FD', text: '#6C63FF', icon: 'ℹ️' },
   warning: { bg: '#FFF4E0', border: '#FDE68A', text: '#B45309', icon: '⚠️' },
 };
 

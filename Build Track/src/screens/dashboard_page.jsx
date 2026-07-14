@@ -27,7 +27,7 @@ function relativeTime(dateStr) {
 }
 
 const typeConfig = {
-  Materials: { icon: '📦', bg: '#EEF0FF', color: '#4361EE', label: 'Materials' },
+  Materials: { icon: '📦', bg: '#ECEBFF', color: '#6C63FF', label: 'Materials' },
   Wages: { icon: '👷', bg: '#F0FDF4', color: '#15803D', label: 'Labour' },
   Expense: { icon: '🏗️', bg: '#FFF7ED', color: '#C2410C', label: 'Equipment' },
   Income: { icon: '💰', bg: '#F3E8FF', color: '#7C3AED', label: 'Income' },
@@ -126,10 +126,10 @@ export default function DashboardPage() {
             background: 'rgba(67, 97, 238, 0.1)', display: 'flex',
             alignItems: 'center', justifyContent: 'center'
           }}>
-            <Shield size={20} color="#4361EE" />
+            <Shield size={20} color="#6C63FF" />
           </div>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#111827', letterSpacing: '-0.5px', margin: 0 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1F2937', letterSpacing: '-0.5px', margin: 0 }}>
               Dashboard Overview
             </h1>
             <p style={{ fontSize: 13.5, color: '#6B7280', margin: '3px 0 0' }}>
@@ -143,7 +143,7 @@ export default function DashboardPage() {
             onClick={() => navigate('/notifications')}
             style={{
               width: 36, height: 36, borderRadius: '50%',
-              border: '1px solid #E8EAF0', background: '#FFFFFF',
+              border: '1px solid #E7E8F5', background: '#FFFFFF',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#4B5563', boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
             }}
@@ -154,7 +154,7 @@ export default function DashboardPage() {
             onClick={() => navigate('/settings')}
             style={{
               width: 36, height: 36, borderRadius: '50%',
-              border: '1px solid #E8EAF0', background: '#FFFFFF',
+              border: '1px solid #E7E8F5', background: '#FFFFFF',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
             }}
@@ -176,9 +176,9 @@ export default function DashboardPage() {
             onChange={(e) => setSelectedProjectId(e.target.value)}
             style={{
               width: '100%', padding: '12px 14px', fontSize: 14,
-              borderRadius: radius.md, border: '1.5px solid #E8EAF0',
+              borderRadius: radius.md, border: '1.5px solid #E7E8F5',
               fontFamily: typography.fontFamily, fontWeight: 700,
-              color: '#111827', background: '#FFFFFF',
+              color: '#1F2937', background: '#FFFFFF',
               cursor: 'pointer', outline: 'none',
             }}
           >
@@ -205,7 +205,7 @@ export default function DashboardPage() {
             <div style={{
               padding: '3px 10px', borderRadius: 20,
               background: 'rgba(67, 97, 238, 0.08)',
-              fontSize: 10, fontWeight: 800, color: '#4361EE',
+              fontSize: 10, fontWeight: 800, color: '#6C63FF',
               letterSpacing: '0.8px', display: 'flex', alignItems: 'center', gap: 4,
             }}>
               <TrendingUp size={12} /> OVERALL PROGRESS
@@ -217,11 +217,11 @@ export default function DashboardPage() {
             )}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-            <span style={{ fontSize: 34, fontWeight: 900, color: '#111827', letterSpacing: '-1.5px' }}>
+            <span style={{ fontSize: 34, fontWeight: 900, color: '#1F2937', letterSpacing: '-1.5px' }}>
               {(progress * 100).toFixed(1)}%
             </span>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 14.5, fontWeight: 800, color: '#111827' }}>
+              <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1F2937' }}>
                 {selectedProject?.projectName || selectedProject?.name || 'House construction'}
               </div>
               <div style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>Current Milestone</div>
@@ -230,14 +230,14 @@ export default function DashboardPage() {
           <div style={{ height: 8, background: '#EEF2FF', borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
             <div style={{
               height: '100%', borderRadius: 4,
-              background: 'linear-gradient(90deg, #4361EE 0%, #7B5EA7 100%)',
+              background: 'linear-gradient(90deg, #6C63FF 0%, #8B83FF 100%)',
               width: `${(progress * 100).toFixed(1)}%`,
               transition: 'width 0.5s ease',
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600 }}>
             <span style={{ color: '#6B7280' }}>Progress status</span>
-            <span style={{ color: '#7B5EA7', fontWeight: 800 }}>
+            <span style={{ color: '#8B83FF', fontWeight: 800 }}>
               {(progress * 100).toFixed(0)}% Completed
             </span>
           </div>
@@ -247,8 +247,8 @@ export default function DashboardPage() {
       {/* KPI Cards styled exactly like Nurofin */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'TOTAL COST', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', alert: totalCost > budget * 0.9, icon: '⏱️', bg: 'rgba(67,97,238,0.08)', color: '#4361EE' },
-          { label: 'BUDGET', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: '💼', bg: 'rgba(123,94,167,0.08)', color: '#7B5EA7' },
+          { label: 'TOTAL COST', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', alert: totalCost > budget * 0.9, icon: '⏱️', bg: 'rgba(67,97,238,0.08)', color: '#6C63FF' },
+          { label: 'BUDGET', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: '💼', bg: 'rgba(123,94,167,0.08)', color: '#8B83FF' },
           { label: 'TOTAL REVENUE', value: formatCurrency(totalRevenue), subtitle: 'Cash Inflow', icon: '✅', bg: 'rgba(21,128,61,0.08)', color: '#15803D' },
           { label: 'NET CASH FLOW', value: formatCurrency(Math.abs(netCashflow)), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', alert: netCashflow < 0, icon: '🚨', bg: 'rgba(239,68,68,0.08)', color: '#EF4444' },
         ].map((kpi) => (
@@ -262,7 +262,7 @@ export default function DashboardPage() {
               {kpi.icon}
             </div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: kpi.alert ? colors.error : '#111827', letterSpacing: '-0.5px' }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: kpi.alert ? colors.error : '#1F2937', letterSpacing: '-0.5px' }}>
                 {kpi.value}
               </div>
               <div style={{ fontSize: 9.5, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', marginTop: 1 }}>
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                   <div style={{
                     width: '100%',
                     height: `${(d.income / maxVal) * 100}%`,
-                    background: 'linear-gradient(135deg, #4361EE 0%, #7B5EA7 100%)',
+                    background: 'linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%)',
                     borderRadius: '4px 4px 0 0',
                     minHeight: d.income > 0 ? 4 : 0,
                     transition: 'height 0.3s',
@@ -298,7 +298,7 @@ export default function DashboardPage() {
                   <div style={{
                     width: '100%',
                     height: `${(d.expense / maxVal) * 100}%`,
-                    background: '#7B5EA7',
+                    background: '#8B83FF',
                     borderRadius: '4px 4px 0 0',
                     minHeight: d.expense > 0 ? 4 : 0,
                     opacity: 0.6,
@@ -311,10 +311,10 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: 'linear-gradient(135deg, #4361EE 0%, #7B5EA7 100%)' }} /> Income
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: 'linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%)' }} /> Income
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#7B5EA7', opacity: 0.6 }} /> Expenses
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#8B83FF', opacity: 0.6 }} /> Expenses
             </span>
           </div>
         </Card>
@@ -327,44 +327,44 @@ export default function DashboardPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <button onClick={() => navigate('/add-entry')} style={{
               padding: '16px', borderRadius: radius.md,
-              border: '1.5px solid #E8EAF0', background: '#EEF2FF',
+              border: '1.5px solid #E7E8F5', background: '#EEF2FF',
               cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4361EE'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EAF0'; e.currentTarget.style.transform = 'none'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#6C63FF'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
             >
               <div style={{ fontSize: 24, marginBottom: 6 }}>📦</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#4361EE' }}>Add Entry</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#6C63FF' }}>Add Entry</div>
             </button>
             <button onClick={() => navigate('/manualentry')} style={{
               padding: '16px', borderRadius: radius.md,
-              border: '1.5px solid #E8EAF0', background: '#F0FDF4',
+              border: '1.5px solid #E7E8F5', background: '#F0FDF4',
               cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
             }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#15803D'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EAF0'; e.currentTarget.style.transform = 'none'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
             >
               <div style={{ fontSize: 24, marginBottom: 6 }}>✍️</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#15803D' }}>Manual Entry</div>
             </button>
             <button onClick={() => navigate('/projects')} style={{
               padding: '16px', borderRadius: radius.md,
-              border: '1.5px solid #E8EAF0', background: '#FFF7ED',
+              border: '1.5px solid #E7E8F5', background: '#FFF7ED',
               cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
             }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#C2410C'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EAF0'; e.currentTarget.style.transform = 'none'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
             >
               <div style={{ fontSize: 24, marginBottom: 6 }}>🏗️</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#C2410C' }}>Projects</div>
             </button>
             <button onClick={() => navigate('/reports')} style={{
               padding: '16px', borderRadius: radius.md,
-              border: '1.5px solid #E8EAF0', background: '#F3E8FF',
+              border: '1.5px solid #E7E8F5', background: '#F3E8FF',
               cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
             }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EAF0'; e.currentTarget.style.transform = 'none'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
             >
               <div style={{ fontSize: 24, marginBottom: 6 }}>📊</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#7C3AED' }}>Reports</div>
@@ -375,13 +375,13 @@ export default function DashboardPage() {
 
       {/* Recent Activity Section styled like Nurofin list */}
       <Card padding="0">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #E8EAF0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #E7E8F5' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
             Recent Activity Log
           </div>
           <button onClick={() => navigate('/transaction')} style={{
             border: 'none', background: 'transparent', cursor: 'pointer',
-            fontSize: 12.5, fontWeight: 800, color: '#4361EE', display: 'flex', alignItems: 'center', gap: 4
+            fontSize: 12.5, fontWeight: 800, color: '#6C63FF', display: 'flex', alignItems: 'center', gap: 4
           }}>
             View All <ChevronRight size={14} />
           </button>
@@ -389,7 +389,7 @@ export default function DashboardPage() {
         {recentEntries.length === 0 ? (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>📋</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 4 }}>No recent entries</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginBottom: 4 }}>No recent entries</div>
             <div style={{ fontSize: 12, color: '#6B7280' }}>Updates you add will appear here.</div>
           </div>
         ) : (
@@ -400,7 +400,7 @@ export default function DashboardPage() {
               <div key={entry._id || entry.id || i} style={{
                 display: 'flex', alignItems: 'center', gap: 14,
                 padding: '16px 24px',
-                borderBottom: i < recentEntries.length - 1 ? '1px solid #E8EAF0' : 'none',
+                borderBottom: i < recentEntries.length - 1 ? '1px solid #E7E8F5' : 'none',
                 cursor: 'pointer', transition: 'background 0.15s ease',
               }}
                 onClick={() => navigate('/entry-detail', { state: { entry } })}
@@ -415,7 +415,7 @@ export default function DashboardPage() {
                   {type.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginBottom: 2 }}>
                     {entry.title || entry.name || 'Entry'}
                   </div>
                   <div style={{ display: 'flex', gap: 10, fontSize: 12, color: '#6B7280', alignItems: 'center' }}>
@@ -426,7 +426,7 @@ export default function DashboardPage() {
                     <span>{relativeTime(entry.date || entry.createdAt)}</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: amt < 0 ? colors.error : '#111827' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: amt < 0 ? colors.error : '#1F2937' }}>
                   {formatCurrency(Math.abs(amt))}
                 </div>
               </div>

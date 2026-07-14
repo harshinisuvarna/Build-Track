@@ -1,68 +1,53 @@
 export const colors = {
-  primaryBlue: '#4361EE',
-  primaryPurple: '#7B5EA7',
-  primaryLightBlue: '#4CC9F0',
-
-  /* Page backgrounds */
-  bgBase1: '#F5F6FA',
-  bgBase2: '#ECEEF5',
-  bgBase3: '#F0F2F8',
-  bgBase4: '#F5F6FA',
-
-  /* Glow / auth */
-  bgGlow1: '#FFFFFF',
-  bgGlow2: '#C5CAFF',
-  bgGlow3: '#E0D6FF',
-  authStart: '#8B9FE8',
-  authMid: '#B4A8EF',
-  authEnd: '#D8D2F4',
-
-  /* Cards */
+  primary: '#6C63FF',
+  primaryHover: '#5B55E8',
+  primaryLight: '#ECEBFF',
+  secondary: '#EEF2FF',
+  background: '#F7F6FF',
+  surface: '#FFFFFF',
   cardBg: '#FFFFFF',
-  cardBorder: '#E8EAF0',
-
-  /* Text */
-  textPrimary: '#111827',
+  cardBorder: '#E7E8F5',
+  textPrimary: '#1F2937',
   textSecondary: '#6B7280',
-  textBlue: '#4361EE',
-  textAmount: '#111827',
-
-  /* Badges */
-  badgeWarningBg: '#FFF7ED',
-  badgeWarningText: '#C2410C',
-  badgeSuccessBg: '#F0FDF4',
-  badgeSuccessText: '#15803D',
-  badgePendingBg: '#FFFBEB',
-  badgePendingText: '#92400E',
-  badgeInfoBg: '#EEF2FF',
-  badgeInfoText: '#4361EE',
-
-  /* Sidebar */
-  navActiveItemBg: '#EEF2FF',
-  navActiveBorder: '#4361EE',
+  textMedium: '#4B5563',
+  textDark: '#1F2937',
+  textLight: '#6B7280',
+  divider: '#E7E8F5',
+  inputBorder: '#E7E8F5',
+  iconBg: '#ECEBFF',
+  border: '#E7E8F5',
+  sidebarBg: '#FFFFFF',
+  sidebarActive: '#ECEBFF',
+  primarySurface: '#ECEBFF',
+  navActiveItemBg: '#ECEBFF',
+  navActiveBorder: '#6C63FF',
   navText: '#4B5563',
-  navActiveText: '#4361EE',
-
-  /* Misc */
-  divider: '#E8EAF0',
-  inputBorder: '#D1D5DB',
-  iconBg: '#F3F4F6',
-  success: '#10B981',
+  navActiveText: '#6C63FF',
+  badgeWarningBg: '#FFF4E0',
+  badgeWarningText: '#B45309',
+  badgeSuccessBg: '#E6F9F0',
+  badgeSuccessText: '#15803D',
+  badgePendingBg: '#FFF0D6',
+  badgePendingText: '#92400E',
+  badgeInfoBg: '#ECEBFF',
+  badgeInfoText: '#6C63FF',
+  success: '#22C55E',
   warning: '#F59E0B',
   error: '#EF4444',
-  info: '#3B82F6',
-  textMedium: '#374151',
-  textDark: '#111827',
-  textLight: '#9CA3AF',
-  border: '#E8EAF0',
-
-  gradientStart: '#F5F6FA',
-  gradientMid: '#F0F2F8',
-  gradientEnd: '#ECEEF5',
-
-  sidebarBg: '#FFFFFF',
-  sidebarActive: '#EEF2FF',
-  primarySurface: '#F0F2FF',
+  info: '#6C63FF',
+  gradientStart: '#ECEBFF',
+  gradientMid: '#EEF2FF',
+  gradientEnd: '#F7F6FF',
+  authStart: '#6C63FF',
+  authMid: '#8B83FF',
+  authEnd: '#B8B2FF',
+  bgBase1: '#F7F6FF',
+  bgBase2: '#F0EFFF',
+  bgBase3: '#EEF2FF',
+  bgBase4: '#F7F6FF',
+  bgGlow1: '#FFFFFF',
+  bgGlow2: '#6C63FF',
+  bgGlow3: '#ECEBFF',
 };
 
 export const spacing = {
@@ -75,52 +60,51 @@ export const spacing = {
 
 export const radius = {
   sm: 8,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  md: 12,
+  lg: 16,
+  xl: 24,
 };
 
 export const shadows = {
-  card: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-  premium: '0 4px 16px rgba(0,0,0,0.06)',
-  sidebar: '1px 0 0 #E8EAF0',
+  card: '0 2px 10px rgba(20,20,50,0.05)',
+  premium: '0 2px 10px rgba(20,20,50,0.05)',
 };
 
 export const gradients = {
-  primaryButton: `linear-gradient(135deg, #4361EE 0%, #7B5EA7 100%)`,
-  progressBar: `linear-gradient(90deg, #4361EE 0%, #7B5EA7 100%)`,
-  authBackground: `linear-gradient(135deg, #8B9FE8 0%, #B4A8EF 50%, #D8D2F4 100%)`,
-  navActiveItem: `#EEF2FF`,
-  pageBackground: `#F5F6FA`,
+  primaryButton: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`,
+  progressBar: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`,
+  authBackground: `linear-gradient(135deg, ${colors.authStart} 0%, ${colors.authMid} 50%, ${colors.authEnd} 100%)`,
+  navActiveItem: `linear-gradient(90deg, ${colors.navActiveItemBg} 0%, ${colors.primaryLight} 100%)`,
+  pageBackground: `linear-gradient(135deg, ${colors.bgBase1} 0%, ${colors.bgBase3} 50%, ${colors.bgBase4} 100%)`,
 };
 
 export const typography = {
-  fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+  fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
   heading1: {
-    fontSize: '28px',
-    fontWeight: 700,
-    letterSpacing: '-0.4px',
-    lineHeight: 1.2,
+    fontSize: '32px',
+    fontWeight: 900,
+    letterSpacing: '-0.5px',
+    lineHeight: 1.1,
     color: colors.textPrimary,
   },
   heading2: {
-    fontSize: '20px',
-    fontWeight: 600,
-    letterSpacing: '-0.2px',
-    lineHeight: 1.3,
+    fontSize: '22px',
+    fontWeight: 800,
+    letterSpacing: '-0.3px',
+    lineHeight: 1.2,
     color: colors.textPrimary,
   },
   heading3: {
-    fontSize: '15px',
-    fontWeight: 600,
-    letterSpacing: '-0.1px',
-    lineHeight: 1.3,
+    fontSize: '17px',
+    fontWeight: 700,
+    letterSpacing: '-0.2px',
+    lineHeight: 1.2,
     color: colors.textPrimary,
   },
   bodyLarge: {
     fontSize: '15px',
-    fontWeight: 400,
-    lineHeight: 1.5,
+    fontWeight: 500,
+    lineHeight: 1.45,
     color: colors.textMedium,
   },
   body: {
@@ -136,33 +120,32 @@ export const typography = {
     color: colors.textSecondary,
   },
   label: {
-    fontSize: '11px',
+    fontSize: '12px',
     fontWeight: 600,
-    letterSpacing: '0.4px',
-    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
     color: colors.textSecondary,
   },
 };
 
 export const buttonStyles = {
   primary: {
-    height: 40,
+    height: 48,
     borderRadius: radius.md,
     fontWeight: 600,
-    fontSize: 14,
+    fontSize: 16,
     border: 'none',
     cursor: 'pointer',
     background: gradients.primaryButton,
     color: '#FFFFFF',
   },
   outline: {
-    height: 40,
+    height: 48,
     borderRadius: radius.md,
     fontWeight: 600,
-    fontSize: 14,
-    border: `1.5px solid ${colors.primaryBlue}`,
+    fontSize: 16,
+    border: `1.5px solid ${colors.primary}`,
     background: 'transparent',
-    color: colors.primaryBlue,
+    color: colors.primary,
     cursor: 'pointer',
   },
 };
@@ -170,12 +153,12 @@ export const buttonStyles = {
 export const inputStyles = {
   borderRadius: radius.md,
   border: `1px solid ${colors.inputBorder}`,
-  padding: '10px 14px',
+  padding: '14px 16px',
   fontSize: 14,
   fontFamily: typography.fontFamily,
   backgroundColor: colors.cardBg,
   color: colors.textPrimary,
   outline: 'none',
   width: '100%',
-  transition: 'border-color 0.15s ease',
+  transition: 'border-color 0.2s ease',
 };

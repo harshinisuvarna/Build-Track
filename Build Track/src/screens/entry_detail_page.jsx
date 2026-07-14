@@ -5,7 +5,7 @@ import { Card, Badge, Button, Spinner, ConfirmDialog } from '../components/ui';
 import { transactionAPI } from '../api';
 
 const typeConfig = {
-  Materials: { label: 'Material', bg: '#EEF0FF', color: '#173EEA', icon: '📦' },
+  Materials: { label: 'Material', bg: '#ECEBFF', color: '#6C63FF', icon: '📦' },
   Wages: { label: 'Labour', bg: '#E8F5E9', color: '#2E7D32', icon: '👷' },
   Expense: { label: 'Equipment', bg: '#FFF3E0', color: '#E65100', icon: '🏗️' },
   Income: { label: 'Income', bg: '#F3E8FF', color: '#7C3AED', icon: '💰' },

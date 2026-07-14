@@ -191,7 +191,7 @@ export default function ProjectsPage() {
               <h2 style={{ margin: 0, fontSize: 30, fontWeight: 900, color: colors.textPrimary }}>Active Builds</h2>
               <div style={{
                 padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 700,
-                background: "#EEF0FF", color: colors.primaryBlue,
+                background: "#ECEBFF", color: colors.primaryBlue,
               }}>
                 {allProjects.length} {allProjects.length === 1 ? "Site" : "Sites"}
               </div>

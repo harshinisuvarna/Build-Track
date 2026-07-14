@@ -47,7 +47,7 @@ export default function Sidebar({ collapsed }) {
         width: collapsed ? 0 : 230,
         minWidth: collapsed ? 0 : 230,
         background: "#FFFFFF",
-        borderRight: "1px solid #E8EAF0",
+        borderRight: "1px solid #E7E8F5",
         padding: collapsed ? 0 : "24px 16px",
         display: "flex",
         flexDirection: "column",
@@ -64,16 +64,16 @@ export default function Sidebar({ collapsed }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, paddingLeft: 6 }}>
           <div style={{
             width: 32, height: 32,
-            background: "linear-gradient(135deg, #4361EE 0%, #7B5EA7 100%)",
+            background: "linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%)",
             borderRadius: "9px",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(67, 97, 238, 0.25)",
+            boxShadow: "0 4px 12px rgba(108, 99, 255, 0.25)",
             flexShrink: 0,
           }}>
             <span style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 16 }}>B</span>
           </div>
           <div>
-            <div style={{ fontWeight: "900", fontSize: 17.5, color: "#111827", letterSpacing: "-0.5px", lineHeight: "1" }}>
+            <div style={{ fontWeight: "900", fontSize: 17.5, color: "#1F2937", letterSpacing: "-0.5px", lineHeight: "1" }}>
               BuildTrack
             </div>
             <div style={{ fontSize: "9.5px", fontWeight: "700", color: "#6B7280", letterSpacing: "1px", marginTop: 3 }}>
@@ -97,9 +97,9 @@ export default function Sidebar({ collapsed }) {
             end={item.path === "/"}
             style={({ isActive }) => ({
               ...navLinkBase,
-              color: isActive ? "#FFFFFF" : "#4B5563",
-              background: isActive ? "linear-gradient(135deg, #4361EE 0%, #7B5EA7 100%)" : "transparent",
-              boxShadow: isActive ? "0 4px 12px rgba(67, 97, 238, 0.2)" : "none",
+              color: isActive ? "#6C63FF" : "#4B5563",
+              background: isActive ? "#ECEBFF" : "transparent",
+              boxShadow: "none",
             })}
             onMouseEnter={e => {
               if (!e.currentTarget.className.includes("active")) {
@@ -131,9 +131,9 @@ export default function Sidebar({ collapsed }) {
             to={item.path}
             style={({ isActive }) => ({
               ...navLinkBase,
-              color: isActive ? "#FFFFFF" : "#4B5563",
-              background: isActive ? "linear-gradient(135deg, #4361EE 0%, #7B5EA7 100%)" : "transparent",
-              boxShadow: isActive ? "0 4px 12px rgba(67, 97, 238, 0.2)" : "none",
+              color: isActive ? "#6C63FF" : "#4B5563",
+              background: isActive ? "#ECEBFF" : "transparent",
+              boxShadow: "none",
             })}
             onMouseEnter={e => {
               if (!e.currentTarget.className.includes("active")) {
@@ -156,7 +156,7 @@ export default function Sidebar({ collapsed }) {
       <div style={{
         marginTop: "auto",
         padding: "16px 8px 0",
-        borderTop: "1px solid #E8EAF0",
+        borderTop: "1px solid #E7E8F5",
         display: "flex",
         flexDirection: "column",
         gap: 12,
@@ -167,7 +167,7 @@ export default function Sidebar({ collapsed }) {
             background: "#F3F4F6", overflow: "hidden",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 16, flexShrink: 0,
-            border: "1.5px solid #E8EAF0"
+            border: "1.5px solid #E7E8F5"
           }}>
             {photoUrl ? (
               <img src={photoUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -176,7 +176,7 @@ export default function Sidebar({ collapsed }) {
             )}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: "700", color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {user?.name || "User"}
             </div>
             <div style={{ fontSize: "11px", color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -191,7 +191,7 @@ export default function Sidebar({ collapsed }) {
             width: "100%",
             padding: "9px 12px",
             background: "#F9FAFB",
-            border: "1.5px solid #E5E7EB",
+            border: "1.5px solid #E7E8F5",
             borderRadius: "10px",
             fontSize: "12.5px",
             fontWeight: "700",
@@ -209,7 +209,7 @@ export default function Sidebar({ collapsed }) {
           }}
           onMouseLeave={e => {
             e.currentTarget.style.background = "#F9FAFB";
-            e.currentTarget.style.borderColor = "#E5E7EB";
+            e.currentTarget.style.borderColor = "#E7E8F5";
           }}
         >
           <LogOut size={14} />

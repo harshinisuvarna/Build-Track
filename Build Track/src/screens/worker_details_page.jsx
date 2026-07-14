@@ -13,7 +13,7 @@ export default function WorkerDetailsPage() {
         <p style={{ color: "#888", margin: 0 }}>Please navigate here from the Financial Report page.</p>
         <button
           onClick={() => navigate("/reports")}
-          style={{ marginTop: 8, padding: "12px 28px", background: "#173EEA", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+          style={{ marginTop: 8, padding: "12px 28px", background: "#6C63FF", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
           ← Back to Reports
         </button>
       </div>
@@ -59,7 +59,7 @@ export default function WorkerDetailsPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 28px 60px", boxSizing: "border-box" }}>
 
         <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #ebebeb", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "32px 36px", display: "flex", alignItems: "center", gap: 28, marginBottom: 28, flexWrap: "wrap" }}>
-          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,#173EEA,#B137FF)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: "#fff", flexShrink: 0, boxShadow: "0 4px 16px rgba(23,62,234,0.35)" }}>
+          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,#6C63FF,#5B55E8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: "#fff", flexShrink: 0, boxShadow: "0 4px 16px rgba(108,99,255,0.35)" }}>
             {initials}
           </div>
 

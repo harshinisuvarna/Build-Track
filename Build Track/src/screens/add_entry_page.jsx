@@ -9,8 +9,8 @@ const entryTypes = [
     title: 'Material',
     subtitle: 'Log concrete, steel, lumber, or site-specific procurement items.',
     icon: '📦',
-    color: '#173EEA',
-    bgColor: '#EEF0FF',
+    color: '#6C63FF',
+    bgColor: '#ECEBFF',
   },
   {
     id: 'labour',

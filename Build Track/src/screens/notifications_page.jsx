@@ -146,7 +146,7 @@ export default function NotificationsPage() {
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 12,
-                  background: n.read ? colors.iconBg : '#EEF0FF',
+                  background: n.read ? colors.iconBg : '#ECEBFF',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 20, flexShrink: 0,
                 }}>

@@ -147,7 +147,7 @@ export default function AssignRolesPage() {
                   style={{
                     flex: 1, padding: '10px', borderRadius: radius.sm,
                     border: newRole === r.id ? `2px solid ${colors.primaryBlue}` : `1px solid ${colors.cardBorder}`,
-                    background: newRole === r.id ? '#EEF0FF' : colors.cardBg,
+                    background: newRole === r.id ? '#ECEBFF' : colors.cardBg,
                     cursor: 'pointer', textAlign: 'center',
                   }}
                 >
@@ -173,7 +173,7 @@ export default function AssignRolesPage() {
                     style={{
                       padding: '6px 14px', borderRadius: 20,
                       border: `1px solid ${isSelected ? colors.primaryBlue : colors.cardBorder}`,
-                      background: isSelected ? '#EEF0FF' : colors.cardBg,
+                      background: isSelected ? '#ECEBFF' : colors.cardBg,
                       color: isSelected ? colors.primaryBlue : colors.textMedium,
                       fontSize: 13, cursor: 'pointer',
                     }}

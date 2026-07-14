@@ -74,9 +74,9 @@ export default function AdminOverviewPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
         {[
-          { label: 'Team Members', value: stats.totalUsers, color: colors.primaryBlue, bg: '#EEF0FF' },
+          { label: 'Team Members', value: stats.totalUsers, color: colors.primaryBlue, bg: '#ECEBFF' },
           { label: 'Active Projects', value: stats.activeProjects, color: colors.success, bg: '#E6F9F0' },
-          { label: 'Total Entries', value: stats.totalEntries, color: '#B137FF', bg: '#F3F0FF' },
+          { label: 'Total Entries', value: stats.totalEntries, color: '#5B55E8', bg: '#ECEBFF' },
           { label: 'Recent (50)', value: stats.recentEntries, color: colors.warning, bg: '#FFF4E0' },
         ].map((stat) => (
           <Card key={stat.label} padding="20px">

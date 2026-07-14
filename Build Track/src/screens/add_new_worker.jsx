@@ -150,7 +150,7 @@ export default function AddNewWorkerPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#888" }}>
             <span
               onClick={() => navigate("/workers")}
-              style={{ color: "#173EEA", cursor: "pointer", fontWeight: 500 }}
+              style={{ color: "#6C63FF", cursor: "pointer", fontWeight: 500 }}
             >
               ← Worker Directory
             </span>
@@ -169,7 +169,7 @@ export default function AddNewWorkerPage() {
             Cancel
           </button>
           <button onClick={handleSave} disabled={saving}
-            style={{ padding: "10px 22px", background: "#173EEA", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(23,62,234,0.3)", display: "flex", alignItems: "center", gap: 8, opacity: saving ? 0.6 : 1 }}>
+            style={{ padding: "10px 22px", background: "#6C63FF", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(108,99,255,0.3)", display: "flex", alignItems: "center", gap: 8, opacity: saving ? 0.6 : 1 }}>
             {isEditMode ? "Update Worker" : "Save Worker"}
           </button>
         </div>
@@ -208,21 +208,21 @@ export default function AddNewWorkerPage() {
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
                 <div style={{
                   width: 120, height: 120, borderRadius: "50%",
-                  border: `2px dashed ${dragOver ? "#173EEA" : "#d1d5db"}`,
+                  border: `2px dashed ${dragOver ? "#6C63FF" : "#d1d5db"}`,
                   background: photoPreview ? "transparent" : "#f9fafb",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   overflow: "hidden", transition: "all 0.2s", cursor: "pointer",
                 }}>
                   {photoPreview
                     ? <img src={photoPreview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#F3F0FF", border: "1px solid #D2CBF0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📷</div>
+                    : <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#ECEBFF", border: "1px solid #E7E8F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📷</div>
                   }
                 </div>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: "#555" }}>Upload worker photo</div>
                   <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>JPG, PNG or WEBP. Max 2MB.</div>
                 </div>
-                <label style={{ width: "100%", padding: "10px 0", textAlign: "center", border: "1px solid #173EEA", borderRadius: 10, color: "#173EEA", fontWeight: 600, fontSize: 14, cursor: "pointer", background: "#F3F0FF", boxSizing: "border-box" }}>
+                <label style={{ width: "100%", padding: "10px 0", textAlign: "center", border: "1px solid #6C63FF", borderRadius: 10, color: "#6C63FF", fontWeight: 600, fontSize: 14, cursor: "pointer", background: "#ECEBFF", boxSizing: "border-box" }}>
                   {photoPreview ? "Change Photo" : "Choose File"}
                   <input type="file" accept="image/*" style={{ display: "none" }}
                     onChange={e => {
@@ -321,7 +321,7 @@ export default function AddNewWorkerPage() {
                 <div>
                   <label style={labelStyle}>Daily Wage / Rate (₹)</label>
                   <div style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 8 }}>
-                    <span style={{ fontSize: 14, color: "#173EEA", fontWeight: 700 }}>₹</span>
+                    <span style={{ fontSize: 14, color: "#6C63FF", fontWeight: 700 }}>₹</span>
                     <input value={dailyWage} onChange={e => setDailyWage(e.target.value)}
                       placeholder="800"
                       style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontFamily: "'Segoe UI', sans-serif" }} />
@@ -368,7 +368,7 @@ export default function AddNewWorkerPage() {
                   )}
                   <button
                     onClick={() => docInputRef.current.click()}
-                    style={{ padding: "8px 18px", background: "#fff", border: "1px solid #173EEA", borderRadius: 8, color: "#173EEA", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    style={{ padding: "8px 18px", background: "#fff", border: "1px solid #6C63FF", borderRadius: 8, color: "#6C63FF", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                   >
                     + Add Document
                   </button>
@@ -388,7 +388,7 @@ export default function AddNewWorkerPage() {
             Discard Changes
           </button>
           <button onClick={handleSave} disabled={saving}
-            style={{ padding: "12px 28px", background: "#173EEA", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 14px rgba(23,62,234,0.3)", display: "flex", alignItems: "center", gap: 8, opacity: saving ? 0.6 : 1 }}
+            style={{ padding: "12px 28px", background: "#6C63FF", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 4px 14px rgba(108,99,255,0.3)", display: "flex", alignItems: "center", gap: 8, opacity: saving ? 0.6 : 1 }}
           >
             {saving && <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />}
             {saving ? "Saving…" : isEditMode ? "Update Worker Profile" : "Save Worker Profile"}

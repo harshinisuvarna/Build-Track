@@ -536,8 +536,8 @@ export default function VoiceAssistantPage() {
           50% { transform: scale(1.15); opacity: 0.25; }
         }
         @keyframes orbPulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(23,62,234,0.3); }
-          50% { box-shadow: 0 0 24px rgba(177,55,255,0.5); }
+          0%, 100% { box-shadow: 0 0 8px rgba(108,99,255,0.3); }
+          50% { box-shadow: 0 0 24px rgba(91,85,232,0.5); }
         }
         @keyframes shimmer {
           0% { background-position: -200% 0; }

@@ -10,7 +10,7 @@ const getInitials = (name = "") =>
   name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
 function WorkerAvatar({ worker, size = 38, borderRadius = 10, fontSize = 13 }) {
-  const avatarColors = ["#173EEA", "#0ea5e9", "#16a34a", "#7c3aed", "#db2777"];
+  const avatarColors = ["#6C63FF", "#0ea5e9", "#16a34a", "#7c3aed", "#db2777"];
   let hash = 0;
   for (const c of (worker.name || "")) hash = c.charCodeAt(0) + hash;
   const color = avatarColors[hash % avatarColors.length];
@@ -29,7 +29,7 @@ function WorkerAvatar({ worker, size = 38, borderRadius = 10, fontSize = 13 }) {
   ) : (
     <div style={{
       width: size, height: size, borderRadius,
-      background: "#F3F0FF", display: "flex",
+      background: "#ECEBFF", display: "flex",
       alignItems: "center", justifyContent: "center",
       fontSize, fontWeight: 700, color, flexShrink: 0,
     }}>
@@ -174,7 +174,7 @@ export default function WorkerDirectory() {
         </div>
         <button
           onClick={() => navigate("/newworker")}
-          style={{ padding: "10px 20px", background: "#173EEA", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+          style={{ padding: "10px 20px", background: "#6C63FF", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
         >
           👤+ Add Worker
         </button>
@@ -206,8 +206,8 @@ export default function WorkerDirectory() {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 style={{
-                  padding: "8px 14px", background: showFilters ? "#173EEA" : "#f5f5f5",
-                  border: `1px solid ${showFilters ? "#173EEA" : "#e5e5e5"}`,
+                  padding: "8px 14px", background: showFilters ? "#6C63FF" : "#f5f5f5",
+                  border: `1px solid ${showFilters ? "#6C63FF" : "#e5e5e5"}`,
                   borderRadius: 8, fontSize: 12, fontWeight: 600,
                   cursor: "pointer", color: showFilters ? "#fff" : "#555",
                   display: "flex", alignItems: "center", gap: 6,
@@ -227,17 +227,17 @@ export default function WorkerDirectory() {
                     { label: "All Workers",      dot: null },
                     { label: "Active",           dot: "#16a34a" },
                     { label: "Inactive",         dot: "#aaa" },
-                    { label: "High Wage (>₹5k)", dot: "#173EEA" },
+                    { label: "High Wage (>₹5k)", dot: "#6C63FF" },
                   ].map(({ label, dot }) => (
                     <button
                       key={label}
                       onClick={() => handleFilter(label)}
                       style={{
                         width: "100%", textAlign: "left", padding: "9px 10px",
-                        background: filter === label ? "#F3F0FF" : "transparent",
+                        background: filter === label ? "#ECEBFF" : "transparent",
                         border: "none", borderRadius: 8, fontSize: 13,
                         fontWeight: filter === label ? 700 : 500,
-                        color: filter === label ? "#173EEA" : "#444",
+                        color: filter === label ? "#6C63FF" : "#444",
                         cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
                       }}
                     >
@@ -266,9 +266,9 @@ export default function WorkerDirectory() {
               style={{
                 padding: "7px 16px", borderRadius: 20, border: "1.5px solid",
                 fontSize: 13, fontWeight: 600, cursor: "pointer",
-                background:  filter === f ? "#173EEA" : "#fff",
+                background:  filter === f ? "#6C63FF" : "#fff",
                 color:       filter === f ? "#fff"    : "#555",
-                borderColor: filter === f ? "#173EEA" : "#e5e5e5",
+                borderColor: filter === f ? "#6C63FF" : "#e5e5e5",
               }}>
               {f}
             </button>
@@ -398,7 +398,7 @@ export default function WorkerDirectory() {
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <button key={p} onClick={() => setPage(p)}
-                  style={{ width: 34, height: 34, borderRadius: 8, border: "1px solid", fontSize: 13, cursor: "pointer", fontWeight: 600, borderColor: page === p ? "#173EEA" : "#e5e5e5", background: page === p ? "#173EEA" : "#fff", color: page === p ? "#fff" : "#555" }}>
+                  style={{ width: 34, height: 34, borderRadius: 8, border: "1px solid", fontSize: 13, cursor: "pointer", fontWeight: 600, borderColor: page === p ? "#6C63FF" : "#e5e5e5", background: page === p ? "#6C63FF" : "#fff", color: page === p ? "#fff" : "#555" }}>
                   {p}
                 </button>
               ))}

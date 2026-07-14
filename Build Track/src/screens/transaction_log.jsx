@@ -7,7 +7,7 @@ import { colors, radius, shadows, gradients, typography } from "../styles/design
 const ITEMS_PER_PAGE = 10;
 
 const TYPE_STYLES = {
-  Materials: { bg: "#EEF0FF", color: "#173EEA", icon: "M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M10 12h4" },
+  Materials: { bg: "#ECEBFF", color: "#6C63FF", icon: "M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M10 12h4" },
   Wages:     { bg: "#E8F5E9", color: "#2E7D32", icon: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3z" },
   Expense:   { bg: "#FFF3E0", color: "#E65100", icon: "M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z" },
   Income:    { bg: "#F0FDF4", color: "#15803D", icon: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" },

@@ -1,32 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --color-primary: #4361EE;
-  --color-primary-purple: #7B5EA7;
-  --color-primary-light: #4CC9F0;
-  --color-bg-base1: #F5F6FA;
-  --color-bg-base3: #F0F2F8;
-  --color-bg-base4: #F5F6FA;
+  --color-primary: #6C63FF;
+  --color-primary-hover: #5B55E8;
+  --color-primary-light: #ECEBFF;
+  --color-secondary: #EEF2FF;
+  --color-background: #F7F6FF;
+  --color-surface: #FFFFFF;
   --color-card-bg: #FFFFFF;
-  --color-card-border: #E8EAF0;
-  --color-text-primary: #111827;
+  --color-card-border: #E7E8F5;
+  --color-text-primary: #1F2937;
   --color-text-secondary: #6B7280;
   --color-text-medium: #4B5563;
-  --color-divider: #E8EAF0;
-  --color-input-border: #D1D5DB;
-  --color-input-focus: #4361EE;
-  --color-success: #10B981;
+  --color-divider: #E7E8F5;
+  --color-input-border: #E7E8F5;
+  --color-input-focus: #6C63FF;
+  --color-success: #22C55E;
   --color-warning: #F59E0B;
   --color-error: #EF4444;
-  --color-info: #3B82F6;
-  --color-icon-bg: #EEF2FF;
+  --color-info: #6C63FF;
+  --color-icon-bg: #ECEBFF;
   --font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-  --shadow-premium: 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-card: 0 2px 10px rgba(20,20,50,0.05);
+  --shadow-premium: 0 2px 10px rgba(20,20,50,0.05);
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
@@ -53,7 +53,7 @@ body {
   line-height: 1.5;
   font-weight: 400;
   color: var(--color-text-primary);
-  background: var(--color-bg-base1);
+  background: #F7F6FF;
   min-height: 100vh;
 }
 
@@ -67,7 +67,7 @@ a {
 }
 
 a:hover {
-  color: #2F4BE0;
+  color: #5B55E8;
   text-decoration: none;
 }
 

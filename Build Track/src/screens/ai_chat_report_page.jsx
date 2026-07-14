@@ -122,7 +122,7 @@ export default function AiChatReportPage() {
                   maxWidth: '75%',
                   padding: '12px 16px',
                   borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                  background: msg.role === 'user' ? colors.primaryBlue : '#F3F0FF',
+                  background: msg.role === 'user' ? colors.primaryBlue : '#ECEBFF',
                   color: msg.role === 'user' ? '#FFF' : colors.textPrimary,
                   fontSize: 14,
                   lineHeight: 1.6,
@@ -137,7 +137,7 @@ export default function AiChatReportPage() {
                 <div style={{
                   padding: '12px 16px',
                   borderRadius: '16px 16px 16px 4px',
-                  background: '#F3F0FF',
+                  background: '#ECEBFF',
                 }}>
                   <Spinner size={20} color={colors.primaryPurple} />
                 </div>
