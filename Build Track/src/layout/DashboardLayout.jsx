@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { colors } from "../styles/designTokens";
 
 export default function DashboardLayout() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -18,7 +19,6 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -30,7 +30,6 @@ export default function DashboardLayout() {
           }}
         />
       )}
-
 
       {isMobile ? (
         <div style={{
@@ -45,13 +44,17 @@ export default function DashboardLayout() {
         <Sidebar collapsed={false} />
       )}
 
-
-      <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
-
+      <div style={{
+        flex: 1,
+        overflow: "auto",
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+      }}>
         {isMobile && (
           <div style={{
-            background: "#fff",
-            borderBottom: "1px solid #ebebeb",
+            background: colors.cardBg,
+            borderBottom: `1px solid ${colors.cardBorder}`,
             padding: "10px 16px",
             display: "flex",
             alignItems: "center",
@@ -61,15 +64,24 @@ export default function DashboardLayout() {
             <button
               onClick={() => setSidebarOpen(true)}
               style={{
-                background: "none", border: "1px solid #e5e5e5",
-                borderRadius: 8, padding: "6px 10px",
-                cursor: "pointer", fontSize: 18, lineHeight: 1,
-                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "none",
+                border: `1px solid ${colors.inputBorder}`,
+                borderRadius: 8,
+                padding: "6px 10px",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: colors.textPrimary,
               }}
             >
               ☰
             </button>
-            <span style={{ fontSize: 16, fontWeight: 700, color: "#1a1a1a" }}>BuildTrack</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: colors.textPrimary }}>
+              BuildTrack
+            </span>
           </div>
         )}
         <div style={{ flex: 1, overflow: "auto" }}>

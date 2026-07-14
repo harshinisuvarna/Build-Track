@@ -1,13 +1,12 @@
-/* ── BuildTrack Global Reset ────────────────────────────────────────────────── */
-/* Bug 30: Replaced Vite dark-mode defaults with a clean light-mode foundation */
-/* Bug 31: Replaced Vite button defaults with a proper CSS reset */
+/* ── BuildTrack Global Reset ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #1a1a1a;
-  background-color: #f7f7f8;
+  color: #111827;
+  background-color: #F5F6FA;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -16,20 +15,20 @@
 }
 
 a {
-  color: #ea580c;
+  color: #4361EE;
   text-decoration: none;
 }
 a:hover {
-  color: #c2410c;
-  text-decoration: underline;
+  color: #3451d1;
+  text-decoration: none;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-  background: #f7f7f8;
-  color: #1a1a1a;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #F5F6FA;
+  color: #111827;
 }
 
 *,
@@ -38,7 +37,6 @@ body {
   box-sizing: border-box;
 }
 
-/* Reset buttons so inline styles have full control */
 button {
   all: unset;
   cursor: pointer;

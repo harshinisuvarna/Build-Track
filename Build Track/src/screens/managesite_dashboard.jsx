@@ -103,9 +103,9 @@ export default function ManageSitePage() {
         <button
           onClick={() => navigate("/projects")}
           style={{
-            padding: "12px 24px", background: "#ea580c", color: "#fff",
+            padding: "12px 24px", background: "#173EEA", color: "#fff",
             border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14,
-            cursor: "pointer", boxShadow: "0 4px 14px rgba(234,88,12,0.3)",
+            cursor: "pointer", boxShadow: "0 4px 14px rgba(23,62,234,0.3)",
           }}
         >
           ← Go to Projects
@@ -196,7 +196,7 @@ export default function ManageSitePage() {
         justifyContent: "space-between", gap: 12, flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#888" }}>
-          <span onClick={() => navigate("/projects")} style={{ color: "#ea580c", cursor: "pointer", fontWeight: 500 }}>Projects</span>
+          <span onClick={() => navigate("/projects")} style={{ color: "#173EEA", cursor: "pointer", fontWeight: 500 }}>Projects</span>
           <span>›</span>
           <span style={{ color: "#1a1a1a", fontWeight: 600 }}>{projectName}</span>
         </div>
@@ -265,20 +265,20 @@ export default function ManageSitePage() {
             <div style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#444" }}>Project Completion</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "#ea580c" }}>{progress}%</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#173EEA" }}>{progress}%</span>
               </div>
               <div style={{ height: 8, background: "#f0f0f0", borderRadius: 6, overflow: "hidden", marginBottom: 8 }}>
-                <div style={{ width: `${progress}%`, height: "100%", background: "#ea580c", borderRadius: 6, transition: "width 0.4s ease" }} />
+                <div style={{ width: `${progress}%`, height: "100%", background: "#173EEA", borderRadius: 6, transition: "width 0.4s ease" }} />
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               {milestones.map((m) => (
                 <div key={m.phase} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: m.done ? "#ea580c" : m.current ? "#fff5f0" : "#f0f0f0", border: m.current ? "2px solid #ea580c" : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: m.done ? "#fff" : m.current ? "#ea580c" : "#aaa", flexShrink: 0 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: m.done ? "#173EEA" : m.current ? "#F3F0FF" : "#f0f0f0", border: m.current ? "2px solid #173EEA" : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: m.done ? "#fff" : m.current ? "#173EEA" : "#aaa", flexShrink: 0 }}>
                     {m.done ? "✓" : m.phase}
                   </div>
-                  {!isMobile && <span style={{ fontSize: 12, color: m.done ? "#1a1a1a" : m.current ? "#ea580c" : "#aaa", fontWeight: m.current ? 600 : 400 }}>{m.label}</span>}
+                  {!isMobile && <span style={{ fontSize: 12, color: m.done ? "#1a1a1a" : m.current ? "#173EEA" : "#aaa", fontWeight: m.current ? 600 : 400 }}>{m.label}</span>}
                   {m.phase < milestones.length && <span style={{ color: "#e5e5e5", fontSize: 16 }}>—</span>}
                 </div>
               ))}
@@ -316,9 +316,9 @@ export default function ManageSitePage() {
                     {project.startDate ? `Allocated ${new Date(project.startDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}` : ""}
                   </div>
                 </div>
-                <div style={{ background: "#fff7f0", borderRadius: 10, padding: "12px 14px", border: "1px solid #fed7aa" }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#ea580c", letterSpacing: "0.06em", marginBottom: 6 }}>ACTUAL SPENT</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#ea580c" }}>
+                <div style={{ background: "#F3F0FF", borderRadius: 10, padding: "12px 14px", border: "1px solid #D2CBF0" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#173EEA", letterSpacing: "0.06em", marginBottom: 6 }}>ACTUAL SPENT</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#173EEA" }}>
                     {`₹${spent.toLocaleString("en-IN")}`}
                   </div>
                   <div style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>
@@ -339,7 +339,7 @@ export default function ManageSitePage() {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Budget utilization</span>
-              <span onClick={() => navigate("/reports")} style={{ fontSize: 12, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View Full Report</span>
+              <span onClick={() => navigate("/reports")} style={{ fontSize: 12, color: "#173EEA", fontWeight: 600, cursor: "pointer" }}>View Full Report</span>
             </div>
           </div>
 
@@ -347,7 +347,7 @@ export default function ManageSitePage() {
           <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "20px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Active Personnel</span>
-              <span style={{ padding: "4px 12px", background: "#fff5f0", color: "#ea580c", fontSize: 12, fontWeight: 700, borderRadius: 6, border: "1px solid #fde4d0" }}>
+              <span style={{ padding: "4px 12px", background: "#F3F0FF", color: "#173EEA", fontSize: 12, fontWeight: 700, borderRadius: 6, border: "1px solid #D2CBF0" }}>
                 {loadingW ? "…" : `${activeWorkers.length} Active`}
               </span>
             </div>
@@ -360,7 +360,7 @@ export default function ManageSitePage() {
                 <>
                   {shownWorkers.map((w) => (
                     <div key={w._id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: "#fff5f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#ea580c", flexShrink: 0 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: "#F3F0FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#173EEA", flexShrink: 0 }}>
                         {w.name ? w.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "?"}
                       </div>
                       <div style={{ flex: 1 }}>
@@ -408,7 +408,7 @@ export default function ManageSitePage() {
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", padding: "20px", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Recent Site Activity</span>
-            <span onClick={() => navigate("/transaction")} style={{ fontSize: 13, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>View History</span>
+            <span onClick={() => navigate("/transaction")} style={{ fontSize: 13, color: "#173EEA", fontWeight: 600, cursor: "pointer" }}>View History</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {loadingT ? (

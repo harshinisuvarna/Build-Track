@@ -193,7 +193,7 @@ export default function NewProjectPage() {
 
         {/* Breadcrumb */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, fontSize: 13, color: "#888" }}>
-          <span onClick={() => navigate("/projects")} style={{ color: "#ea580c", cursor: "pointer", fontWeight: 500 }}>
+          <span onClick={() => navigate("/projects")} style={{ color: "#173EEA", cursor: "pointer", fontWeight: 500 }}>
             Projects
           </span>
           <span>›</span>
@@ -250,13 +250,13 @@ export default function NewProjectPage() {
               ) : supervisors.length === 0 ? (
                 <div style={{
                   padding: "11px 14px", borderRadius: 10,
-                  background: "#fff9f5", border: "1px solid #fed7aa",
-                  fontSize: 13, color: "#9a3412",
+                  background: "#F3F0FF", border: "1px solid #D2CBF0",
+                  fontSize: 13, color: "#173EEA",
                 }}>
                   ⚠️ No supervisors available.{" "}
                   <span
                     onClick={() => navigate("/newworker")}
-                    style={{ color: "#ea580c", fontWeight: 600, textDecoration: "underline", cursor: "pointer" }}
+                    style={{ color: "#173EEA", fontWeight: 600, textDecoration: "underline", cursor: "pointer" }}
                   >
                     Add a Supervisor in Workers
                   </span>
@@ -280,7 +280,7 @@ export default function NewProjectPage() {
             <div>
               <label style={labelStyle}>Total Budget (₹)</label>
               <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 8 }}>
-                <span style={{ fontSize: 14, color: "#ea580c", fontWeight: 600 }}>₹</span>
+                <span style={{ fontSize: 14, color: "#173EEA", fontWeight: 600 }}>₹</span>
                 <input value={budget} onChange={e => setBudget(e.target.value)}
                   placeholder="5,00,00,000" type="number"
                   style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#1a1a1a", fontFamily: "'Segoe UI', sans-serif" }} />
@@ -312,7 +312,7 @@ export default function NewProjectPage() {
               <input
                 type="range" min={0} max={100} value={progress}
                 onChange={e => setProgress(Number(e.target.value))}
-                style={{ width: "100%", accentColor: "#ea580c", cursor: "pointer", marginTop: 10 }}
+                style={{ width: "100%", accentColor: "#173EEA", cursor: "pointer", marginTop: 10 }}
               />
             </div>
           </div>
@@ -333,9 +333,9 @@ export default function NewProjectPage() {
               onDragLeave={() => setDragOver(false)}
               onDrop={e => { e.preventDefault(); setDragOver(false); handlePhotoFile(e.dataTransfer.files[0]); }}
               style={{
-                border: `2px dashed ${dragOver ? "#ea580c" : "#e5e5e5"}`,
+                border: `2px dashed ${dragOver ? "#173EEA" : "#e5e5e5"}`,
                 borderRadius: 12, padding: photoPreview ? 0 : "36px 20px",
-                background: dragOver ? "#fff5f0" : "#fafafa",
+                background: dragOver ? "#F3F0FF" : "#fafafa",
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
                 cursor: "pointer", transition: "all 0.2s",
                 overflow: "hidden", minHeight: 140, justifyContent: "center",
@@ -354,7 +354,7 @@ export default function NewProjectPage() {
                 </div>
               ) : (
                 <>
-                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#fff5f0", border: "1px solid #fde4d0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📷</div>
+                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#F3F0FF", border: "1px solid #D2CBF0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📷</div>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "#444" }}>Click to upload or drag and drop</div>
                     <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>PNG, JPG, GIF, WebP up to 10MB</div>
@@ -379,10 +379,10 @@ export default function NewProjectPage() {
               onClick={handleSubmit}
               disabled={saving}
               style={{
-                minHeight: 48, padding: "14px 0", background: saving ? "#f59561" : "#ea580c", color: "#fff",
+                minHeight: 48, padding: "14px 0", background: "#173EEA", color: "#fff",
                 border: "none", borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                boxShadow: "0 4px 14px rgba(234,88,12,0.3)",
+                boxShadow: "0 4px 14px rgba(23,62,234,0.3)", opacity: saving ? 0.6 : 1,
                 transition: "background 0.2s",
               }}
             >

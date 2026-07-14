@@ -1,468 +1,196 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { reportAPI } from "../api";
+import { reportAPI, transactionAPI } from "../api";
 import { Toast } from "../components/Toast";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { colors, radius, shadows, gradients, typography } from "../styles/designTokens";
 
-const MONTH_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const YEARS        = Array.from({ length: 11 }, (_, i) => 2020 + i);
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const YEARS = Array.from({ length: 11 }, (_, i) => 2020 + i);
+const now = new Date();
+const THIS_YEAR = now.getFullYear();
+const THIS_MONTH = now.getMonth();
 
-const now          = new Date();
-const THIS_YEAR    = now.getFullYear();
-const THIS_MONTH   = now.getMonth();
+function formatINR(n) { return `\u20B9${Number(n || 0).toLocaleString("en-IN")}`; }
+function formatShortDate(d) { return d ? `${SHORT_MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}` : ""; }
+function fullMonthRange(y, m) { return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0) }; }
 
-function lastMonthOf(year, month) {
-  return month === 0
-    ? { year: year - 1, month: 11 }
-    : { year, month: month - 1 };
-}
-function fullMonthRange(year, month) {
-  return {
-    start: new Date(year, month, 1),
-    end:   new Date(year, month + 1, 0),
-  };
-}
-function formatShortDate(d) {
-  if (!d) return "…";
-  return `${SHORT_MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2,"0")}`;
-}
-function formatRangeLabel(start, end) {
-  if (!start) return "Select range";
-  if (!end)   return `${formatShortDate(start)} – …`;
-  const sy = start.getFullYear(), ey = end.getFullYear();
-  return `${formatShortDate(start)} – ${formatShortDate(end)}, ${sy === ey ? sy : ey}`;
-}
-function sameDay(a, b)  { return a && b && a.toDateString() === b.toDateString(); }
-function inRange(d, s, e) { return s && e && d > s && d < e; }
-function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
-function firstDayOf(y, m)  { return new Date(y, m, 1).getDay(); }
-function formatINR(n) { return `₹${Number(n || 0).toLocaleString("en-IN")}`; }
-function formatRsPlain(n) { return `Rs ${Number(n || 0).toLocaleString("en-IN")}`; }
-function statusColor(status) {
-  if (status === "ON TRACK") return "#22c55e";
-  if (status === "REVIEW NEEDED") return "#f59e0b";
-  return "#3b82f6";
-}
-function escapeCsv(v) {
-  const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
-                        onDayClick, onDayHover, setCalYear, setCalMonth }) {
-
-  const [showMonthMenu, setShowMonthMenu] = useState(false);
-  const [showYearMenu,  setShowYearMenu]  = useState(false);
-  const monthMenuRef = useRef(null);
-  const yearMenuRef  = useRef(null);
-
-  useEffect(() => {
-    function handle(e) {
-      if (monthMenuRef.current && !monthMenuRef.current.contains(e.target)) setShowMonthMenu(false);
-      if (yearMenuRef.current  && !yearMenuRef.current.contains(e.target))  setShowYearMenu(false);
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, []);
-
-  const days        = daysInMonth(calYear, calMonth);
-  const startOffset = firstDayOf(calYear, calMonth);
-  const cells       = [];
-  for (let i = 0; i < startOffset; i++) cells.push(null);
-  for (let d = 1; d <= days; d++) cells.push(new Date(calYear, calMonth, d));
-
-  function prevMonth() {
-    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
-    else setCalMonth(m => m - 1);
-  }
-  function nextMonth() {
-    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
-    else setCalMonth(m => m + 1);
-  }
-
-  return (
-    <div style={{ padding:"16px", minWidth:272 }}>
-
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:6 }}>
-
-        <button onClick={prevMonth}
-          style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#555", padding:"2px 8px", borderRadius:6, lineHeight:1 }}>‹</button>
-
-        <div style={{ display:"flex", gap:6, flex:1, justifyContent:"center" }}>
-
-          <div ref={monthMenuRef} style={{ position:"relative" }}>
-            <button
-              onClick={() => { setShowMonthMenu(v=>!v); setShowYearMenu(false); }}
-              style={{ padding:"5px 10px", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:7, fontSize:13, fontWeight:700, color:"#111", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-              {SHORT_MONTHS[calMonth]} <span style={{ fontSize:10, color:"#888" }}>▾</span>
-            </button>
-            {showMonthMenu && (
-              <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:300, width:130 }}>
-                {MONTH_NAMES.map((name, mi) => (
-                  <div key={name}
-                    onClick={() => { setCalMonth(mi); setShowMonthMenu(false); }}
-                    style={{ padding:"8px 14px", fontSize:13, fontWeight: mi===calMonth?700:400, color: mi===calMonth?"#ea580c":"#333", background: mi===calMonth?"#fff5f0":"transparent", cursor:"pointer", borderLeft: mi===calMonth?"3px solid #ea580c":"3px solid transparent" }}
-                    onMouseEnter={e=>{ if(mi!==calMonth) e.currentTarget.style.background="#f9f9f9"; }}
-                    onMouseLeave={e=>{ if(mi!==calMonth) e.currentTarget.style.background="transparent"; }}>
-                    {name}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div ref={yearMenuRef} style={{ position:"relative" }}>
-            <button
-              onClick={() => { setShowYearMenu(v=>!v); setShowMonthMenu(false); }}
-              style={{ padding:"5px 10px", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:7, fontSize:13, fontWeight:700, color:"#111", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-              {calYear} <span style={{ fontSize:10, color:"#888" }}>▾</span>
-            </button>
-            {showYearMenu && (
-              <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:300, width:100, maxHeight:200, overflowY:"auto" }}>
-                {YEARS.map(y => (
-                  <div key={y}
-                    onClick={() => { setCalYear(y); setShowYearMenu(false); }}
-                    style={{ padding:"8px 14px", fontSize:13, fontWeight: y===calYear?700:400, color: y===calYear?"#ea580c":"#333", background: y===calYear?"#fff5f0":"transparent", cursor:"pointer", borderLeft: y===calYear?"3px solid #ea580c":"3px solid transparent" }}
-                    onMouseEnter={e=>{ if(y!==calYear) e.currentTarget.style.background="#f9f9f9"; }}
-                    onMouseLeave={e=>{ if(y!==calYear) e.currentTarget.style.background="transparent"; }}>
-                    {y}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <button onClick={nextMonth}
-          style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#555", padding:"2px 8px", borderRadius:6, lineHeight:1 }}>›</button>
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
-        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-          <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#aaa", padding:"2px 0" }}>{d}</div>
-        ))}
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={`e${i}`} />;
-          const isStart   = sameDay(day, rangeStart);
-          const isEnd     = sameDay(day, rangeEnd);
-          const isHover   = sameDay(day, hoverDay);
-          const endOrHov  = isEnd || (!rangeEnd && isHover);
-          const inSel     = inRange(day, rangeStart, rangeEnd || hoverDay);
-          const isToday   = sameDay(day, new Date());
-
-          let bg="transparent", color="#333", br=6;
-          if (isStart || endOrHov) { bg="#ea580c"; color="#fff"; }
-          else if (inSel)          { bg="#fff0e8"; color="#ea580c"; br=0; }
-
-          return (
-            <div key={day.toISOString()}
-              onClick={()=>onDayClick(day)}
-              onMouseEnter={()=>onDayHover(day)}
-              style={{ textAlign:"center", fontSize:13, fontWeight:isStart||endOrHov?700:400,
-                padding:"6px 2px", borderRadius:br, background:bg, color, cursor:"pointer",
-                outline: isToday&&!isStart&&!endOrHov?"1.5px solid #ea580c":"none", outlineOffset:-1 }}>
-              {day.getDate()}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const TABS = [
+  { key: "all", label: "All" },
+  { key: "materials", label: "Materials" },
+  { key: "labour", label: "Labour" },
+  { key: "equipment", label: "Equipment" },
+];
 
 export default function FinancialReportPage() {
-
-  const [selYear,  setSelYear]  = useState(THIS_YEAR);
+  const navigate = useNavigate();
+  const [selYear, setSelYear] = useState(THIS_YEAR);
   const [selMonth, setSelMonth] = useState(THIS_MONTH);
-
   const [reportData, setReportData] = useState(null);
+  const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  const [activeTab, setActiveTab] = useState(0);
+  const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState({ msg: "", type: "info" });
   const [showMonthDrop, setShowMonthDrop] = useState(false);
-  const [dropYear,      setDropYear]      = useState(THIS_YEAR);
-  const monthDropRef = useRef(null);
-
-  const initRange = fullMonthRange(THIS_YEAR, THIS_MONTH);
-  const [rangeStart,   setRangeStart]   = useState(initRange.start);
-  const [rangeEnd,     setRangeEnd]     = useState(initRange.end);
-  const [hoverDay,     setHoverDay]     = useState(null);
+  const [dropYear, setDropYear] = useState(THIS_YEAR);
+  const [showCal, setShowCal] = useState(false);
+  const [calYear, setCalYear] = useState(THIS_YEAR);
+  const [calMonth, setCalMonth] = useState(THIS_MONTH);
+  const [rangeStart, setRangeStart] = useState(fullMonthRange(THIS_YEAR, THIS_MONTH).start);
+  const [rangeEnd, setRangeEnd] = useState(fullMonthRange(THIS_YEAR, THIS_MONTH).end);
   const [pickingStart, setPickingStart] = useState(true);
-  const [showCal,      setShowCal]      = useState(false);
-  const [calYear,      setCalYear]      = useState(THIS_YEAR);
-  const [calMonth,     setCalMonth]     = useState(THIS_MONTH);
-  const calRef = useRef(null);
-
-  const [search,      setSearch]      = useState("");
-  const [exporting,   setExporting]   = useState(false);
-  const [toast,       setToast]       = useState({ msg: "", type: "info" });
+  const [hoverDay, setHoverDay] = useState(null);
+  const [sortKey, setSortKey] = useState("name");
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
-
-  const [sortKey,     setSortKey]     = useState("name");
-  const [showSort,    setShowSort]    = useState(false);
-  const sortRef = useRef(null);
-
-  const navigate = useNavigate();
-
-
-  const handleExportCSV = async () => {
-    try {
-      setExporting(true);
-      const header = "Worker Name,Role,Project,Total Days,Rate,Total Payout\n";
-      const rows = filtered.map((w) =>
-        [
-          escapeCsv(w.name),
-          escapeCsv(w.trade || ""),
-          escapeCsv(w.project || "Various"),
-          escapeCsv(w.totalDays ?? 0),
-          escapeCsv(w.dailyWage ?? 0),
-          escapeCsv(w.estimatedMonthlyPayout ?? 0),
-        ].join(",")
-      ).join("\n");
-      const csv = header + rows;
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `wages-report-${MONTH_NAMES[selMonth].toLowerCase()}-${selYear}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      setToast({ msg: "CSV exported successfully!", type: "success" });
-    } catch {
-      setToast({ msg: "Failed to export CSV. Please try again.", type: "error" });
-    } finally {
-      setExporting(false);
-    }
-  };
-
-
-  const handleDownloadPDF = async () => {
-    try {
-      setExporting(true);
-      const doc = new jsPDF();
-      const generatedOn = new Date().toLocaleDateString("en-IN");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text(`Financial Report - ${MONTH_NAMES[selMonth]} ${selYear}`, 14, 16);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.text(`Total Income: ${formatRsPlain(income)}`, 14, 28);
-      doc.text(`Expenditures: ${formatRsPlain(expenses)}`, 74, 28);
-      doc.text(`Net Profit: ${formatRsPlain(profit)}`, 140, 28);
-      doc.text(`Compliance: ${Number(compliance || 0).toFixed(1)}%`, 14, 35);
-
-      const tableBody = filtered.length
-        ? filtered.map((w) => [
-            w.name || "—",
-            w.trade || "—",
-            w.project || "Various",
-            `${w.totalDays ?? 0}`,
-            formatRsPlain(w.dailyWage ?? 0),
-            formatRsPlain(w.estimatedMonthlyPayout ?? 0),
-          ])
-        : [["No data available", "", "", "", "", ""]];
-
-      autoTable(doc, {
-        startY: 42,
-        head: [["Worker Name", "Role", "Project", "Total Days", "Rate (₹)", "Total Payout (₹)"]],
-        body: tableBody,
-        styles: { fontSize: 9, font: "helvetica" },
-        headStyles: { fillColor: [40, 120, 176], textColor: 255, fontStyle: "bold" },
-      });
-
-      doc.setFontSize(10);
-      doc.text(`Generated by BuildTrack on ${generatedOn}`, 14, doc.internal.pageSize.height - 10);
-      doc.save(`financial-report-${MONTH_NAMES[selMonth].toLowerCase()}-${selYear}.pdf`);
-      setToast({ msg: "PDF report downloaded!", type: "success" });
-    } catch {
-      setToast({ msg: "Failed to download report. Please try again.", type: "error" });
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      setLoading(true);
-      setError("");
-      const params = { year: selYear, month: selMonth };
-      if (rangeStart) params.rangeStart = rangeStart.toISOString();
-      if (rangeEnd)   params.rangeEnd   = rangeEnd.toISOString();
-      try {
-        const { data } = await reportAPI.getFinancial(params);
-        if (isMounted) setReportData(data);
-      } catch {
-        if (isMounted) setError("Failed to load report data");
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    load();
-    return () => { isMounted = false; };
-  }, [selYear, selMonth, rangeStart, rangeEnd]);
+  const monthDropRef = useRef(null);
+  const calRef = useRef(null);
 
   useEffect(() => {
     function handle(e) {
       if (monthDropRef.current && !monthDropRef.current.contains(e.target)) setShowMonthDrop(false);
-      if (calRef.current        && !calRef.current.contains(e.target))       setShowCal(false);
-      if (sortRef.current       && !sortRef.current.contains(e.target))      setShowSort(false);
+      if (calRef.current && !calRef.current.contains(e.target)) setShowCal(false);
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  if (loading && !reportData) {
-    return (
-      <>
-        <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#888" }}>Loading Report...</div>
-      </>
-    );
-  }
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError("");
+    const params = { year: selYear, month: selMonth };
+    if (rangeStart) params.rangeStart = rangeStart.toISOString();
+    if (rangeEnd) params.rangeEnd = rangeEnd.toISOString();
+    Promise.all([
+      reportAPI.getFinancial(params).catch(() => ({ data: {} })),
+      transactionAPI.getAll({ ...params, limit: 200 }).catch(() => ({ data: { transactions: [] } })),
+    ]).then(([finRes, txRes]) => {
+      if (!mounted) return;
+      setReportData(finRes.data);
+      setEntries(txRes.data.transactions || []);
+    }).catch(() => { if (mounted) setError("Failed to load report data"); })
+    .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [selYear, selMonth, rangeStart?.getTime(), rangeEnd?.getTime()]);
 
-  if (error) {
-    return (
-      <div style={{ padding: 40, color: "#dc2626", textAlign: "center" }}>
-        <h3>Error</h3>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()} style={{ padding: "8px 16px", borderRadius: 8, background: "#ea580c", color: "#fff", border: "none", cursor: "pointer" }}>Retry</button>
-      </div>
-    );
-  }
-
-  const { income = 0, expenses = 0, profit = 0, compliance = 0, workers = [] } = reportData || {};
-
+  const { income = 0, expenses = 0, profit = 0, compliance = 0 } = reportData || {};
   const margin = income > 0 ? ((profit / income) * 100).toFixed(1) : "0.0";
-  const metrics = [
-    { label:"TOTAL INCOME",  value:formatINR(income), sub:"Real-time data", subColor:"#16a34a", dot:"#16a34a" },
-    { label:"EXPENDITURES",  value:formatINR(expenses), sub:"Updated hourly",  subColor:"#ea580c", dot:"#ef4444" },
-    { label:"NET PROFIT",    value:formatINR(profit), sub:`${margin}% Margin`, subColor:"#6b7280", dot:"#ea580c", valueColor:"#ea580c" },
-  ];
+
+  const materialTotal = entries.filter(e => (e.type || "").toLowerCase() === "materials" || (e.category || "").toLowerCase() === "material").reduce((s, e) => s + (e.amount || 0), 0);
+  const labourTotal = entries.filter(e => (e.type || "").toLowerCase() === "wages" || (e.category || "").toLowerCase() === "labour").reduce((s, e) => s + (e.amount || 0), 0);
+  const equipmentTotal = entries.filter(e => (e.type || "").toLowerCase() === "equipment").reduce((s, e) => s + (e.amount || 0), 0);
+  const grandTotal = materialTotal + labourTotal + equipmentTotal;
+
+  const filtered = entries.filter(e => {
+    const q = search.toLowerCase();
+    const tabKey = TABS[activeTab]?.key;
+    const matchSearch = !q || (e.title || "").toLowerCase().includes(q) || (e.description || "").toLowerCase().includes(q) || (e.notes || "").toLowerCase().includes(q);
+    const type = (e.type || "").toLowerCase();
+    const cat = (e.category || "").toLowerCase();
+    if (tabKey === "all") return matchSearch;
+    if (tabKey === "materials") return matchSearch && (type === "materials" || cat === "material");
+    if (tabKey === "labour") return matchSearch && (type === "wages" || cat === "labour");
+    if (tabKey === "equipment") return matchSearch && (type === "equipment" || cat === "equipment");
+    return matchSearch;
+  }).sort((a, b) => {
+    if (sortKey === "amount") return (b.amount || 0) - (a.amount || 0);
+    return (a.title || "").localeCompare(b.title || "");
+  });
+
+  const handleExportCSV = () => {
+    try {
+      setExporting(true);
+      const header = "Title,Type,Amount,Date\n";
+      const rows = filtered.map(e => `"${(e.title || "").replace(/"/g, '""')}","${(e.type || "").replace(/"/g, '""')}",${e.amount || 0},"${e.date ? new Date(e.date).toLocaleDateString("en-IN") : ""}"`).join("\n");
+      const url = URL.createObjectURL(new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8;" }));
+      const a = document.createElement("a"); a.href = url; a.download = `report-${SHORT_MONTHS[selMonth]}-${selYear}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+      setToast({ msg: "CSV exported!", type: "success" });
+    } catch { setToast({ msg: "Export failed", type: "error" }); }
+    finally { setExporting(false); }
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      setExporting(true);
+      const doc = new jsPDF();
+      doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+      doc.text(`Report - ${MONTH_NAMES[selMonth]} ${selYear}`, 14, 16);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+      doc.text(`Income: ${formatINR(income)}`, 14, 28);
+      doc.text(`Expenses: ${formatINR(expenses)}`, 74, 28);
+      doc.text(`Net: ${formatINR(profit)}`, 140, 28);
+      const body = filtered.length ? filtered.map(e => [e.title || "\u2014", e.type || "\u2014", `\u20B9${(e.amount || 0).toLocaleString("en-IN")}`, e.date ? new Date(e.date).toLocaleDateString("en-IN") : "\u2014"]) : [["No data"]];
+      autoTable(doc, { startY: 36, head: [["Title", "Type", "Amount", "Date"]], body, styles: { fontSize: 9 }, headStyles: { fillColor: [23, 62, 234], textColor: 255 } });
+      doc.save(`report-${SHORT_MONTHS[selMonth]}-${selYear}.pdf`);
+      setToast({ msg: "PDF downloaded!", type: "success" });
+    } catch { setToast({ msg: "PDF failed", type: "error" }); }
+    finally { setExporting(false); }
+  };
 
   const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`;
-  const rangeLabel = formatRangeLabel(rangeStart, rangeEnd);
-
-  const SORT_OPTIONS = [
-    { key: "name",    label: "Worker Name (A–Z)" },
-    { key: "payout",  label: "Payout (High–Low)"},
-    { key: "trade",   label: "Trade / Role" },
-  ];
-
-  const filtered = workers
-    .filter(w =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      (w.trade && w.trade.toLowerCase().includes(search.toLowerCase()))
-    )
-    .sort((a, b) => {
-      if (sortKey === "payout") return (b.estimatedMonthlyPayout || 0) - (a.estimatedMonthlyPayout || 0);
-      if (sortKey === "trade")  return (a.trade || "").localeCompare(b.trade || "");
-      return (a.name || "").localeCompare(b.name || "");
-    });
-
-
-  function applyMonth(year, month) {
-    setSelYear(year);
-    setSelMonth(month);
-    const r = fullMonthRange(year, month);
-    setRangeStart(r.start);
-    setRangeEnd(r.end);
-    setCalYear(year);
-    setCalMonth(month);
-    setShowMonthDrop(false);
-  }
-
-  function handleLastMonth() {
-    const { year, month } = lastMonthOf(THIS_YEAR, THIS_MONTH);
-    applyMonth(year, month);
-  }
-
-  function onDayClick(day) {
-    if (pickingStart) {
-      setRangeStart(day); setRangeEnd(null); setPickingStart(false);
-    } else {
-      const [s, e] = day < rangeStart ? [day, rangeStart] : [rangeStart, day];
-      setRangeStart(s); setRangeEnd(e);
-      setPickingStart(true); setShowCal(false);
-    }
-  }
 
   return (
-    <div style={{ flex:1, minWidth:0, width:"100%", display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:"#f7f7f8", fontFamily:"'Segoe UI', sans-serif" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
-      <div style={{ background:"#fff", borderBottom:"1px solid #ebebeb", padding:"0 28px", height:64, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxSizing:"border-box" }}>
-        <h1 style={{ margin:0, fontSize:20, fontWeight:800, color:"#111", whiteSpace:"nowrap" }}>Financial Reports</h1>
-        <div style={{ flex:1, maxWidth:420, margin:"0 auto", display:"flex", alignItems:"center", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:10, padding:"9px 14px", gap:8 }}>
-          <span style={{ color:"#aaa", fontSize:14 }}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search workers..."
-            style={{ border:"none", background:"transparent", outline:"none", fontSize:14, color:"#555", width:"100%" }} />
+      {/* Top Bar */}
+      <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Reports</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>Financial overview &amp; transaction log</p>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <button onClick={handleExportCSV} disabled={exporting} id="export-csv-btn" style={{ padding:"10px 20px", background:"#fff", color:"#ea580c", border:"1.5px solid #ea580c", borderRadius:10, fontWeight:700, fontSize:14, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap", opacity: exporting ? 0.7 : 1 }}>{exporting ? "⏳ Exporting…" : "⬇ Export CSV"}</button>
-          <div style={{ width:38, height:38, background:"#f5f5f5", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, cursor:"pointer", border:"1px solid #e5e5e5" }}>🔔</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => navigate("/ai-chat")}
+            style={{
+              padding: "9px 18px", borderRadius: radius.sm, border: "none",
+              background: gradients.primaryButton, color: "#FFF",
+              fontWeight: 600, fontSize: 13, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+            Ask AI
+          </button>
+          <button onClick={handleExportCSV} disabled={exporting}
+            style={{ padding: "9px 18px", borderRadius: radius.sm, border: `1.5px solid ${colors.primaryBlue}`, background: "transparent", color: colors.primaryBlue, fontWeight: 600, fontSize: 13, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.6 : 1 }}>
+            Export CSV
+          </button>
         </div>
       </div>
 
-      <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"28px 28px 60px", boxSizing:"border-box" }}>
-
-        {/* Page heading */}
-        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:16, marginBottom:24 }}>
-          <div>
-            <h2 style={{ margin:"0 0 6px", fontSize:"clamp(24px,3vw,34px)", fontWeight:900, color:"#111", letterSpacing:"-0.5px" }}>{monthLabel} Analysis</h2>
-            <p style={{ margin:0, fontSize:14, color:"#888", maxWidth:340, lineHeight:1.5 }}>Reporting period performance and labor expenditure overview.</p>
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+        {/* Filter Card */}
+        <div style={{ background: colors.cardBg, borderRadius: radius.md, border: `1px solid ${colors.cardBorder}`, padding: "16px 20px", marginBottom: 20, boxShadow: shadows.card, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 200, background: colors.bgBase4, borderRadius: radius.sm, padding: "9px 14px" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search entries..." style={{ border: "none", outline: "none", fontSize: 13, color: colors.textPrimary, background: "transparent", width: "100%" }} />
           </div>
-          <button onClick={handleDownloadPDF} disabled={exporting} id="download-pdf-btn" style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)", opacity: exporting ? 0.7 : 1 }}>
-            <span style={{ fontSize:18 }}>📄</span>
-            <span>{exporting ? "Downloading…" : <>Download<br /><span style={{ fontSize:13, fontWeight:600 }}>Report</span></>}</span>
-          </button>
-        </div>
 
-        {/* ── Date filter strip ──────────────────────────────────────────────── */}
-        <div style={{ background:"#fff", borderRadius:14, border:"1px solid #ebebeb", padding:"14px 20px", display:"flex", alignItems:"center", gap:10, marginBottom:24, flexWrap:"wrap", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", position:"relative" }}>
-
-          <button
-            onClick={handleLastMonth}
-            style={{ padding:"9px 20px", background:"transparent", color:"#333", border:"1.5px solid #e5e5e5", borderRadius:8, fontWeight:500, fontSize:14, cursor:"pointer", transition:"border-color 0.15s" }}
-            onMouseEnter={e=>e.currentTarget.style.borderColor="#ccc"}
-            onMouseLeave={e=>e.currentTarget.style.borderColor="#e5e5e5"}>
-            Last Month
-          </button>
-
-          {/* ── Month selector dropdown ─────────── */}
-          <div ref={monthDropRef} style={{ position:"relative" }}>
-            <button
-              onClick={()=>{ setShowMonthDrop(v=>!v); setShowCal(false); }}
-              style={{ padding:"9px 20px", background:"transparent", color:"#ea580c", border:"1.5px solid #ea580c", borderRadius:8, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-              {monthLabel} <span style={{ fontSize:11 }}>▾</span>
+          {/* Month selector */}
+          <div ref={monthDropRef} style={{ position: "relative" }}>
+            <button onClick={() => { setShowMonthDrop(v => !v); setShowCal(false); }}
+              style={{ padding: "9px 18px", borderRadius: radius.sm, border: `1.5px solid ${colors.primaryBlue}`, background: "transparent", color: colors.primaryBlue, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              {monthLabel} <span style={{ fontSize: 10 }}>&#x25BE;</span>
             </button>
-
             {showMonthDrop && (
-              <div style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.14)", zIndex:200, width:240, overflow:"hidden" }}>
-
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderBottom:"1px solid #f0f0f0", background:"#fafafa" }}>
-                  <button onClick={()=>setDropYear(y=>Math.max(2020,y-1))}
-                    style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#555", padding:"2px 8px" }}>‹</button>
-                  <span style={{ fontWeight:700, fontSize:14, color:"#111" }}>{dropYear}</span>
-                  <button onClick={()=>setDropYear(y=>Math.min(2030,y+1))}
-                    style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#555", padding:"2px 8px" }}>›</button>
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: radius.md, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", zIndex: 200, width: 240, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: `1px solid ${colors.divider}` }}>
+                  <button onClick={() => setDropYear(y => Math.max(2020, y - 1))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: colors.textPrimary }}>&#x2039;</button>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: colors.textPrimary }}>{dropYear}</span>
+                  <button onClick={() => setDropYear(y => Math.min(2030, y + 1))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: colors.textPrimary }}>&#x203A;</button>
                 </div>
-
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:4, padding:"10px 12px 12px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 4, padding: "12px" }}>
                   {MONTH_NAMES.map((name, mi) => {
-                    const isActive = dropYear===selYear && mi===selMonth;
+                    const active = dropYear === selYear && mi === selMonth;
                     return (
-                      <button key={name}
-                        onClick={()=>applyMonth(dropYear, mi)}
-                        style={{ padding:"8px 4px", fontSize:12, fontWeight:isActive?700:500, color:isActive?"#fff":"#333", background:isActive?"#ea580c":"#f5f5f5", border:"none", borderRadius:8, cursor:"pointer", transition:"all 0.12s" }}
-                        onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background="#ffe8d8"; }}
-                        onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background="#f5f5f5"; }}>
+                      <button key={name} onClick={() => { setSelYear(dropYear); setSelMonth(mi); const r = fullMonthRange(dropYear, mi); setRangeStart(r.start); setRangeEnd(r.end); setCalYear(dropYear); setCalMonth(mi); setShowMonthDrop(false); }}
+                        style={{ padding: "8px 4px", fontSize: 12, fontWeight: active ? 700 : 500, color: active ? "#FFF" : colors.textPrimary, background: active ? gradients.primaryButton : colors.bgBase4, border: "none", borderRadius: radius.sm, cursor: "pointer" }}>
                         {SHORT_MONTHS[mi]}
                       </button>
                     );
@@ -472,158 +200,121 @@ export default function FinancialReportPage() {
             )}
           </div>
 
-          <div style={{ width:1, height:28, background:"#e5e5e5" }} />
-
-          {/* ── Date range picker ─────────────────────────────────────────── */}
-          <div ref={calRef} style={{ position:"relative" }}>
-            <div
-              onClick={()=>{ setShowCal(v=>!v); setShowMonthDrop(false); setPickingStart(true); }}
-              style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 16px", border:"1.5px solid #e5e5e5", borderRadius:8, cursor:"pointer", userSelect:"none" }}>
-              <span style={{ fontSize:15 }}>📅</span>
-              <span style={{ fontSize:14, color:rangeEnd?"#444":"#ea580c", fontWeight:500 }}>{rangeLabel}</span>
-              <span style={{ fontSize:12, color:"#aaa" }}>▾</span>
-            </div>
-
-            {showCal && (
-              <div style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.12)", zIndex:200 }}>
-                <div style={{ padding:"10px 16px 8px", fontSize:12, color:"#888", borderBottom:"1px solid #f5f5f5" }}>
-                  {pickingStart
-                    ? "Click to set start date"
-                    : <span>Set end date — <span style={{ color:"#ea580c", fontWeight:600 }}>From: {formatShortDate(rangeStart)}</span></span>}
-                </div>
-
-                <MiniCalendar
-                  calYear={calYear} calMonth={calMonth}
-                  rangeStart={rangeStart} rangeEnd={rangeEnd} hoverDay={hoverDay}
-                  onDayClick={onDayClick}
-                  onDayHover={d => !pickingStart && setHoverDay(d)}
-                  setCalYear={setCalYear}
-                  setCalMonth={setCalMonth}
-                />
-
-                <div style={{ padding:"10px 16px", borderTop:"1px solid #f0f0f0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <button onClick={()=>{ setRangeStart(null); setRangeEnd(null); setPickingStart(true); }}
-                    style={{ background:"none", border:"none", color:"#888", fontSize:12, cursor:"pointer" }}>Clear</button>
-                  <button onClick={()=>setShowCal(false)}
-                    style={{ padding:"6px 16px", background:"#ea580c", color:"#fff", border:"none", borderRadius:7, fontSize:13, fontWeight:700, cursor:"pointer" }}>Done</button>
-                </div>
-              </div>
-            )}
+          {/* Date range */}
+          <div ref={calRef} style={{ position: "relative" }}>
+            <button onClick={() => { setShowCal(v => !v); setShowMonthDrop(false); }}
+              style={{ padding: "9px 18px", borderRadius: radius.sm, border: `1.5px solid ${colors.cardBorder}`, background: "transparent", color: colors.textPrimary, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+              {formatShortDate(rangeStart)} - {formatShortDate(rangeEnd)}
+            </button>
           </div>
+
+          <button onClick={handleDownloadPDF} disabled={exporting}
+            style={{ padding: "9px 20px", borderRadius: radius.sm, border: "none", background: gradients.primaryButton, color: "#FFF", fontWeight: 700, fontSize: 13, cursor: exporting ? "not-allowed" : "pointer", opacity: exporting ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+            {exporting ? "Downloading..." : "Download PDF"}
+          </button>
         </div>
 
-        {/* Metrics + Compliance */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1.15fr", gap:16, marginBottom:24 }}>
-          {metrics.map(m=>(
-            <div key={m.label} style={{ background:"#fff", borderRadius:16, border:"1px solid #ebebeb", padding:"24px 22px", boxShadow:"0 1px 6px rgba(0,0,0,0.04)", display:"flex", flexDirection:"column", gap:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <div style={{ width:9, height:9, borderRadius:"50%", background:m.dot, flexShrink:0 }} />
-                <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em" }}>{m.label}</span>
-              </div>
-              <div style={{ fontSize:"clamp(18px,2vw,26px)", fontWeight:800, color:m.valueColor||"#111", letterSpacing:"-0.5px" }}>{m.value}</div>
-              <div style={{ fontSize:12, color:m.subColor, fontWeight:600 }}>{m.sub}</div>
-            </div>
+        {/* Cost Summary Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
+          <div style={{
+            background: `linear-gradient(135deg, ${colors.primaryBlue}, ${colors.primaryLightBlue})`,
+            borderRadius: radius.lg, padding: "18px 20px", boxShadow: shadows.card,
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.8)" style={{ marginBottom: 8 }}><path d="M11 17h2v-1h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2h-3V8h4V6h-2V5h-2v1h-1a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1H9v2h2v1z" /></svg>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#FFF", marginBottom: 2 }}>{formatINR(grandTotal)}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>Total Cost</div>
+          </div>
+          <CostCard label="Materials" value={materialTotal} color="#5B5FCF" icon="M3 3h18v18H3z" />
+          <CostCard label="Labour" value={labourTotal} color={colors.primaryPurple} icon="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <CostCard label="Equipment" value={equipmentTotal} color={colors.primaryLightBlue} icon="M4 8h16v12H4z" />
+        </div>
+
+        {/* Category Tabs */}
+        <div style={{ display: "flex", gap: 0, marginBottom: 16, background: colors.cardBg, borderRadius: radius.sm, border: `1px solid ${colors.cardBorder}`, overflow: "hidden" }}>
+          {TABS.map((tab, i) => (
+            <button key={tab.key} onClick={() => setActiveTab(i)}
+              style={{
+                flex: 1, padding: "12px 0", border: "none", cursor: "pointer",
+                background: activeTab === i ? colors.primaryBlue : "transparent",
+                color: activeTab === i ? "#FFF" : colors.textSecondary,
+                fontWeight: activeTab === i ? 700 : 500, fontSize: 13,
+                transition: "all 0.15s",
+              }}>
+              {tab.label}
+            </button>
           ))}
-          <div style={{ background:"#ea580c", borderRadius:16, padding:"24px 22px", display:"flex", flexDirection:"column", gap:12, boxShadow:"0 4px 20px rgba(234,88,12,0.3)" }}>
-            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", letterSpacing:"0.08em" }}>OVERALL COMPLIANCE</div>
-            <div style={{ fontSize:"clamp(28px,3vw,38px)", fontWeight:900, color:"#fff", letterSpacing:"-1px", lineHeight:1 }}>
-              {compliance.toFixed(1)}%<br /><span style={{ fontSize:"clamp(22px,2.5vw,30px)" }}>Compliance</span>
-            </div>
-            <div style={{ height:8, background:"rgba(255,255,255,0.25)", borderRadius:4, overflow:"hidden" }}>
-              <div style={{ width:`${compliance}%`, height:"100%", background:"#fff", borderRadius:4, transition:"width 0.4s ease" }} />
-            </div>
-            <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.85)", lineHeight:1.5 }}>Budget adherence for {monthLabel}.</p>
-          </div>
         </div>
 
-        {/* Wages Per Worker table */}
-        <div style={{ background:"#fff", borderRadius:16, border:"1px solid #ebebeb", boxShadow:"0 1px 6px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-          <div style={{ padding:"22px 24px 0", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-            <div>
-              <div style={{ fontSize:18, fontWeight:800, color:"#111" }}>Wages Per Worker</div>
-              <div style={{ fontSize:13, color:"#888", marginTop:3 }}>Breakdown of labor costs for {monthLabel}</div>
-            </div>
-            <div style={{ display:"flex", gap:10 }}>
-
-              {/* ── Sort dropdown (≡) ─────────────────────────────────────── */}
-              <div ref={sortRef} style={{ position:"relative" }}>
-                <button
-                  onClick={() => { setShowSort(v => !v); }}
-                  title="Sort workers"
-                  style={{ background: showSort ? "#fff5f0" : "none", border: showSort ? "1px solid #fde4d0" : "none", cursor:"pointer", fontSize:18, color: showSort ? "#ea580c" : "#888", borderRadius:8, padding:"4px 8px", lineHeight:1, transition:"all 0.15s" }}>
-                  ≡
-                </button>
-                {showSort && (
-                  <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 28px rgba(0,0,0,0.12)", zIndex:300, minWidth:200, overflow:"hidden" }}>
-                    <div style={{ padding:"10px 14px 6px", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em" }}>SORT BY</div>
-                    {SORT_OPTIONS.map(opt => (
-                      <div key={opt.key}
-                        onClick={() => { setSortKey(opt.key); setShowSort(false); }}
-                        style={{ padding:"10px 16px", fontSize:13, fontWeight: sortKey===opt.key?700:400, color: sortKey===opt.key?"#ea580c":"#333", background: sortKey===opt.key?"#fff5f0":"transparent", cursor:"pointer", borderLeft: sortKey===opt.key?"3px solid #ea580c":"3px solid transparent", transition:"background 0.12s" }}
-                        onMouseEnter={e=>{ if(sortKey!==opt.key) e.currentTarget.style.background="#f9f9f9"; }}
-                        onMouseLeave={e=>{ if(sortKey!==opt.key) e.currentTarget.style.background="transparent"; }}>
-                        {opt.label} {sortKey===opt.key && "✓"}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
+        {/* Data Table */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 60 }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${colors.bgBase4}`, borderTopColor: colors.primaryBlue, animation: "spin 0.7s linear infinite", margin: "0 auto 16px" }} />
+            <div style={{ fontSize: 13, color: colors.textLight }}>Loading report...</div>
           </div>
-
-          {/* ── PROJECT STATUS LEGEND only ── */}
-          <div style={{ padding:"14px 24px", display:"flex", alignItems:"center", gap:20, borderBottom:"1px solid #f0f0f0", flexWrap:"wrap" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.06em" }}>PROJECT STATUS LEGEND:</span>
-              {[["#16a34a","ON TRACK"],["#3b82f6","IN PROGRESS"],["#f59e0b","REVIEW NEEDED"]].map(([c,l])=>(
-                <div key={l} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                  <div style={{ width:8, height:8, borderRadius:"50%", background:c }}/><span style={{ fontSize:11, fontWeight:600, color:"#666" }}>{l}</span>
-                </div>
-              ))}
+        ) : (
+          <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, overflow: "hidden" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: colors.bgBase4 }}>
+                    <th style={thStyle}>TITLE</th>
+                    <th style={thStyle}>TYPE</th>
+                    <th style={{ ...thStyle, textAlign: "right", cursor: "pointer" }} onClick={() => setSortKey(sortKey === "amount" ? "name" : "amount")}>
+                      AMOUNT {sortKey === "amount" ? "\u25B2" : "\u25B4"}
+                    </th>
+                    <th style={thStyle}>DATE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={4} style={{ padding: 40, textAlign: "center", color: colors.textLight, fontSize: 13 }}>No entries found for this period.</td></tr>
+                  ) : filtered.map((e, i) => {
+                    const type = (e.type || "").toLowerCase();
+                    const chipColor = type === "materials" || type === "material" ? "#5B5FCF" : type === "wages" || type === "labour" ? colors.primaryPurple : type === "equipment" ? colors.primaryLightBlue : colors.textLight;
+                    const chipBg = type === "materials" || type === "material" ? `${colors.primaryBlue}10` : type === "wages" || type === "labour" ? `${colors.primaryPurple}10` : type === "equipment" ? `${colors.primaryLightBlue}10` : colors.bgBase4;
+                    return (
+                      <tr key={e._id || i} style={{ borderBottom: `1px solid ${colors.bgBase4}` }}
+                        onMouseEnter={ev => ev.currentTarget.style.background = colors.bgBase4}
+                        onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
+                        <td style={tdStyle}><span style={{ fontWeight: 600, fontSize: 14, color: colors.textPrimary }}>{e.title || "\u2014"}</span></td>
+                        <td style={tdStyle}><span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: chipBg, color: chipColor }}>{(e.type || e.category || "Expense").toUpperCase()}</span></td>
+                        <td style={{ ...tdStyle, textAlign: "right" }}><span style={{ fontWeight: 700, color: colors.textPrimary, fontSize: 14 }}>{formatINR(e.amount)}</span></td>
+                        <td style={tdStyle}><span style={{ fontSize: 12, color: colors.textLight }}>{e.date ? new Date(e.date).toLocaleDateString("en-IN") : "\u2014"}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          <div style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"10px 24px", borderBottom:"1px solid #f0f0f0" }}>
-            {["WORKER DETAILS","PROJECT","TOTAL DAYS","RATE","TOTAL PAYOUT","ACTION"].map(col=>(
-              <div key={col} style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em" }}>{col}</div>
-            ))}
-          </div>
-          {filtered.length === 0 && (
-            <div style={{ padding: 32, textAlign: "center", color: "#aaa", fontSize: 14 }}>
-              {workers.length === 0 ? "No workers found for this period." : "No workers match your search."}
-            </div>
-          )}
-          {filtered.map((w,i)=>(
-            <div key={w._id || w.id || i}
-              style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"18px 24px", borderBottom:i<filtered.length-1?"1px solid #f5f5f5":"none", alignItems:"center", transition:"background 0.15s" }}
-              onMouseEnter={e=>e.currentTarget.style.background="#fafafa"}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <div style={{ width:8, height:8, borderRadius:"50%", background: statusColor(w.projectStatus), flexShrink:0 }} />
-                <div style={{ width:40, height:40, borderRadius:"50%", background:"#2d3748", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>{w.name?.charAt(0)}</div>
-                <div>
-                  <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{w.name}</div>
-                  <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{w.trade}</div>
-                </div>
-              </div>
-              <div><span style={{ padding:"4px 10px", background:"#e0e7ff", color:"#3730a3", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{w.project || "Various"}</span></div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.totalDays != null ? `${w.totalDays}d` : "—"}</div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{formatINR(w.dailyWage || 0)}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{formatINR(w.estimatedMonthlyPayout || 0)}</div>
-              <div>
-                <button
-                  onClick={() => navigate(`/workers/${w._id || w.id}`, { state: { worker: w } })}
-                  style={{ background:"none", border:"none", color:"#ea580c", fontWeight:700, fontSize:12, cursor:"pointer", letterSpacing:"0.04em", padding:0, fontFamily:"inherit", transition:"opacity 0.15s" }}
-                  onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
-                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                  DETAILS
+            <div style={{ padding: "12px 20px", borderTop: `1px solid ${colors.cardBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: colors.textLight }}>{filtered.length} entries</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={handleExportCSV} disabled={exporting || filtered.length === 0}
+                  style={{ padding: "6px 14px", borderRadius: radius.sm, border: `1px solid ${colors.cardBorder}`, background: "transparent", color: colors.primaryBlue, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                  Export CSV
                 </button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function thStyle() { return { padding: "12px 18px", fontSize: 11, fontWeight: 700, color: colors.textLight, letterSpacing: "0.06em", textAlign: "left", whiteSpace: "nowrap" }; }
+function tdStyle() { return { padding: "14px 18px", fontSize: 13, color: colors.textPrimary }; }
+
+function CostCard({ label, value, color, icon }) {
+  return (
+    <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "18px 20px", boxShadow: shadows.card }}>
+      <div style={{ width: 30, height: 30, borderRadius: 8, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d={icon} /></svg>
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 900, color: colors.textPrimary, letterSpacing: "-0.3px", marginBottom: 2 }}>{formatINR(value)}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: colors.textLight }}>{label}</div>
     </div>
   );
 }

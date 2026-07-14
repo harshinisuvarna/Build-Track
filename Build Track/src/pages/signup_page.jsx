@@ -4,7 +4,7 @@ import { authAPI } from "../api";
 
 const CheckIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <circle cx="10" cy="10" r="10" fill="#ea580c" />
+    <circle cx="10" cy="10" r="10" fill="#173EEA" />
     <path d="M5.5 10l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
@@ -113,9 +113,9 @@ export default function SignUpPage() {
   const inputWrap = (focused, hasErr) => ({
     display: "flex", alignItems: "center", gap: 10,
     padding: "13px 14px",
-    border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#ea580c" : "#e0e0e0"}`,
+    border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#173EEA" : "#e0e0e0"}`,
     borderRadius: 10, background: "#fff",
-    boxShadow: focused ? `0 0 0 3px ${hasErr ? "rgba(220,38,38,0.1)" : "rgba(234,88,12,0.1)"}` : "none",
+    boxShadow: focused ? `0 0 0 3px ${hasErr ? "rgba(220,38,38,0.1)" : "rgba(23,62,234,0.1)"}` : "none",
     transition: "border-color 0.18s, box-shadow 0.18s",
   });
 
@@ -156,13 +156,13 @@ export default function SignUpPage() {
         animation: "fadeIn 0.55s ease both",
       }}>
         {/* Glow blobs */}
-        <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(240,90,26,.18) 0%, transparent 70%)", top: -100, right: -120, pointerEvents: "none" }} />
-        <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(240,90,26,.10) 0%, transparent 70%)", bottom: -60, left: 40, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,62,234,.18) 0%, transparent 70%)", top: -100, right: -120, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(177,55,255,.10) 0%, transparent 70%)", bottom: -60, left: 40, pointerEvents: "none" }} />
 
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "baseline", marginBottom: 6 }}>
           <span style={{ fontWeight: 800, fontSize: 42, color: "#fff", letterSpacing: -1 }}>Build</span>
-          <span style={{ fontWeight: 800, fontSize: 42, color: "#ea580c", letterSpacing: -1 }}>Track</span>
+          <span style={{ fontWeight: 800, fontSize: 42, color: "#67C8FF", letterSpacing: -1 }}>Track</span>
         </div>
         <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: 3, color: "rgba(255,255,255,.4)", textTransform: "uppercase", marginBottom: 52 }}>
           Construction Management Platform
@@ -171,7 +171,7 @@ export default function SignUpPage() {
         {/* Headline */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontWeight: 800, fontSize: 52, color: "#fff", lineHeight: 1.05 }}>Build smarter.</div>
-          <div style={{ fontWeight: 800, fontSize: 52, color: "#ea580c", lineHeight: 1.05 }}>Track everything.</div>
+          <div style={{ fontWeight: 800, fontSize: 52, color: "#67C8FF", lineHeight: 1.05 }}>Track everything.</div>
         </div>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,.55)", lineHeight: 1.7, maxWidth: 300, marginBottom: 52 }}>
           From site management to financial reporting — everything your construction team needs, in one place.
@@ -281,8 +281,8 @@ export default function SignUpPage() {
                   onClick={() => { setAgreed(v => !v); setErrors(p => ({...p, agreed: ""})); }}
                   style={{
                     width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
-                    border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#ea580c" : "#d0d0d0"}`,
-                    background: agreed ? "#ea580c" : "#fff",
+                    border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#173EEA" : "#d0d0d0"}`,
+                    background: agreed ? "#173EEA" : "#fff",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "all 0.15s", cursor: "pointer",
                   }}>
@@ -294,9 +294,9 @@ export default function SignUpPage() {
                 </div>
                 <span style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>
                   By creating an account, you agree to our{" "}
-                  <span style={{ color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>Terms of Service</span>
+                  <span style={{ color: "#173EEA", fontWeight: 600, cursor: "pointer" }}>Terms of Service</span>
                   {" "}and{" "}
-                  <span style={{ color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>Privacy Policy</span>.
+                  <span style={{ color: "#173EEA", fontWeight: 600, cursor: "pointer" }}>Privacy Policy</span>.
                 </span>
               </label>
               {errText(errors.agreed)}
@@ -307,18 +307,18 @@ export default function SignUpPage() {
               type="button" onClick={handleSubmit} disabled={loading}
               style={{
                 width: "100%", padding: "15px 0",
-                background: loading ? "#f97316" : "#ea580c",
+                background: "#173EEA",
                 color: "#fff", border: "none", borderRadius: 10,
                 fontSize: 15, fontWeight: 700, letterSpacing: "0.06em",
                 cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "'Segoe UI', system-ui, sans-serif",
-                boxShadow: "0 6px 22px rgba(234,88,12,0.30)",
+                boxShadow: "0 6px 22px rgba(23,62,234,0.30)",
                 transition: "background 0.18s, transform 0.1s",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                 marginBottom: 24,
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#c2410c"; }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#ea580c"; }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#B137FF"; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#173EEA"; }}
               onMouseDown={e => { e.currentTarget.style.transform = "scale(0.98)"; }}
               onMouseUp={e   => { e.currentTarget.style.transform = "scale(1)"; }}>
               {loading
@@ -333,7 +333,7 @@ export default function SignUpPage() {
           <div style={{ textAlign: "center" }}>
             <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "#94a3b8" }}>
               Already have an account?{" "}
-              <span style={{ color: "#ea580c", fontWeight: 700, cursor: "pointer" }} onClick={() => navigate("/login")}>
+              <span style={{ color: "#173EEA", fontWeight: 700, cursor: "pointer" }} onClick={() => navigate("/login")}>
                 Log in
               </span>
             </p>

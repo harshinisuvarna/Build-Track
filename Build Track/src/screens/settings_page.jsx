@@ -9,7 +9,7 @@ function Toggle({ on, onToggle }) {
     <div onClick={onToggle}
       style={{
         width: 48, height: 26, borderRadius: 13, cursor: "pointer",
-        background: on ? "#ea580c" : "#d1d5db",
+        background: on ? "#173EEA" : "#d1d5db",
         position: "relative", transition: "background 0.25s ease",
         flexShrink: 0,
       }}>
@@ -292,7 +292,7 @@ export default function SettingsPage() {
                   style={{
                     position: "absolute", bottom: 2, right: 2,
                     width: 24, height: 24, borderRadius: "50%",
-                    background: "#ea580c", display: "flex",
+                    background: "#173EEA", display: "flex",
                     alignItems: "center", justifyContent: "center",
                     fontSize: 12, cursor: "pointer", border: "2px solid #fff",
                   }}>✏️</div>
@@ -322,12 +322,12 @@ export default function SettingsPage() {
                   disabled={saving}
                   style={{
                     padding: "11px 24px",
-                    background: saved ? "#16a34a" : "#ea580c",
+                    background: saved ? "#16a34a" : "#173EEA",
                     color: "#fff", border: "none", borderRadius: 10,
                     fontWeight: 600, fontSize: 14, cursor: saving ? "not-allowed" : "pointer",
                     boxShadow: saved
                       ? "0 4px 12px rgba(22,163,74,0.3)"
-                      : "0 4px 12px rgba(234,88,12,0.3)",
+                      : "0 4px 12px rgba(23,62,234,0.3)",
                     transition: "background 0.3s ease, box-shadow 0.3s ease",
                     opacity: saving ? 0.7 : 1,
                   }}
@@ -358,7 +358,7 @@ export default function SettingsPage() {
               <div>
                 <label style={{ ...labelStyle, fontSize: 13, color: "#444", fontWeight: 500, letterSpacing: 0 }}>Currency Indicator</label>
                 <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 10 }}>
-                  <span style={{ fontSize: 16, color: "#ea580c", fontWeight: 700 }}>₹</span>
+                  <span style={{ fontSize: 16, color: "#173EEA", fontWeight: 700 }}>₹</span>
                   <span style={{ fontSize: 14, color: "#1a1a1a" }}>{currency}</span>
                 </div>
               </div>
@@ -424,7 +424,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <button onClick={handleChangePassword} disabled={pwSaving}
-                  style={{ padding: "10px 24px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: pwSaving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.25)" }}>
+                  style={{ padding: "10px 24px", background: "#173EEA", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: pwSaving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(23,62,234,0.25)" }}>
                   {pwSaving ? "Saving…" : "Update Password"}
                 </button>
               </div>
@@ -451,12 +451,12 @@ export default function SettingsPage() {
                 onClick={handleToggle2FA}
                 style={{
                   padding: "10px 18px",
-                  background: twoFA ? "#fff" : "#ea580c",
+                  background: twoFA ? "#fff" : "#173EEA",
                   border: twoFA ? "1px solid #e5e5e5" : "none",
                   borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer",
                   color: twoFA ? "#444" : "#fff",
                   display: "flex", alignItems: "center", gap: 8,
-                  boxShadow: twoFA ? "none" : "0 4px 12px rgba(234,88,12,0.25)",
+                  boxShadow: twoFA ? "none" : "0 4px 12px rgba(23,62,234,0.25)",
                   transition: "all 0.25s ease",
                 }}
               >

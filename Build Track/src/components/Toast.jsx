@@ -70,7 +70,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = "Co
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
-            background: danger ? "#fee2e2" : "#fff5f0",
+            background: danger ? "#fee2e2" : "#F3F0FF",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 22, flexShrink: 0,
           }}>
@@ -95,12 +95,12 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = "Co
             onClick={onConfirm}
             style={{
               padding: "10px 22px",
-              background: danger ? "#dc2626" : "#ea580c",
+              background: danger ? "#dc2626" : "#173EEA",
               color: "#fff", border: "none", borderRadius: 10,
               fontWeight: 700, fontSize: 14, cursor: "pointer",
               boxShadow: danger
                 ? "0 4px 14px rgba(220,38,38,0.3)"
-                : "0 4px 14px rgba(234,88,12,0.3)",
+                : "0 4px 14px rgba(23,62,234,0.3)",
             }}
           >
             {confirmLabel}

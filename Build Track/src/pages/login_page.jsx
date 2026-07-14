@@ -113,14 +113,14 @@ export default function LoginPage() {
   const inputStyle = (focused, hasErr) => ({
     width: "100%", boxSizing: "border-box",
     padding: "13px 16px",
-    border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#ea580c" : "#e8e8e8"}`,
+    border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#173EEA" : "#e8e8e8"}`,
     borderRadius: 10, fontSize: 14.5, color: "#111",
     background: focused ? "#fff" : "#fafafa",
     outline: "none",
     fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
     transition: "border-color 0.18s, box-shadow 0.18s, background 0.18s",
     boxShadow: focused
-      ? `0 0 0 3.5px ${hasErr ? "rgba(220,38,38,0.11)" : "rgba(234,88,12,0.13)"}`
+      ? `0 0 0 3.5px ${hasErr ? "rgba(220,38,38,0.11)" : "rgba(23,62,234,0.13)"}`
       : "none",
   });
 
@@ -139,16 +139,16 @@ export default function LoginPage() {
     .bt-feature:hover { transform: translateX(5px); }
     .bt-btn-primary {
       width:100%; padding:15px 0;
-      background:#ea580c; color:#fff;
+      background:#173EEA; color:#fff;
       border:none; border-radius:10px;
       font-size:14px; font-weight:700; letter-spacing:0.1em;
       cursor:pointer; font-family:'DM Sans',system-ui,sans-serif;
-      box-shadow:0 6px 22px rgba(234,88,12,0.30);
+      box-shadow:0 6px 22px rgba(23,62,234,0.30);
       transition:background 0.18s,transform 0.12s,box-shadow 0.18s;
       display:flex; align-items:center; justify-content:center; gap:8px;
     }
-    .bt-btn-primary:hover:not(:disabled) { background:#c2410c; box-shadow:0 8px 28px rgba(234,88,12,0.38); transform:translateY(-1px); }
-    .bt-btn-primary:disabled { background:#f97316; cursor:not-allowed; }
+    .bt-btn-primary:hover:not(:disabled) { background:#B137FF; box-shadow:0 8px 28px rgba(177,55,255,0.38); transform:translateY(-1px); }
+    .bt-btn-primary:disabled { background:#173EEA; opacity:0.6; cursor:not-allowed; }
     .bt-btn-social {
       display:flex; align-items:center; justify-content:center; gap:8px;
       padding:11px 14px; border:1.5px solid #ebebeb; border-radius:10px;
@@ -157,8 +157,8 @@ export default function LoginPage() {
       transition:background 0.15s,border-color 0.15s,transform 0.1s;
     }
     .bt-btn-social:hover { background:#f5f5f5; border-color:#d0d0d0; transform:translateY(-1px); }
-    .bt-link-orange { color:#ea580c; font-weight:700; cursor:pointer; transition:color 0.15s; }
-    .bt-link-orange:hover { color:#c2410c; text-decoration:underline; }
+    .bt-link-primary { color:#173EEA; font-weight:700; cursor:pointer; transition:color 0.15s; }
+    .bt-link-primary:hover { color:#B137FF; text-decoration:underline; }
     .bt-footer-link { color:#c0ccd8; cursor:pointer; font-size:11.5px; transition:color 0.15s; }
     .bt-footer-link:hover { color:#94a3b8; }
   `;
@@ -218,11 +218,11 @@ export default function LoginPage() {
       </div>
 
       <div style={{ textAlign: "center", marginBottom: 26 }}>
-        <span onClick={() => { setShowForgot(v => !v); setForgotMsg(""); setForgotErr(""); }} className="bt-link-orange" style={{ fontSize: 13, cursor: "pointer" }}>{showForgot ? "← Back to login" : "Forgot password?"}</span>
+        <span onClick={() => { setShowForgot(v => !v); setForgotMsg(""); setForgotErr(""); }} className="bt-link-primary" style={{ fontSize: 13, cursor: "pointer" }}>{showForgot ? "← Back to login" : "Forgot password?"}</span>
       </div>
 
       {showForgot && (
-        <div style={{ background: "#fff9f5", border: "1px solid #fed7aa", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
+        <div style={{ background: "#F3F0FF", border: "1px solid #D2CBF0", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 10 }}>Reset Password</div>
           <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Enter your email and we'll send you a password reset link.</div>
           <input
@@ -247,7 +247,7 @@ export default function LoginPage() {
               }
             }}
             disabled={forgotLoading}
-            style={{ width: "100%", padding: "11px 0", background: forgotLoading ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: forgotLoading ? "not-allowed" : "pointer", textAlign: "center" }}>
+            style={{ width: "100%", padding: "11px 0", background: "#173EEA", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: forgotLoading ? "not-allowed" : "pointer", textAlign: "center", opacity: forgotLoading ? 0.6 : 1 }}>
             {forgotLoading ? "Sending…" : "Send Reset Link"}
           </button>
           {forgotMsg && <div style={{ marginTop: 10, fontSize: 13, color: "#166534", fontWeight: 600 }}>✅ {forgotMsg}</div>}
@@ -284,12 +284,12 @@ export default function LoginPage() {
           Don't have an account?{" "}
           <button
             type="button"
-            className="bt-link-orange"
+            className="bt-link-primary"
             onClick={() => {
 
               navigate("/signup");
             }}
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#ea580c", fontWeight: 700 }}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#173EEA", fontWeight: 700 }}
           >
             Sign up free
           </button>
@@ -314,19 +314,19 @@ export default function LoginPage() {
 
           {/* ── Left branding panel ── */}
           <div className="bt-left" style={{ background: "linear-gradient(150deg,#0f172a 0%,#1e293b 55%,#0c1f3f 100%)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "0 72px", position: "relative", overflow: "hidden", height: "100vh" }}>
-            <div style={{ position: "absolute", top: -120, right: -120, width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle,rgba(234,88,12,0.15) 0%,transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -100, left: -100, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle,rgba(234,88,12,0.09) 0%,transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", top: 0, right: 0, width: 1, height: "100%", background: "linear-gradient(to bottom,transparent,rgba(234,88,12,0.3),transparent)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: -120, right: -120, width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle,rgba(23,62,234,0.15) 0%,transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -100, left: -100, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle,rgba(177,55,255,0.09) 0%,transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: 0, right: 0, width: 1, height: "100%", background: "linear-gradient(to bottom,transparent,rgba(23,62,234,0.3),transparent)", pointerEvents: "none" }} />
 
             <div style={{ marginBottom: 52 }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 48, fontWeight: 800, letterSpacing: "-2px", lineHeight: 1, marginBottom: 10 }}>
-                <span style={{ color: "#fff" }}>Build</span><span style={{ color: "#ea580c" }}>Track</span>
+                <span style={{ color: "#fff" }}>Build</span><span style={{ color: "#67C8FF" }}>Track</span>
               </div>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>Construction management platform</p>
             </div>
 
             <h2 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 14px", fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.18, maxWidth: 400 }}>
-              Build smarter.<br /><span style={{ color: "#ea580c" }}>Track everything.</span>
+              Build smarter.<br /><span style={{ color: "#67C8FF" }}>Track everything.</span>
             </h2>
             <p style={{ margin: "0 0 52px", fontSize: 15, color: "rgba(255,255,255,0.5)", maxWidth: 380, lineHeight: 1.75 }}>
               From site management to financial reporting — everything your construction team needs, in one place.
@@ -335,7 +335,7 @@ export default function LoginPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%", maxWidth: 400 }}>
               {features.map((f, i) => (
                 <div key={f.title} className="bt-feature" style={{ animation: `slideUp 0.5s cubic-bezier(.22,.68,0,1.2) ${0.25 + i * 0.08}s both` }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 11, flexShrink: 0, background: "rgba(234,88,12,0.13)", border: "1px solid rgba(234,88,12,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{f.icon}</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 11, flexShrink: 0, background: "rgba(23,62,234,0.13)", border: "1px solid rgba(23,62,234,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{f.icon}</div>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{f.title}</div>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>{f.desc}</div>
@@ -362,7 +362,7 @@ export default function LoginPage() {
           <div style={{ width: "100%", maxWidth: 480 }}>
             <div style={{ textAlign: "center", marginBottom: 40 }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 40, fontWeight: 800, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 8 }}>
-                <span style={{ color: "#0f172a" }}>Build</span><span style={{ color: "#ea580c" }}>Track</span>
+                <span style={{ color: "#0f172a" }}>Build</span><span style={{ color: "#173EEA" }}>Track</span>
               </div>
               <p style={{ fontSize: 12.5, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>Construction management</p>
             </div>

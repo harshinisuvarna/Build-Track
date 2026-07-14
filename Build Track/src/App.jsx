@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./layout/DashboardLayout";
+import AppProviders from "./contexts/AppProviders";
+import { useAuth } from "./contexts/AuthContext";
 
 import LoginPage       from "./pages/login_page";
 import SignUpPage      from "./pages/signup_page";
@@ -12,6 +14,13 @@ import Projects        from "./screens/project_management";
 import Reports         from "./screens/financial_report";
 import Settings        from "./screens/settings_page";
 import NewProject      from "./screens/add_new_project";
+import AddEntry        from "./screens/add_entry_page";
+import EntryDetail     from "./screens/entry_detail_page";
+import Approvals       from "./screens/approvals_page";
+import AdminOverview   from "./screens/admin_overview_page";
+import AiChatReport    from "./screens/ai_chat_report_page";
+import AssignRoles     from "./screens/assign_roles_page";
+import Notifications   from "./screens/notifications_page";
 import NewWorker       from "./screens/add_new_worker";
 import ManageSite      from "./screens/managesite_dashboard";
 import ManualEntryPage from "./screens/manual_entry";
@@ -19,11 +28,23 @@ import WorkerDetails   from "./screens/worker_details_page";
 import InventoryPage   from "./screens/inventory_page";
 
 function RequireAuth({ children }) {
-  const token = localStorage.getItem("bt_token");
-  return token ? children : <Navigate to="/login" replace />;
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh',
+        fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+        color: '#6B7280', fontSize: 14,
+      }}>
+        Loading...
+      </div>
+    );
+  }
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
-export default function App() {
+function AppRoutes() {
   return (
     <Routes>
       <Route path="/login"          element={<LoginPage />} />
@@ -43,10 +64,25 @@ export default function App() {
         <Route path="/newworker"   element={<NewWorker />} />
         <Route path="/managesite"  element={<ManageSite />} />
         <Route path="/manualentry" element={<ManualEntryPage />} />
+        <Route path="/add-entry"   element={<AddEntry />} />
+        <Route path="/entry-detail" element={<EntryDetail />} />
+        <Route path="/approvals"  element={<Approvals />} />
+        <Route path="/admin"      element={<AdminOverview />} />
+        <Route path="/ai-chat"    element={<AiChatReport />} />
+        <Route path="/assign-role" element={<AssignRoles />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/workers/:id" element={<WorkerDetails />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProviders>
+      <AppRoutes />
+    </AppProviders>
   );
 }

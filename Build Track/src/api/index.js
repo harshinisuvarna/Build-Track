@@ -51,6 +51,9 @@ export const authAPI = {
   toggle2FA:      ()     => api.put("/auth/toggle-2fa"),
   signOutAll:     ()     => api.post("/auth/sign-out-all"),
   deleteAccount:  ()     => api.delete("/auth/account"),
+  provision:      (data) => api.post("/auth/provision", data),
+  getUsers:       ()     => api.get("/auth/users"),
+  updateUser:     (id, d)=> api.put(`/auth/users/${id}`, d),
 };
 
 export const workerAPI = {
@@ -76,6 +79,7 @@ export const transactionAPI = {
   getAll:  (p = {}) => api.get("/transactions",    { params: p }),
   getById: (id)     => api.get(`/transactions/${id}`),
   create:  (data)   => api.post("/transactions",   data),
+  createBulk: (data) => api.post("/transactions/bulk", data),
   update:  (id, d)  => api.put(`/transactions/${id}`, d),
   delete:  (id)     => api.delete(`/transactions/${id}`),
 };
@@ -102,7 +106,24 @@ export const voiceAPI = {
 export const inventoryAPI = {
   getAll: () => api.get("/inventory"),
   use: (data) => api.post("/inventory/use", data),
+  add: (data) => api.post("/inventory/add", data),
   updateThreshold: (id, threshold) => api.patch(`/inventory/${id}/threshold`, { threshold }),
+};
+
+export const approvalAPI = {
+  getPending: () => api.get("/approvals/pending"),
+  getHistory: () => api.get("/approvals/history"),
+  approve: (txId) => api.put(`/transactions/${txId}/approve`),
+  reject: (txId, reason) => api.put(`/transactions/${txId}/reject`, { reason }),
+};
+
+export const subscriptionAPI = {
+  initiate: (data) => api.post("/subscriptions/initiate", data),
+  getStatus: () => api.get("/subscriptions/status"),
+};
+
+export const taskAPI = {
+  getDaily: () => api.get("/tasks/daily"),
 };
 
 export { API_ORIGIN };
