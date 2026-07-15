@@ -20,7 +20,8 @@ export default function RequireRole({ permission, route, children }) {
 
   // If a route check is needed (e.g. /admin or /audit-logs only for admin/supervisor)
   if (route) {
-    const isAdminOrSupervisor = user?.role === "admin" || user?.role === "supervisor";
+    const r = user?.role?.toLowerCase();
+    const isAdminOrSupervisor = r === "admin" || r === "supervisor";
     if (!isAdminOrSupervisor) {
       return <Navigate to="/" replace />;
     }

@@ -81,9 +81,10 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const isAuthenticated = !!token;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
   const can = useCallback((permission) => {
-    if (user?.role === 'admin') return true;
+    const r = user?.role?.toLowerCase();
+    if (r === 'admin' || r === 'supervisor') return true;
     const perms = user?.permissions || [];
     return perms.includes(permission);
   }, [user]);
