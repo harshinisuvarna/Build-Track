@@ -13,7 +13,13 @@ const TYPE_STYLES = {
   Income:    { bg: "#F0FDF4", color: "#15803D", icon: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" },
 };
 
-const FILTERS = ["All", "Materials", "Wages", "Expense", "Income"];
+const FILTERS = [
+  { label: "All", value: "All" },
+  { label: "Materials", value: "Materials" },
+  { label: "Labour", value: "Wages" },
+  { label: "Equipment", value: "Expense" },
+  { label: "Income", value: "Income" },
+];
 
 function resolveProjectName(project) {
   if (!project) return "";
@@ -130,19 +136,18 @@ export default function TransactionLog() {
         </div>
       </div>
 
-      {/* Filters */}
       <div style={{ display: "flex", gap: 6, padding: "16px 24px", flexShrink: 0, flexWrap: "wrap" }}>
         {FILTERS.map(f => (
-          <button key={f} onClick={() => { setFilter(f); setPage(1); }}
+          <button key={f.value} onClick={() => { setFilter(f.value); setPage(1); }}
             style={{
               padding: "7px 16px", borderRadius: 20, border: "none", cursor: "pointer",
-              fontWeight: filter === f ? 800 : 600, fontSize: 12,
-              background: filter === f ? gradients.primaryButton : colors.cardBg,
-              color: filter === f ? "#FFF" : colors.textSecondary,
-              boxShadow: filter === f ? "none" : shadows.card,
+              fontWeight: filter === f.value ? 800 : 600, fontSize: 12,
+              background: filter === f.value ? gradients.primaryButton : colors.cardBg,
+              color: filter === f.value ? "#FFF" : colors.textSecondary,
+              boxShadow: filter === f.value ? "none" : shadows.card,
               transition: "all 0.15s",
             }}>
-            {f === "All" ? "All" : f}
+            {f.label}
           </button>
         ))}
       </div>
@@ -197,7 +202,7 @@ export default function TransactionLog() {
                         <span style={{
                           padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700,
                           background: st.bg, color: st.color, letterSpacing: "0.04em",
-                        }}>{t.type?.toUpperCase() || "EXPENSE"}</span>
+                        }}>{(t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type || "EXPENSE").toUpperCase()}</span>
                         <div onClick={e => { e.stopPropagation(); handleDelete(t._id); }}
                           style={{ color: colors.textLight, fontSize: 14, cursor: "pointer", padding: "2px" }}>
                           &times;

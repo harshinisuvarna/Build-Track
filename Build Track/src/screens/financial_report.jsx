@@ -304,8 +304,8 @@ export default function FinancialReportPage() {
   );
 }
 
-function thStyle() { return { padding: "12px 18px", fontSize: 11, fontWeight: 700, color: colors.textLight, letterSpacing: "0.06em", textAlign: "left", whiteSpace: "nowrap" }; }
-function tdStyle() { return { padding: "14px 18px", fontSize: 13, color: colors.textPrimary }; }
+const thStyle = { padding: "12px 18px", fontSize: 11, fontWeight: 700, color: colors.textLight, letterSpacing: "0.06em", textAlign: "left", whiteSpace: "nowrap" };
+const tdStyle = { padding: "14px 18px", fontSize: 13, color: colors.textPrimary };
 
 function CostCard({ label, value, color, icon }) {
   return (

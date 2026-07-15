@@ -127,7 +127,7 @@ export default function EntryDetailPage() {
                 {paymentStatus}
               </Badge>
             </div>
-            <Badge variant="info">{entry.type || 'N/A'}</Badge>
+            <Badge variant="info">{type.label}</Badge>
           </div>
         </div>
 

@@ -360,7 +360,7 @@ export default function ProjectDetailPage() {
                     <td style={{ padding: "14px 18px", fontSize: 13, color: "#666", whiteSpace: "nowrap" }}>{new Date(t.date).toLocaleDateString("en-IN")}</td>
                     <td style={{ padding: "14px 18px", fontSize: 14, fontWeight: 500, color: "#1a1a1a" }}>{t.title}</td>
                     <td style={{ padding: "14px 18px" }}>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: typeS.bg, color: typeS.color }}>{t.type}</span>
+                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: typeS.bg, color: typeS.color }}>{t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type}</span>
                     </td>
                     <td style={{ padding: "14px 18px", textAlign: "right", fontSize: 14, fontWeight: 700, color: t.type === "Income" ? "#16a34a" : "#dc2626" }}>
                       {t.type === "Income" ? "+" : "-"}{(t.amount ?? 0).toLocaleString("en-IN")}

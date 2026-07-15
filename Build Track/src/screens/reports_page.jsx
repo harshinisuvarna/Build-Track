@@ -29,7 +29,13 @@ const DATE_PRESETS = [
   { value: "custom", label: "Custom Range" },
 ];
 
-const TYPES = ["All", "Materials", "Wages", "Expense", "Income"];
+const TYPES = [
+  { label: "All", value: "All" },
+  { label: "Materials", value: "Materials" },
+  { label: "Labour", value: "Wages" },
+  { label: "Equipment", value: "Expense" },
+  { label: "Income", value: "Income" },
+];
 
 export default function ReportsPage() {
   const navigate = useNavigate();
@@ -192,7 +198,8 @@ export default function ReportsPage() {
     doc.setTextColor(100);
     doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, 14, 28);
     const projName = selectedProject === "all" ? "All Projects" : projects.find(p => p._id === selectedProject)?.projectName || "";
-    doc.text(`Project: ${projName} | Type: ${selectedType} | Period: ${DATE_PRESETS.find(p => p.value === datePreset)?.label || "All"}`, 14, 34);
+    const displayType = selectedType === "Wages" ? "Labour" : selectedType === "Expense" ? "Equipment" : selectedType;
+    doc.text(`Project: ${projName} | Type: ${displayType} | Period: ${DATE_PRESETS.find(p => p.value === datePreset)?.label || "All"}`, 14, 34);
     doc.setFontSize(12);
     doc.setTextColor(0);
     doc.text(`Total: Rs.${stats.total.toLocaleString("en-IN")}  Material: Rs.${stats.material.toLocaleString("en-IN")}  Labour: Rs.${stats.labour.toLocaleString("en-IN")}  Equipment: Rs.${stats.equipment.toLocaleString("en-IN")}`, 14, 44);
@@ -201,7 +208,7 @@ export default function ReportsPage() {
       head: [["Date", "Description", "Type", "Amount", "Status"]],
       body: filtered.map(t => [
         t.date ? new Date(t.date).toLocaleDateString("en-IN") : "",
-        t.title || "", t.type || "",
+        t.title || "", t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type || "",
         `Rs.${(t.amount || 0).toLocaleString("en-IN")}`, t.paymentStatus || "",
       ]),
       theme: "grid",
@@ -290,9 +297,9 @@ export default function ReportsPage() {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
             {TYPES.map(t => (
-              <button key={t} onClick={() => setSelectedType(t)}
-                style={{ padding: "8px 16px", borderRadius: 20, border: `1.5px solid ${selectedType === t ? "#ea580c" : "#e5e5e5"}`, background: selectedType === t ? "#ea580c" : "#fff", color: selectedType === t ? "#fff" : "#555", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
-                {t}
+              <button key={t.value} onClick={() => setSelectedType(t.value)}
+                style={{ padding: "8px 16px", borderRadius: 20, border: `1.5px solid ${selectedType === t.value ? "#ea580c" : "#e5e5e5"}`, background: selectedType === t.value ? "#ea580c" : "#fff", color: selectedType === t.value ? "#fff" : "#555", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
+                {t.label}
               </button>
             ))}
           </div>
@@ -354,7 +361,7 @@ export default function ReportsPage() {
                         {t.title || "—"}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: tc.bg, color: tc.color }}>{t.type}</span>
+                        <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: tc.bg, color: tc.color }}>{t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type}</span>
                       </td>
                       <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: 600, color: t.type === "Income" ? "#16a34a" : "#dc2626", textAlign: "right" }}>
                         {t.type === "Income" ? "+" : "-"}₹{(t.amount || 0).toLocaleString("en-IN")}

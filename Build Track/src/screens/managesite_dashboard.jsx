@@ -398,7 +398,7 @@ export default function ManageSitePage() {
                     onMouseLeave={e => e.currentTarget.style.background = "#fafafa"}>
                     <div style={{ width: 38, height: 38, borderRadius: 10, background: info.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{info.icon}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{t.title || t.type}</div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{t.title || (t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type)}</div>
                       <div style={{ fontSize: 13, color: "#666", marginTop: 2 }}>
                         {t.type === "Income" ? "+" : "−"}₹{t.amount?.toLocaleString("en-IN")}
                         {t.worker ? ` · ${workerLabel(t.worker)}` : ""}

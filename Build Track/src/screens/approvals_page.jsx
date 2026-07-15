@@ -164,7 +164,7 @@ export default function ApprovalsPage() {
                         {entry.title || entry.name || 'Untitled'}
                       </span>
                       <Badge variant={entry.type === 'Wages' ? 'success' : entry.type === 'Expense' ? 'warning' : 'info'} style={{ fontSize: 10 }}>
-                        {entry.type || 'N/A'}
+                        {entry.type === 'Wages' ? 'Labour' : entry.type === 'Expense' ? 'Equipment' : entry.type || 'N/A'}
                       </Badge>
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontSize: 13, color: colors.textSecondary }}>

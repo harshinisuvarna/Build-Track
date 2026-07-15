@@ -212,7 +212,7 @@ export default function ProjectReportPage() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{t.title || "Untitled"}</div>
                     <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
                       {fmtDate(t.date)}
-                      <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: TYPE_BADGE[t.type]?.bg || "#f3f4f6", color: TYPE_BADGE[t.type]?.color || "#888" }}>{t.type}</span>
+                      <span style={{ marginLeft: 8, padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600, background: TYPE_BADGE[t.type]?.bg || "#f3f4f6", color: TYPE_BADGE[t.type]?.color || "#888" }}>{t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type}</span>
                     </div>
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: t.type === "Income" ? "#16a34a" : "#dc2626" }}>
