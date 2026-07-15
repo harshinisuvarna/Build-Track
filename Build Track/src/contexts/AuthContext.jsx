@@ -12,7 +12,11 @@ export function AuthProvider({ children }) {
     } catch { return null; }
   });
   const [token, setToken] = useState(() => localStorage.getItem('bt_token'));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const storedToken = localStorage.getItem('bt_token');
+    const storedUser = localStorage.getItem('bt_user');
+    return !!(storedToken && !storedUser);
+  });
 
   useEffect(() => {
     const storedToken = localStorage.getItem('bt_token');

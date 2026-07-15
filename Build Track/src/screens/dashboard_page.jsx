@@ -422,7 +422,7 @@ export default function DashboardPage() {
                     <Badge variant={entry.type === 'Wages' ? 'success' : entry.type === 'Expense' ? 'warning' : 'info'} style={{ fontSize: 10, padding: '1px 8px', borderRadius: 6 }}>
                       {type.label}
                     </Badge>
-                    <span>{entry.projectName || entry.project || ''}</span>
+                    <span>{typeof entry.project === 'object' ? (entry.project?.projectName || entry.project?.name || '') : (entry.projectName || entry.project || '')}</span>
                     <span>{relativeTime(entry.date || entry.createdAt)}</span>
                   </div>
                 </div>
