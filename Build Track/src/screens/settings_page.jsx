@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { userAPI, authAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { resolveImageUrl } from "../utils/imageUrl";
-import useAuthStore from "../stores/authStore";
+import { useAuth } from "../contexts/AuthContext";
 import { subscriptionAPI } from "../api";
 
 function Toggle({ on, onToggle }) {
@@ -55,17 +55,22 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  const user = useAuthStore((s) => s.user);
+  const { user, updateUser, logout } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "Admin";
 
   useEffect(() => {
-    subscriptionAPI.getCurrent()
-      .then(({ data }) => setSubscription(data.subscription || data))
+    subscriptionAPI.getStatus()
+      .then(({ data }) => {
+        if (data && data.hasSubscription) {
+          setSubscription(data);
+        } else {
+          setSubscription(null);
+        }
+      })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    const user = useAuthStore.getState().user;
     if (user) {
       setFullName(user.name || "");
       setEmail(user.email || "");
@@ -77,8 +82,7 @@ export default function SettingsPage() {
         setProfileImage(resolveImageUrl(user.profilePhoto));
       }
     }
-    useAuthStore.getState().refreshUser();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -96,12 +100,7 @@ export default function SettingsPage() {
       fd.append("photo", file);
       const { data } = await userAPI.updatePhoto(fd);
 
-      useAuthStore.setState((state) => ({
-        user: {
-          ...state.user,
-          profilePhoto: data.profilePhoto,
-        },
-      }));
+      updateUser({ profilePhoto: data.profilePhoto });
 
       window.dispatchEvent(new Event("userUpdated"));
     } catch {
@@ -122,12 +121,7 @@ export default function SettingsPage() {
         role,
       });
 
-      useAuthStore.setState((state) => ({
-        user: {
-          ...state.user,
-          ...data.user,
-        },
-      }));
+      updateUser(data.user);
 
       window.dispatchEvent(new Event("userUpdated"));
       setSaved(true);
@@ -164,12 +158,7 @@ export default function SettingsPage() {
       setTwoFA(data.twoFactorEnabled);
       setSecMsg(data.message);
 
-      useAuthStore.setState((state) => ({
-        user: {
-          ...state.user,
-          twoFactorEnabled: data.twoFactorEnabled,
-        },
-      }));
+      updateUser({ twoFactorEnabled: data.twoFactorEnabled });
       setTimeout(() => setSecMsg(""), 4000);
     } catch (err) {
       setSecErr(err.response?.data?.message || "Failed to toggle 2FA.");
@@ -184,7 +173,7 @@ export default function SettingsPage() {
         setConfirmDlg(null);
         try {
           await authAPI.signOutAll();
-          useAuthStore.getState().logout();
+          logout();
           navigate("/login");
         } catch (err) {
           setSecErr(err.response?.data?.message || "Failed to sign out all sessions.");
@@ -203,7 +192,7 @@ export default function SettingsPage() {
         setConfirmDlg(null);
         try {
           await authAPI.deleteAccount();
-          useAuthStore.getState().logout();
+          logout();
           navigate("/login");
         } catch (err) {
           setSecErr(err.response?.data?.message || "Failed to delete account.");
@@ -555,7 +544,7 @@ export default function SettingsPage() {
                 message: "Are you sure you want to log out?",
                 onConfirm: () => {
                   setConfirmDlg(null);
-                  useAuthStore.getState().logout();
+                  logout();
                   navigate("/login");
                 },
               });
