@@ -210,6 +210,8 @@ export default function VoiceAssistantPage() {
   const [editFields, setEditFields] = useState({});
 
   const recognitionRef = useRef(null);
+  const answerRecognitionRef = useRef(null);
+  const isListeningRef = useRef(false);
   const timerRef = useRef(null);
   const processTimerRef = useRef(null);
 
@@ -251,6 +253,7 @@ export default function VoiceAssistantPage() {
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
+      answerRecognitionRef.current?.stop();
       clearInterval(timerRef.current);
       clearInterval(processTimerRef.current);
     };
@@ -294,10 +297,16 @@ export default function VoiceAssistantPage() {
       setSaveError("Voice input not supported in this browser. Use Chrome or Edge.");
       return;
     }
+    if (answerRecognitionRef.current) {
+      answerRecognitionRef.current.stop();
+      answerRecognitionRef.current = null;
+    }
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IN";
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
+
+    isListeningRef.current = true;
 
     recognition.onresult = (event) => {
       let finalText = "";
@@ -309,10 +318,10 @@ export default function VoiceAssistantPage() {
       if (finalText.trim()) {
         setTranscript(prev => prev + " " + finalText.trim());
         setStatus(STATUS.processing);
+        isListeningRef.current = false;
         recognition.stop();
         recognitionRef.current = null;
-        const fullText = (transcript + " " + finalText).trim();
-        processTranscript(fullText || finalText.trim());
+        processTranscript(finalText.trim());
       }
       if (interimText.trim()) {
         setPartialTranscript(interimText.trim());
@@ -320,11 +329,13 @@ export default function VoiceAssistantPage() {
     };
 
     recognition.onerror = () => {
+      isListeningRef.current = false;
       setStatus(STATUS.idle);
       recognitionRef.current = null;
     };
     recognition.onend = () => {
-      if (status === STATUS.listening) {
+      if (isListeningRef.current) {
+        isListeningRef.current = false;
         setStatus(STATUS.idle);
       }
       recognitionRef.current = null;
@@ -334,17 +345,16 @@ export default function VoiceAssistantPage() {
     recognition.start();
     setStatus(STATUS.listening);
     setPartialTranscript("");
-  }, [status, transcript]);
+  }, []);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
+      isListeningRef.current = false;
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
-    if (status === STATUS.listening) {
-      setStatus(STATUS.idle);
-    }
-  }, [status]);
+    setStatus(STATUS.idle);
+  }, []);
 
   const processTranscript = useCallback(async (text) => {
     setStatus(STATUS.thinking);
@@ -416,6 +426,14 @@ export default function VoiceAssistantPage() {
   const startAnswerListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
+    if (answerRecognitionRef.current) {
+      answerRecognitionRef.current.stop();
+      answerRecognitionRef.current = null;
+    }
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
     const recognition = new SpeechRecognition();
     recognition.lang = "en-IN";
     recognition.interimResults = true;
@@ -428,9 +446,17 @@ export default function VoiceAssistantPage() {
       if (final.trim()) {
         selectSuggestion(final.trim());
         recognition.stop();
+        answerRecognitionRef.current = null;
       }
     };
-    recognition.onerror = () => recognition.stop();
+    recognition.onerror = () => {
+      recognition.stop();
+      answerRecognitionRef.current = null;
+    };
+    recognition.onend = () => {
+      answerRecognitionRef.current = null;
+    };
+    answerRecognitionRef.current = recognition;
     recognition.start();
   }, [selectSuggestion]);
 
