@@ -1,6 +1,16 @@
 {
+  "name": "buildtrack-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix \\\"Build Track\\\"\"",
+    "install-all": "npm install && npm install --prefix backend && npm install --prefix \"Build Track\""
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }
