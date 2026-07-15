@@ -1,72 +1,287 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI, API_ORIGIN } from "../api";
+import { useAuth } from "../contexts/AuthContext";
+import { 
+  Sparkles, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  ArrowRight, 
+  TrendingUp, 
+  ShieldCheck, 
+  Zap, 
+  Building,
+  CheckCircle,
+  AlertTriangle
+} from "lucide-react";
 
-const EyeOpen = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-  </svg>
-);
-const EyeClosed = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>
-);
+// GPU-Accelerated Canvas Blueprint Background drawing grids, coordinates & drifting auroras
+function BlueprintBackground() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let animationId;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    let mouse = { x: width / 2, y: height / 2, tx: width / 2, ty: height / 2 };
+
+    const handleResize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+
+    const handleMouseMove = (e) => {
+      mouse.tx = e.clientX;
+      mouse.ty = e.clientY;
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("mousemove", handleMouseMove);
+
+    // Drifting aurora radial gradient blobs
+    let blobs = [
+      { x: width * 0.2, y: height * 0.3, vx: 0.35, vy: 0.25, r: 350, color: "rgba(99, 102, 241, 0.15)" },
+      { x: width * 0.8, y: height * 0.7, vx: -0.25, vy: 0.3, r: 400, color: "rgba(139, 92, 246, 0.12)" },
+      { x: width * 0.5, y: height * 0.8, vx: 0.2, vy: -0.2, r: 320, color: "rgba(6, 182, 212, 0.08)" }
+    ];
+
+    const draw = () => {
+      // Clear base with OLED-black space base
+      ctx.fillStyle = "#030308";
+      ctx.fillRect(0, 0, width, height);
+
+      // Dampen mouse coordinates for liquid inertia spotlight flow
+      mouse.x += (mouse.tx - mouse.x) * 0.08;
+      mouse.y += (mouse.ty - mouse.y) * 0.08;
+
+      // Draw drifting blobs
+      blobs.forEach(b => {
+        b.x += b.vx;
+        b.y += b.vy;
+        if (b.x < 0 || b.x > width) b.vx *= -1;
+        if (b.y < 0 || b.y > height) b.vy *= -1;
+
+        const radGrd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+        radGrd.addColorStop(0, b.color);
+        radGrd.addColorStop(1, "transparent");
+        ctx.fillStyle = radGrd;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Interactive mouse light spotlight
+      const spotGrd = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 350);
+      spotGrd.addColorStop(0, "rgba(99, 102, 241, 0.08)");
+      spotGrd.addColorStop(1, "transparent");
+      ctx.fillStyle = spotGrd;
+      ctx.beginPath();
+      ctx.arc(mouse.x, mouse.y, 350, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Blueprint lines
+      ctx.strokeStyle = "rgba(99, 102, 241, 0.035)";
+      ctx.lineWidth = 1;
+      const gridSize = 56;
+      
+      // Verticals
+      for (let x = 0; x < width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      // Horizontals
+      for (let y = 0; y < height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Small details: coordinates dots
+      ctx.fillStyle = "rgba(99, 102, 241, 0.18)";
+      for (let x = gridSize; x < width; x += gridSize * 4) {
+        for (let y = gridSize; y < height; y += gridSize * 4) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none" }} />;
+}
+
+// Custom Input field wrapper containing floating label animations and expanding underline glows
+function PremiumInput({ icon: Icon, label, error, ...props }) {
+  const [focused, setFocused] = useState(false);
+  const [hasValue, setHasValue] = useState(false);
+
+  return (
+    <div style={{ position: "relative", marginBottom: 20 }}>
+      <div 
+        style={{
+          display: "flex",
+          alignItems: "center",
+          background: "rgba(10, 10, 20, 0.55)",
+          border: `1.2px solid ${error ? "#EF4444" : focused ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.06)"}`,
+          borderRadius: 12,
+          padding: "12px 14px",
+          position: "relative",
+          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          boxShadow: focused ? "0 0 16px rgba(99, 102, 241, 0.1)" : "none"
+        }}
+      >
+        {Icon && <Icon size={17} style={{ color: focused ? "#818CF8" : "#4B5563", marginRight: 10, flexShrink: 0 }} />}
+        
+        <input 
+          {...props}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            setHasValue(!!e.target.value);
+            props.onBlur?.(e);
+          }}
+          onChange={(e) => {
+            setHasValue(!!e.target.value);
+            props.onChange?.(e);
+          }}
+          style={{
+            flex: 1,
+            background: "none",
+            border: "none",
+            outline: "none",
+            color: "#FFF",
+            fontSize: "14px",
+            fontFamily: "inherit",
+            padding: "4px 0",
+            zIndex: 10
+          }}
+        />
+
+        {/* Expanding bottom accent highlight line */}
+        <div 
+          style={{
+            position: "absolute",
+            bottom: -1,
+            left: "50%",
+            width: focused ? "100%" : "0%",
+            height: 1.5,
+            background: error ? "#EF4444" : "linear-gradient(90deg, #6366F1 0%, #06B6D4 100%)",
+            transform: "translateX(-50%)",
+            transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            zIndex: 20
+          }}
+        />
+
+        {/* Floating Label placeholder */}
+        <label 
+          style={{
+            position: "absolute",
+            left: Icon ? 41 : 14,
+            top: (focused || hasValue || props.value) ? "1.5px" : "13.5px",
+            fontSize: (focused || hasValue || props.value) ? "9.5px" : "13px",
+            color: error ? "#EF4444" : (focused ? "#818CF8" : "#6B7280"),
+            fontWeight: "700",
+            pointerEvents: "none",
+            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            textTransform: (focused || hasValue || props.value) ? "uppercase" : "none",
+            letterSpacing: (focused || hasValue || props.value) ? "0.08em" : "normal"
+          }}
+        >
+          {label}
+        </label>
+      </div>
+
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#EF4444", fontSize: "11.5px", fontWeight: "700", animation: "slideDown 0.2s ease" }}>
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Google OAuth vector icon
 const GoogleIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24">
+  <svg width="17" height="17" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
   </svg>
 );
-const GitHubIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.167 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-  </svg>
-);
-
-const features = [
-  { icon: "📊", title: "Real-time dashboards",  desc: "Track every project metric live"  },
-  { icon: "👷", title: "Worker management",     desc: "Manage teams across all sites"    },
-  { icon: "💰", title: "Financial reporting",   desc: "Budgets, wages & profit margins"  },
-  { icon: "📍", title: "Site tracking",         desc: "Monitor progress on every site"   },
-];
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const [email,      setEmail]      = useState("");
-  const [password,   setPassword]   = useState("");
-  const [showPass,   setShowPass]   = useState(false);
-  const [loading,    setLoading]    = useState(false);
-  const [shake,      setShake]      = useState(false);
-  const [emailErr,   setEmailErr]   = useState("");
-  const [passErr,    setPassErr]    = useState("");
-  const [serverErr,  setServerErr]  = useState("");
-  const [emailFocus, setEmailFocus] = useState(false);
-  const [passFocus,  setPassFocus]  = useState(false);
-  const [vw,         setVw]         = useState(window.innerWidth);
+  // Authentication Fields State
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  // Errors state
+  const [emailErr, setEmailErr] = useState("");
+  const [passErr, setPassErr] = useState("");
+  const [serverErr, setServerErr] = useState("");
+
+  // Forgot Password Drawer state
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotMsg,   setForgotMsg]   = useState("");
-  const [forgotErr,   setForgotErr]   = useState("");
+  const [forgotMsg, setForgotMsg] = useState("");
+  const [forgotErr, setForgotErr] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  // Layout responsiveness tracking
+  const [vw, setVw] = useState(window.innerWidth);
+
+  // Live KPI mockup stats animation parameters
+  const [progressVal, setProgressVal] = useState(0);
 
   useEffect(() => {
-    if (localStorage.getItem("bt_token")) navigate("/", { replace: true });
-  }, []);
+    if (localStorage.getItem("bt_token")) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
-    const update = () => setVw(window.innerWidth);
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    const handleResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const isMobile  = vw < 640;
+  // Trigger KPI progress load on mount
+  useEffect(() => {
+    const t = setTimeout(() => setProgressVal(78), 250);
+    return () => clearTimeout(t);
+  }, []);
+
   const isDesktop = vw >= 1024;
 
   const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -74,23 +289,28 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     if (e?.preventDefault) e.preventDefault();
 
-
     let valid = true;
-    setEmailErr(""); setPassErr(""); setServerErr("");
+    setEmailErr("");
+    setPassErr("");
+    setServerErr("");
 
-    if (!validateEmail(email)) { setEmailErr("Please enter a valid email address."); valid = false; }
-    if (password.length < 6)   { setPassErr("Password must be at least 6 characters."); valid = false; }
-    if (!valid) { setShake(true); setTimeout(() => setShake(false), 420); return; }
+    if (!validateEmail(email)) {
+      setEmailErr("Please enter a valid email address.");
+      valid = false;
+    }
+    if (password.length < 6) {
+      setPassErr("Password must be at least 6 characters.");
+      valid = false;
+    }
+    if (!valid) {
+      setShake(true);
+      setTimeout(() => setShake(false), 420);
+      return;
+    }
 
     setLoading(true);
     try {
-      const { data } = await authAPI.login({ email, password });
-
-
-      localStorage.setItem("bt_token", data.token);
-      localStorage.setItem("bt_user",  JSON.stringify(data.user));
-
-
+      await login(email, password);
       navigate("/", { replace: true });
     } catch (err) {
       const msg =
@@ -110,270 +330,734 @@ export default function LoginPage() {
     }
   };
 
-  const inputStyle = (focused, hasErr) => ({
-    width: "100%", boxSizing: "border-box",
-    padding: "13px 16px",
-    border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#6C63FF" : "#e8e8e8"}`,
-    borderRadius: 10, fontSize: 14.5, color: "#111",
-    background: focused ? "#fff" : "#fafafa",
-    outline: "none",
-    fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
-    transition: "border-color 0.18s, box-shadow 0.18s, background 0.18s",
-    boxShadow: focused
-      ? `0 0 0 3.5px ${hasErr ? "rgba(220,38,38,0.11)" : "rgba(108,99,255,0.13)"}`
-      : "none",
-  });
+  const handleForgotSubmit = async () => {
+    setForgotMsg("");
+    setForgotErr("");
+    if (!forgotEmail.trim()) {
+      setForgotErr("Email is required.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const { data } = await authAPI.forgotPassword({ email: forgotEmail });
+      setForgotMsg(data.message || "A reset link has been sent to your email.");
+    } catch (err) {
+      setForgotErr(err.response?.data?.message || "Failed to send reset email.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
+  // CSS animations injection
   const css = `
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { margin: 0; }
-    @keyframes btShake  { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
-    @keyframes btSpin   { to { transform: rotate(360deg); } }
-    @keyframes btFadeUp { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes slideUp  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
-    .bt-left  { animation: fadeIn 0.55s ease both; }
-    .bt-right { animation: slideUp 0.5s cubic-bezier(.22,.68,0,1.2) 0.1s both; }
-    .bt-feature { display:flex; align-items:center; gap:16px; transition:transform 0.18s; }
-    .bt-feature:hover { transform: translateX(5px); }
-    .bt-btn-primary {
-      width:100%; padding:15px 0;
-      background:#6C63FF; color:#fff;
-      border:none; border-radius:10px;
-      font-size:14px; font-weight:700; letter-spacing:0.1em;
-      cursor:pointer; font-family:'DM Sans',system-ui,sans-serif;
-      box-shadow:0 6px 22px rgba(108,99,255,0.30);
-      transition:background 0.18s,transform 0.12s,box-shadow 0.18s;
-      display:flex; align-items:center; justify-content:center; gap:8px;
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap');
+    
+    body {
+      margin: 0;
+      background: #030308;
+      overflow-x: hidden;
     }
-    .bt-btn-primary:hover:not(:disabled) { background:#5B55E8; box-shadow:0 8px 28px rgba(91,85,232,0.38); transform:translateY(-1px); }
-    .bt-btn-primary:disabled { background:#6C63FF; opacity:0.6; cursor:not-allowed; }
-    .bt-btn-social {
-      display:flex; align-items:center; justify-content:center; gap:8px;
-      padding:11px 14px; border:1.5px solid #ebebeb; border-radius:10px;
-      background:#fff; color:#333; font-size:13.5px; font-weight:600;
-      cursor:pointer; font-family:'DM Sans',system-ui,sans-serif;
-      transition:background 0.15s,border-color 0.15s,transform 0.1s;
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    .bt-btn-social:hover { background:#f5f5f5; border-color:#d0d0d0; transform:translateY(-1px); }
-    .bt-link-primary { color:#6C63FF; font-weight:700; cursor:pointer; transition:color 0.15s; }
-    .bt-link-primary:hover { color:#5B55E8; text-decoration:underline; }
-    .bt-footer-link { color:#c0ccd8; cursor:pointer; font-size:11.5px; transition:color 0.15s; }
-    .bt-footer-link:hover { color:#94a3b8; }
+
+    @keyframes glowPulse {
+      0%, 100% {
+        border-color: rgba(99, 102, 241, 0.25);
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
+      }
+      50% {
+        border-color: rgba(99, 102, 241, 0.45);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.16);
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      15%, 45%, 75% { transform: translateX(-6px); }
+      30%, 60%, 90% { transform: translateX(6px); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        max-height: 200px;
+      }
+    }
+
+    .animate-fade-up {
+      animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .shake-trigger {
+      animation: shake 0.4s ease;
+    }
+
+    .spinner-spin {
+      animation: spin 0.6s linear infinite;
+    }
+
+    /* Sub-pixel gradient border effect */
+    .premium-card-border {
+      position: relative;
+      border-radius: 20px;
+      background: rgba(10, 10, 20, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .premium-card-border::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 21px;
+      padding: 1.5px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(6, 182, 212, 0.05) 50%, rgba(139, 92, 246, 0.2) 100%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: 1;
+    }
   `;
 
-  const FormFields = (
-    <div style={{ animation: shake ? "btShake 0.42s ease" : "none" }}>
-
-      {/* Server-level error banner */}
-      {serverErr && (
-        <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#991b1b", animation: "btFadeUp 0.2s ease" }}>
-          ⚠️ {serverErr}
-        </div>
-      )}
-
-      {/* Email */}
-      <div style={{ marginBottom: 18 }}>
-        <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#475569", marginBottom: 7, letterSpacing: "0.09em", textTransform: "uppercase" }}>
-          Email address
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={e => { setEmail(e.target.value); setEmailErr(""); setServerErr(""); }}
-          onFocus={() => setEmailFocus(true)}
-          onBlur={() => setEmailFocus(false)}
-          placeholder="name@company.com"
-          autoComplete="email"
-          style={inputStyle(emailFocus, !!emailErr)}
-        />
-        {emailErr && <p style={{ margin: "5px 0 0", fontSize: 12, color: "#dc2626", animation: "btFadeUp 0.2s ease" }}>{emailErr}</p>}
-      </div>
-
-      {/* Password */}
-      <div style={{ marginBottom: 10 }}>
-        <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "#475569", marginBottom: 7, letterSpacing: "0.09em", textTransform: "uppercase" }}>
-          Password
-        </label>
-        <div style={{ position: "relative" }}>
-          <input
-            type={showPass ? "text" : "password"}
-            value={password}
-            onChange={e => { setPassword(e.target.value); setPassErr(""); setServerErr(""); }}
-            onFocus={() => setPassFocus(true)}
-            onBlur={() => setPassFocus(false)}
-            placeholder="••••••••"
-            autoComplete="current-password"
-            style={{ ...inputStyle(passFocus, !!passErr), paddingRight: 46 }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPass(v => !v)}
-            style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", alignItems: "center", lineHeight: 0 }}>
-            {showPass ? <EyeClosed /> : <EyeOpen />}
-          </button>
-        </div>
-        {passErr && <p style={{ margin: "5px 0 0", fontSize: 12, color: "#dc2626", animation: "btFadeUp 0.2s ease" }}>{passErr}</p>}
-      </div>
-
-      <div style={{ textAlign: "center", marginBottom: 26 }}>
-        <span onClick={() => { setShowForgot(v => !v); setForgotMsg(""); setForgotErr(""); }} className="bt-link-primary" style={{ fontSize: 13, cursor: "pointer" }}>{showForgot ? "← Back to login" : "Forgot password?"}</span>
-      </div>
-
-      {showForgot && (
-        <div style={{ background: "#ECEBFF", border: "1px solid #E7E8F5", borderRadius: 12, padding: "16px 20px", marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a", marginBottom: 10 }}>Reset Password</div>
-          <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>Enter your email and we'll send you a password reset link.</div>
-          <input
-            type="email"
-            value={forgotEmail}
-            onChange={e => { setForgotEmail(e.target.value); setForgotErr(""); }}
-            placeholder="Your email address"
-            style={{ ...inputStyle(false, false), marginBottom: 10 }}
-          />
-          <button
-            onClick={async () => {
-              setForgotMsg(""); setForgotErr("");
-              if (!forgotEmail.trim()) { setForgotErr("Email is required."); return; }
-              try {
-                setForgotLoading(true);
-                const { data } = await authAPI.forgotPassword({ email: forgotEmail });
-                setForgotMsg(data.message || "If that email is registered, a reset link has been sent.");
-              } catch (err) {
-                setForgotErr(err.response?.data?.message || "Failed to send reset email.");
-              } finally {
-                setForgotLoading(false);
-              }
-            }}
-            disabled={forgotLoading}
-            style={{ width: "100%", padding: "11px 0", background: "#6C63FF", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: forgotLoading ? "not-allowed" : "pointer", textAlign: "center", opacity: forgotLoading ? 0.6 : 1 }}>
-            {forgotLoading ? "Sending…" : "Send Reset Link"}
-          </button>
-          {forgotMsg && <div style={{ marginTop: 10, fontSize: 13, color: "#166534", fontWeight: 600 }}>✅ {forgotMsg}</div>}
-          {forgotErr && <div style={{ marginTop: 10, fontSize: 13, color: "#991b1b", fontWeight: 600 }}>⚠️ {forgotErr}</div>}
-        </div>
-      )}
-
-      {/* Sign In button */}
-      <button type="submit" className="bt-btn-primary" disabled={loading}>
-        {loading && (
-          <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "btSpin 0.7s linear infinite" }} />
-        )}
-        {loading ? "Signing in…" : "SIGN IN"}
-      </button>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0" }}>
-        <div style={{ flex: 1, height: 1, background: "#f1f5f9" }} />
-        <span style={{ fontSize: 12, color: "#cbd5e1", whiteSpace: "nowrap", fontWeight: 500 }}>or continue with</span>
-        <div style={{ flex: 1, height: 1, background: "#f1f5f9" }} />
-      </div>
-
-      {/* Google only — full width */}
-      <button
-        className="bt-btn-social"
-        type="button"
-        style={{ width: "100%", marginBottom: 28 }}
-        onClick={() => { window.location.href = `${API_ORIGIN}/api/auth/google`; }}
-      >
-        <GoogleIcon /> Continue with Google
-      </button>
-
-      <div style={{ textAlign: "center" }}>
-        <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "#94a3b8" }}>
-          Don't have an account?{" "}
-          <button
-            type="button"
-            className="bt-link-primary"
-            onClick={() => {
-
-              navigate("/signup");
-            }}
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#6C63FF", fontWeight: 700 }}
-          >
-            Sign up free
-          </button>
-        </p>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-          <span className="bt-footer-link">Privacy policy</span>
-          <span style={{ color: "#e2e8f0", fontSize: 11 }}>·</span>
-          <span className="bt-footer-link">Terms of service</span>
-          <span style={{ color: "#e2e8f0", fontSize: 11 }}>·</span>
-          <span className="bt-footer-link">Support</span>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <>
+    <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <style>{css}</style>
+      <BlueprintBackground />
 
       {isDesktop ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", width: "100vw", height: "100vh", overflow: "hidden", fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
-
-          {/* ── Left branding panel ── */}
-          <div className="bt-left" style={{ background: "linear-gradient(150deg,#0f172a 0%,#1e293b 55%,#0c1f3f 100%)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "0 72px", position: "relative", overflow: "hidden", height: "100vh" }}>
-            <div style={{ position: "absolute", top: -120, right: -120, width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle,rgba(108,99,255,0.15) 0%,transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -100, left: -100, width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle,rgba(91,85,232,0.09) 0%,transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", top: 0, right: 0, width: 1, height: "100%", background: "linear-gradient(to bottom,transparent,rgba(108,99,255,0.3),transparent)", pointerEvents: "none" }} />
-
-            <div style={{ marginBottom: 52 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 48, fontWeight: 800, letterSpacing: "-2px", lineHeight: 1, marginBottom: 10 }}>
-                <span style={{ color: "#fff" }}>Build</span><span style={{ color: "#8B83FF" }}>Track</span>
+        /* ── DESKTOP SPLIT VIEW ── */
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", width: "100%", height: "100%", zIndex: 10 }}>
+          
+          {/* Left Branding Panel */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 80px", position: "relative", overflow: "hidden" }}>
+            
+            {/* Logo bar */}
+            <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 12, animationDelay: "0.1s" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px rgba(99, 102, 241, 0.3)" }}>
+                <Building size={20} color="#FFF" />
               </div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>Construction management platform</p>
+              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 24, fontWeight: "800", letterSpacing: "-1px" }}>
+                <span style={{ color: "#FFF" }}>Build</span><span style={{ color: "#818CF8" }}>Track</span>
+              </div>
             </div>
 
-            <h2 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 14px", fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.18, maxWidth: 400 }}>
-              Build smarter.<br /><span style={{ color: "#8B83FF" }}>Track everything.</span>
-            </h2>
-            <p style={{ margin: "0 0 52px", fontSize: 15, color: "rgba(255,255,255,0.5)", maxWidth: 380, lineHeight: 1.75 }}>
-              From site management to financial reporting — everything your construction team needs, in one place.
-            </p>
+            {/* Middle Main Copy */}
+            <div style={{ maxWidth: 460 }}>
+              <div className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(99, 102, 241, 0.1)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: 20, padding: "6px 12px", marginBottom: 20 }}>
+                  <Sparkles size={13} color="#818CF8" />
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#818CF8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Enterprise OS</span>
+                </div>
+              </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%", maxWidth: 400 }}>
-              {features.map((f, i) => (
-                <div key={f.title} className="bt-feature" style={{ animation: `slideUp 0.5s cubic-bezier(.22,.68,0,1.2) ${0.25 + i * 0.08}s both` }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 11, flexShrink: 0, background: "rgba(108,99,255,0.13)", border: "1px solid rgba(108,99,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{f.icon}</div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{f.title}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>{f.desc}</div>
+              <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#FFF", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.3s" }}>
+                Build smarter.<br />
+                <span style={{ background: "linear-gradient(135deg, #818CF8 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Track everything.</span>
+              </h1>
+              
+              <p className="animate-fade-up" style={{ fontSize: "15px", color: "#94A3B8", lineHeight: 1.7, margin: "0 0 36px", animationDelay: "0.4s" }}>
+                Connect site budgeting, inventory control, and financial logs on one premium workspace. Elevate your operational margins today.
+              </p>
+
+              {/* Floating KPI mock-up widget */}
+              <div className="animate-fade-up" style={{ animationDelay: "0.5s" }}>
+                <div 
+                  style={{ 
+                    background: "rgba(15, 15, 25, 0.5)", 
+                    border: "1px solid rgba(255,255,255,0.06)", 
+                    borderRadius: 18, 
+                    padding: 20, 
+                    backdropFilter: "blur(12px)",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>📈</span>
+                      <span style={{ fontSize: "12px", fontWeight: "700", color: "#E2E8F0" }}>Site Budget Fulfillment</span>
+                    </div>
+                    <span style={{ fontSize: "12px", fontWeight: "800", color: "#10B981" }}>+12.4%</span>
+                  </div>
+
+                  <div style={{ color: "#FFF", fontSize: 24, fontWeight: "800", marginBottom: 14 }}>
+                    ₹48,24,500 <span style={{ fontSize: 13, color: "#6B7280", fontWeight: "500" }}>of ₹62,00,000</span>
+                  </div>
+
+                  {/* Progress bar container */}
+                  <div style={{ width: "100%", height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
+                    <div 
+                      style={{ 
+                        height: "100%", 
+                        width: `${progressVal}%`, 
+                        background: "linear-gradient(90deg, #6366F1 0%, #06B6D4 100%)", 
+                        borderRadius: 3,
+                        transition: "width 1.2s cubic-bezier(0.16, 1, 0.3, 1)"
+                      }} 
+                    />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6B7280", fontWeight: "600" }}>
+                    <span>Allocated</span>
+                    <span>78% complete</span>
                   </div>
                 </div>
-              ))}
+              </div>
+
+            </div>
+
+            {/* Footer indicators */}
+            <div className="animate-fade-up" style={{ display: "flex", gap: 32, fontSize: "11.5px", color: "#4B5563", fontWeight: "600", animationDelay: "0.6s" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck size={14} color="#818CF8" /> ISO 27001 Secure</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Zap size={14} color="#06B6D4" /> Real-time Sync</div>
+            </div>
+
+          </div>
+
+          {/* Right Authentication Panel */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" }}>
+            <div 
+              className={`premium-card-border animate-fade-up ${shake ? "shake-trigger" : ""}`}
+              style={{
+                width: "100%",
+                maxWidth: 440,
+                padding: "48px 40px",
+                backdropFilter: "blur(24px) saturate(120%)",
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.4)",
+                animationDelay: "0.2s"
+              }}
+            >
+              <div style={{ marginBottom: 30 }}>
+                <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#FFF", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Welcome back</h2>
+                <p style={{ margin: 0, fontSize: "13.5px", color: "#6B7280", fontWeight: "500" }}>Enter your credentials to access your workspace.</p>
+              </div>
+
+              {/* Server Exception alert */}
+              {serverErr && (
+                <div 
+                  style={{ 
+                    background: "rgba(239, 68, 68, 0.08)", 
+                    border: "1.2px solid rgba(239, 68, 68, 0.3)", 
+                    borderRadius: 12, 
+                    padding: "12px 14px", 
+                    marginBottom: 20, 
+                    display: "flex", 
+                    alignItems: "flex-start", 
+                    gap: 10,
+                    animation: "slideDown 0.25s ease"
+                  }}
+                >
+                  <AlertTriangle size={16} color="#EF4444" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <span style={{ fontSize: "12.5px", color: "#FCA5A5", fontWeight: "600", lineHeight: 1.4 }}>{serverErr}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin}>
+                
+                <PremiumInput 
+                  type="email"
+                  label="Email address"
+                  icon={Mail}
+                  value={email}
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    setEmailErr("");
+                    setServerErr("");
+                  }}
+                  error={emailErr}
+                  autoComplete="email"
+                />
+
+                <div style={{ position: "relative" }}>
+                  <PremiumInput 
+                    type={showPass ? "text" : "password"}
+                    label="Password"
+                    icon={Lock}
+                    value={password}
+                    onChange={e => {
+                      setPassword(e.target.value);
+                      setPassErr("");
+                      setServerErr("");
+                    }}
+                    error={passErr}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    style={{
+                      position: "absolute",
+                      right: 14,
+                      top: 15,
+                      background: "none",
+                      border: "none",
+                      color: "#4B5563",
+                      cursor: "pointer",
+                      padding: 4,
+                      zIndex: 30
+                    }}
+                  >
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                {/* Reset Trigger Link */}
+                <div style={{ textAlign: "right", margin: "-10px 0 24px" }}>
+                  <span 
+                    onClick={() => {
+                      setShowForgot(!showForgot);
+                      setForgotMsg("");
+                      setForgotErr("");
+                    }}
+                    style={{ fontSize: "12.5px", fontWeight: "700", color: "#818CF8", cursor: "pointer", transition: "color 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#A5B4FC"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#818CF8"}
+                  >
+                    {showForgot ? "← Back to Sign In" : "Forgot Password?"}
+                  </span>
+                </div>
+
+                {/* Collapsible Forgot Password panel drawer */}
+                {showForgot && (
+                  <div 
+                    style={{
+                      background: "rgba(99, 102, 241, 0.04)",
+                      border: "1px solid rgba(99, 102, 241, 0.15)",
+                      borderRadius: 14,
+                      padding: "18px",
+                      marginBottom: 24,
+                      animation: "slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) both"
+                    }}
+                  >
+                    <h4 style={{ margin: "0 0 6px", fontSize: "13.5px", fontWeight: "700", color: "#FFF" }}>Reset Password</h4>
+                    <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#94A3B8", lineHeight: 1.4 }}>Enter your email address and we will mail you a secure recovery link.</p>
+                    
+                    <PremiumInput 
+                      type="email"
+                      label="Recovery Email"
+                      icon={Mail}
+                      value={forgotEmail}
+                      onChange={e => {
+                        setForgotEmail(e.target.value);
+                        setForgotErr("");
+                      }}
+                      error={forgotErr}
+                    />
+
+                    <button
+                      type="button"
+                      disabled={forgotLoading}
+                      onClick={handleForgotSubmit}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%)",
+                        color: "#FFF",
+                        fontWeight: "700",
+                        fontSize: "13px",
+                        cursor: forgotLoading ? "not-allowed" : "pointer",
+                        opacity: forgotLoading ? 0.6 : 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)"
+                      }}
+                    >
+                      {forgotLoading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
+                      {forgotLoading ? "Sending Link..." : "Send Recovery Mail"}
+                    </button>
+
+                    {forgotMsg && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#34D399", fontSize: "12px", fontWeight: "700" }}>
+                        <CheckCircle size={14} />
+                        <span>{forgotMsg}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Primary login button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "linear-gradient(90deg, #6366F1 0%, #4F46E5 100%)",
+                    color: "#FFF",
+                    fontWeight: "800",
+                    fontSize: "13.5px",
+                    letterSpacing: "0.06em",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.75 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: "0 8px 24px rgba(99, 102, 241, 0.25)",
+                    transition: "transform 0.15s ease"
+                  }}
+                  onMouseEnter={e => {
+                    if (!loading) {
+                      e.currentTarget.style.boxShadow = "0 8px 32px rgba(99, 102, 241, 0.4)";
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.boxShadow = "0 8px 24px rgba(99, 102, 241, 0.25)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
+                  {loading ? "AUTHENTICATING..." : "SIGN IN TO WORKSPACE"}
+                  {!loading && <ArrowRight size={14} />}
+                </button>
+
+              </form>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0" }}>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                <span style={{ fontSize: "11.5px", color: "#4B5563", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>or secure connect</span>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+              </div>
+
+              {/* Google Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `${API_ORIGIN}/api/auth/google`;
+                }}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: 12,
+                  border: "1.2px solid rgba(255, 255, 255, 0.06)",
+                  background: "rgba(255,255,255,0.02)",
+                  color: "#E2E8F0",
+                  fontWeight: "700",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
+                }}
+              >
+                <GoogleIcon /> Continue with Google
+              </button>
+
+              {/* Signup Link footer */}
+              <div style={{ textAlign: "center", marginTop: 28 }}>
+                <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#6B7280", fontWeight: "500" }}>
+                  New to BuildTrack?{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/signup")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      color: "#818CF8",
+                      fontWeight: "700"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#A5B4FC"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#818CF8"}
+                  >
+                    Create account free
+                  </button>
+                </p>
+
+                <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 10, fontSize: "11px", color: "#4B5563", fontWeight: "600" }}>
+                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#94A3B8"} onMouseLeave={e => e.currentTarget.style.color = "#4B5563"}>Privacy Policy</span>
+                  <span>·</span>
+                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#94A3B8"} onMouseLeave={e => e.currentTarget.style.color = "#4B5563"}>Terms</span>
+                  <span>·</span>
+                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#94A3B8"} onMouseLeave={e => e.currentTarget.style.color = "#4B5563"}>Support</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* ── Right form panel ── */}
-          <div className="bt-right" style={{ background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", overflowY: "auto" }}>
-            <div style={{ width: "100%", maxWidth: 440, padding: "48px 56px" }}>
-              <div style={{ marginBottom: 30 }}>
-                <h1 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 7px", fontSize: 28, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
-                <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Sign in to your BuildTrack account</p>
-              </div>
-              <form onSubmit={handleLogin}>{FormFields}</form>
-            </div>
-          </div>
         </div>
       ) : (
-        /* ── Mobile / Tablet ── */
-        <div style={{ minHeight: "100vh", background: "#fff", display: "flex", alignItems: isDesktop ? "center" : "flex-start", justifyContent: "center", padding: isMobile ? "40px 24px" : "48px", fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
-          <div style={{ width: "100%", maxWidth: 480 }}>
-            <div style={{ textAlign: "center", marginBottom: 40 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 40, fontWeight: 800, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 8 }}>
-                <span style={{ color: "#0f172a" }}>Build</span><span style={{ color: "#6C63FF" }}>Track</span>
+        /* ── MOBILE / TABLET VIEW ── */
+        <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", zIndex: 10, padding: "32px 20px", boxSizing: "border-box", overflowY: "auto", justifyContent: "center", alignItems: "center" }}>
+          
+          <div style={{ width: "100%", maxWidth: 400 }}>
+            {/* Logo */}
+            <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", gap: 10, marginBottom: 32 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Building size={16} color="#FFF" />
               </div>
-              <p style={{ fontSize: 12.5, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>Construction management</p>
+              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
+                <span style={{ color: "#FFF" }}>Build</span><span style={{ color: "#818CF8" }}>Track</span>
+              </div>
             </div>
-            <div style={{ marginBottom: 28 }}>
-              <h1 style={{ fontFamily: "'Syne',sans-serif", margin: "0 0 7px", fontSize: 26, fontWeight: 800, color: "#0f172a" }}>Welcome back</h1>
-              <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Sign in to your BuildTrack account</p>
+
+            <div 
+              className={`premium-card-border ${shake ? "shake-trigger" : ""}`}
+              style={{
+                width: "100%",
+                padding: "36px 24px",
+                backdropFilter: "blur(20px)",
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
+                boxSizing: "border-box"
+              }}
+            >
+              <div style={{ marginBottom: 26, textAlign: "center" }}>
+                <h2 style={{ fontSize: "20px", fontWeight: "800", color: "#FFF", margin: "0 0 4px", letterSpacing: "-0.5px" }}>Welcome back</h2>
+                <p style={{ margin: 0, fontSize: "13px", color: "#6B7280", fontWeight: "500" }}>Sign in to your BuildTrack account.</p>
+              </div>
+
+              {serverErr && (
+                <div 
+                  style={{ 
+                    background: "rgba(239, 68, 68, 0.08)", 
+                    border: "1.2px solid rgba(239, 68, 68, 0.3)", 
+                    borderRadius: 12, 
+                    padding: "10px 12px", 
+                    marginBottom: 20, 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 8,
+                    animation: "slideDown 0.2s ease"
+                  }}
+                >
+                  <AlertTriangle size={14} color="#EF4444" style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: "11.5px", color: "#FCA5A5", fontWeight: "600" }}>{serverErr}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin}>
+                
+                <PremiumInput 
+                  type="email"
+                  label="Email address"
+                  icon={Mail}
+                  value={email}
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    setEmailErr("");
+                    setServerErr("");
+                  }}
+                  error={emailErr}
+                  autoComplete="email"
+                />
+
+                <div style={{ position: "relative" }}>
+                  <PremiumInput 
+                    type={showPass ? "text" : "password"}
+                    label="Password"
+                    icon={Lock}
+                    value={password}
+                    onChange={e => {
+                      setPassword(e.target.value);
+                      setPassErr("");
+                      setServerErr("");
+                    }}
+                    error={passErr}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    style={{
+                      position: "absolute",
+                      right: 14,
+                      top: 15,
+                      background: "none",
+                      border: "none",
+                      color: "#4B5563",
+                      cursor: "pointer",
+                      padding: 4,
+                      zIndex: 30
+                    }}
+                  >
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                <div style={{ textAlign: "right", margin: "-10px 0 24px" }}>
+                  <span 
+                    onClick={() => {
+                      setShowForgot(!showForgot);
+                      setForgotMsg("");
+                      setForgotErr("");
+                    }}
+                    style={{ fontSize: "12px", fontWeight: "700", color: "#818CF8", cursor: "pointer" }}
+                  >
+                    {showForgot ? "← Back to Sign In" : "Forgot Password?"}
+                  </span>
+                </div>
+
+                {showForgot && (
+                  <div 
+                    style={{
+                      background: "rgba(99, 102, 241, 0.04)",
+                      border: "1px solid rgba(99, 102, 241, 0.15)",
+                      borderRadius: 14,
+                      padding: "16px",
+                      marginBottom: 24,
+                      animation: "slideDown 0.3s ease both"
+                    }}
+                  >
+                    <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: "700", color: "#FFF" }}>Reset Password</h4>
+                    <p style={{ margin: "0 0 12px", fontSize: "11px", color: "#94A3B8", lineHeight: 1.4 }}>We'll send a password recovery link to your email.</p>
+                    
+                    <PremiumInput 
+                      type="email"
+                      label="Recovery Email"
+                      icon={Mail}
+                      value={forgotEmail}
+                      onChange={e => {
+                        setForgotEmail(e.target.value);
+                        setForgotErr("");
+                      }}
+                      error={forgotErr}
+                    />
+
+                    <button
+                      type="button"
+                      disabled={forgotLoading}
+                      onClick={handleForgotSubmit}
+                      style={{
+                        width: "100%",
+                        padding: "11px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%)",
+                        color: "#FFF",
+                        fontWeight: "700",
+                        fontSize: "12.5px",
+                        cursor: forgotLoading ? "not-allowed" : "pointer",
+                        opacity: forgotLoading ? 0.6 : 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8
+                      }}
+                    >
+                      {forgotLoading && <span className="spinner-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
+                      {forgotLoading ? "Sending Link..." : "Send Recovery Mail"}
+                    </button>
+
+                    {forgotMsg && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#34D399", fontSize: "11.5px", fontWeight: "700" }}>
+                        <CheckCircle size={13} />
+                        <span>{forgotMsg}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    width: "100%",
+                    padding: "13px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "linear-gradient(90deg, #6366F1 0%, #4F46E5 100%)",
+                    color: "#FFF",
+                    fontWeight: "800",
+                    fontSize: "13px",
+                    letterSpacing: "0.06em",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.75 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: "0 8px 20px rgba(99, 102, 241, 0.2)"
+                  }}
+                >
+                  {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
+                  {loading ? "AUTHENTICATING..." : "SIGN IN"}
+                  {!loading && <ArrowRight size={13} />}
+                </button>
+
+              </form>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                <span style={{ fontSize: "10.5px", color: "#4B5563", fontWeight: "700" }}>OR CONNECT</span>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `${API_ORIGIN}/api/auth/google`;
+                }}
+                style={{
+                  width: "100%",
+                  padding: "11px",
+                  borderRadius: 12,
+                  border: "1.2px solid rgba(255, 255, 255, 0.06)",
+                  background: "rgba(255,255,255,0.02)",
+                  color: "#E2E8F0",
+                  fontWeight: "700",
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                <GoogleIcon /> Continue with Google
+              </button>
+
+              <div style={{ textAlign: "center", marginTop: 24 }}>
+                <p style={{ margin: "0 0 16px", fontSize: "12.5px", color: "#6B7280", fontWeight: "500" }}>
+                  New to BuildTrack?{" "}
+                  <span onClick={() => navigate("/signup")} style={{ color: "#818CF8", fontWeight: "700", cursor: "pointer" }}>Create account</span>
+                </p>
+
+                <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 10, fontSize: "10.5px", color: "#4B5563", fontWeight: "600" }}>
+                  <span>Privacy Policy</span>
+                  <span>·</span>
+                  <span>Terms</span>
+                </div>
+              </div>
+
             </div>
-            <form onSubmit={handleLogin}>{FormFields}</form>
           </div>
+
         </div>
       )}
-    </>
+    </div>
   );
 }
