@@ -84,25 +84,7 @@ export default function DashboardPage() {
   const budget = Number(selectedProject?.totalBudget || selectedProject?.budget || 0);
   const progress = Number(selectedProject?.progress || 0) / 100;
 
-  const weeklyData = useMemo(() => {
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dayStr = d.toISOString().slice(0, 10);
-      const dayTxs = transactions.filter((t) => {
-        const txDate = (t.date || t.createdAt || '').slice(0, 10);
-        return txDate === dayStr;
-      });
-      const income = dayTxs.filter((t) => t.type === 'Income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
-      const expense = dayTxs.filter((t) => t.type !== 'Income').reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
-      const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      days.push({ day: labels[d.getDay()], income, expense });
-    }
-    return days;
-  }, [transactions]);
 
-  const maxVal = Math.max(...weeklyData.map((d) => Math.max(d.income, d.expense)), 1);
 
   if (loading) {
     return (
@@ -276,50 +258,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Weekly Chart + Quick Actions row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, marginBottom: 24 }}>
-        {/* Weekly Performance Chart */}
-        <Card padding="20px 24px">
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', marginBottom: 18, textTransform: 'uppercase' }}>
-            Weekly Performance
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140 }}>
-            {weeklyData.map((d, i) => (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ position: 'relative', width: '100%', height: 120, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                  <div style={{
-                    width: '100%',
-                    height: `${(d.income / maxVal) * 100}%`,
-                    background: 'linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%)',
-                    borderRadius: '4px 4px 0 0',
-                    minHeight: d.income > 0 ? 4 : 0,
-                    transition: 'height 0.3s',
-                  }} />
-                  <div style={{
-                    width: '100%',
-                    height: `${(d.expense / maxVal) * 100}%`,
-                    background: '#8B83FF',
-                    borderRadius: '4px 4px 0 0',
-                    minHeight: d.expense > 0 ? 4 : 0,
-                    opacity: 0.6,
-                    transition: 'height 0.3s',
-                  }} />
-                </div>
-                <span style={{ fontSize: 10, color: '#6B7280', fontWeight: 700 }}>{d.day.slice(0, 3)}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: 'linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%)' }} /> Income
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: '#8B83FF', opacity: 0.6 }} /> Expenses
-            </span>
-          </div>
-        </Card>
-
-        {/* Quick Actions */}
+      {/* Quick Actions */}
+      <div style={{ marginBottom: 24 }}>
         <Card padding="20px 24px">
           <div style={{ fontSize: 13, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', marginBottom: 16, textTransform: 'uppercase' }}>
             Quick Actions
