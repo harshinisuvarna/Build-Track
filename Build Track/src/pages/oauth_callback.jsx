@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
-import useAuthStore from "../stores/authStore";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
@@ -30,7 +29,9 @@ export default function OAuthCallback() {
 
         try {
           const { data } = await authAPI.me();
-          useAuthStore.getState().fromLoginResponse(data.user, token);
+          const userData = data?.user || data;
+          localStorage.setItem("bt_user", JSON.stringify(userData));
+          window.dispatchEvent(new Event('userUpdated'));
         } catch {
 
         }
@@ -38,7 +39,7 @@ export default function OAuthCallback() {
         setStatus("Success! Taking you to your dashboard…");
 
         setTimeout(() => {
-          navigate("/", { replace: true });
+          window.location.assign("/");
         }, 800);
 
       } catch (err) {

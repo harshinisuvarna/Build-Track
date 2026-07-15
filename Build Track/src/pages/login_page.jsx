@@ -1,138 +1,65 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI, API_ORIGIN } from "../api";
 import { useAuth } from "../contexts/AuthContext";
 import { 
-  Sparkles, 
   Mail, 
   Lock, 
   Eye, 
   EyeOff, 
   ArrowRight, 
-  TrendingUp, 
-  ShieldCheck, 
-  Zap, 
   Building,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Layers,
+  LineChart,
+  UserCheck,
+  TrendingUp
 } from "lucide-react";
 
-// GPU-Accelerated Canvas Blueprint Background drawing grids, coordinates & drifting auroras
-function BlueprintBackground() {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let animationId;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
-
-    let mouse = { x: width / 2, y: height / 2, tx: width / 2, ty: height / 2 };
-
-    const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-
-    const handleMouseMove = (e) => {
-      mouse.tx = e.clientX;
-      mouse.ty = e.clientY;
-    };
-
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("mousemove", handleMouseMove);
-
-    // Drifting aurora radial gradient blobs
-    let blobs = [
-      { x: width * 0.2, y: height * 0.3, vx: 0.35, vy: 0.25, r: 350, color: "rgba(99, 102, 241, 0.15)" },
-      { x: width * 0.8, y: height * 0.7, vx: -0.25, vy: 0.3, r: 400, color: "rgba(139, 92, 246, 0.12)" },
-      { x: width * 0.5, y: height * 0.8, vx: 0.2, vy: -0.2, r: 320, color: "rgba(6, 182, 212, 0.08)" }
-    ];
-
-    const draw = () => {
-      // Clear base with OLED-black space base
-      ctx.fillStyle = "#030308";
-      ctx.fillRect(0, 0, width, height);
-
-      // Dampen mouse coordinates for liquid inertia spotlight flow
-      mouse.x += (mouse.tx - mouse.x) * 0.08;
-      mouse.y += (mouse.ty - mouse.y) * 0.08;
-
-      // Draw drifting blobs
-      blobs.forEach(b => {
-        b.x += b.vx;
-        b.y += b.vy;
-        if (b.x < 0 || b.x > width) b.vx *= -1;
-        if (b.y < 0 || b.y > height) b.vy *= -1;
-
-        const radGrd = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
-        radGrd.addColorStop(0, b.color);
-        radGrd.addColorStop(1, "transparent");
-        ctx.fillStyle = radGrd;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // Interactive mouse light spotlight
-      const spotGrd = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 350);
-      spotGrd.addColorStop(0, "rgba(99, 102, 241, 0.08)");
-      spotGrd.addColorStop(1, "transparent");
-      ctx.fillStyle = spotGrd;
-      ctx.beginPath();
-      ctx.arc(mouse.x, mouse.y, 350, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Blueprint lines
-      ctx.strokeStyle = "rgba(99, 102, 241, 0.035)";
-      ctx.lineWidth = 1;
-      const gridSize = 56;
-      
-      // Verticals
-      for (let x = 0; x < width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-
-      // Horizontals
-      for (let y = 0; y < height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-
-      // Small details: coordinates dots
-      ctx.fillStyle = "rgba(99, 102, 241, 0.18)";
-      for (let x = gridSize; x < width; x += gridSize * 4) {
-        for (let y = gridSize; y < height; y += gridSize * 4) {
-          ctx.beginPath();
-          ctx.arc(x, y, 1.2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      animationId = requestAnimationFrame(draw);
-    };
-
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("mousemove", handleMouseMove);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none" }} />;
+// Floating Marketing Preview Card Component (Clean Light Style)
+function FloatCard({ icon: Icon, title, value, detail, color, delay }) {
+  return (
+    <div 
+      className="float-animation"
+      style={{
+        background: "#FFFFFF",
+        border: "1px solid #EAEAEF",
+        borderRadius: 16,
+        padding: "16px 20px",
+        boxShadow: "0 10px 30px rgba(20, 20, 50, 0.03)",
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        animationDelay: delay,
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        cursor: "default"
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = "translateY(-3px)";
+        e.currentTarget.style.boxShadow = "0 15px 35px rgba(20, 20, 50, 0.06)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = "none";
+        e.currentTarget.style.boxShadow = "0 10px 30px rgba(20, 20, 50, 0.03)";
+      }}
+    >
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}10`, display: "flex", alignItems: "center", justifyContent: "center", color: color, flexShrink: 0 }}>
+        <Icon size={18} />
+      </div>
+      <div>
+        <div style={{ fontSize: "11px", fontWeight: "700", color: "#8E9AA8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{title}</div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontSize: "17px", fontWeight: "800", color: "#1F2937" }}>{value}</span>
+          <span style={{ fontSize: "11.5px", fontWeight: "600", color: "#10B981" }}>{detail}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// Custom Input field wrapper containing floating label animations and expanding underline glows
-function PremiumInput({ icon: Icon, label, error, ...props }) {
+// Custom Input field wrapper containing floating label animations and soft focus glows
+function LightPremiumInput({ icon: Icon, label, error, ...props }) {
   const [focused, setFocused] = useState(false);
   const [hasValue, setHasValue] = useState(false);
 
@@ -142,16 +69,16 @@ function PremiumInput({ icon: Icon, label, error, ...props }) {
         style={{
           display: "flex",
           alignItems: "center",
-          background: "rgba(10, 10, 20, 0.55)",
-          border: `1.2px solid ${error ? "#EF4444" : focused ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.06)"}`,
+          background: "#FFFFFF",
+          border: `1.2px solid ${error ? "#EF4444" : focused ? "#6366F1" : "#E4E4E7"}`,
           borderRadius: 12,
-          padding: "12px 14px",
+          padding: "13px 14px",
           position: "relative",
-          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-          boxShadow: focused ? "0 0 16px rgba(99, 102, 241, 0.1)" : "none"
+          transition: "all 0.2s ease",
+          boxShadow: focused ? "0 0 0 3px rgba(99, 102, 241, 0.08)" : "none"
         }}
       >
-        {Icon && <Icon size={17} style={{ color: focused ? "#818CF8" : "#4B5563", marginRight: 10, flexShrink: 0 }} />}
+        {Icon && <Icon size={16} style={{ color: focused ? "#6366F1" : "#8E9AA8", marginRight: 10, flexShrink: 0 }} />}
         
         <input 
           {...props}
@@ -173,40 +100,25 @@ function PremiumInput({ icon: Icon, label, error, ...props }) {
             background: "none",
             border: "none",
             outline: "none",
-            color: "#FFF",
+            color: "#18181B",
             fontSize: "14px",
             fontFamily: "inherit",
-            padding: "4px 0",
+            padding: "2px 0 0",
             zIndex: 10
           }}
         />
 
-        {/* Expanding bottom accent highlight line */}
-        <div 
-          style={{
-            position: "absolute",
-            bottom: -1,
-            left: "50%",
-            width: focused ? "100%" : "0%",
-            height: 1.5,
-            background: error ? "#EF4444" : "linear-gradient(90deg, #6366F1 0%, #06B6D4 100%)",
-            transform: "translateX(-50%)",
-            transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            zIndex: 20
-          }}
-        />
-
-        {/* Floating Label placeholder */}
+        {/* Floating Label */}
         <label 
           style={{
             position: "absolute",
-            left: Icon ? 41 : 14,
-            top: (focused || hasValue || props.value) ? "1.5px" : "13.5px",
-            fontSize: (focused || hasValue || props.value) ? "9.5px" : "13px",
-            color: error ? "#EF4444" : (focused ? "#818CF8" : "#6B7280"),
+            left: Icon ? 38 : 14,
+            top: (focused || hasValue || props.value) ? "3.5px" : "15px",
+            fontSize: (focused || hasValue || props.value) ? "9px" : "13.5px",
+            color: error ? "#EF4444" : (focused ? "#6366F1" : "#71717A"),
             fontWeight: "700",
             pointerEvents: "none",
-            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
             textTransform: (focused || hasValue || props.value) ? "uppercase" : "none",
             letterSpacing: (focused || hasValue || props.value) ? "0.08em" : "normal"
           }}
@@ -216,7 +128,7 @@ function PremiumInput({ icon: Icon, label, error, ...props }) {
       </div>
 
       {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#EF4444", fontSize: "11.5px", fontWeight: "700", animation: "slideDown 0.2s ease" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#EF4444", fontSize: "11px", fontWeight: "700", animation: "slideDown 0.15s ease" }}>
           <span>⚠️</span>
           <span>{error}</span>
         </div>
@@ -225,7 +137,7 @@ function PremiumInput({ icon: Icon, label, error, ...props }) {
   );
 }
 
-// Google OAuth vector icon
+// Google OAuth Icon
 const GoogleIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -261,9 +173,6 @@ export default function LoginPage() {
   // Layout responsiveness tracking
   const [vw, setVw] = useState(window.innerWidth);
 
-  // Live KPI mockup stats animation parameters
-  const [progressVal, setProgressVal] = useState(0);
-
   useEffect(() => {
     if (localStorage.getItem("bt_token")) {
       navigate("/", { replace: true });
@@ -274,12 +183,6 @@ export default function LoginPage() {
     const handleResize = () => setVw(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Trigger KPI progress load on mount
-  useEffect(() => {
-    const t = setTimeout(() => setProgressVal(78), 250);
-    return () => clearTimeout(t);
   }, []);
 
   const isDesktop = vw >= 1024;
@@ -348,20 +251,19 @@ export default function LoginPage() {
     }
   };
 
-  // CSS animations injection
+  // Light Theme CSS styles & animations injection
   const css = `
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap');
     
     body {
       margin: 0;
-      background: #030308;
-      overflow-x: hidden;
+      background: #FAFAFC;
     }
 
     @keyframes fadeUp {
       from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(10px);
       }
       to {
         opacity: 1;
@@ -369,15 +271,9 @@ export default function LoginPage() {
       }
     }
 
-    @keyframes glowPulse {
-      0%, 100% {
-        border-color: rgba(99, 102, 241, 0.25);
-        box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
-      }
-      50% {
-        border-color: rgba(99, 102, 241, 0.45);
-        box-shadow: 0 0 20px rgba(99, 102, 241, 0.16);
-      }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
     }
 
     @keyframes shake {
@@ -397,12 +293,16 @@ export default function LoginPage() {
       }
       to {
         opacity: 1;
-        max-height: 200px;
+        max-height: 250px;
       }
     }
 
     .animate-fade-up {
       animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .float-animation {
+      animation: float 5s ease-in-out infinite;
     }
 
     .shake-trigger {
@@ -413,118 +313,125 @@ export default function LoginPage() {
       animation: spin 0.6s linear infinite;
     }
 
-    /* Sub-pixel gradient border effect */
-    .premium-card-border {
-      position: relative;
-      border-radius: 20px;
-      background: rgba(10, 10, 20, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    /* Light blueprint grid watermark background */
+    .light-blueprint-grid {
+      position: fixed;
+      inset: 0;
+      background-size: 56px 56px;
+      background-image: 
+        linear-gradient(to right, rgba(99, 102, 241, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(99, 102, 241, 0.02) 1px, transparent 1px);
+      z-index: -1;
+      pointer-events: none;
     }
 
-    .premium-card-border::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: 21px;
-      padding: 1.5px;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(6, 182, 212, 0.05) 50%, rgba(139, 92, 246, 0.2) 100%);
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+    /* Soft light mesh radial glows */
+    .light-glow-1 {
+      position: fixed;
+      top: -10%;
+      left: -10%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.04) 0%, transparent 70%);
+      z-index: -2;
       pointer-events: none;
-      z-index: 1;
+    }
+
+    .light-glow-2 {
+      position: fixed;
+      bottom: -10%;
+      right: -10%;
+      width: 50%;
+      height: 60%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.035) 0%, transparent 70%);
+      z-index: -2;
+      pointer-events: none;
     }
   `;
 
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <style>{css}</style>
-      <BlueprintBackground />
+      
+      {/* Background Watermarks */}
+      <div className="light-blueprint-grid" />
+      <div className="light-glow-1" />
+      <div className="light-glow-2" />
 
       {isDesktop ? (
         /* ── DESKTOP SPLIT VIEW ── */
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", width: "100%", height: "100%", zIndex: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", width: "100%", height: "100%", zIndex: 10 }}>
           
-          {/* Left Branding Panel */}
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 80px", position: "relative", overflow: "hidden" }}>
+          {/* Left Branding / Marketing Section */}
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 80px", position: "relative" }}>
             
-            {/* Logo bar */}
-            <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 12, animationDelay: "0.1s" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px rgba(99, 102, 241, 0.3)" }}>
-                <Building size={20} color="#FFF" />
+            {/* Logo */}
+            <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
+                <Building size={19} color="#FFF" />
               </div>
-              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 24, fontWeight: "800", letterSpacing: "-1px" }}>
-                <span style={{ color: "#FFF" }}>Build</span><span style={{ color: "#818CF8" }}>Track</span>
+              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 23, fontWeight: "800", letterSpacing: "-0.5px" }}>
+                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
               </div>
             </div>
 
-            {/* Middle Main Copy */}
-            <div style={{ maxWidth: 460 }}>
-              <div className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(99, 102, 241, 0.1)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: 20, padding: "6px 12px", marginBottom: 20 }}>
-                  <Sparkles size={13} color="#818CF8" />
-                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#818CF8", letterSpacing: "0.06em", textTransform: "uppercase" }}>Enterprise OS</span>
-                </div>
-              </div>
-
-              <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#FFF", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.3s" }}>
-                Build smarter.<br />
-                <span style={{ background: "linear-gradient(135deg, #818CF8 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Track everything.</span>
+            {/* Headline and descriptions */}
+            <div style={{ maxWidth: 480, margin: "auto 0" }}>
+              <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "42px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
+                The OS for<br />
+                <span style={{ background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Modern Construction.</span>
               </h1>
               
-              <p className="animate-fade-up" style={{ fontSize: "15px", color: "#94A3B8", lineHeight: 1.7, margin: "0 0 36px", animationDelay: "0.4s" }}>
-                Connect site budgeting, inventory control, and financial logs on one premium workspace. Elevate your operational margins today.
+              <p className="animate-fade-up" style={{ fontSize: "15px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
+                From real-time budgets to field inventory tracking — everything your construction team needs to deliver projects on time and under budget.
               </p>
 
-              {/* Floating KPI mock-up widget */}
-              <div className="animate-fade-up" style={{ animationDelay: "0.5s" }}>
-                <div 
-                  style={{ 
-                    background: "rgba(15, 15, 25, 0.5)", 
-                    border: "1px solid rgba(255,255,255,0.06)", 
-                    borderRadius: 18, 
-                    padding: 20, 
-                    backdropFilter: "blur(12px)",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 16 }}>📈</span>
-                      <span style={{ fontSize: "12px", fontWeight: "700", color: "#E2E8F0" }}>Site Budget Fulfillment</span>
-                    </div>
-                    <span style={{ fontSize: "12px", fontWeight: "800", color: "#10B981" }}>+12.4%</span>
-                  </div>
+              {/* Grid of clean floating marketing KPI cards */}
+              <div className="animate-fade-up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, animationDelay: "0.4s" }}>
+                
+                <FloatCard 
+                  icon={LineChart} 
+                  title="Project Budget" 
+                  value="₹48.2L" 
+                  detail="78% spent" 
+                  color="#4F46E5"
+                  delay="0s"
+                />
 
-                  <div style={{ color: "#FFF", fontSize: 24, fontWeight: "800", marginBottom: 14 }}>
-                    ₹48,24,500 <span style={{ fontSize: 13, color: "#6B7280", fontWeight: "500" }}>of ₹62,00,000</span>
-                  </div>
+                <FloatCard 
+                  icon={Layers} 
+                  title="Steel Stock" 
+                  value="12.4T" 
+                  detail="Low threshold" 
+                  color="#EF4444"
+                  delay="0.15s"
+                />
 
-                  {/* Progress bar container */}
-                  <div style={{ width: "100%", height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
-                    <div 
-                      style={{ 
-                        height: "100%", 
-                        width: `${progressVal}%`, 
-                        background: "linear-gradient(90deg, #6366F1 0%, #06B6D4 100%)", 
-                        borderRadius: 3,
-                        transition: "width 1.2s cubic-bezier(0.16, 1, 0.3, 1)"
-                      }} 
-                    />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#6B7280", fontWeight: "600" }}>
-                    <span>Allocated</span>
-                    <span>78% complete</span>
-                  </div>
-                </div>
+                <FloatCard 
+                  icon={UserCheck} 
+                  title="Field Labour" 
+                  value="18 Active" 
+                  detail="No incidents" 
+                  color="#10B981"
+                  delay="0.3s"
+                />
+
+                <FloatCard 
+                  icon={TrendingUp} 
+                  title="Site Progress" 
+                  value="Phase 2" 
+                  detail="+4% this wk" 
+                  color="#06B6D4"
+                  delay="0.45s"
+                />
+
               </div>
-
             </div>
 
-            {/* Footer indicators */}
-            <div className="animate-fade-up" style={{ display: "flex", gap: 32, fontSize: "11.5px", color: "#4B5563", fontWeight: "600", animationDelay: "0.6s" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck size={14} color="#818CF8" /> ISO 27001 Secure</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Zap size={14} color="#06B6D4" /> Real-time Sync</div>
+            {/* Bottom meta bar */}
+            <div className="animate-fade-up" style={{ display: "flex", gap: 24, fontSize: "12px", color: "#8E9AA8", fontWeight: "600", animationDelay: "0.5s" }}>
+              <span>✓ Trusted by Enterprise Builders</span>
+              <span>• SSL Encrypted</span>
             </div>
 
           </div>
@@ -532,44 +439,46 @@ export default function LoginPage() {
           {/* Right Authentication Panel */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" }}>
             <div 
-              className={`premium-card-border animate-fade-up ${shake ? "shake-trigger" : ""}`}
+              className={`animate-fade-up ${shake ? "shake-trigger" : ""}`}
               style={{
                 width: "100%",
                 maxWidth: 440,
-                padding: "48px 40px",
-                backdropFilter: "blur(24px) saturate(120%)",
-                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.4)",
-                animationDelay: "0.2s"
+                padding: "52px 44px",
+                background: "#FFFFFF",
+                borderRadius: 24,
+                border: "1px solid #EAEAEF",
+                boxShadow: "0 20px 50px rgba(0, 0, 0, 0.035)",
+                animationDelay: "0.15s",
+                boxSizing: "border-box"
               }}
             >
-              <div style={{ marginBottom: 30 }}>
-                <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#FFF", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Welcome back</h2>
-                <p style={{ margin: 0, fontSize: "13.5px", color: "#6B7280", fontWeight: "500" }}>Enter your credentials to access your workspace.</p>
+              <div style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: "23px", fontWeight: "800", color: "#1F2937", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Welcome back</h2>
+                <p style={{ margin: 0, fontSize: "13.5px", color: "#8E9AA8", fontWeight: "500" }}>Sign in to your BuildTrack account.</p>
               </div>
 
-              {/* Server Exception alert */}
               {serverErr && (
                 <div 
                   style={{ 
-                    background: "rgba(239, 68, 68, 0.08)", 
-                    border: "1.2px solid rgba(239, 68, 68, 0.3)", 
+                    background: "#FEF2F2", 
+                    border: "1.2px solid #FCA5A5", 
                     borderRadius: 12, 
                     padding: "12px 14px", 
-                    marginBottom: 20, 
+                    marginBottom: 22, 
                     display: "flex", 
                     alignItems: "flex-start", 
                     gap: 10,
-                    animation: "slideDown 0.25s ease"
+                    animation: "slideDown 0.2s ease"
                   }}
                 >
                   <AlertTriangle size={16} color="#EF4444" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <span style={{ fontSize: "12.5px", color: "#FCA5A5", fontWeight: "600", lineHeight: 1.4 }}>{serverErr}</span>
+                  <span style={{ fontSize: "12.5px", color: "#B91C1C", fontWeight: "600", lineHeight: 1.45 }}>{serverErr}</span>
                 </div>
               )}
 
               <form onSubmit={handleLogin}>
                 
-                <PremiumInput 
+                <LightPremiumInput 
                   type="email"
                   label="Email address"
                   icon={Mail}
@@ -584,7 +493,7 @@ export default function LoginPage() {
                 />
 
                 <div style={{ position: "relative" }}>
-                  <PremiumInput 
+                  <LightPremiumInput 
                     type={showPass ? "text" : "password"}
                     label="Password"
                     icon={Lock}
@@ -603,10 +512,10 @@ export default function LoginPage() {
                     style={{
                       position: "absolute",
                       right: 14,
-                      top: 15,
+                      top: 17,
                       background: "none",
                       border: "none",
-                      color: "#4B5563",
+                      color: "#8E9AA8",
                       cursor: "pointer",
                       padding: 4,
                       zIndex: 30
@@ -616,38 +525,38 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {/* Reset Trigger Link */}
-                <div style={{ textAlign: "right", margin: "-10px 0 24px" }}>
+                {/* Reset trigger link */}
+                <div style={{ textAlign: "right", margin: "-10px 0 26px" }}>
                   <span 
                     onClick={() => {
                       setShowForgot(!showForgot);
                       setForgotMsg("");
                       setForgotErr("");
                     }}
-                    style={{ fontSize: "12.5px", fontWeight: "700", color: "#818CF8", cursor: "pointer", transition: "color 0.2s" }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#A5B4FC"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#818CF8"}
+                    style={{ fontSize: "12.5px", fontWeight: "700", color: "#4F46E5", cursor: "pointer", transition: "color 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#312E81"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#4F46E5"}
                   >
-                    {showForgot ? "← Back to Sign In" : "Forgot Password?"}
+                    {showForgot ? "← Back to login" : "Forgot password?"}
                   </span>
                 </div>
 
-                {/* Collapsible Forgot Password panel drawer */}
+                {/* Reset password collapsible drawer */}
                 {showForgot && (
                   <div 
                     style={{
-                      background: "rgba(99, 102, 241, 0.04)",
-                      border: "1px solid rgba(99, 102, 241, 0.15)",
+                      background: "#F5F3FF",
+                      border: "1px solid #DDD6FE",
                       borderRadius: 14,
                       padding: "18px",
                       marginBottom: 24,
-                      animation: "slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) both"
+                      animation: "slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) both"
                     }}
                   >
-                    <h4 style={{ margin: "0 0 6px", fontSize: "13.5px", fontWeight: "700", color: "#FFF" }}>Reset Password</h4>
-                    <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#94A3B8", lineHeight: 1.4 }}>Enter your email address and we will mail you a secure recovery link.</p>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", fontWeight: "700", color: "#1F2937" }}>Reset Password</h4>
+                    <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#6F7C8F", lineHeight: 1.45 }}>Enter your recovery email and we will mail you a reset link.</p>
                     
-                    <PremiumInput 
+                    <LightPremiumInput 
                       type="email"
                       label="Recovery Email"
                       icon={Mail}
@@ -668,7 +577,7 @@ export default function LoginPage() {
                         padding: "12px",
                         borderRadius: 10,
                         border: "none",
-                        background: "linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%)",
+                        background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
                         color: "#FFF",
                         fontWeight: "700",
                         fontSize: "13px",
@@ -678,15 +587,15 @@ export default function LoginPage() {
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 8,
-                        boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)"
+                        boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)"
                       }}
                     >
                       {forgotLoading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
-                      {forgotLoading ? "Sending Link..." : "Send Recovery Mail"}
+                      {forgotLoading ? "Sending Link..." : "Send Reset Link"}
                     </button>
 
                     {forgotMsg && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#34D399", fontSize: "12px", fontWeight: "700" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#065F46", fontSize: "12px", fontWeight: "700" }}>
                         <CheckCircle size={14} />
                         <span>{forgotMsg}</span>
                       </div>
@@ -694,7 +603,7 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                {/* Primary login button */}
+                {/* Primary Action Button (Stripe style) */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -703,42 +612,42 @@ export default function LoginPage() {
                     padding: "14px",
                     borderRadius: 12,
                     border: "none",
-                    background: "linear-gradient(90deg, #6366F1 0%, #4F46E5 100%)",
+                    background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
                     color: "#FFF",
                     fontWeight: "800",
                     fontSize: "13.5px",
-                    letterSpacing: "0.06em",
+                    letterSpacing: "0.05em",
                     cursor: loading ? "not-allowed" : "pointer",
                     opacity: loading ? 0.75 : 1,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    boxShadow: "0 8px 24px rgba(99, 102, 241, 0.25)",
-                    transition: "transform 0.15s ease"
+                    boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
+                    transition: "transform 0.15s ease, box-shadow 0.15s ease"
                   }}
                   onMouseEnter={e => {
                     if (!loading) {
-                      e.currentTarget.style.boxShadow = "0 8px 32px rgba(99, 102, 241, 0.4)";
+                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(99, 102, 241, 0.3)";
                       e.currentTarget.style.transform = "translateY(-1px)";
                     }
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.boxShadow = "0 8px 24px rgba(99, 102, 241, 0.25)";
+                    e.currentTarget.style.boxShadow = "0 4px 14px rgba(99, 102, 241, 0.18)";
                     e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
                   {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
-                  {loading ? "AUTHENTICATING..." : "SIGN IN TO WORKSPACE"}
+                  {loading ? "AUTHENTICATING..." : "SIGN IN"}
                   {!loading && <ArrowRight size={14} />}
                 </button>
 
               </form>
 
               <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0" }}>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
-                <span style={{ fontSize: "11.5px", color: "#4B5563", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>or secure connect</span>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
+                <span style={{ fontSize: "11px", color: "#8E9AA8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em" }}>or connect</span>
+                <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
               </div>
 
               {/* Google Button */}
@@ -751,9 +660,9 @@ export default function LoginPage() {
                   width: "100%",
                   padding: "12px",
                   borderRadius: 12,
-                  border: "1.2px solid rgba(255, 255, 255, 0.06)",
-                  background: "rgba(255,255,255,0.02)",
-                  color: "#E2E8F0",
+                  border: "1.2px solid #E4E4E7",
+                  background: "#FFFFFF",
+                  color: "#1F2937",
                   fontWeight: "700",
                   fontSize: "13px",
                   cursor: "pointer",
@@ -764,20 +673,18 @@ export default function LoginPage() {
                   transition: "all 0.2s"
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                  e.currentTarget.style.background = "#F4F4F5";
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.02)";
-                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
+                  e.currentTarget.style.background = "#FFFFFF";
                 }}
               >
                 <GoogleIcon /> Continue with Google
               </button>
 
-              {/* Signup Link footer */}
+              {/* Signup Link */}
               <div style={{ textAlign: "center", marginTop: 28 }}>
-                <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#6B7280", fontWeight: "500" }}>
+                <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#8E9AA8", fontWeight: "500" }}>
                   New to BuildTrack?{" "}
                   <button
                     type="button"
@@ -787,22 +694,22 @@ export default function LoginPage() {
                       border: "none",
                       padding: 0,
                       cursor: "pointer",
-                      color: "#818CF8",
+                      color: "#4F46E5",
                       fontWeight: "700"
                     }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#A5B4FC"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#818CF8"}
+                    onMouseEnter={e => e.currentTarget.style.color = "#312E81"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#4F46E5"}
                   >
                     Create account free
                   </button>
                 </p>
 
-                <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 10, fontSize: "11px", color: "#4B5563", fontWeight: "600" }}>
-                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#94A3B8"} onMouseLeave={e => e.currentTarget.style.color = "#4B5563"}>Privacy Policy</span>
+                <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 12, fontSize: "11px", color: "#8E9AA8", fontWeight: "600" }}>
+                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#1F2937"} onMouseLeave={e => e.currentTarget.style.color = "#8E9AA8"}>Privacy Policy</span>
                   <span>·</span>
-                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#94A3B8"} onMouseLeave={e => e.currentTarget.style.color = "#4B5563"}>Terms</span>
+                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#1F2937"} onMouseLeave={e => e.currentTarget.style.color = "#8E9AA8"}>Terms</span>
                   <span>·</span>
-                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#94A3B8"} onMouseLeave={e => e.currentTarget.style.color = "#4B5563"}>Support</span>
+                  <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#1F2937"} onMouseLeave={e => e.currentTarget.style.color = "#8E9AA8"}>Support</span>
                 </div>
               </div>
 
@@ -817,34 +724,36 @@ export default function LoginPage() {
           <div style={{ width: "100%", maxWidth: 400 }}>
             {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", gap: 10, marginBottom: 32 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Building size={16} color="#FFF" />
               </div>
               <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                <span style={{ color: "#FFF" }}>Build</span><span style={{ color: "#818CF8" }}>Track</span>
+                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
               </div>
             </div>
 
             <div 
-              className={`premium-card-border ${shake ? "shake-trigger" : ""}`}
               style={{
                 width: "100%",
                 padding: "36px 24px",
-                backdropFilter: "blur(20px)",
-                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
+                background: "#FFFFFF",
+                borderRadius: 20,
+                border: "1px solid #EAEAEF",
+                boxShadow: "0 15px 35px rgba(0, 0, 0, 0.035)",
                 boxSizing: "border-box"
               }}
+              className={shake ? "shake-trigger" : ""}
             >
               <div style={{ marginBottom: 26, textAlign: "center" }}>
-                <h2 style={{ fontSize: "20px", fontWeight: "800", color: "#FFF", margin: "0 0 4px", letterSpacing: "-0.5px" }}>Welcome back</h2>
-                <p style={{ margin: 0, fontSize: "13px", color: "#6B7280", fontWeight: "500" }}>Sign in to your BuildTrack account.</p>
+                <h2 style={{ fontSize: "20px", fontWeight: "800", color: "#1F2937", margin: "0 0 4px", letterSpacing: "-0.5px" }}>Welcome back</h2>
+                <p style={{ margin: 0, fontSize: "13px", color: "#8E9AA8", fontWeight: "500" }}>Sign in to your BuildTrack account.</p>
               </div>
 
               {serverErr && (
                 <div 
                   style={{ 
-                    background: "rgba(239, 68, 68, 0.08)", 
-                    border: "1.2px solid rgba(239, 68, 68, 0.3)", 
+                    background: "#FEF2F2", 
+                    border: "1.2px solid #FCA5A5", 
                     borderRadius: 12, 
                     padding: "10px 12px", 
                     marginBottom: 20, 
@@ -855,13 +764,13 @@ export default function LoginPage() {
                   }}
                 >
                   <AlertTriangle size={14} color="#EF4444" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: "11.5px", color: "#FCA5A5", fontWeight: "600" }}>{serverErr}</span>
+                  <span style={{ fontSize: "11.5px", color: "#B91C1C", fontWeight: "600" }}>{serverErr}</span>
                 </div>
               )}
 
               <form onSubmit={handleLogin}>
                 
-                <PremiumInput 
+                <LightPremiumInput 
                   type="email"
                   label="Email address"
                   icon={Mail}
@@ -876,7 +785,7 @@ export default function LoginPage() {
                 />
 
                 <div style={{ position: "relative" }}>
-                  <PremiumInput 
+                  <LightPremiumInput 
                     type={showPass ? "text" : "password"}
                     label="Password"
                     icon={Lock}
@@ -898,7 +807,7 @@ export default function LoginPage() {
                       top: 15,
                       background: "none",
                       border: "none",
-                      color: "#4B5563",
+                      color: "#8E9AA8",
                       cursor: "pointer",
                       padding: 4,
                       zIndex: 30
@@ -915,7 +824,7 @@ export default function LoginPage() {
                       setForgotMsg("");
                       setForgotErr("");
                     }}
-                    style={{ fontSize: "12px", fontWeight: "700", color: "#818CF8", cursor: "pointer" }}
+                    style={{ fontSize: "12px", fontWeight: "700", color: "#4F46E5", cursor: "pointer" }}
                   >
                     {showForgot ? "← Back to Sign In" : "Forgot Password?"}
                   </span>
@@ -924,18 +833,18 @@ export default function LoginPage() {
                 {showForgot && (
                   <div 
                     style={{
-                      background: "rgba(99, 102, 241, 0.04)",
-                      border: "1px solid rgba(99, 102, 241, 0.15)",
+                      background: "#F5F3FF",
+                      border: "1px solid #DDD6FE",
                       borderRadius: 14,
                       padding: "16px",
                       marginBottom: 24,
                       animation: "slideDown 0.3s ease both"
                     }}
                   >
-                    <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: "700", color: "#FFF" }}>Reset Password</h4>
-                    <p style={{ margin: "0 0 12px", fontSize: "11px", color: "#94A3B8", lineHeight: 1.4 }}>We'll send a password recovery link to your email.</p>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: "700", color: "#1F2937" }}>Reset Password</h4>
+                    <p style={{ margin: "0 0 12px", fontSize: "11px", color: "#6F7C8F", lineHeight: 1.45 }}>We'll send a password recovery link to your email.</p>
                     
-                    <PremiumInput 
+                    <LightPremiumInput 
                       type="email"
                       label="Recovery Email"
                       icon={Mail}
@@ -956,7 +865,7 @@ export default function LoginPage() {
                         padding: "11px",
                         borderRadius: 10,
                         border: "none",
-                        background: "linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%)",
+                        background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
                         color: "#FFF",
                         fontWeight: "700",
                         fontSize: "12.5px",
@@ -969,11 +878,11 @@ export default function LoginPage() {
                       }}
                     >
                       {forgotLoading && <span className="spinner-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
-                      {forgotLoading ? "Sending Link..." : "Send Recovery Mail"}
+                      {forgotLoading ? "Sending Link..." : "Send Reset Link"}
                     </button>
 
                     {forgotMsg && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#34D399", fontSize: "11.5px", fontWeight: "700" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#065F46", fontSize: "11.5px", fontWeight: "700" }}>
                         <CheckCircle size={13} />
                         <span>{forgotMsg}</span>
                       </div>
@@ -989,7 +898,7 @@ export default function LoginPage() {
                     padding: "13px",
                     borderRadius: 12,
                     border: "none",
-                    background: "linear-gradient(90deg, #6366F1 0%, #4F46E5 100%)",
+                    background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
                     color: "#FFF",
                     fontWeight: "800",
                     fontSize: "13px",
@@ -1000,7 +909,7 @@ export default function LoginPage() {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    boxShadow: "0 8px 20px rgba(99, 102, 241, 0.2)"
+                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)"
                   }}
                 >
                   {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
@@ -1011,9 +920,9 @@ export default function LoginPage() {
               </form>
 
               <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
-                <span style={{ fontSize: "10.5px", color: "#4B5563", fontWeight: "700" }}>OR CONNECT</span>
-                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
+                <span style={{ fontSize: "10.5px", color: "#8E9AA8", fontWeight: "700" }}>OR CONNECT</span>
+                <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
               </div>
 
               <button
@@ -1025,9 +934,9 @@ export default function LoginPage() {
                   width: "100%",
                   padding: "11px",
                   borderRadius: 12,
-                  border: "1.2px solid rgba(255, 255, 255, 0.06)",
-                  background: "rgba(255,255,255,0.02)",
-                  color: "#E2E8F0",
+                  border: "1.2px solid #E4E4E7",
+                  background: "#FFFFFF",
+                  color: "#1F2937",
                   fontWeight: "700",
                   fontSize: "12.5px",
                   cursor: "pointer",
@@ -1041,12 +950,12 @@ export default function LoginPage() {
               </button>
 
               <div style={{ textAlign: "center", marginTop: 24 }}>
-                <p style={{ margin: "0 0 16px", fontSize: "12.5px", color: "#6B7280", fontWeight: "500" }}>
+                <p style={{ margin: "0 0 16px", fontSize: "12.5px", color: "#8E9AA8", fontWeight: "500" }}>
                   New to BuildTrack?{" "}
-                  <span onClick={() => navigate("/signup")} style={{ color: "#818CF8", fontWeight: "700", cursor: "pointer" }}>Create account</span>
+                  <span onClick={() => navigate("/signup")} style={{ color: "#4F46E5", fontWeight: "700", cursor: "pointer" }}>Create account</span>
                 </p>
 
-                <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 10, fontSize: "10.5px", color: "#4B5563", fontWeight: "600" }}>
+                <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 10, fontSize: "10.5px", color: "#8E9AA8", fontWeight: "600" }}>
                   <span>Privacy Policy</span>
                   <span>·</span>
                   <span>Terms</span>
