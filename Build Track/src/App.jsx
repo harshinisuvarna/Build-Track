@@ -10,7 +10,6 @@ import SignUpPage      from "./pages/signup_page";
 import OAuthCallback   from "./pages/oauth_callback";
 import Dashboard       from "./screens/dashboard_page";
 import VoiceAssistant  from "./screens/voice_assistant";
-import Workers         from "./screens/work_list";
 import TransactionLog  from "./screens/transaction_log";
 import Projects        from "./screens/project_management";
 import Reports         from "./screens/financial_report";
@@ -23,10 +22,8 @@ import AdminOverview   from "./screens/admin_overview_page";
 import AiChatReport    from "./screens/ai_chat_report_page";
 import AssignRoles     from "./screens/assign_roles_page";
 import Notifications   from "./screens/notifications_page";
-import NewWorker       from "./screens/add_new_worker";
 import ManageSite      from "./screens/managesite_dashboard";
 import ManualEntryPage from "./screens/manual_entry";
-import WorkerDetails   from "./screens/worker_details_page";
 import InventoryPage   from "./screens/inventory_page";
 import SubscriptionPage from "./screens/subscription_page";
 import AuditLogsPage    from "./screens/audit_logs_page";
@@ -65,9 +62,6 @@ function AppRoutes() {
         } />
         <Route path="/entry-detail" element={<EntryDetail />} />
         <Route path="/voice"       element={<VoiceAssistant />} />
-        <Route path="/workers"     element={<Workers />} />
-        <Route path="/workers/:id" element={<WorkerDetails />} />
-        <Route path="/newworker"   element={<NewWorker />} />
         <Route path="/transaction" element={<TransactionLog />} />
         <Route path="/projects"    element={<Projects />} />
         <Route path="/newproject"  element={

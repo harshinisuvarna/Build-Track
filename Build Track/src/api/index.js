@@ -171,7 +171,14 @@ export const inventoryAPI = {
   add:             (data)    => api.post("/inventory/add", data),
   addItem:         (data)    => api.post("/inventory/add", data),
   use:             (data)    => api.post("/inventory/use", data),
-  updateThreshold: (id, threshold) => api.patch(`/inventory/${id}/threshold`, { threshold }),
+  updateThreshold: (id, threshold, params = {}) => api.patch(`/inventory/${id}/threshold`, { threshold }, { params }),
+  deleteItem:      (id)      => api.delete(`/inventory/${id}`),
+};
+
+// ── Payment Recording ───────────────────────────────────────────────────────
+export const paymentAPI = {
+  record:          (data)    => api.post("/transaction/payment", data),
+  addFulfillment:  (data)    => api.post("/transaction/payment", data),
 };
 
 export const analyticsAPI = {

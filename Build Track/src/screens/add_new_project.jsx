@@ -253,13 +253,7 @@ export default function NewProjectPage() {
                   background: "#ECEBFF", border: "1px solid #E7E8F5",
                   fontSize: 13, color: "#6C63FF",
                 }}>
-                  ⚠️ No supervisors available.{" "}
-                  <span
-                    onClick={() => navigate("/newworker")}
-                    style={{ color: "#6C63FF", fontWeight: 600, textDecoration: "underline", cursor: "pointer" }}
-                  >
-                    Add a Supervisor in Workers
-                  </span>
+                  ⚠️ No supervisors available. Please ensure supervisors are registered.
                 </div>
               ) : (
                 <div style={{ position: "relative" }}>

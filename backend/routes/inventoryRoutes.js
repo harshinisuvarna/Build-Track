@@ -111,4 +111,45 @@ router.post("/use", async (req, res) => {
   }
 });
 
+router.patch("/:id/threshold", async (req, res) => {
+  try {
+    const { threshold } = req.body;
+    const { project, materialName, category, unit } = req.query;
+    const val = parseFloat(threshold) ?? 10;
+
+    let item;
+    if (/^[0-9a-fA-F]{24}$/.test(req.params.id)) {
+      item = await Inventory.findById(req.params.id);
+    }
+
+    if (!item && project && materialName) {
+      const adminId = await getAdminId(req.user);
+      item = await Inventory.findOne({ project, materialName, createdBy: adminId });
+      if (!item) {
+        item = new Inventory({
+          project,
+          materialName,
+          createdBy: adminId,
+          category: category || "material",
+          unit: unit || "units",
+          purchased: 0,
+          used: 0,
+          closingStock: 0,
+          threshold: val,
+        });
+      }
+    }
+
+    if (!item) {
+      return res.status(404).json({ message: "Inventory item not found" });
+    }
+
+    item.threshold = val;
+    await item.save();
+    res.json({ message: "Threshold updated", item });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update threshold" });
+  }
+});
+
 module.exports = router;
