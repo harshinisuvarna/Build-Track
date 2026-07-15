@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, transactionAPI } from "../api";
 import { Toast } from "../components/Toast";
 import { colors, radius, shadows, gradients, typography } from "../styles/designTokens";
+import { Building, ChevronDown } from "lucide-react";
 
 const ENTRY_TYPES = [
   { key: "material", label: "Material", color: colors.primaryBlue },
@@ -19,21 +20,6 @@ const UNIT_OPTIONS = {
 const GST_PERCENTAGES = [0, 5, 12, 18, 28];
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit"];
-
-const COMMON_FLOORS = [
-  "Ground Floor", "1st Floor", "2nd Floor", "3rd Floor", "4th Floor",
-  "5th Floor", "6th Floor", "Basement", "Roof", "Terrace",
-];
-
-const COMMON_PHASES = [
-  "Foundation", "Framing", "Plumbing", "Electrical", "Finishing",
-  "Exterior", "Interior", "Landscaping", "Insulation", "Drywall",
-];
-
-const COMMON_ACTIVITIES = [
-  "Excavation", "Pouring", "Framing", "Wiring", "Piping",
-  "Plastering", "Painting", "Tiling", "Flooring", "Roofing",
-];
 
 const FIELDS = {
   material: [
@@ -85,13 +71,35 @@ export default function ManualEntryPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // Execution context state
-  const [floor, setFloor] = useState("");
-  const [phase, setPhase] = useState("");
-  const [activity, setActivity] = useState("");
-  const [showFloorSuggestions, setShowFloorSuggestions] = useState(false);
-  const [showPhaseSuggestions, setShowPhaseSuggestions] = useState(false);
-  const [showActivitySuggestions, setShowActivitySuggestions] = useState(false);
+  // Project Context state
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedPhaseId, setSelectedPhaseId] = useState("");
+  const [selectedActivityName, setSelectedActivityName] = useState("");
+
+  // Derived project data
+  const selectedProjectData = useMemo(() => {
+    return projects.find(p => p._id === selectedProject) || null;
+  }, [projects, selectedProject]);
+
+  const floors = useMemo(() => {
+    return selectedProjectData?.floors || [];
+  }, [selectedProjectData]);
+
+  const phases = useMemo(() => {
+    return selectedProjectData?.selectedPhases || [];
+  }, [selectedProjectData]);
+
+  const uniqueActivityNames = useMemo(() => {
+    if (!selectedProjectData) return [];
+    const activities = [];
+    if (selectedPhaseId) {
+      const match = phases.find(ph => String(ph.id) === selectedPhaseId);
+      activities.push(...(match?.activities || []));
+    } else {
+      activities.push(...(selectedProjectData.selectedPhases?.flatMap(p => p.activities || []) || []));
+    }
+    return [...new Set(activities.map(a => a.name))];
+  }, [selectedProjectData, phases, selectedPhaseId]);
 
   // GST state
   const [isWithGst, setIsWithGst] = useState(false);
@@ -136,9 +144,9 @@ export default function ManualEntryPage() {
       }
       setNotes(tx.notes || "");
       setUnit(tx.unit || "");
-      setFloor(tx.floor || "");
-      setPhase(tx.phase || "");
-      setActivity(tx.activity || "");
+      setSelectedFloor(tx.floor || "");
+      setSelectedPhaseId(tx.phase || "");
+      setSelectedActivityName(tx.activity || "");
       setIsWithGst(tx.isWithGst || false);
       setGstPercentage(tx.gstPercentage || 18);
       setIsPaid(tx.isPaid || false);
@@ -310,9 +318,9 @@ export default function ManualEntryPage() {
       formData.append("contractor", values.contractor || "");
       formData.append("model", values.model || "");
       formData.append("operator", values.operator || "");
-      formData.append("floor", floor);
-      formData.append("phase", phase);
-      formData.append("activity", activity);
+        formData.append("floor", selectedFloor);
+        formData.append("phase", selectedPhaseId);
+        formData.append("activity", selectedActivityName);
       formData.append("isWithGst", isWithGst);
       formData.append("gstPercentage", gstPercentage);
       formData.append("gstAmount", gstAmount);
@@ -342,9 +350,9 @@ export default function ManualEntryPage() {
         setSelectedProject("");
         setNotes("");
         setUnit(UNIT_OPTIONS[entryType]?.[0] || "");
-        setFloor("");
-        setPhase("");
-        setActivity("");
+        setSelectedFloor("");
+        setSelectedPhaseId("");
+        setSelectedActivityName("");
         setIsWithGst(false);
         setIsPaid(false);
         setReceiptFile(null);
@@ -412,106 +420,111 @@ export default function ManualEntryPage() {
           ))}
         </div>
 
-        {/* Execution Context Card */}
-        <div style={cardStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            <span style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>Execution Context</span>
+        {/* Project Context Card */}
+        <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 34, height: 34, background: "rgba(23, 62, 234, 0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primaryBlue, flexShrink: 0 }}>
+              <Building size={16} />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: "800", color: colors.textPrimary }}>Project Context</div>
+              <div style={{ fontSize: 11.5, color: colors.textLight, marginTop: 1 }}>Configure scoping properties</div>
+            </div>
           </div>
 
-          {/* Project */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={labelStyle}>PROJECT <span style={{ color: colors.error }}>*</span></div>
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inputStyle}>
-              <option value="">Select Project</option>
-              {projects.map(p => <option key={p._id} value={p._id}>{p.projectName}</option>)}
-            </select>
-          </div>
+          <hr style={{ border: "none", borderTop: `1px solid ${colors.divider || '#E7E8F5'}`, margin: "0 0 16px" }} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            {/* Floor */}
-            <div style={{ position: "relative" }}>
-              <div style={labelStyle}>FLOOR</div>
-              <input
-                value={floor}
-                onChange={e => { setFloor(e.target.value); setShowFloorSuggestions(true); }}
-                onFocus={() => setShowFloorSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowFloorSuggestions(false), 200)}
-                placeholder="e.g. 1st Floor"
-                style={inputStyle}
-              />
-              {showFloorSuggestions && floor.length > 0 && (
-                <div style={{
-                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
-                  background: colors.cardBg, border: `1px solid ${colors.cardBorder}`,
-                  borderRadius: radius.sm, boxShadow: shadows.card, maxHeight: 150, overflowY: "auto",
-                }}>
-                  {COMMON_FLOORS.filter(f => f.toLowerCase().includes(floor.toLowerCase())).map(f => (
-                    <div key={f} onClick={() => { setFloor(f); setShowFloorSuggestions(false); }}
-                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: colors.textPrimary }}>
-                      {f}
-                    </div>
+          {/* Selector Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            
+            {/* Project dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary || '#6B7280', marginBottom: 6 }}>Project <span style={{ color: colors.error }}>*</span></label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  value={selectedProject} 
+                  onChange={e => {
+                    setSelectedProject(e.target.value);
+                    setSelectedFloor("");
+                    setSelectedPhaseId("");
+                    setSelectedActivityName("");
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, fontWeight: "600", color: colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="">Select Project</option>
+                  {projects.map(p => (
+                    <option key={p._id} value={p._id}>{p.projectName || p.name}</option>
                   ))}
-                </div>
-              )}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
             </div>
 
-            {/* Phase */}
-            <div style={{ position: "relative" }}>
-              <div style={labelStyle}>PHASE</div>
-              <input
-                value={phase}
-                onChange={e => { setPhase(e.target.value); setShowPhaseSuggestions(true); }}
-                onFocus={() => setShowPhaseSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowPhaseSuggestions(false), 200)}
-                placeholder="e.g. Foundation"
-                style={inputStyle}
-              />
-              {showPhaseSuggestions && phase.length > 0 && (
-                <div style={{
-                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
-                  background: colors.cardBg, border: `1px solid ${colors.cardBorder}`,
-                  borderRadius: radius.sm, boxShadow: shadows.card, maxHeight: 150, overflowY: "auto",
-                }}>
-                  {COMMON_PHASES.filter(p => p.toLowerCase().includes(phase.toLowerCase())).map(p => (
-                    <div key={p} onClick={() => { setPhase(p); setShowPhaseSuggestions(false); }}
-                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: colors.textPrimary }}>
-                      {p}
-                    </div>
+            {/* Floor dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: !selectedProject || floors.length === 0 ? "#C5CAE9" : colors.textSecondary || '#6B7280', marginBottom: 6 }}>Floor</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  disabled={!selectedProject || floors.length === 0}
+                  value={selectedFloor || "Select Floor"} 
+                  onChange={e => {
+                    setSelectedFloor(e.target.value === "Select Floor" ? "" : e.target.value);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: !selectedProject || floors.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: !selectedProject || floors.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="Select Floor">Select Floor (All)</option>
+                  {floors.map(f => (
+                    <option key={f} value={f}>{f}</option>
                   ))}
-                </div>
-              )}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
             </div>
 
-            {/* Activity */}
-            <div style={{ position: "relative" }}>
-              <div style={labelStyle}>ACTIVITY</div>
-              <input
-                value={activity}
-                onChange={e => { setActivity(e.target.value); setShowActivitySuggestions(true); }}
-                onFocus={() => setShowActivitySuggestions(true)}
-                onBlur={() => setTimeout(() => setShowActivitySuggestions(false), 200)}
-                placeholder="e.g. Excavation"
-                style={inputStyle}
-              />
-              {showActivitySuggestions && activity.length > 0 && (
-                <div style={{
-                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
-                  background: colors.cardBg, border: `1px solid ${colors.cardBorder}`,
-                  borderRadius: radius.sm, boxShadow: shadows.card, maxHeight: 150, overflowY: "auto",
-                }}>
-                  {COMMON_ACTIVITIES.filter(a => a.toLowerCase().includes(activity.toLowerCase())).map(a => (
-                    <div key={a} onClick={() => { setActivity(a); setShowActivitySuggestions(false); }}
-                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: colors.textPrimary }}>
-                      {a}
-                    </div>
+            {/* Phase dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: !selectedProject || phases.length === 0 ? "#C5CAE9" : colors.textSecondary || '#6B7280', marginBottom: 6 }}>Phase</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  disabled={!selectedProject || phases.length === 0}
+                  value={selectedPhaseId || "Select Phase"} 
+                  onChange={e => {
+                    setSelectedPhaseId(e.target.value === "Select Phase" ? "" : e.target.value);
+                    setSelectedActivityName("");
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: !selectedProject || phases.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: !selectedProject || phases.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="Select Phase">Select Phase (All)</option>
+                  {phases.map(ph => (
+                    <option key={ph.id} value={ph.id}>{ph.phaseName}</option>
                   ))}
-                </div>
-              )}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
             </div>
+
+            {/* Activity dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: !selectedProject || uniqueActivityNames.length === 0 ? "#C5CAE9" : colors.textSecondary || '#6B7280', marginBottom: 6 }}>Activity</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  disabled={!selectedProject || uniqueActivityNames.length === 0}
+                  value={selectedActivityName || "Select Activity"} 
+                  onChange={e => {
+                    setSelectedActivityName(e.target.value === "Select Activity" ? "" : e.target.value);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: !selectedProject || uniqueActivityNames.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: !selectedProject || uniqueActivityNames.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="Select Activity">Select Activity (All)</option>
+                  {uniqueActivityNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
           </div>
         </div>
 

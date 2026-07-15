@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 
 const AuthContext = createContext(null);
@@ -12,11 +11,7 @@ export function AuthProvider({ children }) {
     } catch { return null; }
   });
   const [token, setToken] = useState(() => localStorage.getItem('bt_token'));
-  const [loading, setLoading] = useState(() => {
-    const storedToken = localStorage.getItem('bt_token');
-    const storedUser = localStorage.getItem('bt_user');
-    return !!(storedToken && !storedUser);
-  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('bt_token');
@@ -48,6 +43,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('bt_user', JSON.stringify(u));
     setToken(t);
     setUser(u);
+    setLoading(false);
     window.dispatchEvent(new Event('userUpdated'));
     return u;
   }, []);
@@ -61,6 +57,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('bt_user', JSON.stringify(u));
     setToken(t);
     setUser(u);
+    setLoading(false);
     window.dispatchEvent(new Event('userUpdated'));
     return u;
   }, []);
