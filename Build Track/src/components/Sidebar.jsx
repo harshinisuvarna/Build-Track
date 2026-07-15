@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { colors } from "../styles/designTokens";
 import { LogOut } from "lucide-react";
 
 const navLinkBase = {
@@ -40,6 +39,8 @@ export default function Sidebar({ collapsed }) {
     localStorage.removeItem("bt_user");
     window.location.assign("/login");
   };
+
+  const isAdminOrSupervisor = user?.role === "admin" || user?.role === "supervisor";
 
   return (
     <aside
@@ -118,38 +119,42 @@ export default function Sidebar({ collapsed }) {
         ))}
 
         {/* GOVERNANCE & DATA Group */}
-        <div style={{
-          fontSize: "10px", fontWeight: "800", letterSpacing: "1.2px",
-          color: "#9CA3AF", margin: "24px 8px 10px",
-          textTransform: "uppercase",
-        }}>
-          Governance & Data
-        </div>
-        {adminNavItems.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.path}
-            style={({ isActive }) => ({
-              ...navLinkBase,
-              color: isActive ? "#6C63FF" : "#4B5563",
-              background: isActive ? "#ECEBFF" : "transparent",
-              boxShadow: "none",
-            })}
-            onMouseEnter={e => {
-              if (!e.currentTarget.className.includes("active")) {
-                e.currentTarget.style.background = "#F3F4F6";
-              }
-            }}
-            onMouseLeave={e => {
-              if (!e.currentTarget.className.includes("active")) {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            <span style={{ fontSize: "16px" }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {isAdminOrSupervisor && (
+          <>
+            <div style={{
+              fontSize: "10px", fontWeight: "800", letterSpacing: "1.2px",
+              color: "#9CA3AF", margin: "24px 8px 10px",
+              textTransform: "uppercase",
+            }}>
+              Governance & Data
+            </div>
+            {adminNavItems.map((item) => (
+              <NavLink
+                key={item.label}
+                to={item.path}
+                style={({ isActive }) => ({
+                  ...navLinkBase,
+                  color: isActive ? "#6C63FF" : "#4B5563",
+                  background: isActive ? "#ECEBFF" : "transparent",
+                  boxShadow: "none",
+                })}
+                onMouseEnter={e => {
+                  if (!e.currentTarget.className.includes("active")) {
+                    e.currentTarget.style.background = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!e.currentTarget.className.includes("active")) {
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                <span style={{ fontSize: "16px" }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Footer Profile card */}

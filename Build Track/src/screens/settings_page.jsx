@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { userAPI, authAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { resolveImageUrl } from "../utils/imageUrl";
+import useAuthStore from "../stores/authStore";
+import { subscriptionAPI } from "../api";
 
 function Toggle({ on, onToggle }) {
   return (
@@ -34,7 +36,7 @@ export default function SettingsPage() {
   const [email,        setEmail]        = useState("");
   const [role,         setRole]         = useState("Site Supervisor");
   const [language,     setLanguage]     = useState("English");
-  const [currency,     setCurrency]     = useState("Indian Rupee (INR)");
+  const [currency]     = useState("Indian Rupee (INR)");
   const [emailNotif,   setEmailNotif]   = useState(true);
   const [pushNotif,    setPushNotif]    = useState(false);
   const [twoFA,        setTwoFA]        = useState(false);
@@ -49,33 +51,33 @@ export default function SettingsPage() {
 
   const [toast,        setToast]        = useState({ msg: "", type: "info" });
   const [confirmDlg,   setConfirmDlg]   = useState(null);
+  const [subscription, setSubscription] = useState(null);
   const navigate = useNavigate();
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin" || user?.role === "Admin";
+
   useEffect(() => {
-    const stored = localStorage.getItem("bt_user");
-    if (stored) {
-      const u = JSON.parse(stored);
-      setFullName(u.name || "");
-      setEmail(u.email || "");
-      setRole(u.role || "Site Supervisor");
-      if (u.twoFactorEnabled !== undefined) {
-        setTwoFA(u.twoFactorEnabled);
+    subscriptionAPI.getCurrent()
+      .then(({ data }) => setSubscription(data.subscription || data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const user = useAuthStore.getState().user;
+    if (user) {
+      setFullName(user.name || "");
+      setEmail(user.email || "");
+      setRole(user.role || "Site Supervisor");
+      if (user.twoFactorEnabled !== undefined) {
+        setTwoFA(user.twoFactorEnabled);
       }
-      if (u.profilePhoto) {
-        setProfileImage(resolveImageUrl(u.profilePhoto));
+      if (user.profilePhoto) {
+        setProfileImage(resolveImageUrl(user.profilePhoto));
       }
     }
-    authAPI.me()
-      .then(({ data }) => {
-        const user = data.user || data;
-        if (user.twoFactorEnabled !== undefined) {
-          setTwoFA(user.twoFactorEnabled);
-        }
-        const cached = JSON.parse(localStorage.getItem("bt_user") || "{}");
-        localStorage.setItem("bt_user", JSON.stringify({ ...cached, ...user }));
-      })
-      .catch(() => {});
+    useAuthStore.getState().refreshUser();
   }, []);
 
   useEffect(() => {
@@ -94,10 +96,11 @@ export default function SettingsPage() {
       fd.append("photo", file);
       const { data } = await userAPI.updatePhoto(fd);
 
-      const stored = JSON.parse(localStorage.getItem("bt_user") || "{}");
-      localStorage.setItem("bt_user", JSON.stringify({
-        ...stored,
-        profilePhoto: data.profilePhoto,
+      useAuthStore.setState((state) => ({
+        user: {
+          ...state.user,
+          profilePhoto: data.profilePhoto,
+        },
       }));
 
       window.dispatchEvent(new Event("userUpdated"));
@@ -119,8 +122,12 @@ export default function SettingsPage() {
         role,
       });
 
-      const stored = JSON.parse(localStorage.getItem("bt_user") || "{}");
-      localStorage.setItem("bt_user", JSON.stringify({ ...stored, ...data.user }));
+      useAuthStore.setState((state) => ({
+        user: {
+          ...state.user,
+          ...data.user,
+        },
+      }));
 
       window.dispatchEvent(new Event("userUpdated"));
       setSaved(true);
@@ -157,8 +164,12 @@ export default function SettingsPage() {
       setTwoFA(data.twoFactorEnabled);
       setSecMsg(data.message);
 
-      const cached = JSON.parse(localStorage.getItem("bt_user") || "{}");
-      localStorage.setItem("bt_user", JSON.stringify({ ...cached, twoFactorEnabled: data.twoFactorEnabled }));
+      useAuthStore.setState((state) => ({
+        user: {
+          ...state.user,
+          twoFactorEnabled: data.twoFactorEnabled,
+        },
+      }));
       setTimeout(() => setSecMsg(""), 4000);
     } catch (err) {
       setSecErr(err.response?.data?.message || "Failed to toggle 2FA.");
@@ -173,8 +184,7 @@ export default function SettingsPage() {
         setConfirmDlg(null);
         try {
           await authAPI.signOutAll();
-          localStorage.removeItem("bt_token");
-          localStorage.removeItem("bt_user");
+          useAuthStore.getState().logout();
           navigate("/login");
         } catch (err) {
           setSecErr(err.response?.data?.message || "Failed to sign out all sessions.");
@@ -193,8 +203,7 @@ export default function SettingsPage() {
         setConfirmDlg(null);
         try {
           await authAPI.deleteAccount();
-          localStorage.removeItem("bt_token");
-          localStorage.removeItem("bt_user");
+          useAuthStore.getState().logout();
           navigate("/login");
         } catch (err) {
           setSecErr(err.response?.data?.message || "Failed to delete account.");
@@ -481,6 +490,89 @@ export default function SettingsPage() {
                 Sign Out All
               </button>
             </div>
+          </div>
+
+          {/* ── Subscription ── */}
+          {subscription && (
+            <div style={{ ...sectionCard, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.7, letterSpacing: "0.08em", marginBottom: 4 }}>CURRENT PLAN</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{subscription.plan || subscription.name || "Free"}</div>
+                  <div style={{ fontSize: 13, opacity: 0.8 }}>
+                    {subscription.status === "active" ? "✓ Active" : subscription.status || "Active"}
+                    {subscription.maxUsers && ` · ${subscription.maxUsers} users`}
+                    {subscription.maxProjects && ` · ${subscription.maxProjects} projects`}
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button onClick={() => navigate("/subscription")}
+                    style={{ padding: "10px 20px", background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", backdropFilter: "blur(4px)" }}>
+                    Upgrade Plan
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Team & Access (Admin Only) ── */}
+          {isAdmin && (
+            <div style={sectionCard}>
+              <div style={sectionTitle}>Team & Access</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>👥</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Assign Roles</div>
+                    <div style={{ fontSize: 13, color: "#888" }}>Manage team member permissions and roles</div>
+                  </div>
+                </div>
+                <button onClick={() => navigate("/assign-role")}
+                  style={{ padding: "10px 18px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.25)" }}>
+                  Manage
+                </button>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📋</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Audit Logs</div>
+                    <div style={{ fontSize: 13, color: "#888" }}>View system activity and change history</div>
+                  </div>
+                </div>
+                <button onClick={() => navigate("/audit-logs")}
+                  style={{ padding: "10px 18px", background: "#fff", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+                  View
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Logout ── */}
+          <div style={sectionCard}>
+            <button onClick={() => {
+              setConfirmDlg({
+                message: "Are you sure you want to log out?",
+                onConfirm: () => {
+                  setConfirmDlg(null);
+                  useAuthStore.getState().logout();
+                  navigate("/login");
+                },
+              });
+            }}
+              style={{
+                width: "100%", padding: "14px 0", background: "#fff",
+                border: "1.5px solid #dc2626", borderRadius: 12,
+                fontWeight: 700, fontSize: 15, cursor: "pointer",
+                color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}>
+              🚪 Log Out
+            </button>
+          </div>
+
+          {/* ── Version ── */}
+          <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
+            <span style={{ fontSize: 12, color: "#aaa" }}>BuildTrack Version 2.4.0 (2024)</span>
           </div>
 
           {/* ── Danger Zone ── */}

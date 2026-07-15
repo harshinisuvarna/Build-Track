@@ -1,4 +1,5 @@
 import axios from "axios";
+import useAuthStore from "../stores/authStore";
 
 function normalizeOrigin(url) {
   if (!url) return "";
@@ -19,7 +20,13 @@ const BASE = API_ORIGIN.endsWith("/api") ? API_ORIGIN : `${API_ORIGIN}/api`;
 const api = axios.create({ baseURL: BASE });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("bt_token");
+  let token = useAuthStore.getState().token;
+  if (!token) {
+    try {
+      const persisted = JSON.parse(localStorage.getItem("bt_auth") || "{}");
+      token = persisted?.state?.token;
+    } catch {}
+  }
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -29,8 +36,7 @@ api.interceptors.response.use(
   (err) => {
     const status = err?.response?.status;
     if (status === 401 && !window.location.pathname.startsWith("/login")) {
-      localStorage.removeItem("bt_token");
-      localStorage.removeItem("bt_user");
+      useAuthStore.getState().logout();
       window.location.assign("/login");
     }
     if (!err.response) {
@@ -41,6 +47,7 @@ api.interceptors.response.use(
   }
 );
 
+// ── Auth ────────────────────────────────────────────────────────────────────
 export const authAPI = {
   login:          (data) => api.post("/auth/login",    data),
   register:       (data) => api.post("/auth/register", data),
@@ -52,78 +59,128 @@ export const authAPI = {
   signOutAll:     ()     => api.post("/auth/sign-out-all"),
   deleteAccount:  ()     => api.delete("/auth/account"),
   provision:      (data) => api.post("/auth/provision", data),
+  provisionUser:  (data) => api.post("/auth/provision", data),
   getUsers:       ()     => api.get("/auth/users"),
+  listUsers:      ()     => api.get("/auth/users"),
   updateUser:     (id, d)=> api.put(`/auth/users/${id}`, d),
 };
 
+// ── Workers ─────────────────────────────────────────────────────────────────
 export const workerAPI = {
   getAll:         (p = {}) => api.get("/workers", { params: p }),
   getSupervisors: ()       => api.get("/workers/supervisors"),
   getById:        (id)     => api.get(`/workers/${id}`),
   create:         (data)   => api.post("/workers", data),
+  createAlt:      (data)   => api.post("/workers/add", data),
   update:         (id, d)  => api.put(`/workers/${id}`, d),
   delete:         (id)     => api.delete(`/workers/${id}`),
   getStats:       ()       => api.get("/workers/stats/summary"),
 };
 
+// ── Projects ────────────────────────────────────────────────────────────────
 export const projectAPI = {
-  getAll:  (p = {}) => api.get("/projects", { params: p }),
-  getById: (id)     => api.get(`/projects/${id}`),
-  getStats:(id)     => api.get(`/projects/${id}/stats`),
-  create:  (data)   => api.post("/projects", data),
-  update:  (id, d)  => api.put(`/projects/${id}`, d),
-  delete:  (id)     => api.delete(`/projects/${id}`),
+  getAll:       (p = {}) => api.get("/projects", { params: p }),
+  getMine:      (p = {}) => api.get("/projects/mine", { params: p }),
+  getById:      (id)     => api.get(`/projects/${id}`),
+  getStats:     (id)     => api.get(`/projects/${id}/stats`),
+  getBudget:    (id)     => api.get(`/projects/${id}/budget`),
+  create:       (data)   => api.post("/projects", data),
+  update:       (id, d)  => api.put(`/projects/${id}`, d),
+  delete:       (id)     => api.delete(`/projects/${id}`),
+  importPhases: (fd)     => api.post("/projects/import-phases", fd),
 };
 
+// ── Transactions ────────────────────────────────────────────────────────────
 export const transactionAPI = {
-  getAll:  (p = {}) => api.get("/transactions",    { params: p }),
-  getById: (id)     => api.get(`/transactions/${id}`),
-  create:  (data)   => api.post("/transactions",   data),
+  getAll:     (p = {}) => api.get("/transactions", { params: p }),
+  getMine:    (p = {}) => api.get("/transactions/my", { params: p }),
+  getById:    (id)     => api.get(`/transactions/${id}`),
+  create:     (data)   => api.post("/transactions", data),
   createBulk: (data) => api.post("/transactions/bulk", data),
-  update:  (id, d)  => api.put(`/transactions/${id}`, d),
-  delete:  (id)     => api.delete(`/transactions/${id}`),
+  update:     (id, d)  => api.put(`/transactions/${id}`, d),
+  delete:     (id)     => api.delete(`/transactions/${id}`),
+  approve:    (id)     => api.put(`/transactions/${id}/approve`, {}),
+  reject:     (id, d)  => api.put(`/transactions/${id}/reject`, d),
 };
 
+// ── Project Updates ─────────────────────────────────────────────────────────
+export const projectUpdateAPI = {
+  getByProject: (projectId)                => api.get(`/project-updates/${projectId}`),
+  create:       (data)                     => api.post("/project-updates", data),
+  approve:      (id)                       => api.put(`/project-updates/${id}/approve`, {}),
+  reject:       (id, d)                    => api.put(`/project-updates/${id}/reject`, d),
+};
+
+// ── Approvals ───────────────────────────────────────────────────────────────
+export const approvalAPI = {
+  getPending: (p = {}) => api.get("/approvals/pending", { params: p }),
+  getHistory: (p = {}) => api.get("/approvals/history", { params: p }),
+  approve: (txId) => api.put(`/transactions/${txId}/approve`),
+  reject: (txId, reason) => api.put(`/transactions/${txId}/reject`, { reason }),
+};
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
 export const dashboardAPI = {
   getSummary: () => api.get("/dashboard/summary"),
 };
 
+// ── Reports ─────────────────────────────────────────────────────────────────
 export const reportAPI = {
   getFinancial: (params) => api.get("/reports/financial", { params }),
   exportCSV:    (params) => api.get("/reports/financial/export-csv", { params, responseType: "blob" }),
   exportPDF:    (params) => api.get("/reports/financial/export-pdf", { params, responseType: "blob" }),
 };
 
-export const userAPI = {
-  updateProfile: (data) => api.put("/auth/profile", data),
-  updatePhoto:   (fd)   => api.put("/auth/photo",   fd),
+// ── AI Chat (Report Insights) ───────────────────────────────────────────────
+export const aiChatAPI = {
+  ask: (data) => api.post("/reports/ai-chat", data),
 };
 
+// ── AI Dashboard Query ──────────────────────────────────────────────────────
+export const aiDashboardAPI = {
+  query: (data) => api.post("/reports/dashboard/query", data),
+};
+
+// ── Tasks ───────────────────────────────────────────────────────────────────
+export const taskAPI = {
+  getDaily: () => api.get("/tasks/daily"),
+};
+
+// ── Subscriptions ───────────────────────────────────────────────────────────
+export const subscriptionAPI = {
+  getStatus:  ()      => api.get("/subscriptions/status"),
+  initiate:   (data)  => api.post("/subscriptions/initiate", data),
+  getUserSub: ()      => api.get("/users/subscription"),
+  updateUserSub: (d)  => api.put("/users/subscription", d),
+};
+
+// ── Users (Admin) ───────────────────────────────────────────────────────────
+export const userAPI = {
+  updateProfile:         (data) => api.put("/auth/profile", data),
+  updatePhoto:           (fd)   => api.put("/auth/photo",   fd),
+  getProfile:            ()     => api.get("/users/profile"),
+  updateProfileAlt:      (data) => api.put("/users/profile", data),
+  updatePhotoAlt:        (fd)   => api.put("/users/profile/photo", fd),
+  assignSupervisorOversight: (id, data) => api.put(`/users/${id}/oversight`, data),
+};
+
+// ── Voice ───────────────────────────────────────────────────────────────────
 export const voiceAPI = {
   parse: (data) => api.post("/voice/parse", data),
 };
 
+// ── Inventory ───────────────────────────────────────────────────────────────
 export const inventoryAPI = {
-  getAll: () => api.get("/inventory"),
-  use: (data) => api.post("/inventory/use", data),
-  add: (data) => api.post("/inventory/add", data),
+  getAll:          ()         => api.get("/inventory"),
+  getSummary:      (p = {})  => api.get("/inventory", { params: { ...p, summary: true } }),
+  add:             (data)    => api.post("/inventory/add", data),
+  addItem:         (data)    => api.post("/inventory/add", data),
+  use:             (data)    => api.post("/inventory/use", data),
   updateThreshold: (id, threshold) => api.patch(`/inventory/${id}/threshold`, { threshold }),
 };
 
-export const approvalAPI = {
-  getPending: () => api.get("/approvals/pending"),
-  getHistory: () => api.get("/approvals/history"),
-  approve: (txId) => api.put(`/transactions/${txId}/approve`),
-  reject: (txId, reason) => api.put(`/transactions/${txId}/reject`, { reason }),
-};
-
-export const subscriptionAPI = {
-  initiate: (data) => api.post("/subscriptions/initiate", data),
-  getStatus: () => api.get("/subscriptions/status"),
-};
-
-export const taskAPI = {
-  getDaily: () => api.get("/tasks/daily"),
+export const analyticsAPI = {
+  getProject: (projectId) => api.get(`/analytics/${projectId}`),
 };
 
 export { API_ORIGIN };

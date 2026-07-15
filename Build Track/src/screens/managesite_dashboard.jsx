@@ -150,17 +150,9 @@ export default function ManageSitePage() {
     Materials: { icon: "🧱", color: "#f3e8ff" },
   };
 
-  function timeAgo(dateStr) {
+  function formatDate(dateStr) {
     if (!dateStr) return "";
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins  = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days  = Math.floor(diff / 86400000);
-    if (mins < 1)   return "Just now";
-    if (mins < 60)  return `${mins} min${mins > 1 ? "s" : ""} ago`;
-    if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-    if (days < 7)   return `${days} day${days > 1 ? "s" : ""} ago`;
-    return new Date(dateStr).toLocaleDateString("en-IN");
+    return new Date(dateStr).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   }
   const workerLabel = (worker) => {
     if (!worker) return "";
@@ -382,25 +374,7 @@ export default function ManageSitePage() {
                 </>
               )}
             </div>
-            <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
-              <button 
-                  onClick={() => navigate("/workers")} 
-                  style={{ 
-                    width: "100%", 
-                    padding: "12px 0", 
-                    background: "#f5f5f5", 
-                    color: "#444", 
-                    border: "1px solid #e5e5e5", 
-                    borderRadius: 10, 
-                    fontWeight: 600, 
-                    fontSize: 14, 
-                    cursor: "pointer",
-                    textAlign: "center"  
-                  }}
-                >
-                  Manage All Personnel
-                </button>
-            </div>
+
           </div>
         </div>
 
@@ -430,12 +404,44 @@ export default function ManageSitePage() {
                         {t.worker ? ` · ${workerLabel(t.worker)}` : ""}
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, color: "#aaa", whiteSpace: "nowrap", flexShrink: 0 }}>{timeAgo(t.date)}</div>
+                    <div style={{ fontSize: 12, color: "#aaa", whiteSpace: "nowrap", flexShrink: 0 }}>{formatDate(t.date)}</div>
                   </div>
                 );
               })
             )}
           </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12 }}>
+          <button onClick={() => navigate("/add-entry", { state: { project } })}
+            style={{ padding: "16px", background: "#fff", border: "1px solid #ebebeb", borderRadius: 14, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.03)", transition: "border-color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#ea580c"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#ebebeb"}>
+            <span style={{ fontSize: 24 }}>📝</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Add Entry</span>
+          </button>
+          <button onClick={() => navigate("/voice", { state: { project } })}
+            style={{ padding: "16px", background: "#fff", border: "1px solid #ebebeb", borderRadius: 14, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.03)", transition: "border-color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#7c3aed"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#ebebeb"}>
+            <span style={{ fontSize: 24 }}>🎤</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Voice Entry</span>
+          </button>
+          <button onClick={() => navigate("/reports/:id", { state: { project } })}
+            style={{ padding: "16px", background: "#fff", border: "1px solid #ebebeb", borderRadius: 14, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.03)", transition: "border-color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#2563eb"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#ebebeb"}>
+            <span style={{ fontSize: 24 }}>📊</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>View Reports</span>
+          </button>
+          <button onClick={() => navigate("/projects/:id", { state: { project } })}
+            style={{ padding: "16px", background: "#fff", border: "1px solid #ebebeb", borderRadius: 14, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.03)", transition: "border-color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#16a34a"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#ebebeb"}>
+            <span style={{ fontSize: 24 }}>🏗️</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Project Detail</span>
+          </button>
         </div>
 
       </div>

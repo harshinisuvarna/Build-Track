@@ -15,4 +15,5 @@ export const adminNavItems = [
   { label: "Assign Roles", path: "/assign-role", icon: "🔑" },
   { label: "AI Chat", path: "/ai-chat", icon: "🤖" },
   { label: "Notifications", path: "/notifications", icon: "🔔" },
+  { label: "Audit Logs", path: "/audit-logs", icon: "📝" },
 ];

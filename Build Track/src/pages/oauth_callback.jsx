@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
+import useAuthStore from "../stores/authStore";
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ export default function OAuthCallback() {
 
         try {
           const { data } = await authAPI.me();
-          localStorage.setItem("bt_user", JSON.stringify(data.user));
+          useAuthStore.getState().fromLoginResponse(data.user, token);
         } catch {
 
         }
