@@ -20,13 +20,7 @@ const BASE = API_ORIGIN.endsWith("/api") ? API_ORIGIN : `${API_ORIGIN}/api`;
 const api = axios.create({ baseURL: BASE });
 
 api.interceptors.request.use((config) => {
-  let token = useAuthStore.getState().token;
-  if (!token) {
-    try {
-      const persisted = JSON.parse(localStorage.getItem("bt_auth") || "{}");
-      token = persisted?.state?.token;
-    } catch {}
-  }
+  const token = localStorage.getItem("bt_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -36,7 +30,8 @@ api.interceptors.response.use(
   (err) => {
     const status = err?.response?.status;
     if (status === 401 && !window.location.pathname.startsWith("/login")) {
-      useAuthStore.getState().logout();
+      localStorage.removeItem("bt_token");
+      localStorage.removeItem("bt_user");
       window.location.assign("/login");
     }
     if (!err.response) {
