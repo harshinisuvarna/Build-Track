@@ -49,7 +49,16 @@ export default function InventoryPage() {
 
   useEffect(() => { fetchInventory(); }, [fetchInventory]);
 
-  const filtered = inventory.filter(item => {
+  const activeTabKey = TABS[activeTab].key;
+  const tabInventory = inventory.filter(item => {
+    const cat = (item.category || "material").toLowerCase();
+    if (activeTabKey === "materials") return cat === "material" || cat === "materials";
+    if (activeTabKey === "labour") return cat === "labour" || cat === "wages" || cat === "labor";
+    if (activeTabKey === "equipment") return cat === "equipment" || cat === "expense";
+    return true;
+  });
+
+  const filtered = tabInventory.filter(item => {
     const q = search.toLowerCase();
     const matchSearch = !q || item.materialName?.toLowerCase().includes(q) || item.brand?.toLowerCase().includes(q) || item.vendor?.toLowerCase().includes(q);
     const pid = item.project?._id || item.project;
@@ -59,12 +68,15 @@ export default function InventoryPage() {
     return matchSearch && matchProject && matchStatus;
   });
 
-  const totalItems = inventory.length;
-  const lowItems = inventory.filter(i => (i.status || getStatus(i.closingStock, i.threshold)) === "Low Stock").length;
-  const emptyItems = inventory.filter(i => (i.status || getStatus(i.closingStock, i.threshold)) === "Out of Stock").length;
+  const totalItems = tabInventory.length;
+  const lowItems = tabInventory.filter(i => (i.status || getStatus(i.closingStock, i.threshold)) === "Low Stock").length;
+  const emptyItems = tabInventory.filter(i => (i.status || getStatus(i.closingStock, i.threshold)) === "Out of Stock").length;
   const inStockItems = totalItems - lowItems - emptyItems;
-  const totalPurchased = inventory.reduce((s, i) => s + (i.purchased || 0), 0);
-  const totalUsed = inventory.reduce((s, i) => s + (i.used || 0), 0);
+  const totalPurchased = tabInventory.reduce((s, i) => s + (i.purchased || 0), 0);
+  const totalUsed = tabInventory.reduce((s, i) => s + (i.used || 0), 0);
+
+  const labelPlural = activeTabKey === "materials" ? "material" : activeTabKey === "labour" ? "labour entry" : "equipment item";
+  const labelSuffix = totalItems !== 1 ? "s" : "";
 
   const selProject = selectedProjectId ? projects.find(p => String(p._id) === selectedProjectId) : null;
   const projectLabel = selProject?.projectName || "All Active Projects";
@@ -100,7 +112,7 @@ export default function InventoryPage() {
       }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Inventory</h1>
         <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>
-          {loading ? "Loading..." : `${inventory.length} material${inventory.length !== 1 ? "s" : ""}`}
+          {loading ? "Loading..." : `${totalItems} ${labelPlural}${labelSuffix}`}
         </p>
       </div>
 
@@ -184,7 +196,7 @@ export default function InventoryPage() {
         {/* KPI Strip */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
           {[
-            { label: "Total Materials", value: String(totalItems), color: colors.primaryBlue, icon: "M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M10 12h4", alert: false },
+            { label: `Total ${TABS[activeTab].label}`, value: String(totalItems), color: colors.primaryBlue, icon: TABS[activeTab].icon, alert: false },
             { label: "In Stock", value: String(inStockItems), color: "#10B981", icon: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", alert: false },
             { label: "Low Stock", value: String(lowItems), color: "#F59E0B", icon: "M12 9v2m0 4h.01m-6.93 5h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z", alert: lowItems > 0 },
             { label: "Out of Stock", value: String(emptyItems), color: "#EF4444", icon: "M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", alert: emptyItems > 0 },
@@ -218,7 +230,7 @@ export default function InventoryPage() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={emptyItems > 0 ? "#EF4444" : "#F59E0B"} strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, color: emptyItems > 0 ? "#DC2626" : "#B45309" }}>
-                {emptyItems > 0 ? `${emptyItems} material(s) out of stock!` : `${lowItems} material(s) running low`}
+                {emptyItems > 0 ? `${emptyItems} ${labelPlural}(s) out of stock!` : `${lowItems} ${labelPlural}(s) running low`}
               </div>
               <div style={{ fontSize: 12, color: colors.textLight }}>Adjust thresholds or restock to maintain supply.</div>
             </div>
@@ -235,7 +247,7 @@ export default function InventoryPage() {
           <div style={{ textAlign: "center", padding: 60, color: colors.textLight }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="1.5" style={{ margin: "0 auto 12px", display: "block" }}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              {inventory.length === 0 ? "Add a Purchase transaction to start tracking stock." : "No materials match your filters."}
+              {inventory.length === 0 ? `Add a Purchase transaction to start tracking ${labelPlural} stock.` : `No ${labelPlural}s match your filters.`}
             </div>
           </div>
         ) : (
