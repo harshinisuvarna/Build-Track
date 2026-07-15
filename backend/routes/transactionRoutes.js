@@ -55,6 +55,55 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   return qty * rt;
 };
 
+// Normalize unit values from frontend display names to backend enum values
+const UNIT_MAP = {
+  bags: "bag", bag: "bag",
+  kg: "kg", kgs: "kg",
+  tons: "ton", ton: "ton", mt: "MT",
+  sqft: "sqft", "sq ft": "sqft", "square feet": "sqft",
+  sqm: "sqm", "sq m": "sqm", "square meter": "sqm",
+  rft: "rft", "running feet": "rft",
+  days: "day", day: "day", "per day": "day",
+  hours: "hour", hour: "hour",
+  nos: "unit", unit: "unit", units: "unit", pcs: "unit", pieces: "unit",
+  ltrs: "ltr", ltr: "ltr", litre: "ltr", litres: "ltr", liter: "ltr", liters: "ltr",
+  truck: "truck", trucks: "truck", trips: "truck", load: "truck",
+  cft: "sqft", cum: "sqm",
+};
+
+const VALID_UNITS = ["kg", "bag", "sqft", "sqm", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""];
+
+const normalizeUnit = (raw) => {
+  if (!raw) return "unit";
+  const key = String(raw).toLowerCase().trim();
+  if (UNIT_MAP[key]) return UNIT_MAP[key];
+  // Check if already a valid enum value
+  if (VALID_UNITS.includes(raw)) return raw;
+  return "unit";
+};
+
+// Normalize paymentMode from frontend (lowercase) to backend enum (title-case)
+const PAYMENT_MODE_MAP = {
+  cash: "Cash",
+  bank: "Bank",
+  "bank transfer": "Bank Transfer",
+  upi: "UPI",
+  cheque: "Cheque", check: "Cheque",
+  neft: "Bank Transfer", rtgs: "Bank Transfer",
+  online: "UPI",
+};
+
+const VALID_PAYMENT_MODES = ["Cash", "Bank", "Bank Transfer", "UPI", "Cheque", ""];
+
+const normalizePaymentMode = (raw) => {
+  if (!raw) return "Cash";
+  const key = String(raw).toLowerCase().trim();
+  if (PAYMENT_MODE_MAP[key]) return PAYMENT_MODE_MAP[key];
+  // Check if already a valid enum value
+  if (VALID_PAYMENT_MODES.includes(raw)) return raw;
+  return "Cash";
+};
+
 /// =======================================================
 /// FILE UPLOADS
 /// =======================================================
@@ -558,7 +607,7 @@ if (req.body.paymentReceipt) {
             normalizedMaterialType,
 
           unit:
-            unit || "unit",
+            normalizeUnit(unit),
 
           quantity: qty,
 
@@ -580,7 +629,7 @@ if (req.body.paymentReceipt) {
             "Pending",
 
           paymentMode:
-            paymentMode || "Cash",
+            normalizePaymentMode(paymentMode),
 
           paymentDate,
 
@@ -597,7 +646,7 @@ if (req.body.paymentReceipt) {
 
           paymentHistory: paidAmt > 0 ? [{
             date: paymentDate || date || new Date(),
-            method: paymentMode || "Cash",
+            method: normalizePaymentMode(paymentMode),
             amount: paidAmt,
             note: notes || "Initial payment on creation",
             receipt: paymentReceiptUrl || undefined,
@@ -893,7 +942,7 @@ router.put("/:id", async (req, res) => {
       paymentMode !== undefined
     ) {
       tx.paymentMode =
-        paymentMode;
+        normalizePaymentMode(paymentMode);
     }
 
     if (
@@ -909,7 +958,7 @@ router.put("/:id", async (req, res) => {
       if (delta > 0) {
         tx.paymentHistory.push({
           date: paymentDate || new Date(),
-          method: paymentMode || tx.paymentMode || "Cash",
+          method: normalizePaymentMode(paymentMode || tx.paymentMode),
           amount: delta,
           note: remarks || notes || "Additional payment",
           receipt: newPaymentReceiptUrl || undefined,
@@ -1202,13 +1251,13 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         type, worker: workerId || null, project: projectId,
         date: date || new Date(), notes, category: resolvedCategory, brand, supplier,
         gst, isWithGst, subType, materialType: normalizedMaterialType,
-        unit: unit || "unit", quantity: qty, rate: rt, overtime: ot, amount: finalAmount,
+        unit: normalizeUnit(unit), quantity: qty, rate: rt, overtime: ot, amount: finalAmount,
         floor, floorId, phase, phaseId, activity, activityId,
-        paymentStatus: paymentStatus || "Pending", paymentMode: paymentMode || "Cash",
+        paymentStatus: paymentStatus || "Pending", paymentMode: normalizePaymentMode(paymentMode),
         paymentDate, paidAmount: paidAmt, remarks,
         paymentHistory: paidAmt > 0 ? [{
           date: paymentDate || date || new Date(),
-          method: paymentMode || "Cash", amount: paidAmt, note: notes || "Initial payment on bulk creation"
+          method: normalizePaymentMode(paymentMode), amount: paidAmt, note: notes || "Initial payment on bulk creation"
         }] : [],
         approvalStatus: txApprovalStatus, approvedBy, approvedAt
       });
