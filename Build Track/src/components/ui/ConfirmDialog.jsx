@@ -8,25 +8,29 @@ export default function ConfirmDialog({ message, danger, confirmLabel, onConfirm
       onClick={onCancel}
       style={{
         position: 'fixed', inset: 0, zIndex: 1500,
-        background: 'rgba(17, 24, 39, 0.4)',
-        backdropFilter: 'blur(4px)',
+        background: 'rgba(17, 24, 39, 0.45)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24, animation: 'fadeIn 150ms ease',
+        padding: 24, animation: 'fadeIn 200ms ease',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: colors.card,
-          borderRadius: '14px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          background: 'rgba(255, 255, 255, 0.82)',
+          backdropFilter: 'blur(32px)',
+          WebkitBackdropFilter: 'blur(32px)',
+          border: '1px solid rgba(255, 255, 255, 0.65)',
+          borderRadius: '16px',
+          boxShadow: 'var(--shadow-lg)',
           width: '100%',
           maxWidth: 400,
           padding: 24,
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
-          animation: 'fadeUp 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div
@@ -39,7 +43,7 @@ export default function ConfirmDialog({ message, danger, confirmLabel, onConfirm
         >
           {danger ? <AlertTriangle size={20} /> : <HelpCircle size={20} />}
         </div>
-        <div style={{ fontSize: 15, color: colors.textPrimary, fontWeight: 600, lineHeight: 1.5, fontFamily: typography.fontFamily }}>
+        <div style={{ fontSize: 15, color: colors.textPrimary, fontWeight: 700, lineHeight: 1.5, fontFamily: typography.fontFamily }}>
           {message}
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
@@ -52,4 +56,3 @@ export default function ConfirmDialog({ message, danger, confirmLabel, onConfirm
     </div>
   );
 }
-

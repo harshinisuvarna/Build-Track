@@ -206,7 +206,7 @@ export default function DashboardPage() {
             </div>
           </div>
           {/* Brand Gradient Progress Bar */}
-          <div style={{ height: 8, background: '#F1F5F9', borderRadius: 999, marginBottom: 10, overflow: 'hidden' }}>
+          <div style={{ height: 8, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 999, marginBottom: 10, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
               borderRadius: 999,
@@ -349,7 +349,7 @@ export default function DashboardPage() {
                 cursor: 'pointer', transition: 'background 150ms ease',
               }}
                 onClick={() => navigate('/entry-detail', { state: { entry } })}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#F8FAFC'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.4)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{

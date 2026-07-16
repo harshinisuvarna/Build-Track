@@ -25,23 +25,27 @@ export default function Input({
             fontWeight: 400,
             fontFamily: typography.fontFamily,
             color: colors.textPrimary,
-            background: colors.card,
-            border: `1px solid ${error ? colors.danger : colors.border}`,
+            background: 'rgba(255, 255, 255, 0.55)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: `1px solid ${error ? colors.danger : 'rgba(255, 255, 255, 0.45)'}`,
             borderRadius: radius.lg, // 12px
             outline: 'none',
-            transition: 'all 150ms ease',
-            boxShadow: error ? `0 0 0 3px ${colors.dangerLight}` : '0 1px 2px rgba(0, 0, 0, 0.02)',
+            transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: error ? `0 0 0 3px ${colors.danger}20` : '0 4px 10px rgba(15, 23, 42, 0.02)',
             ...style,
           }}
           onFocus={(e) => {
             e.currentTarget.style.borderColor = error ? colors.danger : colors.primary;
             e.currentTarget.style.boxShadow = error
-              ? `0 0 0 3px ${colors.dangerLight}`
-              : `0 0 0 3px rgba(23, 62, 234, 0.15)`;
+              ? `0 0 0 3px ${colors.danger}20`
+              : `0 0 0 3px rgba(23, 62, 234, 0.12)`;
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
           }}
           onBlur={(e) => {
-            e.currentTarget.style.borderColor = error ? colors.danger : colors.border;
-            e.currentTarget.style.boxShadow = error ? `0 0 0 3px ${colors.dangerLight}` : '0 1px 2px rgba(0, 0, 0, 0.02)';
+            e.currentTarget.style.borderColor = error ? colors.danger : 'rgba(255, 255, 255, 0.45)';
+            e.currentTarget.style.boxShadow = error ? `0 0 0 3px ${colors.danger}20` : '0 4px 10px rgba(15, 23, 42, 0.02)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.55)';
           }}
         />
       </div>
@@ -49,4 +53,3 @@ export default function Input({
     </div>
   );
 }
-

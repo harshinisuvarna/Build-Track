@@ -1,26 +1,26 @@
 export const colors = {
-  bg: '#F8FAFC',
-  card: '#FFFFFF',
-  subtle: '#F1F5F9',
-  hover: '#F8FAFC',
+  bg: 'transparent',
+  card: 'var(--glass-bg)',
+  subtle: 'var(--bg-subtle)',
+  hover: 'var(--bg-hover)',
   primary: '#173EEA',
   primaryHover: '#1232B8',
-  primaryLight: '#EEF0FF',
-  primarySubtle: '#F5F6FF',
-  border: '#E6EAF2',
-  borderLight: '#F1F5F9',
+  primaryLight: 'var(--primary-light)',
+  primarySubtle: 'var(--primary-subtle)',
+  border: 'var(--border)',
+  borderLight: 'var(--border-light)',
   textPrimary: '#111827',
   textSecondary: '#64748B',
   textTertiary: '#94A3B8',
   textInverse: '#FFFFFF',
   success: '#22C55E',
-  successLight: '#F0FDF4',
+  successLight: 'var(--success-light)',
   danger: '#EF4444',
-  dangerLight: '#FEF2F2',
+  dangerLight: 'var(--danger-light)',
   warning: '#F59E0B',
-  warningLight: '#FFFBEB',
+  warningLight: 'var(--warning-light)',
   info: '#173EEA',
-  infoLight: '#EEF0FF',
+  infoLight: 'var(--info-light)',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
@@ -28,10 +28,17 @@ export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
 export const radius = { sm: 6, md: 8, lg: 12, xl: 16, full: 9999 };
 
 export const shadows = {
-  sm: '0 1px 2px rgba(0,0,0,0.04)',
-  md: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-  lg: '0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04)',
-  xl: '0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -2px rgba(0,0,0,0.04)',
+  sm: 'var(--shadow-sm)',
+  md: 'var(--shadow-md)',
+  lg: 'var(--shadow-lg)',
+  xl: 'var(--shadow-xl)',
+};
+
+export const glass = {
+  background: 'var(--glass-bg)',
+  backdropFilter: 'blur(var(--glass-blur))',
+  WebkitBackdropFilter: 'blur(var(--glass-blur))',
+  border: 'var(--glass-border)',
 };
 
 export const typography = {
@@ -105,4 +112,8 @@ colors.badgePendingBg = colors.warningLight;
 colors.badgePendingText = '#92400E';
 colors.badgeInfoBg = colors.primaryLight;
 colors.badgeInfoText = colors.primary;
+
+shadows.card = 'var(--shadow-sm)';
+shadows.large = 'var(--shadow-lg)';
+shadows.hover = 'var(--shadow-xl)';
 

@@ -50,14 +50,19 @@ export default function DashboardLayout() {
         <header
           style={{
             height: 64,
-            borderBottom: `1px solid ${colors.border}`,
-            background: colors.card,
+            margin: "16px 16px 0 16px",
+            borderRadius: "16px",
+            border: `1px solid rgba(255, 255, 255, 0.45)`,
+            background: "rgba(255, 255, 255, 0.5)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: "0 24px",
             flexShrink: 0,
             zIndex: 20,
+            boxShadow: "var(--shadow-md)",
           }}
         >
           {isMobile && (

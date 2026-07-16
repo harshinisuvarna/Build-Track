@@ -16,24 +16,28 @@ export default function Modal({ open, onClose, title, children, width = 480 }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(17, 24, 39, 0.4)',
-        backdropFilter: 'blur(4px)',
+        background: 'rgba(17, 24, 39, 0.45)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24, animation: 'fadeIn 150ms ease',
+        padding: 24, animation: 'fadeIn 200ms ease',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: colors.card,
-          borderRadius: '14px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          background: 'rgba(255, 255, 255, 0.82)',
+          backdropFilter: 'blur(32px)',
+          WebkitBackdropFilter: 'blur(32px)',
+          border: '1px solid rgba(255, 255, 255, 0.65)',
+          borderRadius: '16px',
+          boxShadow: 'var(--shadow-lg)',
           width: '100%',
           maxWidth: width,
           maxHeight: '85vh',
           display: 'flex',
           flexDirection: 'column',
-          animation: 'fadeUp 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {title && (
@@ -45,7 +49,7 @@ export default function Modal({ open, onClose, title, children, width = 480 }) {
               padding: '24px 24px 0',
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.textPrimary, letterSpacing: '-0.02em' }}>{title}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em' }}>{title}</div>
             <button
               onClick={onClose}
               style={{
@@ -74,4 +78,3 @@ export default function Modal({ open, onClose, title, children, width = 480 }) {
     </div>
   );
 }
-

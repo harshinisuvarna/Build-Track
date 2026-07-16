@@ -1,31 +1,37 @@
-import { colors, radius, shadows } from '../../styles/designTokens';
+import { colors, radius, shadows, glass } from '../../styles/designTokens';
 
 export default function Card({ children, style, onClick, hoverable, padding }) {
+  const isInteractive = hoverable || onClick;
+  
   return (
     <div
       onClick={onClick}
       style={{
-        background: colors.card,
+        background: glass.background,
+        backdropFilter: glass.backdropFilter,
+        WebkitBackdropFilter: glass.WebkitBackdropFilter,
         borderRadius: "14px",
-        border: `1px solid ${colors.border}`,
-        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02)",
+        border: glass.border,
+        boxShadow: "var(--shadow-sm)",
         padding: padding !== undefined ? padding : 24,
-        transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: "all 300ms cubic-bezier(0.4, 0, 0.2, 1)",
         cursor: onClick ? 'pointer' : undefined,
         ...style,
       }}
       onMouseEnter={(e) => {
-        if (hoverable || onClick) {
-          e.currentTarget.style.boxShadow = "0 10px 20px -8px rgba(23, 62, 234, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)";
-          e.currentTarget.style.transform = 'translateY(-3px)';
-          e.currentTarget.style.borderColor = "#173EEA33";
+        if (isInteractive) {
+          e.currentTarget.style.boxShadow = "var(--shadow-lg)";
+          e.currentTarget.style.transform = 'translateY(-4px)';
+          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.75)";
+          e.currentTarget.style.background = "rgba(255, 255, 255, 0.82)";
         }
       }}
       onMouseLeave={(e) => {
-        if (hoverable || onClick) {
-          e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02)";
+        if (isInteractive) {
+          e.currentTarget.style.boxShadow = "var(--shadow-sm)";
           e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.borderColor = colors.border;
+          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.55)";
+          e.currentTarget.style.background = "var(--glass-bg)";
         }
       }}
     >
@@ -33,4 +39,3 @@ export default function Card({ children, style, onClick, hoverable, padding }) {
     </div>
   );
 }
-

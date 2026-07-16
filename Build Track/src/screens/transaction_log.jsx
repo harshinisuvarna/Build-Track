@@ -238,11 +238,21 @@ export default function TransactionLog() {
                   display: 'flex', alignItems: 'center', gap: 18,
                   background: colors.card, borderRadius: 14,
                   border: `1px solid ${colors.border}`, padding: '16px 20px',
-                  cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+                  cursor: 'pointer', transition: 'var(--transition)',
                 }}
                   onClick={() => navigate("/entry-detail", { state: { entry: t } })}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.03)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = colors.border; }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.boxShadow = 'var(--shadow-md)'; 
+                    e.currentTarget.style.transform = 'translateY(-4px)'; 
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.75)'; 
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.82)';
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.boxShadow = 'none'; 
+                    e.currentTarget.style.transform = 'none'; 
+                    e.currentTarget.style.borderColor = colors.border; 
+                    e.currentTarget.style.background = 'var(--glass-bg)';
+                  }}
                 >
                   <div style={{
                     width: 44, height: 44, borderRadius: 10, flexShrink: 0,

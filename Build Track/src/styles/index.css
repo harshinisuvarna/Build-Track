@@ -1,40 +1,50 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --bg: #F8FAFC;
-  --bg-card: #FFFFFF;
-  --bg-subtle: #F1F5F9;
-  --bg-hover: #F8FAFC;
+  --bg: transparent;
+  --bg-card: rgba(255, 255, 255, 0.68);
+  --bg-subtle: rgba(241, 245, 249, 0.5);
+  --bg-hover: rgba(248, 250, 252, 0.85);
   --primary: #173EEA;
   --primary-hover: #1232B8;
-  --primary-light: #EEF0FF;
-  --primary-subtle: #F5F6FF;
+  --primary-light: rgba(238, 240, 255, 0.8);
+  --primary-subtle: rgba(245, 246, 255, 0.6);
   --primary-gradient: linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%);
-  --border: #E6EAF2;
-  --border-light: #F1F5F9;
+  --border: rgba(230, 234, 242, 0.6);
+  --border-light: rgba(241, 245, 249, 0.5);
   --text-primary: #111827;
   --text-secondary: #64748B;
   --text-tertiary: #94A3B8;
   --text-inverse: #FFFFFF;
   --success: #22C55E;
-  --success-light: #F0FDF4;
+  --success-light: rgba(240, 253, 244, 0.8);
   --danger: #EF4444;
-  --danger-light: #FEF2F2;
+  --danger-light: rgba(254, 242, 242, 0.8);
   --warning: #F59E0B;
-  --warning-light: #FFFBEB;
+  --warning-light: rgba(255, 251, 235, 0.8);
   --info: #173EEA;
-  --info-light: #EEF0FF;
+  --info-light: rgba(238, 240, 255, 0.8);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04);
-  --shadow-xl: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -2px rgba(0,0,0,0.04);
+  
+  /* Luxury Shadows */
+  --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 30px 80px rgba(15, 23, 42, 0.12);
+  --shadow-xl: 0 35px 90px rgba(15, 23, 42, 0.15);
+  
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --transition: 150ms ease;
-  --transition-slow: 200ms ease;
+  --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Glass Variables */
+  --glass-bg: rgba(255, 255, 255, 0.68);
+  --glass-bg-hover: rgba(255, 255, 255, 0.82);
+  --glass-blur: 24px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.55);
+  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.75);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,8 +56,32 @@ body {
   line-height: 1.5;
   font-weight: 400;
   color: var(--text-primary);
-  background: var(--bg);
+  background: linear-gradient(135deg, #FFFFFF 0%, #FAFBFF 50%, #F4F7FC 100%);
   min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background: 
+    radial-gradient(circle at 15% 15%, rgba(23, 62, 234, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(177, 55, 255, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(103, 200, 255, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(255, 182, 193, 0.06) 0%, transparent 45%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -9;
+  pointer-events: none;
+  opacity: 0.008;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
 #root { min-height: 100vh; }
@@ -129,5 +163,83 @@ input, textarea, select { font-family: inherit; }
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #CBD5E1;
+}
+
+/* Premium Glassmorphic Input, Select & Textarea Overrides */
+select, input[type="text"], input[type="date"], input[type="search"], input[type="number"], textarea {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.02) !important;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+select:disabled, input:disabled, textarea:disabled {
+  background: rgba(241, 245, 249, 0.3) !important;
+  color: #94A3B8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: #173EEA !important;
+  box-shadow: 0 0 0 3px rgba(23, 62, 234, 0.12) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Ensure dropdown options display correctly */
+select option {
+  background-color: #FAFBFF !important;
+  color: #111827 !important;
+}
+
+/* Global Tables, Cards and Lists styling */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+tr:hover td {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+th, td {
+  border-color: rgba(230, 234, 242, 0.5) !important;
+}
+
+/* Custom premium hover lifts */
+.hover-premium-lift {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.hover-premium-lift:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-color: rgba(255, 255, 255, 0.75) !important;
+  background-color: rgba(255, 255, 255, 0.82) !important;
+}
+
+/* Automatically convert any hardcoded flat white panels to glassmorphism */
+div[style*="background: #fff"][style*="border-radius"],
+div[style*="background: #FFF"][style*="border-radius"],
+div[style*="background: white"][style*="border-radius"],
+div[style*="background: rgb(255, 255, 255)"][style*="border-radius"],
+div[style*="background-color: #fff"][style*="border-radius"],
+div[style*="background-color: #FFF"][style*="border-radius"],
+div[style*="background-color: white"][style*="border-radius"],
+div[style*="background-color: rgb(255, 255, 255)"][style*="border-radius"] {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Customize scrollbar width to 8px */
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
 }
 

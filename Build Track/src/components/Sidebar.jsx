@@ -49,16 +49,21 @@ export default function Sidebar() {
   return (
     <aside
       style={{
-        width: 260,
-        minWidth: 260,
-        background: colors.card,
-        borderRight: `1px solid ${colors.border}`,
+        width: 250,
+        minWidth: 250,
+        background: "rgba(255, 255, 255, 0.45)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        border: "1px solid rgba(255, 255, 255, 0.45)",
+        borderRadius: "20px",
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: "calc(100vh - 32px)",
         position: "sticky",
-        top: 0,
+        top: 16,
+        margin: "16px 0 16px 16px",
         zIndex: 30,
+        boxShadow: "var(--shadow-lg)",
       }}
     >
       {/* Logo */}
