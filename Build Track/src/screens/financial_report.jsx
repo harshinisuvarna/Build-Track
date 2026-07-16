@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   projectAPI, 
-  transactionAPI, 
-  paymentAPI 
+  transactionAPI 
 } from "../api";
 import { Toast } from "../components/Toast";
 import { jsPDF } from "jspdf";
@@ -15,6 +14,7 @@ import {
   gradients, 
   typography 
 } from "../styles/designTokens";
+import RecordPaymentSheet from "../components/RecordPaymentSheet";
 import { 
   Sparkles, 
   Building, 
@@ -199,13 +199,6 @@ const ALL_COLS = {
   Equipment: ['Purchased Date', 'Project', 'Equipment', 'Rent Rate', 'Duration', 'Unit', 'Floor', 'Phase', 'Activity', 'Status', 'Amount', 'Payment Date']
 };
 
-const PAYMENT_METHODS = [
-  { value: "cash", label: "Cash" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-  { value: "cheque", label: "Cheque" },
-  { value: "upi", label: "UPI" }
-];
-
 export default function FinancialReportPage() {
   const navigate = useNavigate();
 
@@ -267,15 +260,7 @@ export default function FinancialReportPage() {
 
   // Record Payment Overlay state
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
-  const [paymentTx, setPaymentTx] = useState(null);
   const [paymentItem, setPaymentItem] = useState(null);
-  const [paymentForm, setPaymentForm] = useState({
-    amount: "",
-    method: "cash",
-    date: new Date().toISOString().split("T")[0],
-    notes: ""
-  });
-  const [paymentSubmitLoading, setPaymentSubmitLoading] = useState(false);
 
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
@@ -638,45 +623,8 @@ export default function FinancialReportPage() {
   };
 
   const handleRecordPaymentClick = (entry) => {
-    const rawTx = entry.rawTx;
-    const paid = rawTx.paidAmount || 0;
-    const totalAmount = rawTx.amount || entry.amount;
-    const outstanding = Math.max(0, totalAmount - paid);
-
-    setPaymentTx(rawTx);
     setPaymentItem(entry);
-    setPaymentForm({
-      amount: outstanding.toString(),
-      method: "cash",
-      date: new Date().toISOString().split("T")[0],
-      notes: ""
-    });
     setPaymentSheetOpen(true);
-  };
-
-  const submitPayment = async () => {
-    if (!paymentForm.amount || Number(paymentForm.amount) <= 0) {
-      setToast({ msg: "Please enter a valid amount", type: "error" });
-      return;
-    }
-    setPaymentSubmitLoading(true);
-    try {
-      const payload = {
-        transactionId: paymentTx?._id || paymentItem?.id,
-        amount: Number(paymentForm.amount),
-        paymentMode: paymentForm.method,
-        paymentDate: paymentForm.date,
-        notes: paymentForm.notes
-      };
-      await paymentAPI.record(payload);
-      setToast({ msg: "Payment recorded successfully", type: "success" });
-      setPaymentSheetOpen(false);
-      loadData(); // Re-fetch the reports entries to load updated balances
-    } catch (err) {
-      setToast({ msg: err.response?.data?.message || "Failed to record payment", type: "error" });
-    } finally {
-      setPaymentSubmitLoading(false);
-    }
   };
 
   // CSV Exporter (Custom active columns matching Flutter)
@@ -1667,6 +1615,42 @@ export default function FinancialReportPage() {
 
             <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "16px 0 14px" }} />
 
+            {/* Payment History in details modal */}
+            {detailsEntry?.rawTx?.paymentHistory?.length > 0 && (
+              <>
+                <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "14px 0" }} />
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: colors.textSecondary, marginBottom: 8 }}>
+                  PAYMENT HISTORY
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 140, overflowY: "auto" }}>
+                  {detailsEntry.rawTx.paymentHistory.map((ph, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        background: colors.bgBase4,
+                        border: `1px solid ${colors.cardBorder}`,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: colors.textPrimary }}>
+                          {formatINR(ph.amount)}
+                        </span>
+                        <span style={{ fontSize: 11, color: colors.textLight }}>
+                          {ph.method || "—"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: colors.textLight, marginTop: 2 }}>
+                        {formatDateShort(ph.date)}
+                        {ph.note ? ` — ${ph.note}` : ""}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {/* Inline dialog actions */}
             <div style={{ display: "flex", gap: 8 }}>
               <button 
@@ -1707,99 +1691,17 @@ export default function FinancialReportPage() {
         </div>
       )}
 
-      {/* MODAL 3: Record Payment popup modal overlay */}
-      {paymentSheetOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 950, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ background: "#FFF", borderRadius: 16, width: 340, padding: 20, boxShadow: shadows.card }}>
-            
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: colors.textPrimary }}>Record Payment</h3>
-                <p style={{ margin: "2px 0 0", fontSize: 11.5, color: colors.textLight }}>
-                  {paymentTx?.title || paymentItem?.description}
-                </p>
-              </div>
-              <button onClick={() => setPaymentSheetOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: colors.textLight }}><X size={18} /></button>
-            </div>
-
-            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "0 0 14px" }} />
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              
-              {/* Payment Amount */}
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Payment Amount</label>
-                <input 
-                  type="number"
-                  value={paymentForm.amount}
-                  onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  placeholder="0"
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, fontSize: 13, color: colors.textPrimary, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-
-              {/* Payment Mode */}
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Payment Mode</label>
-                <div style={{ position: "relative" }}>
-                  <select 
-                    value={paymentForm.method}
-                    onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, fontWeight: "600", color: colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
-                  >
-                    {PAYMENT_METHODS.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-                </div>
-              </div>
-
-              {/* Payment Date */}
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Payment Date</label>
-                <input 
-                  type="date"
-                  value={paymentForm.date}
-                  onChange={e => setPaymentForm({ ...paymentForm, date: e.target.value })}
-                  style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, color: colors.textPrimary, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Notes</label>
-                <textarea 
-                  value={paymentForm.notes}
-                  onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                  placeholder="Optional payment notes..."
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, fontSize: 13, color: colors.textPrimary, outline: "none", minHeight: 60, fontFamily: "inherit", boxSizing: "border-box", resize: "none" }}
-                />
-              </div>
-
-            </div>
-
-            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "16px 0 14px" }} />
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button 
-                onClick={() => setPaymentSheetOpen(false)}
-                style={{ flex: 1, padding: "11px 0", border: `1.2px solid ${colors.cardBorder}`, background: "none", borderRadius: 10, fontSize: 13, fontWeight: "700", color: colors.textMedium, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-              <button 
-                disabled={paymentSubmitLoading}
-                onClick={submitPayment}
-                style={{ flex: 1, padding: "11px 0", border: "none", background: gradients.primaryButton, borderRadius: 10, fontSize: 13, fontWeight: "700", color: "#FFF", cursor: paymentSubmitLoading ? "not-allowed" : "pointer", opacity: paymentSubmitLoading ? 0.6 : 1 }}
-              >
-                {paymentSubmitLoading ? "Recording..." : "Record"}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* MODAL 3: Record Payment Sheet (Flutter parity) */}
+      <RecordPaymentSheet
+        open={paymentSheetOpen}
+        entry={paymentItem}
+        projects={projects}
+        onClose={() => setPaymentSheetOpen(false)}
+        onSaved={() => {
+          setToast({ msg: "Payment recorded successfully", type: "success" });
+          loadData();
+        }}
+      />
 
     </div>
   );
