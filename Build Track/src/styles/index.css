@@ -5,11 +5,12 @@
   --bg-card: #FFFFFF;
   --bg-subtle: #F1F5F9;
   --bg-hover: #F8FAFC;
-  --primary: #5B5CEB;
-  --primary-hover: #4B4CDB;
+  --primary: #173EEA;
+  --primary-hover: #1232B8;
   --primary-light: #EEF0FF;
   --primary-subtle: #F5F6FF;
-  --border: #E5E7EB;
+  --primary-gradient: linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%);
+  --border: #E6EAF2;
   --border-light: #F1F5F9;
   --text-primary: #111827;
   --text-secondary: #64748B;
@@ -21,7 +22,7 @@
   --danger-light: #FEF2F2;
   --warning: #F59E0B;
   --warning-light: #FFFBEB;
-  --info: #5B5CEB;
+  --info: #173EEA;
   --info-light: #EEF0FF;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -63,3 +64,70 @@ input, textarea, select { font-family: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes skeletonPulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Modern Enterprise Utilities */
+.hover-lift {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 20px -8px rgba(23, 62, 234, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+  border-color: #173EEA33;
+}
+
+.focus-gradient-ring {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.focus-gradient-ring:focus {
+  outline: none;
+  border-color: #173EEA;
+  box-shadow: 0 0 0 3px rgba(23, 62, 234, 0.15);
+}
+
+.gradient-text {
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 40px;
+}
+.voice-wave span {
+  display: inline-block;
+  width: 3px;
+  height: 8px;
+  background: var(--primary-gradient);
+  border-radius: 9999px;
+  animation: wavePulse 1.2s infinite ease-in-out;
+}
+.voice-wave span:nth-child(2) { animation-delay: 0.15s; }
+.voice-wave span:nth-child(3) { animation-delay: 0.3s; }
+.voice-wave span:nth-child(4) { animation-delay: 0.45s; }
+.voice-wave span:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes wavePulse {
+  0%, 100% { height: 8px; }
+  50% { height: 28px; }
+}
+
+/* Elegant Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E6EAF2;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+

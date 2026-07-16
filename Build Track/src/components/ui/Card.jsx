@@ -6,24 +6,26 @@ export default function Card({ children, style, onClick, hoverable, padding }) {
       onClick={onClick}
       style={{
         background: colors.card,
-        borderRadius: radius.xl,
+        borderRadius: "14px",
         border: `1px solid ${colors.border}`,
-        boxShadow: shadows.sm,
-        padding: padding || spacingToPx(24),
-        transition: 'box-shadow var(--transition), transform var(--transition)',
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02)",
+        padding: padding !== undefined ? padding : 24,
+        transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
         cursor: onClick ? 'pointer' : undefined,
         ...style,
       }}
       onMouseEnter={(e) => {
-        if (hoverable) {
-          e.currentTarget.style.boxShadow = shadows.lg;
-          e.currentTarget.style.transform = 'translateY(-2px)';
+        if (hoverable || onClick) {
+          e.currentTarget.style.boxShadow = "0 10px 20px -8px rgba(23, 62, 234, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03)";
+          e.currentTarget.style.transform = 'translateY(-3px)';
+          e.currentTarget.style.borderColor = "#173EEA33";
         }
       }}
       onMouseLeave={(e) => {
-        if (hoverable) {
-          e.currentTarget.style.boxShadow = shadows.sm;
+        if (hoverable || onClick) {
+          e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02)";
           e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.borderColor = colors.border;
         }
       }}
     >
@@ -32,4 +34,3 @@ export default function Card({ children, style, onClick, hoverable, padding }) {
   );
 }
 
-function spacingToPx(n) { return `${n}px`; }

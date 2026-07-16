@@ -3,15 +3,34 @@ import { useNavigate } from "react-router-dom";
 import { transactionAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button, EmptyState } from "../components/ui";
-import { Search, Plus, RefreshCw, ArrowUpRight, ArrowDownRight, DollarSign, Trash2, Filter } from "lucide-react";
+import { colors, radius, shadows, typography, gradients } from "../styles/designTokens";
+import { 
+  Search, 
+  Plus, 
+  RefreshCw, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  DollarSign, 
+  Trash2, 
+  Filter, 
+  Calendar,
+  Clock,
+  Briefcase,
+  Layers,
+  Wrench,
+  Package,
+  TrendingUp,
+  X,
+  Users
+} from "lucide-react";
 
 const ITEMS_PER_PAGE = 10;
 
 const TYPE_STYLES = {
-  Materials: { bg: "#EEF0FF", color: "#5B5CEB", label: "Materials" },
-  Wages:     { bg: "#F0FDF4", color: "#22C55E", label: "Labour" },
-  Expense:   { bg: "#FFFBEB", color: "#F59E0B", label: "Equipment" },
-  Income:    { bg: "#F3E8FF", color: "#8B5CF6", label: "Income" },
+  Materials: { bg: colors.primaryLight, color: colors.primary, label: "Materials", icon: Package },
+  Wages:     { bg: colors.successLight, color: colors.success, label: "Labour", icon: Users },
+  Expense:   { bg: colors.warningLight, color: colors.warning, label: "Equipment", icon: Wrench },
+  Income:    { bg: "#F5F3FF", color: "#8B5CF6", label: "Income", icon: TrendingUp },
 };
 
 const FILTERS = [
@@ -94,74 +113,89 @@ export default function TransactionLog() {
   const expenses = transactions.filter(t => t.type !== "Income").reduce((s, t) => s + (t.amount || 0), 0);
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
+    <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto', fontFamily: typography.fontFamily, animation: 'fadeUp 300ms ease' }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.03em', margin: 0, marginBottom: 4 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em', margin: 0, marginBottom: 6 }}>
             Transaction Log
           </h1>
-          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>All entries across projects</p>
+          <p style={{ fontSize: 14, color: colors.textSecondary, margin: 0 }}>View and manage all transactions across construction projects</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="secondary" size="md" icon={<RefreshCw size={14} />} onClick={fetchTransactions}>
-            Refresh
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="secondary" size="md" onClick={fetchTransactions}>
+            <RefreshCw size={14} style={{ marginRight: 6 }} /> Refresh
           </Button>
-          <Button variant="primary" size="md" icon={<Plus size={16} />} onClick={() => navigate("/manualentry")}>
-            New Entry
+          <Button variant="primary" size="md" onClick={() => navigate("/manualentry")}>
+            <Plus size={16} style={{ marginRight: 4 }} /> New Entry
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
         {[
-          { label: 'Income', value: income, color: '#22C55E', icon: ArrowUpRight },
-          { label: 'Expenses', value: expenses, color: '#EF4444', icon: ArrowDownRight },
-          { label: 'Net Balance', value: income - expenses, color: income - expenses >= 0 ? '#22C55E' : '#EF4444', icon: DollarSign },
-        ].map((item) => {
+          { label: 'Total Income', value: income, color: colors.success, bg: colors.successLight, icon: ArrowUpRight },
+          { label: 'Total Expenses', value: expenses, color: colors.danger, bg: colors.dangerLight, icon: ArrowDownRight },
+          { label: 'Net Balance', value: income - expenses, color: income - expenses >= 0 ? colors.primary : colors.danger, bg: income - expenses >= 0 ? colors.primaryLight : colors.dangerLight, icon: DollarSign },
+        ].map((item, idx) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} style={{
-              background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-              padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14,
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: `${item.color}10`, display: 'flex',
-                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <Icon size={18} color={item.color} />
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{item.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: item.color, letterSpacing: '-0.03em' }}>
-                  ₹{Math.abs(item.value).toLocaleString("en-IN")}
+            <Card key={idx} style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: item.bg, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  color: item.color,
+                }}>
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: colors.textSecondary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: item.label === 'Net Balance' ? colors.textPrimary : item.color, letterSpacing: '-0.02em' }}>
+                    ₹{Math.abs(item.value).toLocaleString("en-IN")}
+                  </div>
                 </div>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
 
       {/* Search + Filters */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '0 12px', height: 36, gap: 8, minWidth: 200 }}>
-          <Search size={14} color="#94A3B8" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search entries..." style={{ border: 'none', outline: 'none', fontSize: 13, color: '#111827', background: 'transparent', width: '100%', fontFamily: 'inherit' }} />
+      <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ 
+          display: 'flex', alignItems: 'center', background: colors.card, 
+          border: `1px solid ${colors.border}`, borderRadius: 10, 
+          padding: '0 14px', height: 42, gap: 10, minWidth: 320,
+          transition: 'all 150ms ease',
+        }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(23, 62, 234, 0.1)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = 'none'; }}
+        >
+          <Search size={16} color={colors.textTertiary} />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} 
+            placeholder="Search transactions, projects, items..." 
+            style={{ border: 'none', outline: 'none', fontSize: 14, color: colors.textPrimary, background: 'transparent', width: '100%', fontFamily: typography.fontFamily }} 
+          />
+          {search && (
+            <X size={14} color={colors.textTertiary} style={{ cursor: 'pointer' }} onClick={() => { setSearch(''); setPage(1); }} />
+          )}
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 6, background: '#E6EAF2', padding: 4, borderRadius: 10 }}>
           {FILTERS.map(f => (
             <button key={f.value} onClick={() => { setFilter(f.value); setPage(1); }}
               style={{
-                padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontWeight: filter === f.value ? 600 : 500, fontSize: 12,
-                background: filter === f.value ? '#5B5CEB' : '#F1F5F9',
-                color: filter === f.value ? '#fff' : '#64748B',
-                transition: 'all 150ms', fontFamily: 'inherit',
+                padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontWeight: 700, fontSize: 13,
+                background: filter === f.value ? colors.card : 'transparent',
+                color: filter === f.value ? colors.primary : colors.textSecondary,
+                transition: 'all 150ms ease', fontFamily: typography.fontFamily,
+                boxShadow: filter === f.value ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
               }}>
               {f.label}
             </button>
@@ -171,70 +205,92 @@ export default function TransactionLog() {
 
       {/* Content */}
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '12px 16px', color: '#DC2626', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1 }}>{error}</span>
-          <button onClick={fetchTransactions} style={{ background: 'transparent', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 12px', color: '#DC2626', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Retry</button>
+        <div style={{ background: colors.dangerLight, border: `1px solid ${colors.danger}33`, borderRadius: 12, padding: '14px 20px', color: colors.danger, fontSize: 14, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ flex: 1, fontWeight: 500 }}>{error}</span>
+          <Button variant="danger" size="sm" onClick={fetchTransactions}>Retry</Button>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid #F1F5F9', borderTopColor: '#5B5CEB', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ fontSize: 13, color: '#64748B' }}>Loading...</div>
+        <div style={{ textAlign: 'center', padding: 80 }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', border: `3px solid ${colors.border}`, borderTopColor: colors.primary, animation: 'spin 0.7s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ fontSize: 14, color: colors.textSecondary }}>Loading transactions...</div>
         </div>
       ) : paginated.length === 0 ? (
         <EmptyState
-          icon={<DollarSign size={22} />}
-          title={transactions.length === 0 ? "No entries yet" : "No matches"}
-          description={transactions.length === 0 ? 'Create your first entry to get started.' : 'No entries match your filters.'}
-          actionLabel={transactions.length === 0 ? "Add Entry" : undefined}
+          icon={<DollarSign size={24} />}
+          title={transactions.length === 0 ? "No transactions found" : "No matches found"}
+          description={transactions.length === 0 ? 'Create your first manual or voice transaction to populate this list.' : 'Try adjusting your search terms or filters.'}
+          actionLabel={transactions.length === 0 ? "Add Transaction" : undefined}
           onAction={() => navigate("/manualentry")}
         />
       ) : (
         <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {paginated.map((t, i) => {
               const st = TYPE_STYLES[t.type] || TYPE_STYLES.Expense;
               const pName = resolveProjectName(t.project) || "";
               const isPositive = t.type === "Income";
+              const TypeIcon = st.icon || DollarSign;
+
               return (
                 <div key={t._id || i} style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  background: '#fff', borderRadius: 10,
-                  border: '1px solid #E5E7EB', padding: '14px 18px',
-                  cursor: 'pointer', transition: 'box-shadow 150ms ease, background 150ms ease',
+                  display: 'flex', alignItems: 'center', gap: 18,
+                  background: colors.card, borderRadius: 14,
+                  border: `1px solid ${colors.border}`, padding: '16px 20px',
+                  cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
                   onClick={() => navigate("/entry-detail", { state: { entry: t } })}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.background = '#F8FAFC'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = '#fff'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.03)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = colors.border; }}
                 >
                   <div style={{
-                    width: 38, height: 38, borderRadius: 8, flexShrink: 0,
+                    width: 44, height: 44, borderRadius: 10, flexShrink: 0,
                     background: st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: st.color,
                   }}>
-                    <DollarSign size={16} color={st.color} />
+                    <TypeIcon size={18} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
-                        {t.title || "Untitled"}
-                        {pName && <span style={{ fontSize: 12, color: '#64748B', fontWeight: 400, marginLeft: 8 }}>{pName}</span>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>{t.title || "Untitled"}</span>
+                        {pName && (
+                          <span style={{ 
+                            fontSize: 12, color: colors.textSecondary, fontWeight: 500, 
+                            background: colors.subtle, padding: '2px 8px', borderRadius: 6,
+                            display: 'inline-flex', alignItems: 'center', gap: 4
+                          }}>
+                            <Briefcase size={11} color={colors.textTertiary} /> {pName}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Badge variant={t.type === 'Wages' ? 'success' : t.type === 'Expense' ? 'warning' : 'info'} size="sm">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Badge variant={t.type === 'Wages' ? 'success' : t.type === 'Expense' ? 'warning' : t.type === 'Income' ? 'info' : 'default'} size="sm">
                           {st.label}
                         </Badge>
                         <button onClick={(e) => { e.stopPropagation(); handleDelete(t._id); }}
-                          style={{ color: '#94A3B8', cursor: 'pointer', display: 'flex', padding: 2, background: 'none', border: 'none' }}>
+                          style={{ 
+                            color: colors.textTertiary, cursor: 'pointer', display: 'flex', padding: 6, 
+                            background: 'none', border: `1px solid ${colors.border}`, borderRadius: 8,
+                            transition: 'all 150ms ease',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = colors.dangerLight; e.currentTarget.style.color = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = colors.textTertiary; e.currentTarget.style.borderColor = colors.border; }}
+                        >
                           <Trash2 size={13} />
                         </button>
                       </div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#94A3B8' }}>
-                        {t.date ? `${formatDate(t.date)} ${formatTime(t.date)}` : ''}
+                      <span style={{ fontSize: 13, color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={12} color={colors.textTertiary} />
+                        {t.date ? `${formatDate(t.date)}` : ''}
+                        <span style={{ color: colors.border }}>&middot;</span>
+                        <Clock size={12} color={colors.textTertiary} />
+                        {t.date ? `${formatTime(t.date)}` : ''}
                       </span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: isPositive ? '#22C55E' : '#111827' }}>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: isPositive ? colors.success : colors.textPrimary }}>
                         {isPositive ? '+' : '-'}₹{(t.amount || 0).toLocaleString("en-IN")}
                       </span>
                     </div>
@@ -246,11 +302,21 @@ export default function TransactionLog() {
 
           {/* Pagination */}
           {filtered.length > ITEMS_PER_PAGE && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, fontSize: 13, color: '#64748B' }}>
-              <span>Showing {(page - 1) * ITEMS_PER_PAGE + 1}-{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}</span>
-              <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, fontSize: 13, color: colors.textSecondary }}>
+              <span style={{ fontWeight: 500 }}>Showing {(page - 1) * ITEMS_PER_PAGE + 1}-{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries</span>
+              <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', color: page <= 1 ? '#94A3B8' : '#111827', cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit' }}>Prev</button>
+                  style={{ 
+                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, 
+                    background: colors.card, color: page <= 1 ? colors.textTertiary : colors.textPrimary, 
+                    cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: typography.fontFamily,
+                    transition: 'all 150ms ease'
+                  }}
+                  onMouseEnter={(e) => { if (page > 1) e.currentTarget.style.background = colors.subtle; }}
+                  onMouseLeave={(e) => { if (page > 1) e.currentTarget.style.background = colors.card; }}
+                >
+                  Prev
+                </button>
                 {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
                   let p;
                   if (totalPages <= 5) p = i + 1;
@@ -259,13 +325,34 @@ export default function TransactionLog() {
                   else p = [1, "...", page, "...", totalPages][i];
                   return typeof p === "number" ? (
                     <button key={p} onClick={() => setPage(p)}
-                      style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: p === page ? '#5B5CEB' : '#fff', color: p === page ? '#fff' : '#111827', fontWeight: p === page ? 600 : 500, fontSize: 12, cursor: 'pointer', minWidth: 32, fontFamily: 'inherit' }}>
+                      style={{ 
+                        padding: '8px 16px', borderRadius: 8, 
+                        background: p === page ? gradients.primaryGradient : colors.card, 
+                        color: p === page ? '#fff' : colors.textPrimary, 
+                        fontWeight: 700, fontSize: 13, cursor: 'pointer', minWidth: 38, fontFamily: typography.fontFamily,
+                        boxShadow: p === page ? '0 2px 8px rgba(23, 62, 234, 0.15)' : 'none',
+                        border: p === page ? 'none' : `1px solid ${colors.border}`,
+                        transition: 'all 150ms ease'
+                      }}
+                      onMouseEnter={(e) => { if (p !== page) e.currentTarget.style.background = colors.subtle; }}
+                      onMouseLeave={(e) => { if (p !== page) e.currentTarget.style.background = colors.card; }}
+                    >
                       {p}
                     </button>
-                  ) : <span key={`e${i}`} style={{ padding: '6px 4px', color: '#94A3B8' }}>{p}</span>;
+                  ) : <span key={`e${i}`} style={{ padding: '8px 6px', color: colors.textTertiary, display: 'flex', alignItems: 'center' }}>{p}</span>;
                 })}
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', color: page >= totalPages ? '#94A3B8' : '#111827', cursor: page >= totalPages ? 'default' : 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'inherit' }}>Next</button>
+                  style={{ 
+                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, 
+                    background: colors.card, color: page >= totalPages ? colors.textTertiary : colors.textPrimary, 
+                    cursor: page >= totalPages ? 'default' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: typography.fontFamily,
+                    transition: 'all 150ms ease'
+                  }}
+                  onMouseEnter={(e) => { if (page < totalPages) e.currentTarget.style.background = colors.subtle; }}
+                  onMouseLeave={(e) => { if (page < totalPages) e.currentTarget.style.background = colors.card; }}
+                >
+                  Next
+                </button>
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 import { colors, radius, shadows } from '../../styles/designTokens';
 
 export default function Modal({ open, onClose, title, children, width = 480 }) {
@@ -15,7 +16,8 @@ export default function Modal({ open, onClose, title, children, width = 480 }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.4)',
+        background: 'rgba(17, 24, 39, 0.4)',
+        backdropFilter: 'blur(4px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 24, animation: 'fadeIn 150ms ease',
       }}
@@ -24,14 +26,14 @@ export default function Modal({ open, onClose, title, children, width = 480 }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           background: colors.card,
-          borderRadius: radius.xl,
-          boxShadow: shadows.xl,
+          borderRadius: '14px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           width: '100%',
           maxWidth: width,
           maxHeight: '85vh',
           display: 'flex',
           flexDirection: 'column',
-          animation: 'fadeUp 200ms ease',
+          animation: 'fadeUp 200ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {title && (
@@ -40,27 +42,36 @@ export default function Modal({ open, onClose, title, children, width = 480 }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '20px 24px 0',
+              padding: '24px 24px 0',
             }}
           >
-            <div style={{ fontSize: 17, fontWeight: 600, color: colors.textPrimary }}>{title}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: colors.textPrimary, letterSpacing: '-0.02em' }}>{title}</div>
             <button
               onClick={onClose}
               style={{
-                width: 28, height: 28, borderRadius: radius.sm,
+                width: 32, height: 32, borderRadius: radius.md,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: colors.textTertiary, fontSize: 16, cursor: 'pointer',
-                transition: 'background var(--transition)',
+                color: colors.textSecondary, cursor: 'pointer',
+                transition: 'all 150ms ease',
+                border: `1px solid ${colors.border}`,
+                background: 'transparent',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = colors.subtle; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.subtle;
+                e.currentTarget.style.color = colors.textPrimary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = colors.textSecondary;
+              }}
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         )}
-        <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>{children}</div>
+        <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>{children}</div>
       </div>
     </div>
   );
 }
+
