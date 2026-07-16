@@ -216,6 +216,10 @@ async function applyInventoryDelta(
     );
 
     if (!inv) {
+      if (transactionType !== "Materials") {
+        // Wages / Expense reversal - return early as no inventory record exists to reverse
+        return;
+      }
       throw Object.assign(
         new Error("No stock found for this material in this project"),
         { status: 400 }
@@ -223,6 +227,20 @@ async function applyInventoryDelta(
     }
 
     if (inv.closingStock < absQty) {
+      if (transactionType !== "Materials") {
+        // Wages / Expense reversal - adjust stock without throwing error
+        await Inventory.updateOne(
+          { _id: inv._id },
+          {
+            $inc: {
+              purchased: -absQty,
+              closingStock: -absQty,
+            },
+          },
+          { session }
+        );
+        return;
+      }
       throw Object.assign(
         new Error(`Insufficient stock — only ${inv.closingStock} ${inv.unit || "units"} available`),
         { status: 400 }
