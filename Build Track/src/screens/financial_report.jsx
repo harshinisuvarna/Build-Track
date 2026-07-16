@@ -1697,8 +1697,8 @@ export default function FinancialReportPage() {
         entry={paymentItem}
         projects={projects}
         onClose={() => setPaymentSheetOpen(false)}
-        onSaved={() => {
-          setToast({ msg: "Payment recorded successfully", type: "success" });
+        onSaved={(msg) => {
+          setToast({ msg: msg || "Payment recorded successfully", type: "success" });
           loadData();
         }}
       />
