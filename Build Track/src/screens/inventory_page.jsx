@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { inventoryAPI, projectAPI, transactionAPI, paymentAPI } from "../api";
+import { inventoryAPI, projectAPI, transactionAPI } from "../api";
 import { Toast } from "../components/Toast";
+import RecordPaymentSheet from "../components/RecordPaymentSheet";
 import { colors, radius, spacing, shadows, gradients, typography } from "../styles/designTokens";
 
 const STATUS_META = {
@@ -17,13 +18,7 @@ const PAYMENT_STATUS_COLORS = {
   overdue: { bg: "#FFEBEE", text: "#C62828", border: "#E53935" },
 };
 
-const PAYMENT_METHODS = [
-  { value: "cash",    label: "Cash" },
-  { value: "upi",     label: "UPI" },
-  { value: "bank",    label: "Bank Transfer" },
-  { value: "card",    label: "Card" },
-  { value: "cheque",  label: "Cheque" },
-];
+
 
 function getStatus(balance, threshold = 5) {
   if (balance <= 0) return "Out of Stock";
@@ -162,18 +157,9 @@ export default function InventoryPage() {
   const [menuOpen, setMenuOpen] = useState(null);
   const menuRef = useRef(null);
 
-  // ── NEW: Payment sheet state ─────────────────────────────────────────────
-  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
-  const [paymentItem, setPaymentItem] = useState(null);
-  const [paymentTx, setPaymentTx] = useState(null);
-  const [paymentForm, setPaymentForm] = useState({
-    amount: "",
-    method: "cash",
-    date: new Date().toISOString().split("T")[0],
-    notes: "",
-    receipt: null,
-  });
-  const [paymentLoading, setPaymentLoading] = useState(false);
+  // ── Record Payment Sheet state ──────────────────────────────────────────
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [recordPaymentEntry, setRecordPaymentEntry] = useState(null);
 
   // ── NEW: Date group collapsed state ──────────────────────────────────────
   const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -426,46 +412,6 @@ export default function InventoryPage() {
     }
   }
 
-  // ── NEW: Open payment sheet ──────────────────────────────────────────────
-  function openPaymentSheet(item, tx) {
-    setPaymentItem(item);
-    setPaymentTx(tx);
-    const pending = tx ? Math.max(0, (Number(tx.amount || 0) - Number(tx.paidAmount || 0))) : 0;
-    setPaymentForm({
-      amount: pending > 0 ? String(pending) : "",
-      method: "cash",
-      date: new Date().toISOString().split("T")[0],
-      notes: "",
-      receipt: null,
-    });
-    setPaymentSheetOpen(true);
-  }
-
-  async function submitPayment() {
-    if (!paymentForm.amount || Number(paymentForm.amount) <= 0) {
-      setToast({ msg: "Enter a valid amount", type: "error" });
-      return;
-    }
-    setPaymentLoading(true);
-    try {
-      const payload = {
-        transactionId: paymentTx?._id,
-        amount: Number(paymentForm.amount),
-        paymentMode: paymentForm.method,
-        paymentDate: paymentForm.date,
-        notes: paymentForm.notes,
-      };
-      await paymentAPI.record(payload);
-      setToast({ msg: "Payment recorded successfully", type: "success" });
-      setPaymentSheetOpen(false);
-      fetchInventory();
-    } catch (err) {
-      setToast({ msg: err.response?.data?.message || "Failed to record payment", type: "error" });
-    } finally {
-      setPaymentLoading(false);
-    }
-  }
-
   // ── NEW: Delete item handler ─────────────────────────────────────────────
   async function deleteItem(item) {
     if (!item?.isDbRecord) {
@@ -491,118 +437,18 @@ export default function InventoryPage() {
     }}>
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "info" })} />
 
-      {/* ── NEW: Payment Sheet Overlay ─────────────────────────────────────── */}
-      {paymentSheetOpen && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 1000,
-          background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center",
-        }} onClick={(e) => { if (e.target === e.currentTarget) setPaymentSheetOpen(false); }}>
-          <div style={{
-            background: "#FFF", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 520,
-            padding: "24px 24px 40px", maxHeight: "85vh", overflowY: "auto",
-            boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: colors.textPrimary }}>Record Payment</h3>
-                <p style={{ margin: "4px 0 0", fontSize: 12, color: colors.textLight }}>{paymentTx?.title || paymentItem?.materialName}</p>
-              </div>
-              <button onClick={() => setPaymentSheetOpen(false)} style={{
-                width: 32, height: 32, borderRadius: "50%", border: "none",
-                background: colors.bgBase4, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, color: colors.textLight,
-              }}>✕</button>
-            </div>
-
-            {/* Payment Status Chips */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              {["pending", "partial", "paid"].map(s => {
-                const payStatus = (paymentTx?.paymentStatus || "pending").toLowerCase();
-                const isActive = payStatus === s;
-                const sc = PAYMENT_STATUS_COLORS[s] || PAYMENT_STATUS_COLORS.pending;
-                return (
-                  <span key={s} style={{
-                    padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700,
-                    background: isActive ? sc.bg : "#F5F5F5",
-                    color: isActive ? sc.text : colors.textLight,
-                    border: `1px solid ${isActive ? sc.border : "#E0E0E0"}`,
-                    textTransform: "capitalize",
-                  }}>{s}</span>
-                );
-              })}
-            </div>
-
-            {/* Amount */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: colors.textSecondary, display: "block", marginBottom: 6 }}>Amount (₹)</label>
-              <input type="number" min="0" value={paymentForm.amount}
-                onChange={e => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                placeholder="0"
-                style={{
-                  width: "100%", padding: "12px 14px", borderRadius: radius.md,
-                  border: `1px solid ${colors.cardBorder}`, fontSize: 15, fontWeight: 700,
-                  color: colors.textPrimary, background: colors.cardBg, outline: "none",
-                  boxSizing: "border-box",
-                }} />
-            </div>
-
-            {/* Payment Method */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: colors.textSecondary, display: "block", marginBottom: 6 }}>Payment Method</label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {PAYMENT_METHODS.map(m => (
-                  <button key={m.value} onClick={() => setPaymentForm(prev => ({ ...prev, method: m.value }))}
-                    style={{
-                      padding: "8px 16px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-                      border: `1px solid ${paymentForm.method === m.value ? colors.primaryBlue : "#E8E5F6"}`,
-                      background: paymentForm.method === m.value ? colors.primaryBlue : colors.cardBg,
-                      color: paymentForm.method === m.value ? "#FFF" : colors.textSecondary,
-                      cursor: "pointer", transition: "all 0.15s",
-                    }}>{m.label}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Payment Date */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: colors.textSecondary, display: "block", marginBottom: 6 }}>Payment Date</label>
-              <input type="date" value={paymentForm.date}
-                onChange={e => setPaymentForm(prev => ({ ...prev, date: e.target.value }))}
-                style={{
-                  width: "100%", padding: "12px 14px", borderRadius: radius.md,
-                  border: `1px solid ${colors.cardBorder}`, fontSize: 13,
-                  color: colors.textPrimary, background: colors.cardBg, outline: "none",
-                  boxSizing: "border-box",
-                }} />
-            </div>
-
-            {/* Notes */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: colors.textSecondary, display: "block", marginBottom: 6 }}>Notes (optional)</label>
-              <textarea rows={3} value={paymentForm.notes}
-                onChange={e => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Add payment notes..."
-                style={{
-                  width: "100%", padding: "12px 14px", borderRadius: radius.md,
-                  border: `1px solid ${colors.cardBorder}`, fontSize: 13,
-                  color: colors.textPrimary, background: colors.cardBg, outline: "none",
-                  resize: "vertical", boxSizing: "border-box", fontFamily: typography.fontFamily,
-                }} />
-            </div>
-
-            {/* Submit */}
-            <button onClick={submitPayment} disabled={paymentLoading}
-              style={{
-                width: "100%", padding: "14px", borderRadius: radius.md, border: "none",
-                background: gradients.primaryButton, color: "#FFF",
-                fontWeight: 800, fontSize: 15, cursor: paymentLoading ? "wait" : "pointer",
-                opacity: paymentLoading ? 0.7 : 1,
-              }}>
-              {paymentLoading ? "Recording..." : "Confirm Payment & Update Inventory"}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Record Payment Sheet (Flutter parity — uses PUT /transactions/$id) */}
+      <RecordPaymentSheet
+        open={recordPaymentOpen}
+        entry={recordPaymentEntry}
+        projects={projects}
+        onClose={() => setRecordPaymentOpen(false)}
+        onSaved={(msg) => {
+          setToast({ msg, type: "success" });
+          setRecordPaymentOpen(false);
+          fetchInventory();
+        }}
+      />
 
       {/* Top Bar */}
       <div style={{
@@ -925,7 +771,24 @@ export default function InventoryPage() {
                             </button>
                             <button onClick={() => {
                               setMenuOpen(null);
-                              openPaymentSheet(item, item.transactions[0]);
+                              let itemBill = 0, itemPaid = 0;
+                              item.transactions.forEach(t => {
+                                const q = Number(t.quantity || t.purchased || 0);
+                                let bill = Number(t.amount || 0);
+                                const r = Number(t.rate || t.dailyWage || t.hourlyRate || 0);
+                                if (bill === 0 && q > 0 && r > 0) bill = q * r;
+                                itemBill += bill;
+                                itemPaid += Number(t.paidAmount || 0);
+                              });
+                              setRecordPaymentEntry({
+                                rawTx: item.transactions[0],
+                                amount: itemBill,
+                                description: item.materialName,
+                                brand: item.brand,
+                                id: item.transactions[0]?._id,
+                                type: item.category,
+                              });
+                              setRecordPaymentOpen(true);
                             }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px",
@@ -937,7 +800,8 @@ export default function InventoryPage() {
                             </button>
                             <button onClick={() => {
                               setMenuOpen(null);
-                              setExpandedItems(prev => ({ ...prev, [item._id]: true }));
+                              const txType = activeTabKey === "material" ? "Materials" : activeTabKey === "labour" ? "Wages" : "Expense";
+                              navigate(`/transaction?type=${txType}&search=${encodeURIComponent(item.materialName)}`);
                             }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px",

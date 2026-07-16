@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { transactionAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { colors, radius, shadows, gradients, typography } from "../styles/designTokens";
@@ -43,11 +43,12 @@ function formatTime(d) {
 
 export default function TransactionLog() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState(() => searchParams.get("type") || "All");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [page, setPage] = useState(1);
   const [toast, setToast] = useState({ msg: "", type: "info" });
   const [confirmDlg, setConfirmDlg] = useState(null);

@@ -208,6 +208,42 @@ export default function ManualEntryPage() {
   }, [location]);
 
   useEffect(() => {
+    if (!isEditing || !editingId) return;
+    let cancelled = false;
+    transactionAPI.getById(editingId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const tx = data.transaction || data;
+        const typeMapRev = { "Materials": "material", "Wages": "labour", "Expense": "equipment" };
+        const eType = typeMapRev[tx.type] || "material";
+        setEntryType(eType);
+        setSelectedProject(tx.project?._id || tx.project || "");
+        if (tx.date || tx.createdAt) {
+          setDate(new Date(tx.date || tx.createdAt).toISOString().split("T")[0]);
+        }
+        setNotes(tx.notes || "");
+        setUnit(tx.unit || "");
+        setSelectedFloor(tx.floor || "");
+        setSelectedPhaseId(tx.phase || "");
+        setSelectedActivityName(tx.activity || "");
+        setIsWithGst(tx.isWithGst || false);
+        setGstPercentage(tx.gstPercentage || 18);
+        setIsPaid(tx.isPaid || false);
+        setPaymentMethod(tx.paymentMethod || "Cash");
+        const nameVal = tx.title || tx.materialName || tx.workerName || tx.equipmentName || "";
+        if (eType === "material") {
+          setValues({ itemName: nameVal, quantity: tx.quantity || "", rate: tx.rate || "", brand: tx.brand || "", supplier: tx.supplier || "" });
+        } else if (eType === "labour") {
+          setValues({ workerName: nameVal, quantity: tx.quantity || "", rate: tx.rate || "", workType: tx.workType || "", contractor: tx.contractor || "", overtime: tx.overtime || "" });
+        } else if (eType === "equipment") {
+          setValues({ equipmentName: nameVal, quantity: tx.quantity || "", rate: tx.rate || "", model: tx.model || "", operator: tx.operator || "" });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isEditing, editingId]);
+
+  useEffect(() => {
     if (!isEditing) {
       setValues({});
       setUnit(UNIT_OPTIONS[entryType]?.[0] || "");
