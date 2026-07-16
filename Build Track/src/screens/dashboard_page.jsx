@@ -26,6 +26,23 @@ function relativeTime(dateStr) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
+function getProjectProgress(project) {
+  const phases = project?.selectedPhases || [];
+  if (phases.length > 0) {
+    let total = 0;
+    let completed = 0;
+    phases.forEach(p => {
+      (p.activities || []).forEach(a => {
+        total++;
+        if (a.completed || a.isCompleted) completed++;
+      });
+    });
+    return total === 0 ? 0 : completed / total;
+  }
+  const progressRaw = Number(project?.progress || 0);
+  return progressRaw > 1 ? progressRaw / 100 : progressRaw;
+}
+
 const typeConfig = {
   Materials: { icon: '📦', bg: '#ECEBFF', color: '#6C63FF', label: 'Materials' },
   Wages: { icon: '👷', bg: '#F0FDF4', color: '#15803D', label: 'Labour' },
@@ -49,20 +66,25 @@ export default function DashboardPage() {
     Promise.all([
       projectAPI.getAll().catch(() => ({ data: { projects: [] } })),
       dashboardAPI.getSummary().catch(() => ({ data: null })),
-      transactionAPI.getAll({ limit: 10 }).catch(() => ({ data: { transactions: [] } })),
       workerAPI.getAll().catch(() => ({ data: { workers: [] } })),
-    ]).then(([projRes, dashRes, txRes, workerRes]) => {
+    ]).then(([projRes, dashRes, workerRes]) => {
       const projList = projRes.data?.projects || projRes.data || [];
       setProjects(projList);
       if (projList.length > 0 && !selectedProjectId) {
         setSelectedProjectId(projList[0]._id || projList[0].id);
       }
       setDashData(dashRes.data);
-      const txList = txRes.data?.transactions || txRes.data || [];
-      setTransactions(Array.isArray(txList) ? txList : []);
       setWorkers(workerRes.data?.workers || workerRes.data || []);
     }).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    transactionAPI.getAll({ project: selectedProjectId }).then((txRes) => {
+      const txList = txRes.data?.transactions || txRes.data || [];
+      setTransactions(Array.isArray(txList) ? txList : []);
+    }).catch(() => setTransactions([]));
+  }, [selectedProjectId]);
 
   const selectedProject = projects.find((p) => (p._id || p.id) === selectedProjectId);
   const projectTransactions = useMemo(() =>
@@ -74,15 +96,11 @@ export default function DashboardPage() {
   );
   const recentEntries = projectTransactions.slice(0, 5);
 
-  const totalCost = projectTransactions
-    .filter((t) => t.type !== 'Income')
-    .reduce((s, t) => s + Math.abs(Number(t.amount || t.totalAmount || 0)), 0);
-  const totalRevenue = projectTransactions
-    .filter((t) => t.type === 'Income')
-    .reduce((s, t) => s + Math.abs(Number(t.amount || t.totalAmount || 0)), 0);
+  const totalCost = Number(selectedProject?.spentAmount || 0);
+  const totalRevenue = Number(selectedProject?.totalIncome || 0);
   const netCashflow = totalRevenue - totalCost;
-  const budget = Number(selectedProject?.totalBudget || selectedProject?.budget || 0);
-  const progress = Number(selectedProject?.progress || 0) / 100;
+  const budget = Number(selectedProject?.totalBudget || selectedProject?.budget?.total || 0);
+  const progress = getProjectProgress(selectedProject);
 
 
 
@@ -230,9 +248,9 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'TOTAL COST', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', alert: totalCost > budget * 0.9, icon: '⏱️', bg: 'rgba(67,97,238,0.08)', color: '#6C63FF' },
-          { label: 'BUDGET', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: '💼', bg: 'rgba(123,94,167,0.08)', color: '#8B83FF' },
+          { label: 'BUDGET', value: formatCurrency(budget), subtitle: budget - totalCost < 0 ? `Remaining: ₹-${Math.abs(budget - totalCost).toLocaleString('en-IN')}` : `Remaining: ${formatCurrency(budget - totalCost)}`, icon: '💼', bg: 'rgba(123,94,167,0.08)', color: '#8B83FF' },
           { label: 'TOTAL REVENUE', value: formatCurrency(totalRevenue), subtitle: 'Cash Inflow', icon: '✅', bg: 'rgba(21,128,61,0.08)', color: '#15803D' },
-          { label: 'NET CASH FLOW', value: formatCurrency(Math.abs(netCashflow)), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', alert: netCashflow < 0, icon: '🚨', bg: 'rgba(239,68,68,0.08)', color: '#EF4444' },
+          { label: 'NET CASH FLOW', value: netCashflow < 0 ? `-₹${Math.abs(netCashflow).toLocaleString('en-IN')}` : formatCurrency(netCashflow), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', alert: netCashflow < 0, icon: '🚨', bg: 'rgba(239,68,68,0.08)', color: '#EF4444' },
         ].map((kpi) => (
           <Card key={kpi.label} padding="16px 20px" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{

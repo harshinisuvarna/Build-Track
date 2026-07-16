@@ -198,9 +198,9 @@ export function toggleActivity(phases, phaseId, activityId) {
     if (p.id !== phaseId) return p;
     return {
       ...p,
-      activities: p.activities.map(a =>
+      activities: (p.activities || []).map(a =>
         a.id === activityId
-          ? { ...a, completed: !a.completed, completedAt: !a.completed ? new Date().toISOString() : null }
+          ? { ...a, completed: !(a.completed || a.isCompleted), isCompleted: false, completedAt: !(a.completed || a.isCompleted) ? new Date().toISOString() : null }
           : a
       ),
     };
@@ -211,18 +211,19 @@ export function calcProgress(phases) {
   let total = 0;
   let completed = 0;
   phases.forEach(p => {
-    p.activities.forEach(a => {
+    (p.activities || []).forEach(a => {
       total++;
-      if (a.completed) completed++;
+      if (a.completed || a.isCompleted) completed++;
     });
   });
   return total === 0 ? 0 : Math.round((completed / total) * 100);
 }
 
 export function getPhaseProgress(phase) {
-  const total = phase.activities.length;
+  const acts = phase.activities || [];
+  const total = acts.length;
   if (total === 0) return 0;
-  const completed = phase.activities.filter(a => a.completed).length;
+  const completed = acts.filter(a => a.completed || a.isCompleted).length;
   return Math.round((completed / total) * 100);
 }
 

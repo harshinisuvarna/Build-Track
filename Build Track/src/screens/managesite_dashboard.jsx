@@ -126,7 +126,7 @@ export default function ManageSitePage() {
     if (!projectId) return;
     setLoadingT(true);
     transactionAPI.getAll({ project: projectId })
-      .then(({ data }) => setTransactions((data.transactions || []).slice(0, 5)))
+      .then(({ data }) => setTransactions(data.transactions || []))
       .catch(() => setTransactions([]))
       .finally(() => setLoadingT(false));
   }, [projectId]);
@@ -148,25 +148,27 @@ export default function ManageSitePage() {
   const phases = p.selectedPhases || [];
   const hasNewTracker = phases.length > 0;
   const trackerTotal = phases.reduce((s, ph) => s + (ph.activities?.length || 0), 0);
-  const trackerDone = phases.reduce((s, ph) => s + (ph.activities?.filter(a => a.completed).length || 0), 0);
+  const trackerDone = phases.reduce((s, ph) => s + (ph.activities?.filter(a => a.completed || a.isCompleted).length || 0), 0);
 
   const projectName = p.projectName || "Untitled Project";
   const projectLoc = p.location || "—";
-  const progress = hasNewTracker ? calcProgress(phases) : (p.progress || 0);
+  const progFallback = p.progress || 0;
+  const progress = hasNewTracker ? calcProgress(phases) : (progFallback > 1 ? progFallback : progFallback * 100);
   const status = p.status || "Active";
   const st = STATUS_STYLE[status] || STATUS_STYLE.Active;
   const hasPhoto = Boolean(p.photo && String(p.photo).trim());
   const imgSrc = hasPhoto ? resolveImageUrl(p.photo) : "";
 
-  const totalBudget = Number(p.totalBudget || p.budget || stats?.totalBudget || 0);
+  const totalIncome = Number(p.totalIncome || 0);
+  const totalBudget = Number(p.budget?.total || p.totalBudget || stats?.totalBudget || 0);
   const spent = Number(p.spentAmount || stats?.totalSpent || 0);
   const remaining = totalBudget - spent;
   const util = totalBudget > 0 ? Math.min(spent / totalBudget, 1) : 0;
 
-  const bMat = Number(p.budgetMaterial || 0);
-  const bLab = Number(p.budgetLabour || 0);
-  const bEq = Number(p.budgetEquipment || 0);
-  const bMisc = Number(p.budgetMisc || 0);
+  const bMat = Number(p.budget?.material ?? p.budgetMaterial ?? 0);
+  const bLab = Number(p.budget?.labour ?? p.budgetLabour ?? 0);
+  const bEq = Number(p.budget?.equipment ?? p.budgetEquipment ?? 0);
+  const bMisc = Number(p.budget?.misc ?? p.budgetMisc ?? 0);
   const hasBrk = bMat + bLab + bEq + bMisc > 0;
 
   const selectedFeatures = p.selectedFeatures || [];
@@ -413,6 +415,11 @@ export default function ManageSitePage() {
         <span style={{ fontSize: 14, fontWeight: 700, color: spent > totalBudget ? "#ef4444" : "#6C63FF" }}>{fmtINR(Math.max(spent, 0))}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(22,163,74,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>💰</div>
+        <span style={{ flex: 1, fontSize: 13, color: "#4B5563" }}>Total Income</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#16a34a" }}>{fmtINR(totalIncome)}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
         <div style={{ width: 34, height: 34, borderRadius: 9, background: `${remaining >= 0 ? "#16a34a" : "#ef4444"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🏦</div>
         <span style={{ flex: 1, fontSize: 13, color: "#4B5563" }}>Remaining</span>
         <span style={{ fontSize: 14, fontWeight: 700, color: remaining >= 0 ? "#16a34a" : "#ef4444" }}>{fmtINR(Math.max(remaining, 0))}</span>
@@ -441,6 +448,7 @@ export default function ManageSitePage() {
     </CollapsibleCard>
   );
 
+  const _isC = (act) => act.completed || act.isCompleted;
   const _completedDateLabel = (act) => {
     if (!act.completedAt) return null;
     const d = new Date(act.completedAt);
@@ -497,7 +505,7 @@ export default function ManageSitePage() {
       <CollapsibleCard title={SECTIONS.tracker} icon="✅" subtitle={`${trackerDone}/${trackerTotal} done`} defaultOpen>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {phases.map(phase => {
-            const pDone = phase.activities?.filter(a => a.completed).length || 0;
+            const pDone = phase.activities?.filter(a => a.completed || a.isCompleted).length || 0;
             const pTotal = phase.activities?.length || 0;
             const pPct = pTotal > 0 ? pDone / pTotal : 0;
             const isExpanded = expandedPhase === phase.id;
@@ -536,28 +544,28 @@ export default function ManageSitePage() {
                       <div style={{ padding: "8px 16px 8px 20px", borderTop: "1px solid #F3F4F6" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <div onClick={e => { e.stopPropagation(); handleToggleActivity(phase.id, act.id); }}
-                            style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${act.completed ? "#16a34a" : "#CDD0DA"}`, background: act.completed ? "#16a34a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all 0.18s" }}>
-                            {act.completed && <span style={{ color: "#fff", fontSize: 12 }}>✓</span>}
+                            style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${_isC(act) ? "#16a34a" : "#CDD0DA"}`, background: _isC(act) ? "#16a34a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all 0.18s" }}>
+                            {_isC(act) && <span style={{ color: "#fff", fontSize: 12 }}>✓</span>}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: 13.5, fontWeight: act.completed ? 600 : 500, color: act.completed ? "#9CA3AF" : "#1F2937", textDecoration: act.completed ? "line-through" : "none" }}>
+                            <span style={{ fontSize: 13.5, fontWeight: _isC(act) ? 600 : 500, color: _isC(act) ? "#9CA3AF" : "#1F2937", textDecoration: _isC(act) ? "line-through" : "none" }}>
                               {act.name}
                             </span>
-                            {act.completed && dateLabel && (
+                            {_isC(act) && dateLabel && (
                               <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                                 <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>Completed {dateLabel}</span>
                               </div>
                             )}
                           </div>
-                          <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: act.completed ? "rgba(22,163,74,0.10)" : "#FFF3CD", color: act.completed ? "#16a34a" : "#f59e0b" }}>
-                            {act.completed ? "Done" : "Pending"}
+                          <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: _isC(act) ? "rgba(22,163,74,0.10)" : "#FFF3CD", color: _isC(act) ? "#16a34a" : "#f59e0b" }}>
+                            {_isC(act) ? "Done" : "Pending"}
                           </span>
                           <div onClick={e => { e.stopPropagation(); navigate("/add-entry", { state: { project: p, prefill: { phase: phase.phaseName, activity: act.name } } }); }}
                             style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(108,99,255,0.08)", border: "1px solid rgba(108,99,255,0.20)", fontSize: 10, fontWeight: 800, color: "#6C63FF", cursor: "pointer", letterSpacing: 0.3 }}>
                             ADD
                           </div>
-                          {act.completed && (
+                          {_isC(act) && (
                             <div onClick={e => { e.stopPropagation(); setViewingActivity(act); }}
                               style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.20)", fontSize: 10, fontWeight: 800, color: "#16a34a", cursor: "pointer", letterSpacing: 0.3 }}>
                               VIEW
@@ -697,7 +705,7 @@ export default function ManageSitePage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
                 <span style={{ padding: "4px 10px", borderRadius: 20, background: `${_statusColor(status)}12`, fontSize: 11, fontWeight: 700, color: _statusColor(status) }}>{status}</span>
                 {phases.length > 0 && (() => {
-                  const completedKeys = new Set(phases.flatMap(ph => ph.activities?.filter(a => a.completed).map(a => a.id) || []));
+                  const completedKeys = new Set(phases.flatMap(ph => ph.activities?.filter(a => a.completed || a.isCompleted).map(a => a.id) || []));
                   let activePhase = null;
                   for (const ph of phases) {
                     if (ph.activities?.some(a => !completedKeys.has(a.id))) {
@@ -730,7 +738,7 @@ export default function ManageSitePage() {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 8, minWidth: isMobile ? "100%" : 200 }}>
               <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#4B5563" }}>Overall Completion</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#6C63FF" }}>{(progress).toFixed(1)}% ({trackerDone}/{trackerTotal || progress > 0 ? "—" : 0} activities)</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#6C63FF" }}>{(progress).toFixed(1)}% ({trackerDone}/{trackerTotal || (progress > 0 ? "—" : 0)} activities)</span>
               </div>
               <div style={{ width: "100%", height: 10, background: "#E8ECF8", borderRadius: 16, overflow: "hidden" }}>
                 <div style={{ width: `${Math.min(progress, 100)}%`, height: "100%", background: _statusColor(status), borderRadius: 16, transition: "width 0.4s ease" }} />
