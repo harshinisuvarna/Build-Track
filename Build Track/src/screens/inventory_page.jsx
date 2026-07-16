@@ -471,7 +471,8 @@ export default function InventoryPage() {
           background: colors.cardBg, borderRadius: radius.md,
           border: `1px solid #E0E5FF`, boxShadow: shadows.card,
           padding: "11px 14px", cursor: "pointer", marginBottom: 12,
-        }} onClick={() => setSelectedProjectId(null)}>
+          position: "relative",
+        }}>
           <div style={{
             width: 34, height: 34, borderRadius: 9, background: `${colors.primaryBlue}15`,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -483,6 +484,27 @@ export default function InventoryPage() {
             <div style={{ fontSize: 14, fontWeight: 800, color: colors.textPrimary }}>{projectLabel}</div>
           </div>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+          
+          <select
+            value={selectedProjectId || ""}
+            onChange={e => setSelectedProjectId(e.target.value || null)}
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: 0,
+              width: "100%",
+              height: "100%",
+              cursor: "pointer",
+              appearance: "none",
+            }}
+          >
+            <option value="">All Active Projects</option>
+            {projects.map(p => (
+              <option key={p._id || p.id} value={p._id || p.id}>
+                {p.projectName}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Search + Status + Date Filter */}
