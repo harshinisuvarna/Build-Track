@@ -48,6 +48,12 @@ const projectUpdateSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    completedTasks: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Task",
+      },
+    ],
   },
   { timestamps: true }
 );

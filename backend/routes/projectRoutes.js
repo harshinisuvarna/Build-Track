@@ -281,10 +281,30 @@ router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
 });
 
 // GET ALL PROJECTS
-router.get("/", requirePermission(VIEW_PROJECTS), async (req, res) => {
+router.get("/", protect, async (req, res) => {
   try {
     const { status, search } = req.query;
-    const query = canAccessProjectFilter(req);
+    let query = canAccessProjectFilter(req);
+    
+    // Find all projects where this user has an assigned task
+    const Task = require("../models/Task");
+    const userTasks = await Task.find({ assignedTo: req.user._id }).select("project");
+    const taskProjectIds = userTasks.map(t => t.project).filter(Boolean);
+
+    // If the user has tasks for projects, allow access to those projects
+    if (taskProjectIds.length > 0) {
+      if (query.__never) {
+        // If they had NO access previously, override with their task project IDs
+        delete query.__never;
+        query._id = { $in: taskProjectIds };
+      } else if (query._id && query._id.$in) {
+        // If they had some access, append the task project IDs
+        query._id.$in.push(...taskProjectIds);
+      }
+    } else if (query.__never) {
+      // Still no access and no tasks, return empty array
+      return res.json([]);
+    }
 
     if (status && status !== "All") query.status = status;
 
@@ -602,7 +622,7 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
 });
 
 // UPDATE PROJECT
-router.put("/:id", requirePermission(["edit_project", "manage_team"]), async (req, res) => {
+router.put("/:id", protect, async (req, res) => {
   try {
     await runUpload(req, res);
   } catch (uploadErr) {
@@ -612,8 +632,24 @@ router.put("/:id", requirePermission(["edit_project", "manage_team"]), async (re
   try {
     const body = req.body;
     console.log("PUT /projects/:id body.selectedPhases:", JSON.stringify(body.selectedPhases));
-    const existing = await Project.findOne(canManageProjectFilter(req, req.params.id));
+    
+    // Find the project first
+    const existing = await Project.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: "Project not found" });
+
+    // Verify permissions manually
+    const userPerms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+    const hasEdit = req.user.role === 'Admin' || userPerms.includes("edit_project") || userPerms.includes("manage_team") || userPerms.includes("add_entry");
+    
+    if (!hasEdit) {
+      // If no explicit edit permission, check if they have a task assigned for this project
+      // We must require mongoose for this check
+      const Task = require("../models/Task");
+      const hasTask = await Task.exists({ project: existing._id, assignedTo: req.user._id });
+      if (!hasTask) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    }
 
     const updateData = {};
 
@@ -839,14 +875,14 @@ router.post("/import-phases", memoryUpload.single("csvFile"), (req, res) => {
         name: activityName,
         isCustom: true,
         completed: false,
-        qty: parseFloat(row["Qty"]) || 0,
+        qty: parseFloat(row["Total_Qty"] ?? row["Qty"]) || 0,
         unit: row["Unit"] || "",
         materialRate: parseFloat(row["Material_Rate"]) || 0,
-        materialAmount: parseFloat(row["Material_Amount"]) || 0,
+        materialAmount: parseFloat(row["Budget_Material_Amount"] ?? row["Material_Amount"]) || 0,
         labourRate: parseFloat(row["Labour_Rate"]) || 0,
-        labourAmount: parseFloat(row["Labour_Amount"]) || 0,
+        labourAmount: parseFloat(row["Budget_Labour_Amount"] ?? row["Labour_Amount"]) || 0,
         equipmentRate: parseFloat(row["Equipment_Rate"]) || 0,
-        equipmentAmount: parseFloat(row["Equipment_Amount"]) || 0,
+        equipmentAmount: parseFloat(row["Budget_Equipment_Amount"] ?? row["Equipment_Amount"]) || 0,
         totalAmount: parseFloat(row["Total_Amount"]) || 0,
       });
     })
