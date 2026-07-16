@@ -101,6 +101,7 @@ export default function ManageSitePage() {
   const [loadingT, setLoadingT] = useState(true);
   const [expandedPhase, setExpandedPhase] = useState(null);
   const [expandedActivityBudgets, setExpandedActivityBudgets] = useState({});
+  const [viewingActivity, setViewingActivity] = useState(null);
   const [localProject, setLocalProject] = useState(project);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
@@ -144,9 +145,14 @@ export default function ManageSitePage() {
   }
 
   const p = localProject || project;
+  const phases = p.selectedPhases || [];
+  const hasNewTracker = phases.length > 0;
+  const trackerTotal = phases.reduce((s, ph) => s + (ph.activities?.length || 0), 0);
+  const trackerDone = phases.reduce((s, ph) => s + (ph.activities?.filter(a => a.completed).length || 0), 0);
+
   const projectName = p.projectName || "Untitled Project";
   const projectLoc = p.location || "—";
-  const progress = p.progress || 0;
+  const progress = hasNewTracker ? calcProgress(phases) : (p.progress || 0);
   const status = p.status || "Active";
   const st = STATUS_STYLE[status] || STATUS_STYLE.Active;
   const hasPhoto = Boolean(p.photo && String(p.photo).trim());
@@ -162,11 +168,6 @@ export default function ManageSitePage() {
   const bEq = Number(p.budgetEquipment || 0);
   const bMisc = Number(p.budgetMisc || 0);
   const hasBrk = bMat + bLab + bEq + bMisc > 0;
-
-  const phases = p.selectedPhases || [];
-  const hasNewTracker = phases.length > 0;
-  const trackerTotal = phases.reduce((s, ph) => s + (ph.activities?.length || 0), 0);
-  const trackerDone = phases.reduce((s, ph) => s + (ph.activities?.filter(a => a.completed).length || 0), 0);
 
   const selectedFeatures = p.selectedFeatures || [];
   const addl = _grp(selectedFeatures, _kAddlConfig);
@@ -440,6 +441,46 @@ export default function ManageSitePage() {
     </CollapsibleCard>
   );
 
+  const _completedDateLabel = (act) => {
+    if (!act.completedAt) return null;
+    const d = new Date(act.completedAt);
+    if (d.getFullYear() === 2000 && d.getMonth() === 0 && d.getDate() === 1) return "Date not recorded";
+    return `${d.getDate()} ${_months[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  const _spentForActivity = (actId) => {
+    const txs = transactions.filter(t => t.activity === actId || t.activityId === actId);
+    return txs.reduce((s, t) => s + Number(t.amount || 0), 0);
+  };
+
+  const [budgetDialogActivity, setBudgetDialogActivity] = useState(null);
+  const [budgetForm, setBudgetForm] = useState({ material: 0, labour: 0, equipment: 0 });
+
+  const openBudgetDialog = (act) => {
+    setBudgetForm({ material: act.budgetMaterial || 0, labour: act.budgetLabour || 0, equipment: act.budgetEquipment || 0 });
+    setBudgetDialogActivity(act);
+  };
+  const saveBudgetDialog = async () => {
+    if (!budgetDialogActivity) return;
+    const updatedPhases = phases.map(p => ({
+      ...p,
+      activities: p.activities.map(a =>
+        a.id === budgetDialogActivity.id
+          ? { ...a, budgetMaterial: Number(budgetForm.material), budgetLabour: Number(budgetForm.labour), budgetEquipment: Number(budgetForm.equipment) }
+          : a
+      ),
+    }));
+    setLocalProject(prev => ({ ...prev, selectedPhases: updatedPhases }));
+    try {
+      await projectAPI.update(projectId, { selectedPhases: updatedPhases });
+      setToast({ msg: "Budget updated successfully!", type: "success" });
+    } catch {
+      setLocalProject(prev => ({ ...prev, selectedPhases: phases }));
+      setToast({ msg: "Failed to update budget.", type: "error" });
+    }
+    setBudgetDialogActivity(null);
+  };
+
   const renderTracker = () => {
     if (!hasNewTracker) {
       return (
@@ -485,34 +526,65 @@ export default function ManageSitePage() {
                 {isExpanded && phase.activities?.map(act => {
                   const actBud = (act.budgetMaterial || 0) + (act.budgetLabour || 0) + (act.budgetEquipment || 0);
                   const isBudgetExpanded = expandedActivityBudgets[act.id];
+                  const dateLabel = _completedDateLabel(act);
+                  const spentForAct = _spentForActivity(act.id);
+                  const spentMat = transactions.filter(t => (t.activity === act.id || t.activityId === act.id) && t.type === "Materials").reduce((s, t) => s + Number(t.amount || 0), 0);
+                  const spentLab = transactions.filter(t => (t.activity === act.id || t.activityId === act.id) && (t.type === "Wages" || t.type === "Labour")).reduce((s, t) => s + Number(t.amount || 0), 0);
+                  const spentEqu = transactions.filter(t => (t.activity === act.id || t.activityId === act.id) && (t.type === "Expense" || t.type === "Equipment")).reduce((s, t) => s + Number(t.amount || 0), 0);
                   return (
                     <div key={act.id}>
-                      <div style={{ padding: "8px 16px 8px 20px", display: "flex", alignItems: "center", gap: 10, borderTop: "1px solid #F3F4F6", cursor: "pointer" }}
-                        onClick={() => setExpandedActivityBudgets(prev => ({ ...prev, [act.id]: !prev[act.id] }))}>
-                        <div onClick={e => { e.stopPropagation(); handleToggleActivity(phase.id, act.id); }}
-                          style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${act.completed ? "#16a34a" : "#CDD0DA"}`, background: act.completed ? "#16a34a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all 0.18s" }}>
-                          {act.completed && <span style={{ color: "#fff", fontSize: 12 }}>✓</span>}
-                        </div>
-                        <span style={{ flex: 1, fontSize: 13.5, fontWeight: act.completed ? 600 : 500, color: act.completed ? "#9CA3AF" : "#1F2937", textDecoration: act.completed ? "line-through" : "none" }}>
-                          {act.name}
-                        </span>
-                        <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: act.completed ? "rgba(22,163,74,0.10)" : "#FFF3CD", color: act.completed ? "#16a34a" : "#f59e0b" }}>
-                          {act.completed ? "Done" : "Pending"}
-                        </span>
-                        <span style={{ color: "#9CA3AF", fontSize: 12, transform: isBudgetExpanded ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>▾</span>
-                      </div>
-                      {isBudgetExpanded && actBud > 0 && (
-                        <div style={{ margin: "0 16px 12px", padding: 14, background: "#F7F8FC", borderRadius: 12, border: "1px solid #EEF0F6" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#1F2937" }}>Activity Budget</span>
+                      <div style={{ padding: "8px 16px 8px 20px", borderTop: "1px solid #F3F4F6" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div onClick={e => { e.stopPropagation(); handleToggleActivity(phase.id, act.id); }}
+                            style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${act.completed ? "#16a34a" : "#CDD0DA"}`, background: act.completed ? "#16a34a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all 0.18s" }}>
+                            {act.completed && <span style={{ color: "#fff", fontSize: 12 }}>✓</span>}
                           </div>
-                          {act.budgetMaterial > 0 && <BudgetRow label="Materials" allocated={act.budgetMaterial} spent={0} color="#6C63FF" />}
-                          {act.budgetLabour > 0 && <BudgetRow label="Labour" allocated={act.budgetLabour} spent={0} color="#10B981" />}
-                          {act.budgetEquipment > 0 && <BudgetRow label="Equipment" allocated={act.budgetEquipment} spent={0} color="#f59e0b" />}
-                          <div style={{ height: 1, background: "#E5E7EB", margin: "8px 0" }} />
-                          <BudgetRow label="Total Budget" allocated={actBud} spent={0} color="#7c3aed" bold />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: 13.5, fontWeight: act.completed ? 600 : 500, color: act.completed ? "#9CA3AF" : "#1F2937", textDecoration: act.completed ? "line-through" : "none" }}>
+                              {act.name}
+                            </span>
+                            {act.completed && dateLabel && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 2 }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>Completed {dateLabel}</span>
+                              </div>
+                            )}
+                          </div>
+                          <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: act.completed ? "rgba(22,163,74,0.10)" : "#FFF3CD", color: act.completed ? "#16a34a" : "#f59e0b" }}>
+                            {act.completed ? "Done" : "Pending"}
+                          </span>
+                          <div onClick={e => { e.stopPropagation(); navigate("/add-entry", { state: { project: p, prefill: { phase: phase.phaseName, activity: act.name } } }); }}
+                            style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(108,99,255,0.08)", border: "1px solid rgba(108,99,255,0.20)", fontSize: 10, fontWeight: 800, color: "#6C63FF", cursor: "pointer", letterSpacing: 0.3 }}>
+                            ADD
+                          </div>
+                          {act.completed && (
+                            <div onClick={e => { e.stopPropagation(); setViewingActivity(act); }}
+                              style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.20)", fontSize: 10, fontWeight: 800, color: "#16a34a", cursor: "pointer", letterSpacing: 0.3 }}>
+                              VIEW
+                            </div>
+                          )}
+                          <div onClick={() => setExpandedActivityBudgets(prev => ({ ...prev, [act.id]: !prev[act.id] }))} style={{ cursor: "pointer", color: "#9CA3AF", fontSize: 12, transform: isBudgetExpanded ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>▾</div>
                         </div>
-                      )}
+                        {isBudgetExpanded && (
+                          <div style={{ margin: "8px 0 4px", padding: 14, background: "#F7F8FC", borderRadius: 12, border: "1px solid #EEF0F6" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: "#1F2937" }}>Activity Budget Allocation</span>
+                              <div onClick={e => { e.stopPropagation(); openBudgetDialog(act); }}
+                                style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(108,99,255,0.10)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                <span style={{ fontSize: 9.5, fontWeight: 800, color: "#6C63FF" }}>Update Budget</span>
+                              </div>
+                            </div>
+                            <BudgetRow label="Materials" allocated={act.budgetMaterial || 0} spent={spentMat} color="#6C63FF" />
+                            <div style={{ height: 8 }} />
+                            <BudgetRow label="Labour" allocated={act.budgetLabour || 0} spent={spentLab} color="#10B981" />
+                            <div style={{ height: 8 }} />
+                            <BudgetRow label="Equipment" allocated={act.budgetEquipment || 0} spent={spentEqu} color="#f59e0b" />
+                            <div style={{ height: 1, background: "#E5E7EB", margin: "12px 0" }} />
+                            <BudgetRow label="Total Budget" allocated={actBud} spent={spentForAct} color="#7c3aed" bold />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -520,6 +592,37 @@ export default function ManageSitePage() {
             );
           })}
         </div>
+
+        {/* Budget Edit Dialog */}
+        {budgetDialogActivity && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 }} onClick={() => setBudgetDialogActivity(null)}>
+            <div style={{ background: "#fff", width: "100%", maxWidth: 420, borderRadius: "24px 24px 0 0", padding: "20px 24px 32px" }} onClick={e => e.stopPropagation()}>
+              <div style={{ width: 40, height: 4, background: "#DDE0F0", borderRadius: 16, margin: "0 auto 20px" }} />
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#1F2937", marginBottom: 4 }}>Budget Allocation: {budgetDialogActivity.name}</div>
+              <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>Allocate activity budgets under Materials, Labour, and Equipment categories.</div>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1F2937", marginBottom: 6 }}>Materials Budget (₹)</div>
+                <input value={budgetForm.material} onChange={e => setBudgetForm(f => ({ ...f, material: e.target.value }))} type="number" style={{ width: "100%", padding: "11px 14px", border: "1px solid #EEF0F5", borderRadius: 10, fontSize: 14, fontWeight: 600, background: "#F9FAFB", outline: "none" }} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1F2937", marginBottom: 6 }}>Labour Budget (₹)</div>
+                <input value={budgetForm.labour} onChange={e => setBudgetForm(f => ({ ...f, labour: e.target.value }))} type="number" style={{ width: "100%", padding: "11px 14px", border: "1px solid #EEF0F5", borderRadius: 10, fontSize: 14, fontWeight: 600, background: "#F9FAFB", outline: "none" }} />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1F2937", marginBottom: 6 }}>Equipment Budget (₹)</div>
+                <input value={budgetForm.equipment} onChange={e => setBudgetForm(f => ({ ...f, equipment: e.target.value }))} type="number" style={{ width: "100%", padding: "11px 14px", border: "1px solid #EEF0F5", borderRadius: 10, fontSize: 14, fontWeight: 600, background: "#F9FAFB", outline: "none" }} />
+              </div>
+              <button onClick={saveBudgetDialog} style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "#6C63FF", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                Save Budget Allocation
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Activity Details Bottom Sheet */}
+        {viewingActivity && (
+          <ActivityDetailSheet activity={viewingActivity} phaseName={phases.find(p => p.activities?.some(a => a.id === viewingActivity.id))?.phaseName || ""} onClose={() => setViewingActivity(null)} />
+        )}
       </CollapsibleCard>
     );
   };
@@ -739,5 +842,67 @@ function ActionBtn({ icon, label, onClick, borderColor }) {
       <span style={{ fontSize: 22 }}>{icon}</span>
       <span style={{ fontSize: 13, fontWeight: 600, color: "#4B5563" }}>{label}</span>
     </button>
+  );
+}
+
+function ActivityDetailSheet({ activity, phaseName, onClose }) {
+  const [photos, setPhotos] = useState([]);
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    setPhotos(activity.photos || (activity.photo ? [activity.photo] : []));
+    setNotes(activity.notes || "");
+  }, [activity]);
+
+  const fmtDate = (d) => {
+    if (!d) return "Completed";
+    const dt = new Date(d);
+    if (dt.getFullYear() === 2000 && dt.getMonth() === 0 && dt.getDate() === 1) return "Date not recorded";
+    const __months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${dt.getDate()} ${__months[dt.getMonth()]} ${dt.getFullYear()}`;
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
+      <div style={{ background: "#fff", width: "100%", maxWidth: 480, maxHeight: "75vh", borderRadius: "24px 24px 0 0", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+        <div style={{ overflowY: "auto", padding: "12px 20px 24px" }}>
+          <div style={{ width: 40, height: 4, background: "#DDE0F0", borderRadius: 16, margin: "0 auto 20px" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#1F2937", marginBottom: 6 }}>{activity.name}</div>
+              <span style={{ padding: "3px 10px", borderRadius: 12, background: "rgba(108,99,255,0.08)", fontSize: 11, fontWeight: 700, color: "#6C63FF" }}>{phaseName}</span>
+            </div>
+            <div onClick={onClose} style={{ cursor: "pointer", color: "#9CA3AF", fontSize: 20, lineHeight: 1 }}>✕</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Completed on {fmtDate(activity.completedAt)}</span>
+          </div>
+          {notes && notes.trim() ? (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#6C63FF", letterSpacing: 0.5, marginBottom: 8 }}>Notes & Remarks</div>
+              <div style={{ width: "100%", padding: 16, background: "#F9FAFB", borderRadius: 16, border: "1px solid #E5E7EB", fontSize: 13.5, lineHeight: 1.5, color: "#1F2937", fontWeight: 500 }}>{notes}</div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 20, padding: "24px 16px", background: "#F9FAFB", borderRadius: 16, border: "1px solid #E5E7EB", textAlign: "center" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" style={{ marginBottom: 8 }}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
+              <div style={{ fontSize: 13, color: "#9CA3AF", fontStyle: "italic" }}>No additional notes or photos recorded for this activity.</div>
+            </div>
+          )}
+          {photos.length > 0 && (
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#6C63FF", letterSpacing: 0.5, marginBottom: 8 }}>Progress Photos</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {photos.map((url, i) => (
+                  <div key={i} style={{ width: 80, height: 80, borderRadius: 12, border: "1.5px solid #EEF0FF", overflow: "hidden" }}>
+                    <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.display = "none"; }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

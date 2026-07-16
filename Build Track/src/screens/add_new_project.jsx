@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, workerAPI } from "../api";
 import { resolveImageUrl } from "../utils/imageUrl";
+import { buildDefaultPhases, addCustomPhase, addActivityToPhase } from "../utils/constructionPhases";
 
 const TOPBAR_H = 65;
 
@@ -35,13 +36,7 @@ const kitchenReqs = ["Granite Counter", "Quartz Counter", "Stainless Steel Sink"
 const electricalPlumbing = ["Concealed Wiring", "Open Wiring", "3-Phase Connection", "AC Points", "Geyser Points"];
 const terraceInterior = ["Weathering Course", "Cool Roof Paint", "Overhead Tank", "Solar Panels"];
 
-const defaultPhases = [
-  { name: "Foundation", activities: ["Site Clearance", "Excavation", "PCC Work", "Footing Reinforcement", "Column Neck Casting", "Backfilling"] },
-  { name: "Structure", activities: ["Column Reinforcement", "Beam & Slab Shuttering", "Slab Reinforcement", "Concreting", "Curing", "Brickwork"] },
-  { name: "MEP Works", activities: ["Electrical Conduiting", " plumbing Rough-in", "AC Ducting", "Fire Fighting", "Wiring & Cabling"] },
-  { name: "Finishing", activities: ["Plastering", "Flooring", "Painting", "Tile Work", "Joinery", "Wood Work", "Glass & Aluminium"] },
-  { name: "Handover", activities: ["Interior Finishes", "Cleaning", "Inspection", "Snag List", "Final Handover"] },
-];
+const defaultPhases = buildDefaultPhases();
 
 const statusChips = ["Planning", "In Progress", "On Hold", "Completed", "Cancelled"];
 
@@ -184,7 +179,9 @@ export default function NewProjectPage() {
   const [budgetMisc, setBudgetMisc] = useState("");
   const [status, setStatus] = useState("Planning");
   const [progress, setProgress] = useState(0);
-  const [phases, setPhases] = useState(defaultPhases.map(p => ({ ...p, selected: p.activities.map(() => false) })));
+  const [phases, setPhases] = useState(defaultPhases);
+  const [selectedActivityIds, setSelectedActivityIds] = useState(() => new Set());
+  const [phasesExpanded, setPhasesExpanded] = useState({});
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [removeExistingPhoto, setRemoveExistingPhoto] = useState(false);
@@ -249,11 +246,66 @@ export default function NewProjectPage() {
     setExpectedEndDate(editProject.expectedEndDate ? new Date(editProject.expectedEndDate).toISOString().split("T")[0] : "");
     setStatus(editProject.status || "Planning");
     setProgress(editProject.progress || 0);
+    if (editProject.selectedPhases) {
+      setPhases(editProject.selectedPhases);
+      const ids = new Set();
+      editProject.selectedPhases.forEach(p => p.activities.forEach(a => ids.add(a.id)));
+      setSelectedActivityIds(ids);
+    }
     if (editProject.photo) {
       setPhotoPreview(resolveImageUrl(editProject.photo));
       setRemoveExistingPhoto(false);
     }
   }, [isEditMode]);
+
+  const allActivityIds = useMemo(() => {
+    const ids = new Set();
+    phases.forEach(p => p.activities.forEach(a => ids.add(a.id)));
+    return ids;
+  }, [phases]);
+
+  const toggleActivitySelection = (activityId) => {
+    setSelectedActivityIds(prev => {
+      const next = new Set(prev);
+      if (next.has(activityId)) next.delete(activityId); else next.add(activityId);
+      return next;
+    });
+  };
+
+  const togglePhaseSelection = (phaseId) => {
+    const phase = phases.find(p => p.id === phaseId);
+    if (!phase) return;
+    const actIds = phase.activities.map(a => a.id);
+    const allSelected = actIds.every(id => selectedActivityIds.has(id));
+    setSelectedActivityIds(prev => {
+      const next = new Set(prev);
+      actIds.forEach(id => { if (allSelected) next.delete(id); else next.add(id); });
+      return next;
+    });
+  };
+
+  const selectAllPhases = () => {
+    setSelectedActivityIds(new Set(allActivityIds));
+  };
+
+  const clearAllPhases = () => {
+    setSelectedActivityIds(new Set());
+  };
+
+  const selectedCount = selectedActivityIds.size;
+  const totalCount = allActivityIds.size;
+
+  const handleAddCustomPhase = () => {
+    const name = prompt("Enter custom phase name:");
+    if (!name || !name.trim()) return;
+    setPhases(prev => addCustomPhase(prev, name.trim()));
+  };
+
+  const handleAddCustomActivity = (phaseId) => {
+    const name = prompt("Enter custom activity name:");
+    if (!name || !name.trim()) return;
+    setPhases(prev => addActivityToPhase(prev, phaseId, name.trim()));
+  };
 
   const handlePhotoFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -315,6 +367,13 @@ export default function NewProjectPage() {
     fd.append("status", status);
     fd.append("progress", progress);
     if (photoFile) fd.append("photo", photoFile);
+    const filteredPhases = phases
+      .map(p => ({
+        ...p,
+        activities: p.activities.filter(a => selectedActivityIds.has(a.id)),
+      }))
+      .filter(p => p.activities.length > 0);
+    fd.append("selectedPhases", JSON.stringify(filteredPhases));
 
     try {
       setSaving(true);
@@ -588,24 +647,61 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* ── M. CSV IMPORT/EXPORT ── */}
-          <Accordion title="CSV Import / Export" icon="📄">
-            <div style={{ background: "#F0FDF4", borderRadius: 12, padding: "16px", border: "1px solid #BBF7D0", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 20, color: "#10B981" }}>📄</span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#166534" }}>Phases & Budget Configuration</div>
-                  <div style={{ fontSize: 12, color: "#4B7B5A", marginTop: 2 }}>Upload a CSV to auto-populate phases, activities, and budget estimates</div>
-                </div>
+          {/* ── M. CONSTRUCTION PHASES ── */}
+          <Accordion title="Construction Phases" icon="🏗️" defaultOpen>
+            <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #EEF0F5", padding: "14px 16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.02)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: "#1F2937", letterSpacing: 0.5 }}>CONSTRUCTION PHASES</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#6C63FF", cursor: "pointer" }} onClick={selectAllPhases}>Select All</span>
+                <span style={{ fontSize: 12, color: "#9CA3AF" }}>|</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF", cursor: "pointer" }} onClick={clearAllPhases}>Clear</span>
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button style={{ padding: "8px 16px", background: "#fff", border: "1px solid #86EFAC", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#166534", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                  📥 Template
-                </button>
-                <button style={{ padding: "8px 16px", background: "#10B981", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                  📤 Upload CSV
-                </button>
-              </div>
+              <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>Select phases and activities required.</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#6C63FF", marginTop: 6 }}>{selectedCount} of {totalCount} activities selected</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {phases.map((phase, idx) => {
+                const actIds = phase.activities.map(a => a.id);
+                const allSel = actIds.every(id => selectedActivityIds.has(id));
+                const someSel = actIds.some(id => selectedActivityIds.has(id));
+                const isExpanded = phasesExpanded[phase.id] !== false;
+                return (
+                  <div key={phase.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #EEF0F5", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.02)" }}>
+                    <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", gap: 10 }}>
+                      <div onClick={() => togglePhaseSelection(phase.id)}
+                        style={{ width: 22, height: 22, borderRadius: 6, border: `1.5px solid ${allSel ? "#6C63FF" : "#CDD0DA"}`, background: allSel ? "#6C63FF" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all 0.15s" }}>
+                        {allSel && <span style={{ color: "#fff", fontSize: 12 }}>✓</span>}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#1F2937" }}>{phase.phaseName}</div>
+                      </div>
+                      <div onClick={() => setPhasesExpanded(prev => ({ ...prev, [phase.id]: !isExpanded }))} style={{ cursor: "pointer", color: "#9CA3AF", fontSize: 18, transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>▾</div>
+                    </div>
+                    {isExpanded && (
+                      <div style={{ borderTop: "1px solid #EEF0F5" }}>
+                        {phase.activities.map(act => {
+                          const isSel = selectedActivityIds.has(act.id);
+                          return (
+                            <div key={act.id} onClick={() => toggleActivitySelection(act.id)}
+                              style={{ display: "flex", alignItems: "center", padding: "10px 16px 10px 20px", gap: 10, cursor: "pointer", borderTop: "1px solid #F3F4F6" }}>
+                              <div style={{ width: 20, height: 20, borderRadius: 4, border: `1.5px solid ${isSel ? "#6C63FF" : "#CDD0DA"}`, background: isSel ? "#6C63FF" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+                                {isSel && <span style={{ color: "#fff", fontSize: 11 }}>✓</span>}
+                              </div>
+                              <span style={{ flex: 1, fontSize: 14, fontWeight: isSel ? 500 : 400, color: isSel ? "#1F2937" : "#6B7280" }}>{act.name}</span>
+                            </div>
+                          );
+                        })}
+                        <div onClick={() => handleAddCustomActivity(phase.id)} style={{ padding: "8px 16px 12px 20px", cursor: "pointer" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#6C63FF" }}>+ Add Custom Activity</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div onClick={handleAddCustomPhase} style={{ marginTop: 12, cursor: "pointer", padding: "4px 0" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#6C63FF" }}>+ Add Custom Phase</span>
             </div>
           </Accordion>
 

@@ -63,6 +63,7 @@ export default function VoiceAssistantPage() {
   const [processingStage, setProcessingStage] = useState(0);
 
   const processTimerRef = useRef(null);
+  const autoResetTimerRef = useRef(null);
 
   // --- Speech Recognition Hook ---
   const {
@@ -104,6 +105,7 @@ export default function VoiceAssistantPage() {
   useEffect(() => {
     return () => {
       if (processTimerRef.current) clearInterval(processTimerRef.current);
+      if (autoResetTimerRef.current) clearTimeout(autoResetTimerRef.current);
     };
   }, []);
 
@@ -261,6 +263,9 @@ export default function VoiceAssistantPage() {
       setSavedEntryId(data?.transaction?._id || data?._id || null);
       setStatus(STATUS.completed);
       fetchRecentEntries();
+      autoResetTimerRef.current = setTimeout(() => {
+        resetAll();
+      }, 2000);
     } catch (err) {
       setSaveError(err.response?.data?.message || 'Failed to save entry');
       setStatus(STATUS.summary);
@@ -281,6 +286,10 @@ export default function VoiceAssistantPage() {
 
   // --- Reset for new entry ---
   const resetAll = useCallback(() => {
+    if (autoResetTimerRef.current) {
+      clearTimeout(autoResetTimerRef.current);
+      autoResetTimerRef.current = null;
+    }
     resetSpeech();
     setParsedData(null);
     setTranscript('');
