@@ -55,6 +55,55 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   return qty * rt;
 };
 
+// Normalize unit values from frontend display names to backend enum values
+const UNIT_MAP = {
+  bags: "bag", bag: "bag",
+  kg: "kg", kgs: "kg",
+  tons: "ton", ton: "ton", mt: "MT",
+  sqft: "sqft", "sq ft": "sqft", "square feet": "sqft",
+  sqm: "sqm", "sq m": "sqm", "square meter": "sqm",
+  rft: "rft", "running feet": "rft",
+  days: "day", day: "day", "per day": "day",
+  hours: "hour", hour: "hour",
+  nos: "unit", unit: "unit", units: "unit", pcs: "unit", pieces: "unit",
+  ltrs: "ltr", ltr: "ltr", litre: "ltr", litres: "ltr", liter: "ltr", liters: "ltr",
+  truck: "truck", trucks: "truck", trips: "truck", load: "truck",
+  cft: "sqft", cum: "sqm",
+};
+
+const VALID_UNITS = ["kg", "bag", "sqft", "sqm", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""];
+
+const normalizeUnit = (raw) => {
+  if (!raw) return "unit";
+  const key = String(raw).toLowerCase().trim();
+  if (UNIT_MAP[key]) return UNIT_MAP[key];
+  // Check if already a valid enum value
+  if (VALID_UNITS.includes(raw)) return raw;
+  return "unit";
+};
+
+// Normalize paymentMode from frontend (lowercase) to backend enum (title-case)
+const PAYMENT_MODE_MAP = {
+  cash: "Cash",
+  bank: "Bank",
+  "bank transfer": "Bank Transfer",
+  upi: "UPI",
+  cheque: "Cheque", check: "Cheque",
+  neft: "Bank Transfer", rtgs: "Bank Transfer",
+  online: "UPI",
+};
+
+const VALID_PAYMENT_MODES = ["Cash", "Bank", "Bank Transfer", "UPI", "Cheque", ""];
+
+const normalizePaymentMode = (raw) => {
+  if (!raw) return "Cash";
+  const key = String(raw).toLowerCase().trim();
+  if (PAYMENT_MODE_MAP[key]) return PAYMENT_MODE_MAP[key];
+  // Check if already a valid enum value
+  if (VALID_PAYMENT_MODES.includes(raw)) return raw;
+  return "Cash";
+};
+
 /// =======================================================
 /// FILE UPLOADS
 /// =======================================================
@@ -120,9 +169,12 @@ async function applyInventoryDelta(
   category,
   unit,
   delta,
+  transactionType,
   session
 ) {
   if (!delta || !category || !projectId) return;
+
+  const invCategory = transactionType === "Wages" ? "labour" : transactionType === "Expense" ? "equipment" : "material";
 
   // ── PURCHASE (delta > 0) ─────────────────────────────────────────────────
   if (delta > 0) {
@@ -139,6 +191,7 @@ async function applyInventoryDelta(
         },
         $setOnInsert: {
           unit: unit || "",
+          category: invCategory,
         },
       },
       {
@@ -554,7 +607,7 @@ if (req.body.paymentReceipt) {
             normalizedMaterialType,
 
           unit:
-            unit || "unit",
+            normalizeUnit(unit),
 
           quantity: qty,
 
@@ -576,7 +629,7 @@ if (req.body.paymentReceipt) {
             "Pending",
 
           paymentMode:
-            paymentMode || "Cash",
+            normalizePaymentMode(paymentMode),
 
           paymentDate,
 
@@ -593,7 +646,7 @@ if (req.body.paymentReceipt) {
 
           paymentHistory: paidAmt > 0 ? [{
             date: paymentDate || date || new Date(),
-            method: paymentMode || "Cash",
+            method: normalizePaymentMode(paymentMode),
             amount: paidAmt,
             note: notes || "Initial payment on creation",
             receipt: paymentReceiptUrl || undefined,
@@ -608,16 +661,16 @@ if (req.body.paymentReceipt) {
 
     // FIX: pass adminId (org admin) AND projectId to applyInventoryDelta
     // so inventory is scoped to { adminId, projectId, materialName }
-    if (type === "Materials" && qty > 0 && projectId && txApprovalStatus === "Approved") {
-      const inventoryDelta =
-        normalizedMaterialType === "usage" ? -qty : qty;
+    if ((type === "Materials" || type === "Wages" || type === "Expense") && qty > 0 && projectId && txApprovalStatus === "Approved") {
+      const inventoryDelta = (type === "Materials" && normalizedMaterialType === "usage") ? -qty : qty;
 
       await applyInventoryDelta(
         adminId,      // organisation's admin (owns inventory records)
         projectId,    // FIX: scope inventory to this specific project
-        resolvedCategory,
+        resolvedCategory || title,
         unit,
         inventoryDelta,
+        type,
         session
       );
     }
@@ -752,15 +805,16 @@ router.put("/:id", async (req, res) => {
     });
 
     // Reverse old inventory (using old project scope)
-    if (tx.type === "Materials" && tx.quantity > 0 && tx.approvalStatus === "Approved") {
+    if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
       const oldType = normalizeMaterialType(tx.materialType, tx.subType);
-      const reverseDelta = oldType === "usage" ? tx.quantity : -tx.quantity;
+      const reverseDelta = (tx.type === "Materials" && oldType === "usage") ? tx.quantity : -tx.quantity;
       await applyInventoryDelta(
         adminId,
         tx.project,   // use the OLD project for reversal
-        tx.category,
+        tx.category || tx.title,
         tx.unit,
         reverseDelta,
+        tx.type,
         session
       );
     }
@@ -771,14 +825,15 @@ router.put("/:id", async (req, res) => {
       ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
       : "";
 
-    if (newType === "Materials" && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
-      const newDelta = newMaterialType === "usage" ? -newQty : newQty;
+    if ((newType === "Materials" || newType === "Wages" || newType === "Expense") && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
+      const newDelta = (newType === "Materials" && newMaterialType === "usage") ? -newQty : newQty;
       await applyInventoryDelta(
         adminId,
         projectId,    // use the NEW project for application
-        category || tx.category,
+        category || tx.category || title || tx.title,
         unit || tx.unit,
         newDelta,
+        newType,
         session
       );
     }
@@ -887,7 +942,7 @@ router.put("/:id", async (req, res) => {
       paymentMode !== undefined
     ) {
       tx.paymentMode =
-        paymentMode;
+        normalizePaymentMode(paymentMode);
     }
 
     if (
@@ -903,7 +958,7 @@ router.put("/:id", async (req, res) => {
       if (delta > 0) {
         tx.paymentHistory.push({
           date: paymentDate || new Date(),
-          method: paymentMode || tx.paymentMode || "Cash",
+          method: normalizePaymentMode(paymentMode || tx.paymentMode),
           amount: delta,
           note: remarks || notes || "Additional payment",
           receipt: newPaymentReceiptUrl || undefined,
@@ -980,17 +1035,18 @@ router.delete("/:id", async (req, res) => {
     await Transaction.deleteOne({ _id: tx._id }).session(session);
 
     // Reverse inventory on delete
-    if (tx.type === "Materials" && tx.quantity > 0 && tx.approvalStatus === "Approved") {
+    if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
       const adminId = await getAdminId(req.user);
       const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
-      const reverseDelta = txMaterialType === "usage" ? tx.quantity : -tx.quantity;
+      const reverseDelta = (tx.type === "Materials" && txMaterialType === "usage") ? tx.quantity : -tx.quantity;
 
       await applyInventoryDelta(
         adminId,
         tx.project,   // FIX: scope to the transaction's project
-        tx.category,
+        tx.category || tx.title,
         tx.unit,
         reverseDelta,
+        tx.type,
         session
       );
     }
@@ -1035,16 +1091,17 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries",
     const adminId = await getAdminId(req.user);
 
     // Apply inventory since it's now approved
-    if (tx.type === "Materials" && tx.quantity > 0 && tx.project) {
+    if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.project) {
       const materialType = normalizeMaterialType(tx.materialType, tx.subType);
-      const inventoryDelta = materialType === "usage" ? -tx.quantity : tx.quantity;
+      const inventoryDelta = (tx.type === "Materials" && materialType === "usage") ? -tx.quantity : tx.quantity;
 
       await applyInventoryDelta(
         adminId,
         tx.project,
-        tx.category,
+        tx.category || tx.title,
         tx.unit,
         inventoryDelta,
+        tx.type,
         session
       );
     }
@@ -1194,22 +1251,22 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         type, worker: workerId || null, project: projectId,
         date: date || new Date(), notes, category: resolvedCategory, brand, supplier,
         gst, isWithGst, subType, materialType: normalizedMaterialType,
-        unit: unit || "unit", quantity: qty, rate: rt, overtime: ot, amount: finalAmount,
+        unit: normalizeUnit(unit), quantity: qty, rate: rt, overtime: ot, amount: finalAmount,
         floor, floorId, phase, phaseId, activity, activityId,
-        paymentStatus: paymentStatus || "Pending", paymentMode: paymentMode || "Cash",
+        paymentStatus: paymentStatus || "Pending", paymentMode: normalizePaymentMode(paymentMode),
         paymentDate, paidAmount: paidAmt, remarks,
         paymentHistory: paidAmt > 0 ? [{
           date: paymentDate || date || new Date(),
-          method: paymentMode || "Cash", amount: paidAmt, note: notes || "Initial payment on bulk creation"
+          method: normalizePaymentMode(paymentMode), amount: paidAmt, note: notes || "Initial payment on bulk creation"
         }] : [],
         approvalStatus: txApprovalStatus, approvedBy, approvedAt
       });
 
       await transaction.save({ session });
 
-      if (type === "Materials" && qty > 0 && projectId && txApprovalStatus === "Approved") {
-        const inventoryDelta = normalizedMaterialType === "usage" ? -qty : qty;
-        await applyInventoryDelta(adminId, projectId, resolvedCategory, unit, inventoryDelta, session);
+      if ((type === "Materials" || type === "Wages" || type === "Expense") && qty > 0 && projectId && txApprovalStatus === "Approved") {
+        const inventoryDelta = (type === "Materials" && normalizedMaterialType === "usage") ? -qty : qty;
+        await applyInventoryDelta(adminId, projectId, resolvedCategory || title, unit, inventoryDelta, type, session);
       }
 
       // Update Phase budget reflection

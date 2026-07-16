@@ -1,275 +1,379 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { dashboardAPI, transactionAPI } from "../api";
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { colors, radius, typography } from '../styles/designTokens';
+import { Card, Badge, Button, SkeletonCard } from '../components/ui';
+import { dashboardAPI, transactionAPI, projectAPI, workerAPI } from '../api';
+import { Shield, TrendingUp, CheckCircle, AlertTriangle, HelpCircle, Activity, LayoutGrid, Calendar, ChevronRight } from 'lucide-react';
 
-const TOPBAR_H = 65;
+function formatCurrency(amount) {
+  return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function relativeTime(dateStr) {
+  if (!dateStr) return '';
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diff = now - d;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+const typeConfig = {
+  Materials: { icon: '📦', bg: '#ECEBFF', color: '#6C63FF', label: 'Materials' },
+  Wages: { icon: '👷', bg: '#F0FDF4', color: '#15803D', label: 'Labour' },
+  Expense: { icon: '🏗️', bg: '#FFF7ED', color: '#C2410C', label: 'Equipment' },
+  Income: { icon: '💰', bg: '#F3E8FF', color: '#7C3AED', label: 'Income' },
+};
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [dashData,  setDashData]  = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState("");
-  const [isNarrow,  setIsNarrow]  = useState(window.innerWidth < 640);
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'supervisor';
 
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [dashData, setDashData] = useState(null);
+  const [workers, setWorkers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const onResize = () => setIsNarrow(window.innerWidth < 640);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
     Promise.all([
-      dashboardAPI.getSummary(),
-      transactionAPI.getAll(),
-    ])
-      .then(([dashRes, txRes]) => {
-        if (!isMounted) return;
-        setDashData(dashRes.data);
-        setTransactions(txRes.data.transactions || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setError("Failed to load dashboard data");
-        setLoading(false);
-      });
-
-    return () => { isMounted = false; };
+      projectAPI.getAll().catch(() => ({ data: { projects: [] } })),
+      dashboardAPI.getSummary().catch(() => ({ data: null })),
+      transactionAPI.getAll({ limit: 10 }).catch(() => ({ data: { transactions: [] } })),
+      workerAPI.getAll().catch(() => ({ data: { workers: [] } })),
+    ]).then(([projRes, dashRes, txRes, workerRes]) => {
+      const projList = projRes.data?.projects || projRes.data || [];
+      setProjects(projList);
+      if (projList.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(projList[0]._id || projList[0].id);
+      }
+      setDashData(dashRes.data);
+      const txList = txRes.data?.transactions || txRes.data || [];
+      setTransactions(Array.isArray(txList) ? txList : []);
+      setWorkers(workerRes.data?.workers || workerRes.data || []);
+    }).finally(() => setLoading(false));
   }, []);
+
+  const selectedProject = projects.find((p) => (p._id || p.id) === selectedProjectId);
+  const projectTransactions = useMemo(() =>
+    transactions.filter((t) => {
+      const pid = t.project?._id || t.project?.id || t.project;
+      return !selectedProjectId || pid === selectedProjectId;
+    }).sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)),
+    [transactions, selectedProjectId]
+  );
+  const recentEntries = projectTransactions.slice(0, 5);
+
+  const totalCost = projectTransactions
+    .filter((t) => t.type !== 'Income')
+    .reduce((s, t) => s + Math.abs(Number(t.amount || t.totalAmount || 0)), 0);
+  const totalRevenue = projectTransactions
+    .filter((t) => t.type === 'Income')
+    .reduce((s, t) => s + Math.abs(Number(t.amount || t.totalAmount || 0)), 0);
+  const netCashflow = totalRevenue - totalCost;
+  const budget = Number(selectedProject?.totalBudget || selectedProject?.budget || 0);
+  const progress = Number(selectedProject?.progress || 0) / 100;
+
+
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#888" }}>
-        Loading Dashboard...
+      <div style={{ padding: '24px 28px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          {[1,2,3,4].map((i) => <SkeletonCard key={i} />)}
+        </div>
+        <SkeletonCard />
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div style={{ padding: 40, color: "#dc2626", textAlign: "center" }}>
-        <h3>Error</h3>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()} style={{ padding: "8px 16px", borderRadius: 8, background: "#ea580c", color: "#fff", border: "none", cursor: "pointer" }}>Retry</button>
-      </div>
-    );
-  }
-
-  const { weeklyChart, recentProjects, recentActivity } = dashData;
-  const s = dashData.stats;
-
-  const totalIncome = transactions
-    .filter(t => t.type === "Income")
-    .reduce((sum, t) => sum + (t.amount || 0), 0);
-
-  const totalExpenses = transactions
-    .filter(t => t.type === "Expense" || t.type === "Materials" || t.type === "Wages")
-    .reduce((sum, t) => sum + (t.amount || 0), 0);
-
-  const materialsSpend = transactions
-    .filter(t => t.type === "Materials")
-    .reduce((sum, t) => sum + (t.amount || 0), 0);
-
-  const netProfit = totalIncome - totalExpenses;
-
-  const income   = transactions.length ? totalIncome   : (s.totalIncome   || 0);
-  const expenses = transactions.length ? totalExpenses : (s.totalExpenses || 0);
-  const profit   = transactions.length ? netProfit     : (s.netProfit     || 0);
-
-  const statCards = [
-    { label: "Total Income",    value: `₹${income.toLocaleString("en-IN")}`,            change: "Real-time",        up: true,  icon: "📈", bg: "#f0fdf4" },
-    { label: "Expenses",        value: `₹${expenses.toLocaleString("en-IN")}`,           change: "Real-time",        up: false, icon: "📉", bg: "#fff5f5" },
-    { label: "Net Profit",      value: `₹${Math.abs(profit).toLocaleString("en-IN")}`,   change: profit >= 0 ? "Profit" : "Loss", up: profit >= 0, icon: "💳", bg: "#fff7ed" },
-    { label: "Active Workers",  value: (s.activeWorkers || 0).toString(),                change: "Currently Active", up: true,  icon: "👥", bg: "#f5f3ff" },
-  ];
-
-  const showMaterials = materialsSpend > 0;
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column",
-      minHeight: "100vh",
-      flex: 1, minWidth: 0, width: "100%",
-    }}>
-
-      {/* ── Topbar ── */}
-      <div style={{
-        height: TOPBAR_H, flexShrink: 0,
-        background: "#fff", borderBottom: "1px solid #ebebeb",
-        padding: "0 24px", display: "flex", alignItems: "center",
-        justifyContent: "space-between", gap: 12, overflow: "hidden",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: "clamp(16px,2vw,20px)", fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap" }}>
-            Dashboard Overview
-          </h1>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer" }}>🔔</div>
-          <div style={{ width: 36, height: 36, background: "#f5f5f5", border: "2px solid #e5e5e5", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#888", cursor: "pointer" }}>?</div>
-        </div>
-      </div>
-
-      {/* ── Scrollable content ── */}
-      <div style={{
-        flex: 1,
-        minHeight: 0,
-        overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch",
-        padding: "clamp(16px,2.5vw,28px) clamp(16px,3vw,28px) 60px",
-        display: "flex", flexDirection: "column", gap: "clamp(14px,2vw,22px)", boxSizing: "border-box",
-      }}>
-
-        {/* Page heading */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+    <div style={{ padding: '32px 40px', maxWidth: 1240, margin: '0 auto' }}>
+      
+      {/* Header Row resembling Nurofin */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: '10px',
+            background: 'rgba(67, 97, 238, 0.1)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Shield size={20} color="#6C63FF" />
+          </div>
           <div>
-            <h2 style={{ margin: "0 0 4px", fontSize: "clamp(20px,2.5vw,28px)", fontWeight: 800, color: "#1a1a1a", letterSpacing: "-0.5px" }}>
+            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1F2937', letterSpacing: '-0.5px', margin: 0 }}>
               Dashboard Overview
-            </h2>
-            <p style={{ margin: 0, fontSize: "clamp(12px,1.2vw,14px)", color: "#888" }}>
-              Welcome back, {(() => { try { return JSON.parse(localStorage.getItem("bt_user"))?.name?.split(" ")[0] || "there"; } catch { return "there"; } })()}. Here's what's happening today.
+            </h1>
+            <p style={{ fontSize: 13.5, color: '#6B7280', margin: '3px 0 0' }}>
+              Welcome back, {user?.name || 'harshini'}
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              onClick={() => navigate("/newworker")}
-              style={{ padding: "10px 18px", background: "#fff", color: "#555", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "background 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f5f5f5"}
-              onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-              👥 Workers
-            </button>
-            <button
-              onClick={() => navigate("/newproject")}
-              style={{ padding: "10px 20px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 14px rgba(234,88,12,0.35)", transition: "all 0.2s" }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#c2410c"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#ea580c"; e.currentTarget.style.transform = "translateY(0)"; }}>
-              + New Project
-            </button>
-          </div>
         </div>
 
-        {/* Stat cards */}
-        <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr 1fr" : "repeat(4,1fr)", gap: "clamp(10px,1.5vw,16px)" }}>
-          {statCards.map(card => (
-            <div
-              key={card.label}
-              style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(14px,2vw,20px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", gap: 10, transition: "transform 0.2s,box-shadow 0.2s" }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.09)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)";    e.currentTarget.style.boxShadow = "0 1px 8px rgba(0,0,0,0.05)"; }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "clamp(11px,1.1vw,13px)", color: "#777", fontWeight: 600 }}>{card.label}</span>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{card.icon}</div>
-              </div>
-              <div style={{ fontSize: "clamp(20px,2.5vw,28px)", fontWeight: 800, color: card.label === "Net Profit" && profit < 0 ? "#dc2626" : "#1a1a1a", letterSpacing: "-0.5px" }}>
-                {card.label === "Net Profit" && profit < 0 ? "−" : ""}{card.value}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: "clamp(10px,1vw,12px)", fontWeight: 700, color: card.up ? "#16a34a" : "#dc2626", background: card.up ? "#f0fdf4" : "#fff5f5", padding: "2px 8px", borderRadius: 20 }}>
-                  {card.up ? "▲" : "▼"} {card.change}
-                </span>
-                <span style={{ fontSize: "clamp(10px,1vw,12px)", color: "#aaa" }}>info</span>
-              </div>
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            onClick={() => navigate('/notifications')}
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              border: '1px solid #E7E8F5', background: '#FFFFFF',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#4B5563', boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+            }}
+          >
+            🔔
+          </button>
+          <button
+            onClick={() => navigate('/settings')}
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              border: '1px solid #E7E8F5', background: '#FFFFFF',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+            }}
+          >
+            👤
+          </button>
         </div>
-        {/* Chart */}
-        <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", padding: "clamp(16px,2vw,24px)", border: "1px solid #ebebeb", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-            <div>
-              <div style={{ fontSize: "clamp(14px,1.4vw,16px)", fontWeight: 700, color: "#1a1a1a" }}>Weekly Performance</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 3 }}>Revenue vs Expenses — Last 7 Days</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "clamp(18px,2vw,22px)", fontWeight: 800, color: "#ea580c" }}>₹{income.toLocaleString("en-IN")}</div>
-              <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>Current Period Data</div>
-            </div>
+      </div>
+
+      {/* Project Selector & Progress Card row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20, marginBottom: 24 }}>
+        {/* Project Selector */}
+        <Card padding="20px 24px">
+          <div style={{ fontSize: 10, fontWeight: 800, color: '#9CA3AF', letterSpacing: '1px', marginBottom: 10, textTransform: 'uppercase' }}>
+            ACTIVE PROJECT
           </div>
-          <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
-            {[["Revenue", "#ea580c"], ["Expenses", "#6366f1"]].map(([l, c]) => (
-              <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
-                <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>{l}</span>
-              </div>
+          <select
+            value={selectedProjectId || ''}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            style={{
+              width: '100%', padding: '12px 14px', fontSize: 14,
+              borderRadius: radius.md, border: '1.5px solid #E7E8F5',
+              fontFamily: typography.fontFamily, fontWeight: 700,
+              color: '#1F2937', background: '#FFFFFF',
+              cursor: 'pointer', outline: 'none',
+            }}
+          >
+            {projects.length === 0 && <option value="">No projects active</option>}
+            {projects.map((p) => (
+              <option key={p._id || p.id} value={p._id || p.id}>
+                {p.projectName || p.name}
+              </option>
             ))}
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={weeklyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#ea580c" stopOpacity={0.22} />
-                  <stop offset="95%" stopColor="#ea580c" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#bbb", fontSize: 11 }} />
-              <YAxis hide />
-              <Tooltip
-                contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", fontSize: 12 }}
-                formatter={(v, name) => [`₹${v.toLocaleString("en-IN")}`, name === "revenue" ? "Revenue" : "Expenses"]}
-              />
-              <Area type="monotone" dataKey="revenue"  stroke="#ea580c" strokeWidth={2.5} fill="url(#gRev)" dot={false} />
-              <Area type="monotone" dataKey="expenses" stroke="#6366f1" strokeWidth={2}   fill="url(#gExp)" dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Recent Transaction Activity */}
-        <div style={{ background: "#fff", borderRadius: "clamp(12px,1.5vw,16px)", border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
-          <div style={{ padding: "clamp(14px,2vw,20px)", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "clamp(14px,1.4vw,16px)", color: "#1a1a1a" }}>Recent Transaction Activity</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{recentActivity.length} recent transactions</div>
+          </select>
+          {selectedProject && (
+            <div style={{ marginTop: 14, display: 'flex', gap: 16, fontSize: 13, color: '#6B7280', alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>📍 {selectedProject.location || selectedProject.city || 'surathkal'}</span>
+              <Badge variant={selectedProject.status === 'Active' ? 'success' : selectedProject.status === 'On Hold' ? 'warning' : 'info'}>
+                {selectedProject.status || 'Active'}
+              </Badge>
             </div>
-            <span
-              onClick={() => navigate("/transaction")}
-              style={{ fontSize: 13, color: "#ea580c", fontWeight: 700, cursor: "pointer", padding: "6px 14px", background: "#fff5f0", borderRadius: 8, transition: "background 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#fde8d8"}
-              onMouseLeave={e => e.currentTarget.style.background = "#fff5f0"}>
-              View all →
+          )}
+        </Card>
+
+        {/* Progress Card */}
+        <Card padding="20px 24px">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{
+              padding: '3px 10px', borderRadius: 20,
+              background: 'rgba(67, 97, 238, 0.08)',
+              fontSize: 10, fontWeight: 800, color: '#6C63FF',
+              letterSpacing: '0.8px', display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <TrendingUp size={12} /> OVERALL PROGRESS
+            </div>
+            {selectedProject?.city && (
+              <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
+                📍 {selectedProject.city}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+            <span style={{ fontSize: 34, fontWeight: 900, color: '#1F2937', letterSpacing: '-1.5px' }}>
+              {(progress * 100).toFixed(1)}%
+            </span>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 14.5, fontWeight: 800, color: '#1F2937' }}>
+                {selectedProject?.projectName || selectedProject?.name || 'House construction'}
+              </div>
+              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>Current Milestone</div>
+            </div>
+          </div>
+          <div style={{ height: 8, background: '#EEF2FF', borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 4,
+              background: 'linear-gradient(90deg, #6C63FF 0%, #8B83FF 100%)',
+              width: `${(progress * 100).toFixed(1)}%`,
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600 }}>
+            <span style={{ color: '#6B7280' }}>Progress status</span>
+            <span style={{ color: '#8B83FF', fontWeight: 800 }}>
+              {(progress * 100).toFixed(0)}% Completed
             </span>
           </div>
+        </Card>
+      </div>
 
-          <div style={{ padding: "4px clamp(14px,2vw,20px) 8px" }}>
-            {recentActivity.map((a, i) => (
-              <div
-                key={i}
-                onClick={() => navigate("/transaction")}
-                style={{
-                  display: "flex", alignItems: "flex-start", gap: 12,
-                  padding: "12px 0",
-                  borderBottom: i < recentActivity.length - 1 ? "1px solid #f5f5f5" : "none",
-                  cursor: "pointer",
-                }}>
+      {/* KPI Cards styled exactly like Nurofin */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        {[
+          { label: 'TOTAL COST', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', alert: totalCost > budget * 0.9, icon: '⏱️', bg: 'rgba(67,97,238,0.08)', color: '#6C63FF' },
+          { label: 'BUDGET', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: '💼', bg: 'rgba(123,94,167,0.08)', color: '#8B83FF' },
+          { label: 'TOTAL REVENUE', value: formatCurrency(totalRevenue), subtitle: 'Cash Inflow', icon: '✅', bg: 'rgba(21,128,61,0.08)', color: '#15803D' },
+          { label: 'NET CASH FLOW', value: formatCurrency(Math.abs(netCashflow)), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', alert: netCashflow < 0, icon: '🚨', bg: 'rgba(239,68,68,0.08)', color: '#EF4444' },
+        ].map((kpi) => (
+          <Card key={kpi.label} padding="16px 20px" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: '12px',
+              background: kpi.bg, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: kpi.color, flexShrink: 0
+            }}>
+              {kpi.icon}
+            </div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: kpi.alert ? colors.error : '#1F2937', letterSpacing: '-0.5px' }}>
+                {kpi.value}
+              </div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', marginTop: 1 }}>
+                {kpi.label}
+              </div>
+              <div style={{ fontSize: 11, color: kpi.alert ? colors.error : '#6B7280', fontWeight: 600, marginTop: 2 }}>
+                {kpi.subtitle}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div style={{ marginBottom: 24 }}>
+        <Card padding="20px 24px">
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', marginBottom: 16, textTransform: 'uppercase' }}>
+            Quick Actions
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <button onClick={() => navigate('/add-entry')} style={{
+              padding: '16px', borderRadius: radius.md,
+              border: '1.5px solid #E7E8F5', background: '#EEF2FF',
+              cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#6C63FF'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <div style={{ fontSize: 24, marginBottom: 6 }}>📦</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#6C63FF' }}>Add Entry</div>
+            </button>
+            <button onClick={() => navigate('/manualentry')} style={{
+              padding: '16px', borderRadius: radius.md,
+              border: '1.5px solid #E7E8F5', background: '#F0FDF4',
+              cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#15803D'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <div style={{ fontSize: 24, marginBottom: 6 }}>✍️</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#15803D' }}>Manual Entry</div>
+            </button>
+            <button onClick={() => navigate('/projects')} style={{
+              padding: '16px', borderRadius: radius.md,
+              border: '1.5px solid #E7E8F5', background: '#FFF7ED',
+              cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#C2410C'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <div style={{ fontSize: 24, marginBottom: 6 }}>🏗️</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#C2410C' }}>Projects</div>
+            </button>
+            <button onClick={() => navigate('/reports')} style={{
+              padding: '16px', borderRadius: radius.md,
+              border: '1.5px solid #E7E8F5', background: '#F3E8FF',
+              cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E8F5'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <div style={{ fontSize: 24, marginBottom: 6 }}>📊</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#7C3AED' }}>Reports</div>
+            </button>
+          </div>
+        </Card>
+      </div>
+
+      {/* Recent Activity Section styled like Nurofin list */}
+      <Card padding="0">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #E7E8F5' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+            Recent Activity Log
+          </div>
+          <button onClick={() => navigate('/transaction')} style={{
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            fontSize: 12.5, fontWeight: 800, color: '#6C63FF', display: 'flex', alignItems: 'center', gap: 4
+          }}>
+            View All <ChevronRight size={14} />
+          </button>
+        </div>
+        {recentEntries.length === 0 ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>📋</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginBottom: 4 }}>No recent entries</div>
+            <div style={{ fontSize: 12, color: '#6B7280' }}>Updates you add will appear here.</div>
+          </div>
+        ) : (
+          recentEntries.map((entry, i) => {
+            const type = typeConfig[entry.type] || typeConfig.Materials;
+            const amt = Number(entry.amount || entry.totalAmount || 0);
+            return (
+              <div key={entry._id || entry.id || i} style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '16px 24px',
+                borderBottom: i < recentEntries.length - 1 ? '1px solid #E7E8F5' : 'none',
+                cursor: 'pointer', transition: 'background 0.15s ease',
+              }}
+                onClick={() => navigate('/entry-detail', { state: { entry } })}
+                onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: "#f7f7f8", display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  fontSize: 16, flexShrink: 0,
+                  background: type.bg, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0,
                 }}>
-                  {a.type === "Income" ? "💰" : a.type === "Materials" ? "🧱" : a.type === "Wages" ? "👷" : "📉"}
+                  {type.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: "#333", lineHeight: 1.55, fontWeight: 500 }}>
-                    {a.title}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginBottom: 2 }}>
+                    {entry.title || entry.name || 'Entry'}
                   </div>
-                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{new Date(a.date).toLocaleDateString()}</div>
+                  <div style={{ display: 'flex', gap: 10, fontSize: 12, color: '#6B7280', alignItems: 'center' }}>
+                    <Badge variant={entry.type === 'Wages' ? 'success' : entry.type === 'Expense' ? 'warning' : 'info'} style={{ fontSize: 10, padding: '1px 8px', borderRadius: 6 }}>
+                      {type.label}
+                    </Badge>
+                    <span>{typeof entry.project === 'object' ? (entry.project?.projectName || entry.project?.name || '') : (entry.projectName || entry.project || '')}</span>
+                    <span>{relativeTime(entry.date || entry.createdAt)}</span>
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: a.type === "Income" ? "#16a34a" : "#dc2626", flexShrink: 0 }}>
-                  {a.type === "Income" ? "+" : "−"}₹{(a.amount || 0).toLocaleString("en-IN")}
+                <div style={{ fontSize: 16, fontWeight: 800, color: amt < 0 ? colors.error : '#1F2937' }}>
+                  {formatCurrency(Math.abs(amt))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
+            );
+          })
+        )}
+      </Card>
     </div>
   );
 }

@@ -114,7 +114,7 @@ app.options('/{*path}', cors({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: isProd ? 200 : 10000, // relaxed limit for development
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests — please try again later." },

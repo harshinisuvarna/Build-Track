@@ -1,733 +1,884 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { transactionAPI, workerAPI, projectAPI, voiceAPI } from "../api";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { transactionAPI, projectAPI, voiceAPI } from '../api';
+import useSpeechRecognition from '../hooks/useSpeechRecognition';
+import { parseTranscript, computeAmount } from '../utils/voiceParser';
+import { colors, radius, shadows, typography } from '../styles/designTokens';
+import ExecutionContextStep from '../components/ExecutionContextStep';
+import VoiceReviewSheet from '../components/VoiceReviewSheet';
 
-function extractAmount(text) {
-  const t = text.toLowerCase();
-  const lakhMatch     = t.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)/i);
-  const croreMatch    = t.match(/(\d+(?:\.\d+)?)\s*(?:crore|crores|cr)/i);
-  const thousandMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:thousand|k)\b/i);
-  const plainMatch    = t.match(/\d[\d,]*/);
+// ---------------------------------------------------------------------------
+// Voice Assistant — Full Flutter ai_voice_entry_screen.dart parity
+//
+// Flow:  ExecutionContext → Voice Recording → AI Parse → Review/Edit → Save
+// ---------------------------------------------------------------------------
 
-  if (lakhMatch)     return Math.round(parseFloat(lakhMatch[1])     * 100000);
-  if (croreMatch)    return Math.round(parseFloat(croreMatch[1])    * 10000000);
-  if (thousandMatch) return Math.round(parseFloat(thousandMatch[1]) * 1000);
-  if (plainMatch)    return Number(plainMatch[0].replace(/,/g, ""));
-  return 0;
-}
+const STATUS = {
+  context: 'context',       // pre-step: project/floor/phase/activity
+  idle: 'idle',
+  listening: 'listening',
+  processing: 'processing',
+  extracting: 'extracting',
+  summary: 'summary',
+  editing: 'editing',
+  saving: 'saving',
+  completed: 'completed',
+  error: 'error',
+};
 
-function detectCategory(text) {
-  let category = "Expense";
-  if (/pay|paid|wage|salary/i.test(text))             category = "Wages";
-  if (/cement|steel|sand|brick|material/i.test(text)) category = "Materials";
-  if (/income|received|client|payment/i.test(text))   category = "Income";
-  return category;
-}
+const ENTRY_TYPES = [
+  { id: 'material', label: 'Material', icon: '🧱', color: '#7c3aed' },
+  { id: 'labour', label: 'Labour', icon: '👷', color: '#2563eb' },
+  { id: 'equipment', label: 'Equipment', icon: '🚜', color: '#059669' },
+];
 
-function assignField(text, workers, projects) {
-  const lower = text.toLowerCase();
-  const workerMatch  = workers.find(w => lower.includes(w.toLowerCase()));
-  const projectMatch = projects.find(p => lower.includes(p.toLowerCase()));
-  return { worker: workerMatch || "", project: projectMatch || "" };
-}
-
-function editDist(a, b) {
-  const m = a.length, n = b.length;
-  const dp = Array.from({ length: m + 1 }, (_, i) => { const r = new Array(n + 1); r[0] = i; return r; });
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-  return dp[m][n];
-}
-function nameSimilarity(a, b) {
-  const la = a.toLowerCase(), lb = b.toLowerCase();
-  const mx = Math.max(la.length, lb.length);
-  return mx === 0 ? 1 : 1 - editDist(la, lb) / mx;
-}
-
-function fuzzyFindWorker(parsedName, workerOptions) {
-  if (!parsedName || !workerOptions?.length) return null;
-  const lower = parsedName.toLowerCase().trim();
-  let match = workerOptions.find(w => w.name?.toLowerCase() === lower);
-  if (match) return match;
-  match = workerOptions.find(w => w.name?.toLowerCase().includes(lower) || lower.includes(w.name?.toLowerCase()));
-  if (match) return match;
-  let best = null, bestSim = 0;
-  for (const w of workerOptions) {
-    if (!w.name) continue;
-    const sim = nameSimilarity(lower, w.name);
-    if (sim > bestSim && sim >= 0.55) { bestSim = sim; best = w; }
-  }
-  return best;
-}
-
-function fuzzyFindProject(parsedName, projectOptions) {
-  if (!parsedName || !projectOptions?.length) return null;
-  const lower = parsedName.toLowerCase().trim();
-  let match = projectOptions.find(p => p.projectName?.toLowerCase() === lower);
-  if (match) return match;
-  match = projectOptions.find(p => p.projectName?.toLowerCase().includes(lower) || lower.includes(p.projectName?.toLowerCase()));
-  if (match) return match;
-  let best = null, bestSim = 0;
-  for (const p of projectOptions) {
-    if (!p.projectName) continue;
-    const sim = nameSimilarity(lower, p.projectName);
-    if (sim > bestSim && sim >= 0.55) { bestSim = sim; best = p; }
-  }
-  return best;
-}
-
-const categories = ["Wages", "Expense", "Income", "Materials"];
-const categoryStyle = {
-  Wages:     { bg: "#dbeafe", color: "#1e40af" },
-  Expense:   { bg: "#fce7f3", color: "#9d174d" },
-  Income:    { bg: "#dcfce7", color: "#166534" },
-  Materials: { bg: "#e0e7ff", color: "#3730a3" },
+const ENTRY_EXAMPLES = {
+  material: 'Say: "20 bags of UltraTech cement at 420 rupees per bag"',
+  labour: 'Say: "8 masons worked 9 hours at 850 per day"',
+  equipment: 'Say: "JCB excavator worked 6 hours at 1200 per hour, diesel 500"',
 };
 
 export default function VoiceAssistantPage() {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile,    setIsMobile]    = useState(window.innerWidth < 768);
-  const [listening,   setListening]   = useState(false);
-  const [parsing,     setParsing]     = useState(false);
-  const [transcript,  setTranscript]  = useState("");
-  const [parseSource, setParseSource] = useState("");
-  const [pulse,       setPulse]       = useState(true);
-  const [worker,    setWorker]    = useState("");
-  const [project,   setProject]   = useState("");
-  const [category,  setCategory]  = useState("Wages");
-  const [amount,    setAmount]    = useState("");
-  const [notes,     setNotes]     = useState("");
-  const [fieldErrors, setFieldErrors] = useState({ worker: false, project: false });
-  const [voiceSaving,  setVoiceSaving]  = useState(false);
-  const [voiceSuccess, setVoiceSuccess] = useState("");
-  const [voiceError,   setVoiceError]   = useState("");
-  const [workerNames,  setWorkerNames]  = useState([]);
-  const [projectNames, setProjectNames] = useState([]);
-  const [workerOptions, setWorkerOptions] = useState([]);
-  const [projectOptions, setProjectOptions] = useState([]);
-  const [recentEntries,        setRecentEntries]        = useState([]);
-  const [recentEntriesLoading, setRecentEntriesLoading] = useState(true);
-  const [searchQuery,          setSearchQuery]          = useState("");
+  const location = useLocation();
+  const preselectedProject = location.state?.project || null;
 
-  const recognitionRef = useRef(null);
-  const fetchRecentEntries = () => {
-    setRecentEntriesLoading(true);
+  // --- State ---
+  const [status, setStatus] = useState(preselectedProject ? STATUS.idle : STATUS.context);
+  const [entryType, setEntryType] = useState('material');
+  const [executionContext, setExecutionContext] = useState({
+    project: preselectedProject,
+    floor: null,
+    phase: null,
+    activity: null,
+  });
+  const [parsedData, setParsedData] = useState(null);
+  const [transcript, setTranscript] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [recentEntries, setRecentEntries] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [saveError, setSaveError] = useState('');
+  const [savedEntryId, setSavedEntryId] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+  const [processingStage, setProcessingStage] = useState(0);
+
+  const processTimerRef = useRef(null);
+
+  // --- Speech Recognition Hook ---
+  const {
+    interimTranscript,
+    accumulatedTranscript,
+    isProcessing: speechProcessing,
+    isEngineReady,
+    error: speechError,
+    soundLevel,
+    sessionElapsed,
+    hasSpeechRecognition,
+    startRecording,
+    stopRecording,
+    resetTranscript,
+    resetAll: resetSpeech,
+    setProcessing: setSpeechProcessing,
+  } = useSpeechRecognition();
+
+  // --- Fetch projects & recent entries ---
+  useEffect(() => {
+    projectAPI.getAll()
+      .then(res => {
+        const data = res.data;
+        const list = Array.isArray(data) ? data : (data.projects || data.data || []);
+        setProjects(list);
+      })
+      .catch(() => {});
+
     transactionAPI.getAll()
       .then(({ data }) => {
         const all = data.transactions || [];
         setRecentEntries(all.slice(0, 5));
       })
       .catch(() => setRecentEntries([]))
-      .finally(() => setRecentEntriesLoading(false));
-  };
-
-  const workerNameToId = useMemo(
-    () =>
-      new Map(
-        workerOptions
-          .filter((w) => w?.name && w?._id)
-          .map((w) => [String(w.name).trim().toLowerCase(), w._id])
-      ),
-    [workerOptions]
-  );
-
-  const projectNameToId = useMemo(
-    () =>
-      new Map(
-        projectOptions
-          .filter((p) => p?.projectName && p?._id)
-          .map((p) => [String(p.projectName).trim().toLowerCase(), p._id])
-      ),
-    [projectOptions]
-  );
-
-  const normalize = (val) => String(val || "").trim().toLowerCase();
-
-  const resolveWorkerId = (workerName) => {
-    const key = normalize(workerName);
-    if (!key) return null;
-    return workerNameToId.get(key) || null;
-  };
-
-  const resolveProjectId = (projectName) => {
-    const key = normalize(projectName);
-    if (!key) return null;
-    return projectNameToId.get(key) || null;
-  };
-
-  const txWorkerLabel = (tx) =>
-    typeof tx?.worker === "string" ? tx.worker : tx?.worker?.name || "";
-  const txProjectLabel = (tx) =>
-    typeof tx?.project === "string" ? tx.project : tx?.project?.projectName || "";
-
-  const handleWorkerChange = (val) => {
-    setWorker(val);
-    if (fieldErrors.worker) setFieldErrors(prev => ({ ...prev, worker: false }));
-    if (!project && projectNames.length > 0) {
-      const match = projectNames.find(p => p.toLowerCase().includes(val.toLowerCase()));
-      if (match) {
-        setProject(match);
-        if (fieldErrors.project) setFieldErrors(prev => ({ ...prev, project: false }));
-      }
-    }
-  };
-
-  const handleProjectChange = (val) => {
-    setProject(val);
-    if (fieldErrors.project) setFieldErrors(prev => ({ ...prev, project: false }));
-  };
-
-  const handleCategoryChange = (val) => {
-    setCategory(val);
-    if (val !== "Wages" && fieldErrors.worker) {
-      setFieldErrors(prev => ({ ...prev, worker: false }));
-    }
-  };
-
-  useEffect(() => {
-    workerAPI.getAll()
-      .then(res => {
-        const data = res.data;
-        const list = Array.isArray(data) ? data : (data.workers || data.data || []);
-        setWorkerOptions(list);
-        setWorkerNames(list.map(w => w.name || w).filter(Boolean));
-      })
-      .catch(() => {});
-
-    projectAPI.getAll()
-      .then(res => {
-        const data = res.data;
-        const list = Array.isArray(data) ? data : (data.projects || data.data || []);
-        setProjectOptions(list);
-        setProjectNames(list.map(p => p.projectName || p.name || p).filter(Boolean));
-      })
-      .catch(() => {});
-
-    fetchRecentEntries();
+      .finally(() => setRecentLoading(false));
   }, []);
 
+  // --- Cleanup ---
   useEffect(() => {
-    const onResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) setSidebarOpen(false);
+    return () => {
+      if (processTimerRef.current) clearInterval(processTimerRef.current);
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // --- Processing stage animation ---
   useEffect(() => {
-    const t = setInterval(() => setPulse(p => !p), 800);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    return () => { recognitionRef.current?.stop(); };
-  }, []);
-
-  const toggleListening = () => {
-    if (parsing) return;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
-      return;
-    }
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = async (event) => {
-      const text = event.results[0][0].transcript;
-      setTranscript(text);
-      setParsing(true);
-      setListening(false);
-      recognitionRef.current = null;
-
-      const clientFallback = (t) => {
-        const { worker: fw, project: fp } = assignField(t, workerNames, projectNames);
-        return { worker: fw, project: fp, amount: extractAmount(t), category: detectCategory(t), notes: t, source: "local" };
-      };
-
-      try {
-        const { data } = await voiceAPI.parse({
-          transcript: text,
-          workers: workerNames,
-          projects: projectNames,
+    if (status === STATUS.processing) {
+      setProcessingStage(0);
+      processTimerRef.current = setInterval(() => {
+        setProcessingStage(prev => {
+          if (prev >= 6) { clearInterval(processTimerRef.current); return prev; }
+          return prev + 1;
         });
+      }, 500);
+    } else {
+      if (processTimerRef.current) clearInterval(processTimerRef.current);
+    }
+    return () => { if (processTimerRef.current) clearInterval(processTimerRef.current); };
+  }, [status]);
 
-        const parsedData = (data && (data.category || data.worker || data.amount))
-          ? data
-          : clientFallback(text);
+  // --- Execution context complete → go to idle/voice ---
+  const handleContextComplete = useCallback((ctx) => {
+    setExecutionContext(ctx);
+    setStatus(STATUS.idle);
+  }, []);
 
-        const assigned = assignField(text, workerNames, projectNames);
-        const rawWorker  = parsedData.worker  || assigned.worker  || "";
-        const rawProject = parsedData.project || assigned.project || "";
-        const parsedAmount   = String(parsedData.amount || "");
-        const parsedCategory = parsedData.category || "Expense";
-        const parsedNotes    = parsedData.notes    || "";
+  // --- Start listening ---
+  const handleStartListening = useCallback(() => {
+    resetTranscript();
+    startRecording();
+    setStatus(STATUS.listening);
+  }, [startRecording, resetTranscript]);
 
-        const matchedWorker  = fuzzyFindWorker(rawWorker, workerOptions);
-        const matchedProject = fuzzyFindProject(rawProject, projectOptions);
-
-        let finalWorker = matchedWorker;
-        if (!finalWorker) {
-          const words = text.toLowerCase().split(/\s+/);
-          for (const word of words) {
-            if (word.length < 3) continue;
-            const found = fuzzyFindWorker(word, workerOptions);
-            if (found) { finalWorker = found; break; }
-          }
-        }
-
-        setWorker(finalWorker?.name || rawWorker);
-        setProject(matchedProject?.projectName || rawProject);
-        setAmount(parsedAmount);
-        setCategory(parsedCategory);
-        setNotes(parsedNotes);
-        setParseSource(parsedData.source || "");
-        setFieldErrors({ worker: false, project: false });
-      } catch (err) {
-        const fallback = clientFallback(text);
-
-        let fbWorker = fuzzyFindWorker(fallback.worker, workerOptions);
-        if (!fbWorker) {
-          const words = text.toLowerCase().split(/\s+/);
-          for (const word of words) {
-            if (word.length < 3) continue;
-            const found = fuzzyFindWorker(word, workerOptions);
-            if (found) { fbWorker = found; break; }
-          }
-        }
-        const fbProject = fuzzyFindProject(fallback.project, projectOptions);
-
-        setWorker(fbWorker?.name || fallback.worker);
-        setProject(fbProject?.projectName || fallback.project);
-        setAmount(String(fallback.amount));
-        setCategory(fallback.category);
-        setNotes(fallback.notes);
-        setParseSource(fallback.source);
-        setFieldErrors({ worker: false, project: false });
-      } finally {
-        setParsing(false);
+  // --- Stop listening → process ---
+  const handleStopListening = useCallback(() => {
+    stopRecording();
+    // Give a moment for final transcript to arrive
+    setTimeout(() => {
+      const fullText = accumulatedTranscript || transcript;
+      if (fullText.trim()) {
+        processTranscript(fullText.trim());
+      } else {
+        setStatus(STATUS.idle);
       }
-    };
+    }, 300);
+  }, [stopRecording, accumulatedTranscript, transcript]);
 
-    recognition.onerror = (e) => {
-      setListening(false);
-      setParsing(false);
-      recognitionRef.current = null;
-    };
-    recognition.onend = () => { setListening(false); };
+  // --- Process transcript via AI + local parser ---
+  const processTranscript = useCallback(async (text) => {
+    setStatus(STATUS.processing);
+    setSpeechProcessing(true);
+    setTranscript(text);
 
-    recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
-  };
+    // Local parse first (instant)
+    let parsed = parseTranscript(text, {
+      projectName: executionContext.project?.projectName || executionContext.project?.name,
+    });
 
-  const micBg       = parsing ? "#9ca3af" : listening ? "#c2410c" : "#ea580c";
-  const micDisabled = parsing;
-  const micLabel    = parsing ? "⏳" : "🎤";
-
-  const handleSave = async () => {
-    setVoiceError(""); setVoiceSuccess("");
-
-    const newErrors = { worker: false, project: false };
-    let errorMsg = "";
-
-    if (!project || !project.trim()) {
-      newErrors.project = true;
-      errorMsg = "Project is required.";
+    // Apply execution context overrides
+    if (executionContext.floor) parsed.floor = parsed.floor || executionContext.floor;
+    if (executionContext.phase) parsed.phase = parsed.phase || executionContext.phase;
+    if (executionContext.activity) parsed.activity = parsed.activity || executionContext.activity;
+    if (executionContext.project) {
+      parsed.projectId = executionContext.project._id;
+      parsed.projectName = parsed.projectName || executionContext.project.projectName || executionContext.project.name;
     }
 
-    if (category === "Wages" && (!worker || !worker.trim())) {
-      newErrors.worker = true;
-      errorMsg = errorMsg || "Worker is required for wages.";
+    // Try backend AI parse (Gemini) for enhanced extraction
+    try {
+      const { data } = await voiceAPI.parse({
+        transcript: text,
+        workers: [],
+        projects: projects.map(p => p.projectName || p.name),
+        entryType: parsed.entryType,
+      });
+      if (data && data.fields) {
+        // Merge AI fields (AI takes precedence for detected fields)
+        Object.entries(data.fields).forEach(([k, v]) => {
+          if (v !== null && v !== undefined && v !== '') {
+            parsed[k] = v;
+          }
+        });
+      }
+    } catch {
+      // Fallback to local parser — already done above
     }
 
-    if (newErrors.worker || newErrors.project) {
-      setFieldErrors(newErrors);
-      setVoiceError(errorMsg);
-      return;
-    }
+    // Auto-detect entry type from speech if not clearly material
+    // (parser already does this, but allow user override later)
 
-    const numAmount = Number(String(amount).replace(/,/g, ""));
-    if (!amount || numAmount <= 0) {
-      setVoiceError("Please enter a valid amount.");
-      return;
-    }
+    parsed.amount = computeAmount(parsed);
+    setParsedData(parsed);
+    setEntryType(parsed.entryType);
+    setSpeechProcessing(false);
+    setStatus(STATUS.extracting);
+
+    // Brief pause then go to summary
+    setTimeout(() => {
+      setStatus(STATUS.summary);
+      setShowReview(true);
+    }, 800);
+  }, [executionContext, projects, setSpeechProcessing]);
+
+  // --- Review sheet save ---
+  const handleReviewSave = useCallback(async (reviewData) => {
+    setShowReview(false);
+    setStatus(STATUS.saving);
+    setSaveError('');
 
     try {
-      setVoiceSaving(true);
-      const workerId = resolveWorkerId(worker);
-      const projectId = resolveProjectId(project);
+      const typeMap = { material: 'Materials', labour: 'Wages', equipment: 'Expense' };
+      const amount = Number(reviewData.amount) || 0;
 
-      if (category === "Wages" && worker && !workerId) {
-        setVoiceError("Selected worker is invalid. Please choose a valid worker.");
-        return;
-      }
-      if (project && !projectId) {
-        setVoiceError("Selected project is invalid. Please choose a valid project.");
-        return;
-      }
+      const payload = {
+        title: `${typeMap[reviewData.entryType] || 'Expense'} - ${reviewData.itemName || reviewData.labourType || reviewData.equipmentName || 'Voice Entry'}`,
+        amount,
+        type: typeMap[reviewData.entryType] || 'Expense',
+        date: new Date().toISOString(),
+        notes: reviewData.notes || transcript || 'Entered via Voice Assistant',
+        // Project & context
+        project: reviewData.project || executionContext.project?._id || undefined,
+        projectName: reviewData.projectName || executionContext.project?.projectName || undefined,
+        floor: reviewData.floor || executionContext.floor || undefined,
+        phase: reviewData.phase || executionContext.phase || undefined,
+        activity: reviewData.activity || executionContext.activity || undefined,
+        // Entry-type specific
+        entryType: reviewData.entryType,
+        itemName: reviewData.itemName || undefined,
+        labourType: reviewData.labourType || undefined,
+        equipmentName: reviewData.equipmentName || reviewData.itemName || undefined,
+        quantity: reviewData.quantity ? Number(reviewData.quantity) : undefined,
+        unit: reviewData.unit || undefined,
+        rate: reviewData.rate ? Number(reviewData.rate) : undefined,
+        workerCount: reviewData.workerCount ? Number(reviewData.workerCount) : undefined,
+        hoursWorked: reviewData.hoursWorked ? Number(reviewData.hoursWorked) : undefined,
+        dailyWage: reviewData.dailyWage ? Number(reviewData.dailyWage) : undefined,
+        advanceAmount: reviewData.advanceAmount ? Number(reviewData.advanceAmount) : undefined,
+        hoursUsed: reviewData.hoursUsed ? Number(reviewData.hoursUsed) : undefined,
+        operatorName: reviewData.operatorName || undefined,
+        fuelCost: reviewData.fuelCost ? Number(reviewData.fuelCost) : undefined,
+        // Optional
+        brand: reviewData.brand || undefined,
+        supplier: reviewData.supplier || undefined,
+        gstApplicable: reviewData.gstApplicable || false,
+        gstPercentage: reviewData.gstPercentage ? Number(reviewData.gstPercentage) : undefined,
+        paymentMode: reviewData.paymentMode || 'cash',
+        rawTranscript: transcript,
+      };
 
-      await transactionAPI.create({
-        title:   `${category} - ${worker || project}`,
-        amount:  numAmount,
-        type:    category,
-        worker:  workerId || null,
-        project: projectId || null,
-        date:    new Date().toISOString(),
-        notes:   notes || "Entered via Voice Assistant",
+      // Remove undefined values
+      Object.keys(payload).forEach(k => {
+        if (payload[k] === undefined) delete payload[k];
       });
-      setVoiceSuccess("Entry saved successfully!");
-      setWorker(""); setProject(""); setAmount(""); setCategory("Wages"); setNotes("");
-      setTranscript(""); setParseSource("");
-      setFieldErrors({ worker: false, project: false });
+
+      const { data } = await transactionAPI.create(payload);
+      setSavedEntryId(data?.transaction?._id || data?._id || null);
+      setStatus(STATUS.completed);
       fetchRecentEntries();
-      setTimeout(() => setVoiceSuccess(""), 3000);
     } catch (err) {
-      setVoiceError(
-        err.friendlyMessage ||
-        err.response?.data?.message ||
-        "Failed to save entry. Please try again."
-      );
-    } finally {
-      setVoiceSaving(false);
+      setSaveError(err.response?.data?.message || 'Failed to save entry');
+      setStatus(STATUS.summary);
+      setShowReview(true);
     }
+  }, [transcript, executionContext]);
+
+  const fetchRecentEntries = useCallback(() => {
+    setRecentLoading(true);
+    transactionAPI.getAll()
+      .then(({ data }) => {
+        const all = data.transactions || [];
+        setRecentEntries(all.slice(0, 5));
+      })
+      .catch(() => setRecentEntries([]))
+      .finally(() => setRecentLoading(false));
+  }, []);
+
+  // --- Reset for new entry ---
+  const resetAll = useCallback(() => {
+    resetSpeech();
+    setParsedData(null);
+    setTranscript('');
+    setSaveError('');
+    setSavedEntryId(null);
+    setShowReview(false);
+    setProcessingStage(0);
+    setStatus(STATUS.idle);
+  }, [resetSpeech]);
+
+  // --- Navigate to transaction log ---
+  const viewEntries = useCallback(() => {
+    navigate('/transaction');
+  }, [navigate]);
+
+  // --- Derived state ---
+  const isListening = status === STATUS.listening;
+  const isIdle = status === STATUS.idle;
+  const isProcessing = status === STATUS.processing;
+  const isExtracting = status === STATUS.extracting;
+  const isSummary = status === STATUS.summary;
+  const isSaving = status === STATUS.saving;
+  const isCompleted = status === STATUS.completed;
+  const isError = status === STATUS.error;
+  const isContext = status === STATUS.context;
+
+  const formatTime = (secs) => {
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    return `${m}:${s}`;
   };
 
-  const confirmDisabled = voiceSaving || !amount || Number(String(amount).replace(/,/g, "")) <= 0;
-
-  const fieldBox = (hasError = false) => ({
-    display: "flex", alignItems: "center",
-    background: "#f9f9f9",
-    border: `1px solid ${hasError ? "#ef4444" : "#e5e5e5"}`,
-    borderRadius: 10, padding: "10px 14px",
-    transition: "border-color 0.2s ease",
-  });
-  const fieldInput = {
-    flex: 1, border: "none", background: "transparent",
-    outline: "none", fontSize: 14, color: "#1a1a1a", fontWeight: 500,
-  };
-  const fieldLabel = {
-    fontSize: 11, fontWeight: 700, color: "#aaa",
-    letterSpacing: "0.08em", marginBottom: 8,
-  };
-
-  const isWages = category === "Wages";
-  const workerPlaceholder = isWages ? "Select worker" : "Optional worker";
-
-  const timeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1)   return "just now";
-    if (mins < 60)  return `${mins} min${mins > 1 ? "s" : ""} ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24)   return `${hrs} hour${hrs > 1 ? "s" : ""} ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days} day${days > 1 ? "s" : ""} ago`;
-  };
+  // =====================================================================
+  // RENDER
+  // =====================================================================
 
   return (
     <div style={{
-      display: "flex", width: "100%", height: "100vh",
-      fontFamily: "'Segoe UI', sans-serif", background: "#faf9f7",
-      overflow: "hidden", flex: 1, minWidth: 0,
+      display: 'flex', width: '100%', height: '100vh',
+      fontFamily: typography.fontFamily, background: colors.bgBase4,
+      overflow: 'hidden', flex: 1, minWidth: 0,
+      flexDirection: 'column',
     }}>
-      {sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
-      )}
+      <style>{`
+        @keyframes barWave {
+          0%, 100% { transform: scaleY(0.4); }
+          50% { transform: scaleY(1); }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes orbPulse {
+          0%, 100% { box-shadow: 0 0 8px rgba(108,99,255,0.3); }
+          50% { box-shadow: 0 0 24px rgba(91,85,232,0.5); }
+        }
+        .voice-card { animation: slideUp 0.35s ease; }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        .wave-bar {
+          animation: barWave 1s ease-in-out infinite;
+          transform-origin: bottom;
+        }
+      `}</style>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-
-        {/* Top Bar */}
-        <div style={{ background: "#fff", borderBottom: "1px solid #ebebeb", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          {isMobile && (
-            <button onClick={() => setSidebarOpen(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 0 }}>☰</button>
-          )}
-          <div style={{ flex: 1, maxWidth: 460, display: "flex", alignItems: "center", background: "#f5f5f5", borderRadius: 12, padding: "10px 16px", gap: 10 }}>
-            <span style={{ color: "#aaa", fontSize: 16 }}>🔍</span>
-            <input placeholder="Search entries, projects..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{ border: "none", background: "transparent", outline: "none", fontSize: 14, color: "#555", width: "100%" }} />
+      {/* Top Bar */}
+      <div style={{
+        background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`,
+        padding: '14px 24px', display: 'flex', alignItems: 'center',
+        gap: 12, flexShrink: 0, zIndex: 10,
+      }}>
+        <button onClick={() => navigate(-1)}
+          style={{ background: colors.bgBase4, border: 'none', borderRadius: 10, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, color: colors.textPrimary }}>
+          &larr;
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>
+            {isContext ? 'Set Entry Context' : isCompleted ? 'Success' : 'BuildTrack AI'}
           </div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => navigate("/manualentry")}
-              style={{ padding: "10px 20px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-              📝 Manual Entry
-            </button>
-            <div style={{ width: 38, height: 38, background: "#fff5f0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, border: "1px solid #fde4d0" }}>🔔</div>
+          <div style={{ fontSize: 11, color: colors.textLight, fontWeight: 500 }}>
+            {isContext
+              ? 'Project, floor, phase & activity'
+              : isListening
+              ? `Listening... ${formatTime(sessionElapsed)}`
+              : isProcessing
+              ? 'Analyzing voice input...'
+              : isCompleted
+              ? 'Entry saved successfully'
+              : 'AI Voice Entry'}
           </div>
         </div>
-
-        {/* Body */}
-        <div style={{
-          flex: 1, overflowY: "auto", padding: "32px 24px",
-          display: "flex", flexDirection: "column", gap: 28, alignItems: "center",
-          boxSizing: "border-box", width: "100%",
-        }}>
-
-          {/* Mic Button */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            <div style={{ position: "relative" }}>
-              <div style={{
-                position: "absolute", inset: -12, borderRadius: "50%",
-                background: listening ? "rgba(194,65,12,0.15)" : "rgba(234,88,12,0.12)",
-                transform: (listening || pulse) ? "scale(1.1)" : "scale(1)",
-                transition: "transform 0.8s ease",
-              }} />
-              <button
-                id="voice-mic-button"
-                onClick={toggleListening}
-                disabled={micDisabled}
-                style={{
-                  width: 80, height: 80, borderRadius: "50%",
-                  background: micBg, border: "none",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: micDisabled ? "not-allowed" : "pointer",
-                  fontSize: 32, position: "relative", zIndex: 1,
-                  boxShadow: "0 8px 24px rgba(234,88,12,0.35)",
-                  transition: "background 0.2s ease",
-                }}>
-                {micLabel}
-              </button>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1a1a1a" }}>
-                {parsing ? "Analysing speech…" : listening ? "Listening…" : "Tap to Start Listening"}
-              </h1>
-              {transcript ? (
-                <p style={{ margin: "6px 0 0", fontSize: 14, color: "#555", fontStyle: "italic" }}>"{transcript}"</p>
-              ) : !listening && (
-                <p style={{ margin: "6px 0 0", fontSize: 13, color: "#aaa" }}>
-                  Chrome / Edge only · Try: <em>Pay Suresh 1200 for masonry</em>
-                </p>
-              )}
-              {parseSource === "gemini" && (
-                <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#ea580c", background: "#fff5f0", padding: "3px 10px", borderRadius: 6, border: "1px solid #fde4d0" }}>✦ AI parsed</span>
-              )}
-              {parseSource === "local" && (
-                <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#6b7280", background: "#f3f4f6", padding: "3px 10px", borderRadius: 6, border: "1px solid #e5e7eb" }}>local fallback</span>
-              )}
-            </div>
+        {isListening && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '5px 12px', borderRadius: 20,
+            background: '#FEE2E2', border: '1px solid #FCA5A5',
+            fontSize: 11, fontWeight: 600, color: '#DC2626',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444', animation: 'orbPulse 1.5s ease-in-out infinite' }} />
+            REC {formatTime(sessionElapsed)}
           </div>
+        )}
+      </div>
 
-          {/* Review Card */}
-          <div style={{ width: "100%", maxWidth: 620, background: "#fff", borderRadius: 18, padding: 28, border: "1px solid #ebebeb", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>🛡️</span>
-                <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Review &amp; Approve Entry</span>
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#ea580c", background: "#fff5f0", padding: "4px 12px", borderRadius: 6, letterSpacing: "0.06em", border: "1px solid #fde4d0" }}>LIVE INTERPRETATION</span>
+      {/* Main scrollable body */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        gap: 20, paddingBottom: (isIdle || isListening) ? 160 : 40,
+      }}>
+
+        {/* ===== CONTEXT STEP ===== */}
+        {isContext && (
+          <ExecutionContextStep
+            projects={projects}
+            onComplete={handleContextComplete}
+            onCancel={() => navigate(-1)}
+          />
+        )}
+
+        {/* ===== IDLE / LISTENING ===== */}
+        {(isIdle || isListening) && (
+          <>
+            {/* Entry type tabs */}
+            <div className="voice-card" style={{
+              background: colors.cardBg, borderRadius: radius.lg,
+              border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+              padding: '16px 20px', maxWidth: 400, width: '100%',
+              display: 'flex', gap: 8,
+            }}>
+              {ENTRY_TYPES.map(t => (
+                <button key={t.id} onClick={() => !isListening && setEntryType(t.id)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: radius.sm, border: 'none',
+                    fontWeight: 600, fontSize: 13, cursor: isListening ? 'not-allowed' : 'pointer',
+                    textTransform: 'capitalize', opacity: isListening ? 0.6 : 1,
+                    background: entryType === t.id
+                      ? 'linear-gradient(135deg, #6C63FF, #B137FF)'
+                      : colors.bgBase4,
+                    color: entryType === t.id ? '#FFF' : colors.textSecondary,
+                    transition: 'all 0.2s',
+                  }}>
+                  {t.icon} {t.label}
+                </button>
+              ))}
             </div>
 
-            {/* Row 1: Worker + Project */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
-              <div>
-                <div style={fieldLabel}>
-                  WORKER{" "}
-                  {isWages
-                    ? <span style={{ color: "#ea580c" }}>*</span>
-                    : <span style={{ color: "#ccc", fontWeight: 400, fontSize: 10 }}>(optional)</span>
-                  }
-                </div>
-                <div style={fieldBox(fieldErrors.worker)}>
-                  <input
-                    id="voice-worker"
-                    value={worker}
-                    onChange={e => handleWorkerChange(e.target.value)}
-                    placeholder={workerPlaceholder}
-                    style={fieldInput}
-                  />
-                </div>
-                {fieldErrors.worker && (
-                  <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontWeight: 500 }}>
-                    Worker is required for wages
-                  </div>
+            {/* Execution context badge */}
+            {(executionContext.project || executionContext.floor || executionContext.activity) && (
+              <div className="voice-card" style={{
+                background: colors.primarySurface, borderRadius: radius.lg,
+                border: `1px solid ${colors.cardBorder}`,
+                padding: '12px 18px', maxWidth: 600, width: '100%',
+                display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
+              }}>
+                {executionContext.project && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: colors.primaryBlue }}>
+                    🏗️ {executionContext.project.projectName || executionContext.project.name}
+                  </span>
                 )}
-              </div>
-              <div>
-                <div style={fieldLabel}>
-                  PROJECT <span style={{ color: "#ea580c" }}>*</span>
-                </div>
-                <div style={fieldBox(fieldErrors.project)}>
-                  <input
-                    id="voice-project"
-                    value={project}
-                    onChange={e => handleProjectChange(e.target.value)}
-                    placeholder="e.g. Block A"
-                    style={fieldInput}
-                  />
-                </div>
-                {fieldErrors.project && (
-                  <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontWeight: 500 }}>
-                    Project is required
-                  </div>
+                {executionContext.floor && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
+                    📍 {executionContext.floor}
+                  </span>
                 )}
-              </div>
-            </div>
-
-            {/* Row 2: Category + Amount */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
-              <div>
-                <div style={fieldLabel}>CATEGORY</div>
-                <div style={{ position: "relative" }}>
-                  <select
-                    id="voice-category"
-                    value={category}
-                    onChange={e => handleCategoryChange(e.target.value)}
-                    style={{ width: "100%", padding: "10px 14px", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 14, color: "#1a1a1a", fontWeight: 500, outline: "none", appearance: "none", cursor: "pointer" }}>
-                    {categories.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none" }}>▾</span>
-                </div>
-              </div>
-              <div>
-                <div style={fieldLabel}>AMOUNT (₹)</div>
-                <div style={fieldBox()}>
-                  <span style={{ fontSize: 14, color: "#555", fontWeight: 600, marginRight: 6 }}>₹</span>
-                  <input
-                    id="voice-amount"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    style={fieldInput}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Row 3: Notes */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={fieldLabel}>NOTES</div>
-              <div style={fieldBox()}>
-                <input
-                  id="voice-notes"
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Add any additional notes…"
-                  style={{ ...fieldInput, width: "100%", boxSizing: "border-box" }}
-                />
-              </div>
-            </div>
-
-            {/* Row 4: Confirm */}
-            <button
-              id="voice-confirm-button"
-              onClick={handleSave}
-              disabled={confirmDisabled}
-              style={{ width: "100%", padding: "16px 0", background: confirmDisabled ? "#f59561" : "#ea580c", color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: confirmDisabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 14px rgba(234,88,12,0.3)", marginBottom: 12 }}>
-              {voiceSaving ? "⏳ Saving…" : "✅ Confirm & Finalize Entry"}
-            </button>
-            {voiceSuccess && <div style={{ textAlign: "center", padding: "8px 0", color: "#166534", fontSize: 13, fontWeight: 600 }}>✅ {voiceSuccess}</div>}
-            {voiceError   && <div style={{ textAlign: "center", padding: "8px 0", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>⚠️ {voiceError}</div>}
-            <div style={{ textAlign: "center" }}>
-              <button
-                onClick={() => {
-                  setWorker(""); setProject(""); setCategory("Wages"); setAmount(""); setNotes("");
-                  setVoiceError(""); setVoiceSuccess(""); setTranscript(""); setParseSource("");
-                  setFieldErrors({ worker: false, project: false });
-                }}
-                style={{ background: "none", border: "none", fontSize: 14, color: "#888", cursor: "pointer", fontWeight: 500 }}>
-                Discard &amp; Try Again
-              </button>
-            </div>
-          </div>
-
-
-          <div style={{ width: "100%", maxWidth: 880 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Recent Voice Entries</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ display: "flex", gap: 3, alignItems: "flex-end" }}>
-                  {[12, 18, 14, 22, 16, 20, 14].map((h, i) => (
-                    <div key={i} style={{ width: 4, height: pulse ? h : h * 0.6, background: "#ea580c", borderRadius: 3, transition: "height 0.4s ease", transitionDelay: `${i * 0.05}s` }} />
-                  ))}
-                </div>
+                {executionContext.phase && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
+                    📋 {executionContext.phase}
+                  </span>
+                )}
+                {executionContext.activity && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
+                    🔨 {executionContext.activity}
+                  </span>
+                )}
                 <span
-                  onClick={() => navigate("/transaction")}
-                  style={{ fontSize: 13, color: "#ea580c", fontWeight: 600, cursor: "pointer" }}>
-                  View History
+                  onClick={() => !isListening && setStatus(STATUS.context)}
+                  style={{ fontSize: 11, fontWeight: 600, color: colors.primaryBlue, cursor: 'pointer', marginLeft: 'auto' }}>
+                  Edit
                 </span>
               </div>
-            </div>
+            )}
 
-            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
-              {!isMobile && (
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.5fr", padding: "12px 20px", borderBottom: "1px solid #f0f0f0" }}>
-                  {["TITLE / PROJECT", "CATEGORY", "AMOUNT (₹)", "STATUS"].map(col => (
-                    <div key={col} style={{ fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.06em" }}>{col}</div>
-                  ))}
+            {/* Waveform + Mic / Live Transcript */}
+            <div className="voice-card" style={{
+              background: colors.cardBg, borderRadius: radius.lg,
+              border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+              padding: '24px', textAlign: 'center', maxWidth: 600, width: '100%',
+            }}>
+              {isListening ? (
+                <>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: colors.primaryBlue, letterSpacing: '0.1em', marginBottom: 12 }}>
+                    LIVE TRANSCRIPT
+                  </div>
+                  {/* Waveform bars */}
+                  <div style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 16 }}>
+                    {Array.from({ length: 28 }).map((_, i) => (
+                      <div key={i} className="wave-bar"
+                        style={{
+                          width: 3, borderRadius: 2,
+                          height: `${Math.max(4, soundLevel * 32)}px`,
+                          background: `linear-gradient(to top, #6C63FF, #B137FF)`,
+                          animationDelay: `${i * 0.06}s`,
+                          animationDuration: `${0.6 + Math.random() * 0.4}s`,
+                        }} />
+                    ))}
+                  </div>
+                  {/* Transcript display */}
+                  <div style={{
+                    background: `linear-gradient(135deg, ${colors.primaryBlue}15, #B137FF15)`,
+                    borderRadius: radius.md, border: `1px solid ${colors.cardBorder}`,
+                    padding: '14px 18px', fontSize: 14, color: colors.textPrimary, fontWeight: 500,
+                    lineHeight: 1.5, minHeight: 48,
+                  }}>
+                    {interimTranscript || accumulatedTranscript || 'Listening...'}
+                  </div>
+                  {/* Sound level bar */}
+                  <div style={{ marginTop: 12, height: 3, borderRadius: 2, background: colors.bgBase4, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 2, width: `${soundLevel * 100}%`,
+                      background: `linear-gradient(90deg, #6C63FF, #B137FF)`,
+                      transition: 'width 0.1s ease',
+                    }} />
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: colors.textLight }}>
+                    {formatTime(sessionElapsed)} &middot; Tap mic to stop
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: '16px 0' }}>
+                  {/* Idle mic */}
+                  <div
+                    onClick={handleStartListening}
+                    style={{
+                      width: 80, height: 80, borderRadius: '50%', margin: '0 auto 16px',
+                      background: 'linear-gradient(135deg, #6C63FF, #B137FF)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', boxShadow: '0 8px 24px rgba(108,99,255,0.4)',
+                      transition: 'transform 0.2s',
+                    }}>
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, marginBottom: 8 }}>
+                    Tap to Start Listening
+                  </div>
+                  {!hasSpeechRecognition && (
+                    <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>
+                      Speech recognition not supported. Please use Chrome or Edge.
+                    </div>
+                  )}
+                  {speechError && (
+                    <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>
+                      {speechError}
+                    </div>
+                  )}
                 </div>
               )}
+            </div>
 
-              {recentEntriesLoading ? (
-                <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>Loading…</div>
-              ) : recentEntries.length === 0 ? (
-                <div style={{ padding: 30, textAlign: "center", color: "#aaa", fontSize: 14 }}>No entries yet</div>
-              ) : recentEntries
-              .filter(t => {
-                if (!searchQuery.trim()) return true;
-                const q = searchQuery.toLowerCase();
-                return (t.title || "").toLowerCase().includes(q) ||
-                       (t.type || "").toLowerCase().includes(q) ||
-                       txWorkerLabel(t).toLowerCase().includes(q) ||
-                       txProjectLabel(t).toLowerCase().includes(q);
-              })
-              .map((t, i) => {
-                const style = categoryStyle[t.type] || { bg: "#f5f5f5", color: "#555" };
-                const isIncome = t.type === "Income";
-                return !isMobile ? (
-                  <div key={t._id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.5fr", padding: "16px 20px", borderBottom: i < recentEntries.length - 1 ? "1px solid #f9f9f9" : "none", alignItems: "center" }}
-                    onMouseEnter={ev => ev.currentTarget.style.background = "#fafafa"}
-                    onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{t.title}</div>
-                      <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{timeAgo(t.date)}</div>
-                    </div>
-                    <div>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: style.bg, color: style.color, letterSpacing: "0.04em" }}>{t.type?.toUpperCase()}</span>
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: isIncome ? "#16a34a" : "#1a1a1a" }}>
-                      {isIncome ? "+" : "-"}₹{t.amount?.toLocaleString("en-IN")}
-                    </div>
-                    <div style={{ fontSize: 20 }}>✅</div>
+            {/* Example hint (idle only) */}
+            {isIdle && (
+              <div className="voice-card" style={{
+                background: colors.primarySurface, borderRadius: radius.lg,
+                border: `1px solid ${colors.cardBorder}`,
+                padding: '16px 20px', maxWidth: 600, width: '100%',
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                  <path d="M9 18h6" /><path d="M10 22h4" />
+                  <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+                </svg>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: colors.primaryBlue, marginBottom: 4 }}>Example Phrase:</div>
+                  <div style={{ fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' }}>
+                    {ENTRY_EXAMPLES[entryType]}
                   </div>
-                ) : (
-                  <div key={t._id} style={{ padding: "14px 16px", borderBottom: i < recentEntries.length - 1 ? "1px solid #f9f9f9" : "none" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{t.title}</div>
-                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>{timeAgo(t.date)}</div>
-                      </div>
-                      <span style={{ fontSize: 18 }}>✅</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ===== PROCESSING ===== */}
+        {isProcessing && (
+          <div className="voice-card" style={{
+            background: colors.cardBg, borderRadius: radius.lg,
+            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            padding: '24px', maxWidth: 520, width: '100%',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: colors.primarySurface,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>BuildTrack AI</span>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                    background: colors.primarySurface, color: colors.primaryBlue,
+                    textTransform: 'uppercase',
+                  }}>{entryType}</span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: colors.primaryBlue }}>Processing...</div>
+              </div>
+            </div>
+            <div style={{ borderRadius: radius.md, background: colors.bgBase4, padding: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: colors.textPrimary, marginBottom: 12 }}>
+                Extracting details...
+              </div>
+              {['Entry Type', 'Item / Labour / Equipment', 'Quantity & Rate', 'Floor & Phase', 'Amount', 'Brand / Details'].map((label, i) => {
+                const icon = processingStage > i + 1 ? 'completed' : processingStage === i + 1 ? 'current' : 'pending';
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, opacity: icon === 'pending' ? 0.4 : 1 }}>
+                    <div style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {icon === 'completed' ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill={colors.success} stroke="white" strokeWidth="3">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="8 12 11 15 16 9" fill="none" stroke="white" strokeWidth="2" />
+                        </svg>
+                      ) : icon === 'current' ? (
+                        <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${colors.primaryBlue}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                      ) : (
+                        <div style={{ width: 14, height: 14, borderRadius: '50%', border: `1.5px solid ${colors.textLight}` }} />
+                      )}
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: style.bg, color: style.color }}>{t.type?.toUpperCase()}</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: isIncome ? "#16a34a" : "#1a1a1a" }}>
-                        {isIncome ? "+" : "-"}₹{t.amount?.toLocaleString("en-IN")}
-                      </span>
+                    <span style={{ fontSize: 12, fontWeight: icon === 'current' ? 700 : 500, color: colors.textPrimary }}>{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ===== EXTRACTING (brief preview before review sheet) ===== */}
+        {isExtracting && parsedData && (
+          <div className="voice-card fade-in" style={{
+            background: colors.cardBg, borderRadius: radius.lg,
+            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            padding: '24px', maxWidth: 520, width: '100%', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: colors.textPrimary, marginBottom: 12 }}>
+              AI Understanding Entry
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {[
+                { label: 'Type', value: parsedData.entryType, active: true },
+                { label: 'Item', value: parsedData.items?.[0] || parsedData.labourType || parsedData.equipmentName, active: !!parsedData.items?.[0] },
+                { label: 'Qty', value: parsedData.quantity, active: !!parsedData.quantity },
+                { label: 'Rate', value: parsedData.unitPrice ? `₹${parsedData.unitPrice}` : null, active: !!parsedData.unitPrice },
+                { label: 'Amount', value: parsedData.amount ? `₹${parsedData.amount.toLocaleString('en-IN')}` : null, active: !!parsedData.amount },
+              ].filter(f => f.value).map(f => (
+                <div key={f.label} style={{
+                  padding: '6px 12px', borderRadius: 10,
+                  background: '#DCFCE7', border: '1px solid #BBF7D0',
+                  fontSize: 11.5, fontWeight: 600, color: '#16A34A',
+                }}>
+                  {f.label}: {String(f.value)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ===== SAVING ===== */}
+        {isSaving && (
+          <div className="voice-card fade-in" style={{
+            background: colors.cardBg, borderRadius: radius.lg,
+            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            padding: '32px', maxWidth: 400, width: '100%', textAlign: 'center',
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: '50%', margin: '0 auto 16px',
+              border: `3px solid ${colors.primarySurface}`,
+              borderTopColor: colors.primaryBlue,
+              animation: 'spin 0.7s linear infinite',
+            }} />
+            <div style={{ fontSize: 16, fontWeight: 700, color: colors.textPrimary, marginBottom: 4 }}>
+              Saving Entry...
+            </div>
+            <div style={{ fontSize: 12, color: colors.textLight }}>
+              Please wait
+            </div>
+          </div>
+        )}
+
+        {/* ===== COMPLETED ===== */}
+        {isCompleted && (
+          <div className="voice-card fade-in" style={{
+            background: colors.cardBg, borderRadius: radius.lg,
+            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            padding: '32px 28px', textAlign: 'center', maxWidth: 500, width: '100%',
+          }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
+              background: 'linear-gradient(135deg, #22C55E, #10B981)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(34,197,94,0.3)',
+            }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: colors.textPrimary, marginBottom: 6 }}>
+              Entry Saved Successfully!
+            </div>
+            <div style={{ fontSize: 13, color: colors.textLight, marginBottom: 20 }}>
+              Your {entryType} entry has been recorded.
+            </div>
+            {parsedData && (
+              <div style={{
+                background: '#F0FDF4', borderRadius: radius.lg,
+                border: '1px solid #BBF7D0', padding: '16px 20px', marginBottom: 24, textAlign: 'left',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: colors.textLight }}>Type</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary, textTransform: 'capitalize' }}>{entryType}</span>
+                </div>
+                <div style={{ height: 1, background: '#DCFCE7', marginBottom: 8 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: colors.textLight }}>Item</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary }}>
+                    {parsedData.items?.[0] || parsedData.labourType || parsedData.equipmentName || '-'}
+                  </span>
+                </div>
+                <div style={{ height: 1, background: '#DCFCE7', marginBottom: 8 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, color: colors.textLight }}>Amount</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary }}>₹{parsedData.amount?.toLocaleString('en-IN') || '0'}</span>
+                </div>
+                {savedEntryId && (
+                  <>
+                    <div style={{ height: 1, background: '#DCFCE7', margin: '8px 0' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 11, color: colors.textLight }}>Entry ID</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary, fontFamily: 'monospace' }}>{savedEntryId}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button onClick={resetAll}
+              style={{
+                width: '100%', padding: '15px 0', borderRadius: radius.md, border: 'none',
+                background: 'linear-gradient(135deg, #6C63FF, #B137FF)',
+                color: '#FFF', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 10,
+              }}>
+              Add Another Entry
+            </button>
+            <button onClick={viewEntries}
+              style={{
+                width: '100%', padding: '14px 0', borderRadius: radius.md,
+                border: `1.5px solid ${colors.primaryBlue}`, background: 'transparent',
+                color: colors.primaryBlue, fontWeight: 600, fontSize: 14, cursor: 'pointer',
+              }}>
+              View All Entries
+            </button>
+          </div>
+        )}
+
+        {/* ===== ERROR ===== */}
+        {(isError || saveError) && (
+          <div className="voice-card fade-in" style={{
+            background: colors.cardBg, borderRadius: radius.lg,
+            border: '1px solid #FCA5A5', boxShadow: shadows.card,
+            padding: '20px', maxWidth: 500, width: '100%',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#DC2626' }}>Error</span>
+            </div>
+            <div style={{ fontSize: 13, color: '#991B1B', marginBottom: 16 }}>
+              {saveError || speechError || 'Something went wrong. Please try again.'}
+            </div>
+            <button onClick={() => { setSaveError(''); resetAll(); }}
+              style={{
+                width: '100%', padding: '12px', borderRadius: radius.md, border: 'none',
+                background: '#FEE2E2', color: '#DC2626', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+              }}>
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* ===== RECENT ENTRIES (when idle) ===== */}
+        {(isIdle || isContext) && (
+          <div style={{ width: '100%', maxWidth: 600 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: colors.textPrimary }}>Recent Entries</h3>
+              <span onClick={viewEntries}
+                style={{ fontSize: 12, color: colors.primaryBlue, fontWeight: 600, cursor: 'pointer' }}>
+                View History
+              </span>
+            </div>
+            <div style={{
+              background: colors.cardBg, borderRadius: radius.lg,
+              border: `1px solid ${colors.cardBorder}`, overflow: 'hidden',
+            }}>
+              {recentLoading ? (
+                <div style={{ padding: 30, textAlign: 'center', color: colors.textLight, fontSize: 13 }}>Loading...</div>
+              ) : recentEntries.length === 0 ? (
+                <div style={{ padding: 30, textAlign: 'center', color: colors.textLight, fontSize: 13 }}>No entries yet</div>
+              ) : recentEntries.map((t, i) => {
+                const typeLabel = t.type || 'Expense';
+                const typeColor = typeLabel === 'Materials' ? colors.primaryBlue : typeLabel === 'Wages' ? '#D97706' : typeLabel === 'Income' ? colors.success : colors.textSecondary;
+                const typeBg = typeLabel === 'Materials' ? colors.primarySurface : typeLabel === 'Wages' ? '#FFFBEB' : typeLabel === 'Income' ? '#F0FDF4' : colors.bgBase4;
+                return (
+                  <div key={t._id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 20px', borderBottom: i < recentEntries.length - 1 ? `1px solid ${colors.bgBase4}` : 'none',
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: colors.textPrimary, marginBottom: 2 }}>{t.title}</div>
+                      <div style={{ fontSize: 11, color: colors.textLight }}>{new Date(t.date).toLocaleDateString()}</div>
+                    </div>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                      background: typeBg, color: typeColor,
+                    }}>{typeLabel.toUpperCase()}</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: typeLabel === 'Income' ? colors.success : colors.textPrimary, marginLeft: 16, minWidth: 70, textAlign: 'right' }}>
+                      {typeLabel === 'Income' ? '+' : '-'}₹{(t.amount || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-
-        </div>
+        )}
       </div>
+
+      {/* ===== BOTTOM FLOATING MIC BUTTON (when idle/listening) ===== */}
+      {(isIdle || isListening) && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: 'linear-gradient(to top, rgba(255,255,255,0.98) 60%, rgba(255,255,255,0))',
+          padding: '24px 24px 20px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+          display: 'flex', justifyContent: 'center', zIndex: 20,
+        }}>
+          <button
+            onClick={isListening ? handleStopListening : handleStartListening}
+            style={{
+              width: isListening ? 64 : 72,
+              height: isListening ? 64 : 72,
+              borderRadius: '50%', border: 'none',
+              background: isListening
+                ? 'linear-gradient(135deg, #EF4444, #DC2626)'
+                : 'linear-gradient(135deg, #6C63FF, #B137FF)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: isListening
+                ? '0 4px 20px rgba(239,68,68,0.4)'
+                : '0 8px 30px rgba(108,99,255,0.4)',
+              transition: 'all 0.2s ease',
+            }}>
+            {isListening ? (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            ) : (
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* ===== VOICE REVIEW SHEET (bottom sheet) ===== */}
+      <VoiceReviewSheet
+        key={showReview ? `review-${Date.now()}` : 'review-closed'}
+        isOpen={showReview}
+        onClose={() => { setShowReview(false); setStatus(STATUS.summary); }}
+        initialData={parsedData || {}}
+        projects={projects}
+        executionContext={executionContext}
+        onSave={handleReviewSave}
+      />
     </div>
   );
 }

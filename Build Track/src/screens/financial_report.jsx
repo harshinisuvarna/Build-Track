@@ -1,629 +1,1806 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { reportAPI } from "../api";
+import { 
+  projectAPI, 
+  transactionAPI, 
+  paymentAPI 
+} from "../api";
 import { Toast } from "../components/Toast";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { 
+  colors, 
+  radius, 
+  shadows, 
+  gradients, 
+  typography 
+} from "../styles/designTokens";
+import { 
+  Sparkles, 
+  Building, 
+  ChevronDown, 
+  Download, 
+  SlidersHorizontal, 
+  PlusCircle, 
+  CreditCard, 
+  Edit2, 
+  AlertTriangle, 
+  Calendar, 
+  ChevronLeft, 
+  ChevronRight, 
+  Info, 
+  X, 
+  Check, 
+  RotateCcw, 
+  Search,
+  Eye,
+  FileText
+} from "lucide-react";
 
-const MONTH_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const YEARS        = Array.from({ length: 11 }, (_, i) => 2020 + i);
+// Local Fallback Theme Styles for absolute parity safety
+const primaryBlue = "#173EEA";
+const primaryPurple = "#8B5CF6";
+const primaryLightBlue = "#06B6D4";
 
-const now          = new Date();
-const THIS_YEAR    = now.getFullYear();
-const THIS_MONTH   = now.getMonth();
-
-function lastMonthOf(year, month) {
-  return month === 0
-    ? { year: year - 1, month: 11 }
-    : { year, month: month - 1 };
+// Formatting Helpers
+function formatINR(n) { 
+  return `\u20B9${Number(n || 0).toLocaleString("en-IN")}`; 
 }
-function fullMonthRange(year, month) {
+
+function formatDateShort(dt) {
+  if (!dt) return "—";
+  const date = new Date(dt);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = months[date.getMonth()];
+  const year = String(date.getFullYear()).substring(2);
+  return `${day} ${month} ${year}`;
+}
+
+function formatDateLong(dt) {
+  if (!dt) return "—";
+  const date = new Date(dt);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hour24 = date.getHours();
+  const ampm = hour24 >= 12 ? 'PM' : 'AM';
+  let hour12 = hour24 % 12;
+  if (hour12 === 0) hour12 = 12;
+  const hour = String(hour12).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${day} ${month} ${year} ${hour}:${minute} ${ampm}`;
+}
+
+function getPaymentStatusLabel(status) {
+  switch ((status || '').toLowerCase().trim()) {
+    case 'paid':
+    case 'fully paid':
+    case 'fullypaid':
+      return 'Fully Paid';
+    case 'partial':
+      return 'Partial';
+    case 'pending':
+    case 'not paid':
+    case 'notpaid':
+    case 'unpaid':
+    default:
+      return 'Not Paid';
+  }
+}
+
+// Map transaction structure from API to exact EntryModel structure in Flutter
+function mapTransactionToEntry(tx) {
+  let parsedType = "material";
+  const rawType = (tx.type || '').toLowerCase();
+  if (rawType === 'labour' || rawType === 'wages') {
+    parsedType = "labour";
+  } else if (rawType === 'equipment' || rawType === 'expense') {
+    parsedType = "equipment";
+  }
+
+  let entryProjectId = '';
+  if (tx.project && typeof tx.project === 'object') {
+    entryProjectId = tx.project._id || '';
+  } else if (tx.project) {
+    entryProjectId = tx.project.toString();
+  }
+  if (!entryProjectId && tx.projectId) {
+    if (typeof tx.projectId === 'object') {
+      entryProjectId = tx.projectId._id || '';
+    } else {
+      entryProjectId = tx.projectId.toString();
+    }
+  }
+  entryProjectId = entryProjectId.trim();
+  if (!entryProjectId) entryProjectId = 'p1';
+
+  let amount = 0;
+  const paymentStatus = (tx.paymentStatus || '').toLowerCase().trim();
+  const paidAmount = tx.paidAmount;
+
+  if (paymentStatus === 'paid') {
+    if (paidAmount !== undefined && paidAmount !== null && typeof paidAmount === 'number' && paidAmount > 0) {
+      amount = paidAmount;
+    } else {
+      const v = tx.amount;
+      if (v !== undefined && v !== null && typeof v === 'number' && v > 0) {
+        amount = v;
+      } else {
+        const qty = tx.quantity;
+        const rate = tx.rate;
+        if (typeof qty === 'number' && typeof rate === 'number' && qty > 0 && rate > 0) {
+          amount = qty * rate;
+        }
+      }
+    }
+  } else if (paymentStatus === 'partial') {
+    if (paidAmount !== undefined && paidAmount !== null && typeof paidAmount === 'number' && paidAmount > 0) {
+      amount = paidAmount;
+    }
+  } else {
+    const v = tx.amount;
+    if (v !== undefined && v !== null && typeof v === 'number' && v > 0) {
+      amount = v;
+    } else {
+      const qty = tx.quantity;
+      const rate = tx.rate;
+      if (typeof qty === 'number' && typeof rate === 'number' && qty > 0 && rate > 0) {
+        amount = qty * rate;
+      }
+    }
+  }
+
+  const createdByRaw = tx.createdBy || tx.addedBy || tx.submittedBy || tx.userId || tx.user;
+  let createdBy = '';
+  if (createdByRaw && typeof createdByRaw === 'object') {
+    createdBy = createdByRaw._id || createdByRaw.id || '';
+  } else if (createdByRaw) {
+    createdBy = createdByRaw.toString();
+  }
+
   return {
-    start: new Date(year, month, 1),
-    end:   new Date(year, month + 1, 0),
+    id: tx._id || new Date().getTime().toString(),
+    projectId: entryProjectId,
+    type: parsedType,
+    amount: amount,
+    date: tx.date ? new Date(tx.date) : (tx.createdAt ? new Date(tx.createdAt) : new Date()),
+    description: String(tx.materialName || tx.title || tx.description || tx.name || 'Entry'),
+    brand: String(tx.brand || tx.materialName || tx.name || ''),
+    ratePerUnit: typeof tx.rate === 'number' ? tx.rate : 0,
+    floor: tx.floor || '',
+    phase: tx.phase || '',
+    phaseId: tx.phaseId || '',
+    activity: tx.activity || '',
+    activityId: tx.activityId || '',
+    unit: tx.unit || '',
+    createdBy: createdBy,
+    approvalStatus: tx.approvalStatus || 'Pending',
+    paymentStatus: tx.paymentStatus || 'Pending',
+    paymentDate: tx.paymentDate ? new Date(tx.paymentDate) : null,
+    rejectionReason: tx.rejectionReason || '',
+    rawTx: tx // store full raw transaction for editing/saving context
   };
 }
-function formatShortDate(d) {
-  if (!d) return "…";
-  return `${SHORT_MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2,"0")}`;
-}
-function formatRangeLabel(start, end) {
-  if (!start) return "Select range";
-  if (!end)   return `${formatShortDate(start)} – …`;
-  const sy = start.getFullYear(), ey = end.getFullYear();
-  return `${formatShortDate(start)} – ${formatShortDate(end)}, ${sy === ey ? sy : ey}`;
-}
-function sameDay(a, b)  { return a && b && a.toDateString() === b.toDateString(); }
-function inRange(d, s, e) { return s && e && d > s && d < e; }
-function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
-function firstDayOf(y, m)  { return new Date(y, m, 1).getDay(); }
-function formatINR(n) { return `₹${Number(n || 0).toLocaleString("en-IN")}`; }
-function formatRsPlain(n) { return `Rs ${Number(n || 0).toLocaleString("en-IN")}`; }
-function statusColor(status) {
-  if (status === "ON TRACK") return "#22c55e";
-  if (status === "REVIEW NEEDED") return "#f59e0b";
-  return "#3b82f6";
-}
-function escapeCsv(v) {
-  const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
-function MiniCalendar({ calYear, calMonth, rangeStart, rangeEnd, hoverDay,
-                        onDayClick, onDayHover, setCalYear, setCalMonth }) {
+// Columns definition
+const DEFAULT_COLS = {
+  All: ['Purchased Date', 'Project', 'Type', 'Description', 'Brand', 'Floor', 'Phase', 'Activity', 'Unit', 'Status', 'Amount', 'Payment Date'],
+  Materials: ['Purchased Date', 'Project', 'Material', 'Brand', 'Rate', 'Qty', 'Unit', 'Status', 'Amount', 'Payment Date'],
+  Labour: ['Purchased Date', 'Project', 'Worker Type', 'Rate/Day', 'Days', 'Status', 'Amount', 'Payment Date'],
+  Equipment: ['Purchased Date', 'Project', 'Equipment', 'Rent Rate', 'Duration', 'Status', 'Amount', 'Payment Date']
+};
 
-  const [showMonthMenu, setShowMonthMenu] = useState(false);
-  const [showYearMenu,  setShowYearMenu]  = useState(false);
-  const monthMenuRef = useRef(null);
-  const yearMenuRef  = useRef(null);
+const ALL_COLS = {
+  All: ['Purchased Date', 'Project', 'Type', 'Description', 'Brand', 'Floor', 'Phase', 'Activity', 'Unit', 'Status', 'Amount', 'Payment Date'],
+  Materials: ['Purchased Date', 'Project', 'Material', 'Brand', 'Rate', 'Qty', 'Unit', 'Floor', 'Phase', 'Activity', 'Status', 'Amount', 'Payment Date'],
+  Labour: ['Purchased Date', 'Project', 'Worker Type', 'Rate/Day', 'Days', 'Unit', 'Floor', 'Phase', 'Activity', 'Status', 'Amount', 'Payment Date'],
+  Equipment: ['Purchased Date', 'Project', 'Equipment', 'Rent Rate', 'Duration', 'Unit', 'Floor', 'Phase', 'Activity', 'Status', 'Amount', 'Payment Date']
+};
 
-  useEffect(() => {
-    function handle(e) {
-      if (monthMenuRef.current && !monthMenuRef.current.contains(e.target)) setShowMonthMenu(false);
-      if (yearMenuRef.current  && !yearMenuRef.current.contains(e.target))  setShowYearMenu(false);
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, []);
-
-  const days        = daysInMonth(calYear, calMonth);
-  const startOffset = firstDayOf(calYear, calMonth);
-  const cells       = [];
-  for (let i = 0; i < startOffset; i++) cells.push(null);
-  for (let d = 1; d <= days; d++) cells.push(new Date(calYear, calMonth, d));
-
-  function prevMonth() {
-    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
-    else setCalMonth(m => m - 1);
-  }
-  function nextMonth() {
-    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
-    else setCalMonth(m => m + 1);
-  }
-
-  return (
-    <div style={{ padding:"16px", minWidth:272 }}>
-
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, gap:6 }}>
-
-        <button onClick={prevMonth}
-          style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#555", padding:"2px 8px", borderRadius:6, lineHeight:1 }}>‹</button>
-
-        <div style={{ display:"flex", gap:6, flex:1, justifyContent:"center" }}>
-
-          <div ref={monthMenuRef} style={{ position:"relative" }}>
-            <button
-              onClick={() => { setShowMonthMenu(v=>!v); setShowYearMenu(false); }}
-              style={{ padding:"5px 10px", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:7, fontSize:13, fontWeight:700, color:"#111", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-              {SHORT_MONTHS[calMonth]} <span style={{ fontSize:10, color:"#888" }}>▾</span>
-            </button>
-            {showMonthMenu && (
-              <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:300, width:130 }}>
-                {MONTH_NAMES.map((name, mi) => (
-                  <div key={name}
-                    onClick={() => { setCalMonth(mi); setShowMonthMenu(false); }}
-                    style={{ padding:"8px 14px", fontSize:13, fontWeight: mi===calMonth?700:400, color: mi===calMonth?"#ea580c":"#333", background: mi===calMonth?"#fff5f0":"transparent", cursor:"pointer", borderLeft: mi===calMonth?"3px solid #ea580c":"3px solid transparent" }}
-                    onMouseEnter={e=>{ if(mi!==calMonth) e.currentTarget.style.background="#f9f9f9"; }}
-                    onMouseLeave={e=>{ if(mi!==calMonth) e.currentTarget.style.background="transparent"; }}>
-                    {name}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div ref={yearMenuRef} style={{ position:"relative" }}>
-            <button
-              onClick={() => { setShowYearMenu(v=>!v); setShowMonthMenu(false); }}
-              style={{ padding:"5px 10px", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:7, fontSize:13, fontWeight:700, color:"#111", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-              {calYear} <span style={{ fontSize:10, color:"#888" }}>▾</span>
-            </button>
-            {showYearMenu && (
-              <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:300, width:100, maxHeight:200, overflowY:"auto" }}>
-                {YEARS.map(y => (
-                  <div key={y}
-                    onClick={() => { setCalYear(y); setShowYearMenu(false); }}
-                    style={{ padding:"8px 14px", fontSize:13, fontWeight: y===calYear?700:400, color: y===calYear?"#ea580c":"#333", background: y===calYear?"#fff5f0":"transparent", cursor:"pointer", borderLeft: y===calYear?"3px solid #ea580c":"3px solid transparent" }}
-                    onMouseEnter={e=>{ if(y!==calYear) e.currentTarget.style.background="#f9f9f9"; }}
-                    onMouseLeave={e=>{ if(y!==calYear) e.currentTarget.style.background="transparent"; }}>
-                    {y}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <button onClick={nextMonth}
-          style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#555", padding:"2px 8px", borderRadius:6, lineHeight:1 }}>›</button>
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:4 }}>
-        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-          <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:"#aaa", padding:"2px 0" }}>{d}</div>
-        ))}
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={`e${i}`} />;
-          const isStart   = sameDay(day, rangeStart);
-          const isEnd     = sameDay(day, rangeEnd);
-          const isHover   = sameDay(day, hoverDay);
-          const endOrHov  = isEnd || (!rangeEnd && isHover);
-          const inSel     = inRange(day, rangeStart, rangeEnd || hoverDay);
-          const isToday   = sameDay(day, new Date());
-
-          let bg="transparent", color="#333", br=6;
-          if (isStart || endOrHov) { bg="#ea580c"; color="#fff"; }
-          else if (inSel)          { bg="#fff0e8"; color="#ea580c"; br=0; }
-
-          return (
-            <div key={day.toISOString()}
-              onClick={()=>onDayClick(day)}
-              onMouseEnter={()=>onDayHover(day)}
-              style={{ textAlign:"center", fontSize:13, fontWeight:isStart||endOrHov?700:400,
-                padding:"6px 2px", borderRadius:br, background:bg, color, cursor:"pointer",
-                outline: isToday&&!isStart&&!endOrHov?"1.5px solid #ea580c":"none", outlineOffset:-1 }}>
-              {day.getDate()}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "cheque", label: "Cheque" },
+  { value: "upi", label: "UPI" }
+];
 
 export default function FinancialReportPage() {
-
-  const [selYear,  setSelYear]  = useState(THIS_YEAR);
-  const [selMonth, setSelMonth] = useState(THIS_MONTH);
-
-  const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const [showMonthDrop, setShowMonthDrop] = useState(false);
-  const [dropYear,      setDropYear]      = useState(THIS_YEAR);
-  const monthDropRef = useRef(null);
-
-  const initRange = fullMonthRange(THIS_YEAR, THIS_MONTH);
-  const [rangeStart,   setRangeStart]   = useState(initRange.start);
-  const [rangeEnd,     setRangeEnd]     = useState(initRange.end);
-  const [hoverDay,     setHoverDay]     = useState(null);
-  const [pickingStart, setPickingStart] = useState(true);
-  const [showCal,      setShowCal]      = useState(false);
-  const [calYear,      setCalYear]      = useState(THIS_YEAR);
-  const [calMonth,     setCalMonth]     = useState(THIS_MONTH);
-  const calRef = useRef(null);
-
-  const [search,      setSearch]      = useState("");
-  const [exporting,   setExporting]   = useState(false);
-  const [toast,       setToast]       = useState({ msg: "", type: "info" });
-  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
-
-  const [sortKey,     setSortKey]     = useState("name");
-  const [showSort,    setShowSort]    = useState(false);
-  const sortRef = useRef(null);
-
   const navigate = useNavigate();
 
+  // Primary Data State
+  const [projects, setProjects] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState({ msg: "", type: "info" });
 
-  const handleExportCSV = async () => {
+  // 1. Project Context Filter State
+  const [selectedProjectId, setSelectedProjectId] = useState("all");
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedPhaseId, setSelectedPhaseId] = useState("");
+  const [selectedActivityName, setSelectedActivityName] = useState("");
+  const [datePreset, setDatePreset] = useState("All Time");
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+
+  // 2. Tab selection State (All, Materials, Labour, Equipment)
+  const [activeTab, setActiveTab] = useState("All");
+
+  // 3. Category Tab Sub-filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItemName, setSelectedItemName] = useState("");
+  const [reportGenerated, setReportGenerated] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // 4. Global table configurations
+  const [selectedStatus, setSelectedStatus] = useState("All"); // All, Approved, Pending, Rejected
+  const [sortColumn, setSortColumn] = useState("date"); // date, amount, project
+  const [sortAscending, setSortAscending] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // 5. Columns Customizer State (persist to local storage safely)
+  const [activeColumns, setActiveColumns] = useState(() => {
     try {
-      setExporting(true);
-      const header = "Worker Name,Role,Project,Total Days,Rate,Total Payout\n";
-      const rows = filtered.map((w) =>
-        [
-          escapeCsv(w.name),
-          escapeCsv(w.trade || ""),
-          escapeCsv(w.project || "Various"),
-          escapeCsv(w.totalDays ?? 0),
-          escapeCsv(w.dailyWage ?? 0),
-          escapeCsv(w.estimatedMonthlyPayout ?? 0),
-        ].join(",")
-      ).join("\n");
-      const csv = header + rows;
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const cached = localStorage.getItem("bt_reports_active_cols_v1");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading cached columns:", e);
+    }
+    return { ...DEFAULT_COLS };
+  });
+
+  // Modal Dialog states
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [tempActiveCols, setTempActiveCols] = useState([]);
+  const [tempAllCols, setTempAllCols] = useState([]);
+
+  // Detail Modal state
+  const [detailsEntry, setDetailsEntry] = useState(null);
+
+  // Record Payment Overlay state
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+  const [paymentTx, setPaymentTx] = useState(null);
+  const [paymentItem, setPaymentItem] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    method: "cash",
+    date: new Date().toISOString().split("T")[0],
+    notes: ""
+  });
+  const [paymentSubmitLoading, setPaymentSubmitLoading] = useState(false);
+
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  // Fetch initial data
+  const loadData = useCallback(() => {
+    setLoading(true);
+    setError("");
+    Promise.all([
+      projectAPI.getAll().catch(() => ({ data: { projects: [] } })),
+      transactionAPI.getAll({ limit: 10000, filterByViewAccess: true }).catch(() => ({ data: { transactions: [] } }))
+    ])
+      .then(([projRes, txRes]) => {
+        const projList = projRes.data?.projects || projRes.data || [];
+        setProjects(projList);
+
+        const rawList = txRes.data?.transactions || txRes.data || [];
+        // Map backend objects to Flutter-aligned EntryModel objects
+        const mappedList = rawList
+          .map(tx => mapTransactionToEntry(tx))
+          .filter(entry => entry.approvalStatus.toLowerCase() !== "rejected"); // Source-filtering matching Flutter
+        setTransactions(mappedList);
+      })
+      .catch(() => setError("Failed to load project details and reports log."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Sync Active Columns to localStorage
+  const saveActiveColumns = (updated) => {
+    setActiveColumns(updated);
+    localStorage.setItem("bt_reports_active_cols_v1", JSON.stringify(updated));
+  };
+
+  // Reset tab category sub-filters when tab changes
+  useEffect(() => {
+    setSearchQuery("");
+    setSelectedItemName("");
+    setReportGenerated(false);
+    setShowSuggestions(false);
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  // Project lookup
+  const selectedProject = useMemo(() => {
+    return projects.find(p => String(p._id) === selectedProjectId);
+  }, [projects, selectedProjectId]);
+
+  const getProjectName = useCallback((id) => {
+    const match = projects.find(p => String(p._id) === String(id));
+    return match ? match.projectName || match.name : "Unknown Project";
+  }, [projects]);
+
+  // Floor lists
+  const floors = useMemo(() => {
+    return selectedProject?.floors || [];
+  }, [selectedProject]);
+
+  // Phase name lists
+  const phases = useMemo(() => {
+    return selectedProject?.selectedPhases || [];
+  }, [selectedProject]);
+
+  const selectedPhaseName = useMemo(() => {
+    const match = phases.find(ph => String(ph.id) === selectedPhaseId);
+    return match ? match.phaseName : "Select Phase";
+  }, [phases, selectedPhaseId]);
+
+  // Scoped activity names list
+  const uniqueActivityNames = useMemo(() => {
+    const activities = [];
+    if (selectedPhaseId) {
+      const match = phases.find(ph => String(ph.id) === selectedPhaseId);
+      activities.push(...(match?.activities || []));
+    } else if (selectedProject) {
+      activities.push(...(selectedProject.selectedPhases?.flatMap(p => p.activities || []) || []));
+    }
+    return [...new Set(activities.map(a => a.name))];
+  }, [selectedProject, phases, selectedPhaseId]);
+
+  // Date Preset setting helper
+  const handleDatePreset = (preset) => {
+    setDatePreset(preset);
+    setCurrentPage(1);
+    const now = new Date();
+
+    switch (preset) {
+      case "All Time":
+        setStartDate(null);
+        setEndDate(null);
+        break;
+      case "Today":
+        setStartDate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        setEndDate(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59));
+        break;
+      case "This Week": {
+        const weekday = now.getDay() || 7; // 1 (Mon) - 7 (Sun)
+        const start = new Date(now);
+        start.setDate(now.getDate() - (weekday - 1));
+        setStartDate(new Date(start.getFullYear(), start.getMonth(), start.getDate()));
+        setEndDate(null);
+        break;
+      }
+      case "This Month":
+        setStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
+        setEndDate(null);
+        break;
+      case "Last 30 Days": {
+        const start = new Date(now);
+        start.setDate(now.getDate() - 30);
+        setStartDate(new Date(start.getFullYear(), start.getMonth(), start.getDate()));
+        setEndDate(null);
+        break;
+      }
+      case "This Year":
+        setStartDate(new Date(now.getFullYear(), 0, 1));
+        setEndDate(null);
+        break;
+      case "Custom":
+        // Keep existing or prompt manual selection
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Determine EntryTypes based on ActiveTab
+  const selectedTypes = useMemo(() => {
+    if (activeTab === "Materials") return new Set(["material"]);
+    if (activeTab === "Labour") return new Set(["labour"]);
+    if (activeTab === "Equipment") return new Set(["equipment"]);
+    return new Set(["material", "labour", "equipment"]);
+  }, [activeTab]);
+
+  // Filter pipeline matching Flutter report.dart line-by-line
+  const filteredEntries = useMemo(() => {
+    return transactions.filter(entry => {
+      // 1. Project Filter
+      if (selectedProjectId !== "all" && String(entry.projectId) !== selectedProjectId) {
+        return false;
+      }
+
+      // Project context filters (only apply when a specific project is selected)
+      if (selectedProjectId !== "all") {
+        if (selectedFloor && selectedFloor !== "Select Floor") {
+          if (entry.floor !== selectedFloor) return false;
+        }
+
+        if (selectedPhaseId && selectedPhaseId !== "Select Phase") {
+          const matchPhase = phases.find(ph => String(ph.id) === selectedPhaseId);
+          const phaseName = matchPhase?.phaseName;
+
+          if (entry.phaseId !== selectedPhaseId && (!phaseName || entry.phase !== phaseName)) {
+            return false;
+          }
+        }
+
+        if (selectedActivityName && selectedActivityName !== "Select Activity") {
+          if (entry.activity !== selectedActivityName && entry.description !== selectedActivityName) {
+            return false;
+          }
+        }
+      }
+
+      // 2. Type Filter
+      if (!selectedTypes.has(entry.type)) {
+        return false;
+      }
+
+      // 3. Tab Category Specific Search and Filters
+      if (activeTab !== "All" && reportGenerated) {
+        if (searchQuery.trim().length > 0) {
+          const q = searchQuery.toLowerCase();
+          const descMatch = entry.description.toLowerCase().includes(q);
+          const brandMatch = (entry.brand || '').toLowerCase().includes(q);
+          if (!descMatch && !brandMatch) return false;
+        }
+
+        if (selectedItemName && selectedItemName !== "All") {
+          if (entry.description !== selectedItemName) return false;
+        }
+      }
+
+      // 4. Global Search Filter for "All" tab (real-time filtering without requiring report generation)
+      if (activeTab === "All" && searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        const projectName = getProjectName(entry.projectId).toLowerCase();
+        const descMatch = entry.description.toLowerCase().includes(q);
+        const brandMatch = (entry.brand || '').toLowerCase().includes(q);
+        const projectMatch = projectName.includes(q);
+        const floorMatch = (entry.floor || '').toLowerCase().includes(q);
+        const phaseMatch = (entry.phase || '').toLowerCase().includes(q);
+        const activityMatch = (entry.activity || '').toLowerCase().includes(q);
+        const amountMatch = entry.amount.toString().includes(q);
+        const typeMatch = entry.type.toLowerCase().includes(q);
+        const statusMatch = getPaymentStatusLabel(entry.paymentStatus).toLowerCase().includes(q);
+        const dateMatch = formatDateShort(entry.date).toLowerCase().includes(q);
+        const payDateMatch = entry.paymentDate ? formatDateShort(entry.paymentDate).toLowerCase().includes(q) : false;
+
+        if (!descMatch && !brandMatch && !projectMatch && !floorMatch && !phaseMatch && 
+            !activityMatch && !amountMatch && !typeMatch && !statusMatch && !dateMatch && !payDateMatch) {
+          return false;
+        }
+      }
+
+      // 5. Approval Status Filter (All, Approved, Pending, Rejected)
+      if (selectedStatus !== "All" && entry.approvalStatus.toLowerCase() !== selectedStatus.toLowerCase()) {
+        return false;
+      }
+
+      // 6. Start/End Date Range Filters
+      if (startDate) {
+        const eDate = new Date(entry.date.getFullYear(), entry.date.getMonth(), entry.date.getDate());
+        const sDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        if (eDate.getTime() < sDate.getTime()) return false;
+      }
+      if (endDate) {
+        const eDate = new Date(entry.date.getFullYear(), entry.date.getMonth(), entry.date.getDate());
+        const edDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        if (eDate.getTime() > edDate.getTime()) return false;
+      }
+
+      return true;
+    });
+  }, [transactions, selectedProjectId, selectedFloor, selectedPhaseId, selectedActivityName, selectedTypes, activeTab, reportGenerated, searchQuery, selectedItemName, selectedStatus, startDate, endDate, getProjectName, phases]);
+
+  // Sort logs
+  const sortedEntries = useMemo(() => {
+    return [...filteredEntries].sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === "date") {
+        cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+      } else if (sortColumn === "amount") {
+        cmp = a.amount - b.amount;
+      } else if (sortColumn === "project") {
+        cmp = getProjectName(a.projectId).localeCompare(getProjectName(b.projectId));
+      }
+      return sortAscending ? cmp : -cmp;
+    });
+  }, [filteredEntries, sortColumn, sortAscending, getProjectName]);
+
+  // Total sums dynamically computed from filtered results
+  const materialTotal = useMemo(() => {
+    return filteredEntries.filter(e => e.type === "material").reduce((sum, e) => sum + e.amount, 0);
+  }, [filteredEntries]);
+
+  const labourTotal = useMemo(() => {
+    return filteredEntries.filter(e => e.type === "labour").reduce((sum, e) => sum + e.amount, 0);
+  }, [filteredEntries]);
+
+  const equipmentTotal = useMemo(() => {
+    return filteredEntries.filter(e => e.type === "equipment").reduce((sum, e) => sum + e.amount, 0);
+  }, [filteredEntries]);
+
+  const grandTotal = useMemo(() => {
+    return materialTotal + labourTotal + equipmentTotal;
+  }, [materialTotal, labourTotal, equipmentTotal]);
+
+  // Pagination bounds
+  const totalCount = sortedEntries.length;
+  const totalPages = Math.ceil(totalCount / rowsPerPage) || 1;
+  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+
+  const paginatedEntries = useMemo(() => {
+    const startIdx = (safeCurrentPage - 1) * rowsPerPage;
+    return sortedEntries.slice(startIdx, startIdx + rowsPerPage);
+  }, [sortedEntries, safeCurrentPage, rowsPerPage]);
+
+  // Unique names list for tab category autocomplete suggestion search dropdowns (highly robust String conversions)
+  const uniqueItemNames = useMemo(() => {
+    const targetType = activeTab === "Materials" ? "material" : activeTab === "Labour" ? "labour" : "equipment";
+    return [...new Set(
+      transactions
+        .filter(e => e.type === targetType && (selectedProjectId === "all" || String(e.projectId) === selectedProjectId))
+        .map(e => e.description)
+        .filter(name => name !== undefined && name !== null && String(name).trim().length > 0)
+    )].map(name => String(name));
+  }, [transactions, activeTab, selectedProjectId]);
+
+  // Autocomplete suggestion matches
+  const textQuerySuggestions = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return uniqueItemNames.filter(name => String(name).toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [uniqueItemNames, searchQuery]);
+
+  const showSuggestionsList = showSuggestions && searchQuery.trim().length > 0 && textQuerySuggestions.length > 0 && 
+    !(textQuerySuggestions.length === 1 && textQuerySuggestions[0].toLowerCase() === searchQuery.toLowerCase());
+
+  // Edit Columns Modal Actions
+  const openCustomizeModal = () => {
+    const all = ALL_COLS[activeTab];
+    const active = (activeColumns && activeColumns[activeTab]) || DEFAULT_COLS[activeTab];
+    const inactive = all.filter(c => !active.includes(c));
+    setTempActiveCols([...active]);
+    setTempAllCols([...active, ...inactive]);
+    setShowCustomizeModal(true);
+  };
+
+  const handleToggleColumn = (col) => {
+    if (tempActiveCols.includes(col)) {
+      if (tempActiveCols.length > 1) {
+        setTempActiveCols(tempActiveCols.filter(c => c !== col));
+      } else {
+        setToast({ msg: "At least one column must be visible.", type: "error" });
+      }
+    } else {
+      // Re-insert col aligned to order inside tempAllCols
+      const updated = [];
+      for (const c of tempAllCols) {
+        if (tempActiveCols.includes(c) || c === col) {
+          updated.push(c);
+        }
+      }
+      setTempActiveCols(updated);
+    }
+  };
+
+  const handleMoveColumn = (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= tempAllCols.length) return;
+
+    const copy = [...tempAllCols];
+    const [moved] = copy.splice(index, 1);
+    copy.splice(newIndex, 0, moved);
+    setTempAllCols(copy);
+
+    // Re-align order of active columns to preserve order
+    const updatedActive = [];
+    for (const c of copy) {
+      if (tempActiveCols.includes(c)) {
+        updatedActive.push(c);
+      }
+    }
+    setTempActiveCols(updatedActive);
+  };
+
+  const saveCustomizeColumns = () => {
+    const updated = { ...activeColumns, [activeTab]: tempActiveCols };
+    saveActiveColumns(updated);
+    setShowCustomizeModal(false);
+    setToast({ msg: "Column preferences saved!", type: "success" });
+  };
+
+  const resetCustomizeColumns = () => {
+    const all = ALL_COLS[activeTab];
+    setTempActiveCols([...DEFAULT_COLS[activeTab]]);
+    setTempAllCols([...all]);
+  };
+
+  // Actions routing helpers
+  const handleAddMore = (entry) => {
+    const activeKey = entry.type === "material" ? "material" : entry.type === "labour" ? "labour" : "equipment";
+    navigate(`/manualentry?type=${activeKey}&project=${entry.projectId}&name=${entry.description}&unit=${entry.unit}&brand=${entry.brand || ""}`);
+  };
+
+  const handleEditEntry = (entry) => {
+    navigate(`/manualentry`, { state: { transaction: entry.rawTx } });
+  };
+
+  const handleRecordPaymentClick = (entry) => {
+    const rawTx = entry.rawTx;
+    const paid = rawTx.paidAmount || 0;
+    const totalAmount = rawTx.amount || entry.amount;
+    const outstanding = Math.max(0, totalAmount - paid);
+
+    setPaymentTx(rawTx);
+    setPaymentItem(entry);
+    setPaymentForm({
+      amount: outstanding.toString(),
+      method: "cash",
+      date: new Date().toISOString().split("T")[0],
+      notes: ""
+    });
+    setPaymentSheetOpen(true);
+  };
+
+  const submitPayment = async () => {
+    if (!paymentForm.amount || Number(paymentForm.amount) <= 0) {
+      setToast({ msg: "Please enter a valid amount", type: "error" });
+      return;
+    }
+    setPaymentSubmitLoading(true);
+    try {
+      const payload = {
+        transactionId: paymentTx?._id || paymentItem?.id,
+        amount: Number(paymentForm.amount),
+        paymentMode: paymentForm.method,
+        paymentDate: paymentForm.date,
+        notes: paymentForm.notes
+      };
+      await paymentAPI.record(payload);
+      setToast({ msg: "Payment recorded successfully", type: "success" });
+      setPaymentSheetOpen(false);
+      loadData(); // Re-fetch the reports entries to load updated balances
+    } catch (err) {
+      setToast({ msg: err.response?.data?.message || "Failed to record payment", type: "error" });
+    } finally {
+      setPaymentSubmitLoading(false);
+    }
+  };
+
+  // CSV Exporter (Custom active columns matching Flutter)
+  const handleExportCSV = () => {
+    if (filteredEntries.length === 0) {
+      setToast({ msg: "No report entries to export.", type: "error" });
+      return;
+    }
+
+    try {
+      const activeCols = (activeColumns && activeColumns[activeTab]) || DEFAULT_COLS[activeTab] || [];
+      const headers = activeCols.map(col => col === "Amount" ? "Amount (INR)" : col);
+      
+      const csvBuffer = [];
+      // Header line
+      csvBuffer.push(headers.map(h => `"${h.replace(/"/g, '""')}"`).join(","));
+
+      for (const entry of filteredEntries) {
+        const dateStr = entry.date.toISOString().split("T")[0];
+        const projectName = getProjectName(entry.projectId);
+        const amountStr = entry.amount.toFixed(2);
+        const statusStr = getPaymentStatusLabel(entry.paymentStatus);
+        const payDateStr = entry.paymentDate ? entry.paymentDate.toISOString().split("T")[0] : "—";
+
+        const rowValues = [];
+        for (const col of activeCols) {
+          if (col === 'Purchased Date') {
+            rowValues.push(dateStr);
+          } else if (col === 'Payment Date') {
+            rowValues.push(payDateStr);
+          } else if (col === 'Project') {
+            rowValues.push(projectName);
+          } else if (col === 'Type') {
+            rowValues.push(entry.type.toUpperCase());
+          } else if (col === 'Description' || col === 'Material' || col === 'Worker Type' || col === 'Equipment') {
+            rowValues.push(entry.description || '—');
+          } else if (col === 'Brand') {
+            rowValues.push(entry.brand || '—');
+          } else if (col === 'Floor') {
+            rowValues.push(entry.floor || '—');
+          } else if (col === 'Phase') {
+            rowValues.push(entry.phase || '—');
+          } else if (col === 'Activity') {
+            rowValues.push(entry.activity || '—');
+          } else if (col === 'Unit') {
+            rowValues.push(entry.unit || '—');
+          } else if (col === 'Status') {
+            rowValues.push(statusStr);
+          } else if (col === 'Amount') {
+            rowValues.push(amountStr);
+          } else if (col === 'Rate' || col === 'Rate/Day' || col === 'Rent Rate') {
+            rowValues.push((entry.ratePerUnit || 0).toFixed(2));
+          } else if (col === 'Qty' || col === 'Days' || col === 'Duration') {
+            const rate = entry.ratePerUnit || 0;
+            const val = (rate === 0) ? 0 : entry.amount / rate;
+            rowValues.push(val.toFixed(1));
+          }
+        }
+        csvBuffer.push(rowValues.map(v => `"${v.replace(/"/g, '""')}"`).join(","));
+      }
+
+      const blob = new Blob(["\uFEFF" + csvBuffer.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `wages-report-${MONTH_NAMES[selMonth].toLowerCase()}-${selYear}.csv`;
+      a.download = `BuildTrack_Report_${new Date().getTime()}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
       setToast({ msg: "CSV exported successfully!", type: "success" });
     } catch {
-      setToast({ msg: "Failed to export CSV. Please try again.", type: "error" });
-    } finally {
-      setExporting(false);
+      setToast({ msg: "CSV Export failed", type: "error" });
     }
   };
 
+  // PDF Exporter (Custom active columns matching Flutter)
+  const handleExportPDF = () => {
+    if (filteredEntries.length === 0) {
+      setToast({ msg: "No report entries to export.", type: "error" });
+      return;
+    }
 
-  const handleDownloadPDF = async () => {
     try {
-      setExporting(true);
-      const doc = new jsPDF();
-      const generatedOn = new Date().toLocaleDateString("en-IN");
+      const doc = new jsPDF("l", "mm", "a4"); // Landscape A4 for custom columns
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
-      doc.text(`Financial Report - ${MONTH_NAMES[selMonth]} ${selYear}`, 14, 16);
+
+      const title = selectedProjectId === 'all'
+        ? 'All Active Projects Summary Report'
+        : `${getProjectName(selectedProjectId)} Report`;
+      doc.text(title, 14, 16);
+
+      // Filters summary line
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.text(`Total Income: ${formatRsPlain(income)}`, 14, 28);
-      doc.text(`Expenditures: ${formatRsPlain(expenses)}`, 74, 28);
-      doc.text(`Net Profit: ${formatRsPlain(profit)}`, 140, 28);
-      doc.text(`Compliance: ${Number(compliance || 0).toFixed(1)}%`, 14, 35);
+      doc.setFontSize(9);
+      const parts = [];
+      if (selectedProjectId !== "all") {
+        parts.push(`Project: ${getProjectName(selectedProjectId)}`);
+        if (selectedFloor) parts.push(`Floor: ${selectedFloor}`);
+        if (selectedPhaseId) parts.push(`Phase: ${selectedPhaseName}`);
+        if (selectedActivityName) parts.push(`Activity: ${selectedActivityName}`);
+      } else {
+        parts.push("All Projects");
+      }
+      parts.push(`Types: ${[...selectedTypes].map(t => t.toUpperCase()).join(", ")}`);
+      parts.push(`Status: ${selectedStatus}`);
+      parts.push(`Date Preset: ${datePreset}`);
+      doc.text(parts.join(" | "), 14, 23);
 
-      const tableBody = filtered.length
-        ? filtered.map((w) => [
-            w.name || "—",
-            w.trade || "—",
-            w.project || "Various",
-            `${w.totalDays ?? 0}`,
-            formatRsPlain(w.dailyWage ?? 0),
-            formatRsPlain(w.estimatedMonthlyPayout ?? 0),
-          ])
-        : [["No data available", "", "", "", "", ""]];
+      // KPI box row
+      doc.setFontSize(10);
+      doc.text(`Total Expense: ${formatINR(grandTotal)}  |  Materials: ${formatINR(materialTotal)}  |  Labour: ${formatINR(labourTotal)}  |  Equipment: ${formatINR(equipmentTotal)}`, 14, 30);
 
-      autoTable(doc, {
-        startY: 42,
-        head: [["Worker Name", "Role", "Project", "Total Days", "Rate (₹)", "Total Payout (₹)"]],
-        body: tableBody,
-        styles: { fontSize: 9, font: "helvetica" },
-        headStyles: { fillColor: [40, 120, 176], textColor: 255, fontStyle: "bold" },
+      const activeCols = (activeColumns && activeColumns[activeTab]) || DEFAULT_COLS[activeTab] || [];
+      const headers = activeCols.map(col => col === "Amount" ? "Amount (INR)" : col);
+
+      const body = filteredEntries.map(entry => {
+        const row = [];
+        for (const col of activeCols) {
+          if (col === 'Purchased Date') {
+            row.push(formatDateShort(entry.date));
+          } else if (col === 'Payment Date') {
+            row.push(entry.paymentDate ? formatDateShort(entry.paymentDate) : '—');
+          } else if (col === 'Project') {
+            row.push(getProjectName(entry.projectId));
+          } else if (col === 'Type') {
+            row.push(entry.type.toUpperCase());
+          } else if (col === 'Description' || col === 'Material' || col === 'Worker Type' || col === 'Equipment') {
+            row.push(entry.description || '—');
+          } else if (col === 'Brand') {
+            row.push(entry.brand || '—');
+          } else if (col === 'Floor') {
+            row.push(entry.floor || '—');
+          } else if (col === 'Phase') {
+            row.push(entry.phase || '—');
+          } else if (col === 'Activity') {
+            row.push(entry.activity || '—');
+          } else if (col === 'Unit') {
+            row.push(entry.unit || '—');
+          } else if (col === 'Status') {
+            row.push(getPaymentStatusLabel(entry.paymentStatus));
+          } else if (col === 'Amount') {
+            row.push(entry.amount.toFixed(2));
+          } else if (col === 'Rate' || col === 'Rate/Day' || col === 'Rent Rate') {
+            row.push((entry.ratePerUnit || 0).toFixed(2));
+          } else if (col === 'Qty' || col === 'Days' || col === 'Duration') {
+            const rate = entry.ratePerUnit || 0;
+            const val = (rate === 0) ? 0 : entry.amount / rate;
+            row.push(val.toFixed(1));
+          }
+        }
+        return row;
       });
 
-      doc.setFontSize(10);
-      doc.text(`Generated by BuildTrack on ${generatedOn}`, 14, doc.internal.pageSize.height - 10);
-      doc.save(`financial-report-${MONTH_NAMES[selMonth].toLowerCase()}-${selYear}.pdf`);
-      setToast({ msg: "PDF report downloaded!", type: "success" });
+      autoTable(doc, {
+        startY: 35,
+        head: [headers],
+        body: body,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [23, 62, 234], textColor: 255 }
+      });
+
+      doc.save(`BuildTrack_Report_${new Date().getTime()}.pdf`);
+      setToast({ msg: "PDF exported successfully!", type: "success" });
     } catch {
-      setToast({ msg: "Failed to download report. Please try again.", type: "error" });
-    } finally {
-      setExporting(false);
+      setToast({ msg: "PDF Export failed", type: "error" });
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      setLoading(true);
-      setError("");
-      const params = { year: selYear, month: selMonth };
-      if (rangeStart) params.rangeStart = rangeStart.toISOString();
-      if (rangeEnd)   params.rangeEnd   = rangeEnd.toISOString();
-      try {
-        const { data } = await reportAPI.getFinancial(params);
-        if (isMounted) setReportData(data);
-      } catch {
-        if (isMounted) setError("Failed to load report data");
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    load();
-    return () => { isMounted = false; };
-  }, [selYear, selMonth, rangeStart, rangeEnd]);
-
-  useEffect(() => {
-    function handle(e) {
-      if (monthDropRef.current && !monthDropRef.current.contains(e.target)) setShowMonthDrop(false);
-      if (calRef.current        && !calRef.current.contains(e.target))       setShowCal(false);
-      if (sortRef.current       && !sortRef.current.contains(e.target))      setShowSort(false);
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, []);
-
-  if (loading && !reportData) {
-    return (
-      <>
-        <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", color:"#888" }}>Loading Report...</div>
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: 40, color: "#dc2626", textAlign: "center" }}>
-        <h3>Error</h3>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()} style={{ padding: "8px 16px", borderRadius: 8, background: "#ea580c", color: "#fff", border: "none", cursor: "pointer" }}>Retry</button>
-      </div>
-    );
-  }
-
-  const { income = 0, expenses = 0, profit = 0, compliance = 0, workers = [] } = reportData || {};
-
-  const margin = income > 0 ? ((profit / income) * 100).toFixed(1) : "0.0";
-  const metrics = [
-    { label:"TOTAL INCOME",  value:formatINR(income), sub:"Real-time data", subColor:"#16a34a", dot:"#16a34a" },
-    { label:"EXPENDITURES",  value:formatINR(expenses), sub:"Updated hourly",  subColor:"#ea580c", dot:"#ef4444" },
-    { label:"NET PROFIT",    value:formatINR(profit), sub:`${margin}% Margin`, subColor:"#6b7280", dot:"#ea580c", valueColor:"#ea580c" },
-  ];
-
-  const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`;
-  const rangeLabel = formatRangeLabel(rangeStart, rangeEnd);
-
-  const SORT_OPTIONS = [
-    { key: "name",    label: "Worker Name (A–Z)" },
-    { key: "payout",  label: "Payout (High–Low)"},
-    { key: "trade",   label: "Trade / Role" },
-  ];
-
-  const filtered = workers
-    .filter(w =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      (w.trade && w.trade.toLowerCase().includes(search.toLowerCase()))
-    )
-    .sort((a, b) => {
-      if (sortKey === "payout") return (b.estimatedMonthlyPayout || 0) - (a.estimatedMonthlyPayout || 0);
-      if (sortKey === "trade")  return (a.trade || "").localeCompare(b.trade || "");
-      return (a.name || "").localeCompare(b.name || "");
-    });
-
-
-  function applyMonth(year, month) {
-    setSelYear(year);
-    setSelMonth(month);
-    const r = fullMonthRange(year, month);
-    setRangeStart(r.start);
-    setRangeEnd(r.end);
-    setCalYear(year);
-    setCalMonth(month);
-    setShowMonthDrop(false);
-  }
-
-  function handleLastMonth() {
-    const { year, month } = lastMonthOf(THIS_YEAR, THIS_MONTH);
-    applyMonth(year, month);
-  }
-
-  function onDayClick(day) {
-    if (pickingStart) {
-      setRangeStart(day); setRangeEnd(null); setPickingStart(false);
-    } else {
-      const [s, e] = day < rangeStart ? [day, rangeStart] : [rangeStart, day];
-      setRangeStart(s); setRangeEnd(e);
-      setPickingStart(true); setShowCal(false);
-    }
-  }
+  const activeCols = (activeColumns && activeColumns[activeTab]) || DEFAULT_COLS[activeTab] || [];
+  const uiActiveCols = [...activeCols, 'Add More', 'Record Payment', 'Edit Entry'];
 
   return (
-    <div style={{ flex:1, minWidth:0, width:"100%", display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden", background:"#f7f7f8", fontFamily:"'Segoe UI', sans-serif" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
-      <div style={{ background:"#fff", borderBottom:"1px solid #ebebeb", padding:"0 28px", height:64, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxSizing:"border-box" }}>
-        <h1 style={{ margin:0, fontSize:20, fontWeight:800, color:"#111", whiteSpace:"nowrap" }}>Financial Reports</h1>
-        <div style={{ flex:1, maxWidth:420, margin:"0 auto", display:"flex", alignItems:"center", background:"#f5f5f5", border:"1px solid #e5e5e5", borderRadius:10, padding:"9px 14px", gap:8 }}>
-          <span style={{ color:"#aaa", fontSize:14 }}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search workers..."
-            style={{ border:"none", background:"transparent", outline:"none", fontSize:14, color:"#555", width:"100%" }} />
+      {/* Top Bar */}
+      <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Reports</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>Financial analytics &amp; transaction log audit</p>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <button onClick={handleExportCSV} disabled={exporting} id="export-csv-btn" style={{ padding:"10px 20px", background:"#fff", color:"#ea580c", border:"1.5px solid #ea580c", borderRadius:10, fontWeight:700, fontSize:14, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap", opacity: exporting ? 0.7 : 1 }}>{exporting ? "⏳ Exporting…" : "⬇ Export CSV"}</button>
-          <div style={{ width:38, height:38, background:"#f5f5f5", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, cursor:"pointer", border:"1px solid #e5e5e5" }}>🔔</div>
-        </div>
-      </div>
-
-      <div style={{ flex:1, overflowY:"auto", overflowX:"hidden", padding:"28px 28px 60px", boxSizing:"border-box" }}>
-
-        {/* Page heading */}
-        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:16, marginBottom:24 }}>
-          <div>
-            <h2 style={{ margin:"0 0 6px", fontSize:"clamp(24px,3vw,34px)", fontWeight:900, color:"#111", letterSpacing:"-0.5px" }}>{monthLabel} Analysis</h2>
-            <p style={{ margin:0, fontSize:14, color:"#888", maxWidth:340, lineHeight:1.5 }}>Reporting period performance and labor expenditure overview.</p>
-          </div>
-          <button onClick={handleDownloadPDF} disabled={exporting} id="download-pdf-btn" style={{ padding:"14px 28px", background:"#ea580c", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:15, cursor: exporting ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:10, boxShadow:"0 4px 18px rgba(234,88,12,0.35)", opacity: exporting ? 0.7 : 1 }}>
-            <span style={{ fontSize:18 }}>📄</span>
-            <span>{exporting ? "Downloading…" : <>Download<br /><span style={{ fontSize:13, fontWeight:600 }}>Report</span></>}</span>
-          </button>
-        </div>
-
-        {/* ── Date filter strip ──────────────────────────────────────────────── */}
-        <div style={{ background:"#fff", borderRadius:14, border:"1px solid #ebebeb", padding:"14px 20px", display:"flex", alignItems:"center", gap:10, marginBottom:24, flexWrap:"wrap", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", position:"relative" }}>
-
-          <button
-            onClick={handleLastMonth}
-            style={{ padding:"9px 20px", background:"transparent", color:"#333", border:"1.5px solid #e5e5e5", borderRadius:8, fontWeight:500, fontSize:14, cursor:"pointer", transition:"border-color 0.15s" }}
-            onMouseEnter={e=>e.currentTarget.style.borderColor="#ccc"}
-            onMouseLeave={e=>e.currentTarget.style.borderColor="#e5e5e5"}>
-            Last Month
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button 
+            onClick={() => openCustomizeModal()} 
+            style={{ 
+              padding: "9px 18px", 
+              borderRadius: radius.md, 
+              border: `1.5px solid ${colors.cardBorder}`, 
+              background: colors.cardBg, 
+              color: colors.textMedium, 
+              fontWeight: 700, 
+              fontSize: 13, 
+              cursor: "pointer", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 8,
+              boxShadow: shadows.card
+            }}
+          >
+            <SlidersHorizontal size={14} />
+            Edit Columns
           </button>
 
-          {/* ── Month selector dropdown ─────────── */}
-          <div ref={monthDropRef} style={{ position:"relative" }}>
-            <button
-              onClick={()=>{ setShowMonthDrop(v=>!v); setShowCal(false); }}
-              style={{ padding:"9px 20px", background:"transparent", color:"#ea580c", border:"1.5px solid #ea580c", borderRadius:8, fontWeight:700, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-              {monthLabel} <span style={{ fontSize:11 }}>▾</span>
+          <div style={{ position: "relative" }}>
+            <button 
+              onClick={handleExportCSV}
+              disabled={filteredEntries.length === 0}
+              style={{ 
+                padding: "9px 18px", 
+                borderRadius: radius.md, 
+                border: "none", 
+                background: gradients.primaryButton, 
+                color: "#FFF", 
+                fontWeight: 700, 
+                fontSize: 13, 
+                cursor: filteredEntries.length === 0 ? "not-allowed" : "pointer", 
+                opacity: filteredEntries.length === 0 ? 0.6 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                boxShadow: shadows.card
+              }}
+            >
+              <Download size={14} />
+              Export CSV
             </button>
-
-            {showMonthDrop && (
-              <div style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.14)", zIndex:200, width:240, overflow:"hidden" }}>
-
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderBottom:"1px solid #f0f0f0", background:"#fafafa" }}>
-                  <button onClick={()=>setDropYear(y=>Math.max(2020,y-1))}
-                    style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#555", padding:"2px 8px" }}>‹</button>
-                  <span style={{ fontWeight:700, fontSize:14, color:"#111" }}>{dropYear}</span>
-                  <button onClick={()=>setDropYear(y=>Math.min(2030,y+1))}
-                    style={{ background:"none", border:"none", cursor:"pointer", fontSize:16, color:"#555", padding:"2px 8px" }}>›</button>
-                </div>
-
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:4, padding:"10px 12px 12px" }}>
-                  {MONTH_NAMES.map((name, mi) => {
-                    const isActive = dropYear===selYear && mi===selMonth;
-                    return (
-                      <button key={name}
-                        onClick={()=>applyMonth(dropYear, mi)}
-                        style={{ padding:"8px 4px", fontSize:12, fontWeight:isActive?700:500, color:isActive?"#fff":"#333", background:isActive?"#ea580c":"#f5f5f5", border:"none", borderRadius:8, cursor:"pointer", transition:"all 0.12s" }}
-                        onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background="#ffe8d8"; }}
-                        onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background="#f5f5f5"; }}>
-                        {SHORT_MONTHS[mi]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
-
-          <div style={{ width:1, height:28, background:"#e5e5e5" }} />
-
-          {/* ── Date range picker ─────────────────────────────────────────── */}
-          <div ref={calRef} style={{ position:"relative" }}>
-            <div
-              onClick={()=>{ setShowCal(v=>!v); setShowMonthDrop(false); setPickingStart(true); }}
-              style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 16px", border:"1.5px solid #e5e5e5", borderRadius:8, cursor:"pointer", userSelect:"none" }}>
-              <span style={{ fontSize:15 }}>📅</span>
-              <span style={{ fontSize:14, color:rangeEnd?"#444":"#ea580c", fontWeight:500 }}>{rangeLabel}</span>
-              <span style={{ fontSize:12, color:"#aaa" }}>▾</span>
-            </div>
-
-            {showCal && (
-              <div style={{ position:"absolute", top:"calc(100% + 8px)", left:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.12)", zIndex:200 }}>
-                <div style={{ padding:"10px 16px 8px", fontSize:12, color:"#888", borderBottom:"1px solid #f5f5f5" }}>
-                  {pickingStart
-                    ? "Click to set start date"
-                    : <span>Set end date — <span style={{ color:"#ea580c", fontWeight:600 }}>From: {formatShortDate(rangeStart)}</span></span>}
-                </div>
-
-                <MiniCalendar
-                  calYear={calYear} calMonth={calMonth}
-                  rangeStart={rangeStart} rangeEnd={rangeEnd} hoverDay={hoverDay}
-                  onDayClick={onDayClick}
-                  onDayHover={d => !pickingStart && setHoverDay(d)}
-                  setCalYear={setCalYear}
-                  setCalMonth={setCalMonth}
-                />
-
-                <div style={{ padding:"10px 16px", borderTop:"1px solid #f0f0f0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <button onClick={()=>{ setRangeStart(null); setRangeEnd(null); setPickingStart(true); }}
-                    style={{ background:"none", border:"none", color:"#888", fontSize:12, cursor:"pointer" }}>Clear</button>
-                  <button onClick={()=>setShowCal(false)}
-                    style={{ padding:"6px 16px", background:"#ea580c", color:"#fff", border:"none", borderRadius:7, fontSize:13, fontWeight:700, cursor:"pointer" }}>Done</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Metrics + Compliance */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1.15fr", gap:16, marginBottom:24 }}>
-          {metrics.map(m=>(
-            <div key={m.label} style={{ background:"#fff", borderRadius:16, border:"1px solid #ebebeb", padding:"24px 22px", boxShadow:"0 1px 6px rgba(0,0,0,0.04)", display:"flex", flexDirection:"column", gap:10 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <div style={{ width:9, height:9, borderRadius:"50%", background:m.dot, flexShrink:0 }} />
-                <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.08em" }}>{m.label}</span>
-              </div>
-              <div style={{ fontSize:"clamp(18px,2vw,26px)", fontWeight:800, color:m.valueColor||"#111", letterSpacing:"-0.5px" }}>{m.value}</div>
-              <div style={{ fontSize:12, color:m.subColor, fontWeight:600 }}>{m.sub}</div>
-            </div>
-          ))}
-          <div style={{ background:"#ea580c", borderRadius:16, padding:"24px 22px", display:"flex", flexDirection:"column", gap:12, boxShadow:"0 4px 20px rgba(234,88,12,0.3)" }}>
-            <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", letterSpacing:"0.08em" }}>OVERALL COMPLIANCE</div>
-            <div style={{ fontSize:"clamp(28px,3vw,38px)", fontWeight:900, color:"#fff", letterSpacing:"-1px", lineHeight:1 }}>
-              {compliance.toFixed(1)}%<br /><span style={{ fontSize:"clamp(22px,2.5vw,30px)" }}>Compliance</span>
-            </div>
-            <div style={{ height:8, background:"rgba(255,255,255,0.25)", borderRadius:4, overflow:"hidden" }}>
-              <div style={{ width:`${compliance}%`, height:"100%", background:"#fff", borderRadius:4, transition:"width 0.4s ease" }} />
-            </div>
-            <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.85)", lineHeight:1.5 }}>Budget adherence for {monthLabel}.</p>
-          </div>
-        </div>
-
-        {/* Wages Per Worker table */}
-        <div style={{ background:"#fff", borderRadius:16, border:"1px solid #ebebeb", boxShadow:"0 1px 6px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-          <div style={{ padding:"22px 24px 0", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-            <div>
-              <div style={{ fontSize:18, fontWeight:800, color:"#111" }}>Wages Per Worker</div>
-              <div style={{ fontSize:13, color:"#888", marginTop:3 }}>Breakdown of labor costs for {monthLabel}</div>
-            </div>
-            <div style={{ display:"flex", gap:10 }}>
-
-              {/* ── Sort dropdown (≡) ─────────────────────────────────────── */}
-              <div ref={sortRef} style={{ position:"relative" }}>
-                <button
-                  onClick={() => { setShowSort(v => !v); }}
-                  title="Sort workers"
-                  style={{ background: showSort ? "#fff5f0" : "none", border: showSort ? "1px solid #fde4d0" : "none", cursor:"pointer", fontSize:18, color: showSort ? "#ea580c" : "#888", borderRadius:8, padding:"4px 8px", lineHeight:1, transition:"all 0.15s" }}>
-                  ≡
-                </button>
-                {showSort && (
-                  <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #ebebeb", borderRadius:12, boxShadow:"0 8px 28px rgba(0,0,0,0.12)", zIndex:300, minWidth:200, overflow:"hidden" }}>
-                    <div style={{ padding:"10px 14px 6px", fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em" }}>SORT BY</div>
-                    {SORT_OPTIONS.map(opt => (
-                      <div key={opt.key}
-                        onClick={() => { setSortKey(opt.key); setShowSort(false); }}
-                        style={{ padding:"10px 16px", fontSize:13, fontWeight: sortKey===opt.key?700:400, color: sortKey===opt.key?"#ea580c":"#333", background: sortKey===opt.key?"#fff5f0":"transparent", cursor:"pointer", borderLeft: sortKey===opt.key?"3px solid #ea580c":"3px solid transparent", transition:"background 0.12s" }}
-                        onMouseEnter={e=>{ if(sortKey!==opt.key) e.currentTarget.style.background="#f9f9f9"; }}
-                        onMouseLeave={e=>{ if(sortKey!==opt.key) e.currentTarget.style.background="transparent"; }}>
-                        {opt.label} {sortKey===opt.key && "✓"}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-
-          {/* ── PROJECT STATUS LEGEND only ── */}
-          <div style={{ padding:"14px 24px", display:"flex", alignItems:"center", gap:20, borderBottom:"1px solid #f0f0f0", flexWrap:"wrap" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <span style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.06em" }}>PROJECT STATUS LEGEND:</span>
-              {[["#16a34a","ON TRACK"],["#3b82f6","IN PROGRESS"],["#f59e0b","REVIEW NEEDED"]].map(([c,l])=>(
-                <div key={l} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                  <div style={{ width:8, height:8, borderRadius:"50%", background:c }}/><span style={{ fontSize:11, fontWeight:600, color:"#666" }}>{l}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"10px 24px", borderBottom:"1px solid #f0f0f0" }}>
-            {["WORKER DETAILS","PROJECT","TOTAL DAYS","RATE","TOTAL PAYOUT","ACTION"].map(col=>(
-              <div key={col} style={{ fontSize:11, fontWeight:700, color:"#aaa", letterSpacing:"0.07em" }}>{col}</div>
-            ))}
-          </div>
-          {filtered.length === 0 && (
-            <div style={{ padding: 32, textAlign: "center", color: "#aaa", fontSize: 14 }}>
-              {workers.length === 0 ? "No workers found for this period." : "No workers match your search."}
-            </div>
-          )}
-          {filtered.map((w,i)=>(
-            <div key={w._id || w.id || i}
-              style={{ display:"grid", gridTemplateColumns:"2.2fr 1.4fr 1fr 1fr 1.2fr 0.7fr", padding:"18px 24px", borderBottom:i<filtered.length-1?"1px solid #f5f5f5":"none", alignItems:"center", transition:"background 0.15s" }}
-              onMouseEnter={e=>e.currentTarget.style.background="#fafafa"}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <div style={{ width:8, height:8, borderRadius:"50%", background: statusColor(w.projectStatus), flexShrink:0 }} />
-                <div style={{ width:40, height:40, borderRadius:"50%", background:"#2d3748", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>{w.name?.charAt(0)}</div>
-                <div>
-                  <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{w.name}</div>
-                  <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{w.trade}</div>
-                </div>
-              </div>
-              <div><span style={{ padding:"4px 10px", background:"#e0e7ff", color:"#3730a3", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{w.project || "Various"}</span></div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{w.totalDays != null ? `${w.totalDays}d` : "—"}</div>
-              <div style={{ fontSize:14, fontWeight:600, color:"#333" }}>{formatINR(w.dailyWage || 0)}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#111" }}>{formatINR(w.estimatedMonthlyPayout || 0)}</div>
-              <div>
-                <button
-                  onClick={() => navigate(`/workers/${w._id || w.id}`, { state: { worker: w } })}
-                  style={{ background:"none", border:"none", color:"#ea580c", fontWeight:700, fontSize:12, cursor:"pointer", letterSpacing:"0.04em", padding:0, fontFamily:"inherit", transition:"opacity 0.15s" }}
-                  onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
-                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                  DETAILS
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
+
+      {/* Content Area */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+        
+        {/* SECTION 1: Ask AI Card Banner */}
+        <div 
+          onClick={() => navigate("/ai-chat")}
+          style={{
+            background: "linear-gradient(135deg, #5B5FCF 0%, rgba(23, 62, 234, 0.8) 100%)",
+            borderRadius: radius.lg,
+            padding: "16px 20px",
+            marginBottom: 24,
+            cursor: "pointer",
+            boxShadow: shadows.card,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            transition: "transform 0.15s ease",
+            transform: "translateY(0)"
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+        >
+          <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.18)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Sparkles size={20} color="#FFFFFF" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>Ask AI</div>
+            <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 12.5, marginTop: 2 }}>Ask about costs, entries &amp; inventory insights</div>
+          </div>
+          <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
+        </div>
+
+        {/* SECTION 2: Project Context Filters */}
+        <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 34, height: 34, background: "rgba(23, 62, 234, 0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: primaryBlue, flexShrink: 0 }}>
+              <Building size={16} />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: "800", color: colors.textPrimary }}>Project Context</div>
+              <div style={{ fontSize: 11.5, color: colors.textLight, marginTop: 1 }}>Configure scoping properties</div>
+            </div>
+          </div>
+
+          <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "0 0 16px" }} />
+
+          {/* Selector Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            
+            {/* Project dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Project</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  value={selectedProjectId} 
+                  onChange={e => {
+                    setSelectedProjectId(e.target.value);
+                    setSelectedFloor("");
+                    setSelectedPhaseId("");
+                    setSelectedActivityName("");
+                    setCurrentPage(1);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, fontWeight: "600", color: colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="all">All projects</option>
+                  {projects.map(p => (
+                    <option key={p._id} value={p._id}>{p.projectName || p.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
+            {/* Floor dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: selectedProjectId === "all" || floors.length === 0 ? "#C5CAE9" : colors.textSecondary, marginBottom: 6 }}>Floor</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  disabled={selectedProjectId === "all" || floors.length === 0}
+                  value={selectedFloor || "Select Floor"} 
+                  onChange={e => {
+                    setSelectedFloor(e.target.value === "Select Floor" ? "" : e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: selectedProjectId === "all" || floors.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: selectedProjectId === "all" || floors.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="Select Floor">Select Floor (All)</option>
+                  {floors.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
+            {/* Phase dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: selectedProjectId === "all" || phases.length === 0 ? "#C5CAE9" : colors.textSecondary, marginBottom: 6 }}>Phase</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  disabled={selectedProjectId === "all" || phases.length === 0}
+                  value={selectedPhaseId || "Select Phase"} 
+                  onChange={e => {
+                    setSelectedPhaseId(e.target.value === "Select Phase" ? "" : e.target.value);
+                    setSelectedActivityName("");
+                    setCurrentPage(1);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: selectedProjectId === "all" || phases.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: selectedProjectId === "all" || phases.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="Select Phase">Select Phase (All)</option>
+                  {phases.map(ph => (
+                    <option key={ph.id} value={ph.id}>{ph.phaseName}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
+            {/* Activity dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: selectedProjectId === "all" || uniqueActivityNames.length === 0 ? "#C5CAE9" : colors.textSecondary, marginBottom: 6 }}>Activity</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  disabled={selectedProjectId === "all" || uniqueActivityNames.length === 0}
+                  value={selectedActivityName || "Select Activity"} 
+                  onChange={e => {
+                    setSelectedActivityName(e.target.value === "Select Activity" ? "" : e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: selectedProjectId === "all" || uniqueActivityNames.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: selectedProjectId === "all" || uniqueActivityNames.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="Select Activity">Select Activity (All)</option>
+                  {uniqueActivityNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
+            {/* Date Period dropdown */}
+            <div>
+              <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Date Period</label>
+              <div style={{ position: "relative" }}>
+                <select 
+                  value={datePreset} 
+                  onChange={e => handleDatePreset(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, fontWeight: "600", color: colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="All Time">All Time</option>
+                  <option value="Today">Today</option>
+                  <option value="This Week">This Week</option>
+                  <option value="This Month">This Month</option>
+                  <option value="Last 30 Days">Last 30 Days</option>
+                  <option value="This Year">This Year</option>
+                  <option value="Custom">Custom Range</option>
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+            </div>
+
+            {/* Custom Dates (conditional inline) */}
+            {datePreset === "Custom" && (
+              <>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Start Date</label>
+                  <input 
+                    type="date" 
+                    value={startDate ? startDate.toISOString().split("T")[0] : ""}
+                    onChange={e => {
+                      setStartDate(e.target.value ? new Date(e.target.value) : null);
+                      setCurrentPage(1);
+                    }}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, color: colors.textPrimary, outline: "none" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>End Date</label>
+                  <input 
+                    type="date" 
+                    value={endDate ? endDate.toISOString().split("T")[0] : ""}
+                    onChange={e => {
+                      setEndDate(e.target.value ? new Date(e.target.value) : null);
+                      setCurrentPage(1);
+                    }}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, color: colors.textPrimary, outline: "none" }}
+                  />
+                </div>
+              </>
+            )}
+
+          </div>
+
+        </div>
+
+        {/* SECTION 3: Filtered Cost Summary Cards */}
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: "800", color: colors.textPrimary, margin: "0 0 12px" }}>Filtered Cost Summary</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            
+            {/* Grand Total cost */}
+            <div style={{ background: "linear-gradient(135deg, #173EEA 0%, #4667FF 100%)", borderRadius: radius.lg, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.7)" }}>Grand Total Expense</span>
+                <span style={{ fontSize: 16 }}>💰</span>
+              </div>
+              <div style={{ color: "#FFF", fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(grandTotal)}</div>
+            </div>
+
+            {/* Material Cost card */}
+            <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span style={{ fontSize: 12, fontWeight: "700", color: colors.textLight }}>Material Cost</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: "#5B5FCF15", display: "flex", alignItems: "center", justifyContent: "center", color: "#5B5FCF", fontSize: 14 }}>🪵</span>
+              </div>
+              <div style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(materialTotal)}</div>
+            </div>
+
+            {/* Labour Cost card */}
+            <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span style={{ fontSize: 12, fontWeight: "700", color: colors.textLight }}>Labour Cost</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: `${primaryPurple}15`, display: "flex", alignItems: "center", justifyContent: "center", color: primaryPurple, fontSize: 14 }}>👷</span>
+              </div>
+              <div style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(labourTotal)}</div>
+            </div>
+
+            {/* Equipment Cost card */}
+            <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span style={{ fontSize: 12, fontWeight: "700", color: colors.textLight }}>Equipment Cost</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: `${primaryLightBlue}15`, display: "flex", alignItems: "center", justifyContent: "center", color: primaryLightBlue, fontSize: 14 }}>🚜</span>
+              </div>
+              <div style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(equipmentTotal)}</div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* SECTION 4: Category Tabs */}
+        <div style={{ display: "flex", background: colors.cardBg, borderRadius: radius.md, border: `1.2px solid ${colors.cardBorder}`, padding: 4, marginBottom: 20, boxShadow: shadows.card }}>
+          {["All", "Materials", "Labour", "Equipment"].map(tab => {
+            const active = activeTab === tab;
+            return (
+              <button 
+                key={tab} 
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  borderRadius: radius.sm,
+                  border: "none",
+                  background: active ? gradients.primaryButton : "transparent",
+                  color: active ? "#FFF" : colors.textMedium,
+                  fontWeight: "700",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                {tab}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* SECTION 5: Tab Specific Sub-Filters & Search */}
+        {activeTab === "All" ? (
+          /* All tab: Normal search bar */
+          <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 14, marginBottom: 20, boxShadow: shadows.card, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, background: colors.bgBase4, borderRadius: 10, padding: "10px 14px" }}>
+              <Search size={16} color="#757299" />
+              <input 
+                value={searchQuery}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search description, brand, project, floor, status..." 
+                style={{ border: "none", background: "transparent", width: "100%", outline: "none", fontSize: 13, color: colors.textPrimary }}
+              />
+            </div>
+            
+            {/* Status Selector */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary }}>Status</label>
+              <select 
+                value={selectedStatus}
+                onChange={e => setSelectedStatus(e.target.value)}
+                style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid #E2E4FA`, outline: "none", fontSize: 12, fontWeight: "600", color: colors.textPrimary }}
+              >
+                <option value="All">All Approval Statuses</option>
+                <option value="Approved">Approved Only</option>
+                <option value="Pending">Pending Only</option>
+              </select>
+            </div>
+          </div>
+        ) : (
+          /* Materials/Labour/Equipment: Autocomplete Search suggestions + Sub-dropdown dropdown + Generate button */
+          <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 16, marginBottom: 20, boxShadow: shadows.card }}>
+            
+            <div style={{ position: "relative", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: colors.bgBase4, borderRadius: 10, padding: "10px 14px", border: showSuggestionsList ? `1px solid ${primaryBlue}` : "none" }}>
+                <Search size={16} color="#757299" />
+                <input 
+                  value={searchQuery}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onChange={e => {
+                    setSearchQuery(e.target.value);
+                    setSelectedItemName("");
+                    setShowSuggestions(true);
+                  }}
+                  placeholder={`Search ${activeTab.toLowerCase()}...`}
+                  style={{ border: "none", background: "transparent", width: "100%", outline: "none", fontSize: 13, color: colors.textPrimary }}
+                />
+              </div>
+              
+              {/* Autocomplete Suggestions list panel overlay */}
+              {showSuggestionsList && (
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#FFF", border: `1px solid #E2E4FA`, borderRadius: 10, boxShadow: shadows.card, zIndex: 50, maxHeight: 180, overflowY: "auto" }}>
+                  {textQuerySuggestions.map(name => (
+                    <div 
+                      key={name}
+                      onMouseDown={() => {
+                        setSearchQuery(name);
+                        setSelectedItemName(name);
+                        setShowSuggestions(false);
+                      }}
+                      style={{ padding: "10px 14px", fontSize: 13, color: colors.textPrimary, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <span style={{ color: primaryBlue }}>↳</span>
+                      <span>{name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ flex: 1, position: "relative" }}>
+                <select 
+                  value={selectedItemName || "All"}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSelectedItemName(val === "All" ? "" : val);
+                    setSearchQuery(val === "All" ? "" : val);
+                  }}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, fontWeight: "600", color: colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                >
+                  <option value="All">All {activeTab === "Materials" ? "Material Names" : activeTab === "Labour" ? "Worker Types" : "Equipment Names"}</option>
+                  {uniqueItemNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              </div>
+
+              {/* Status Selector */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary }}>Status</label>
+                <select 
+                  value={selectedStatus}
+                  onChange={e => setSelectedStatus(e.target.value)}
+                  style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid #E2E4FA`, outline: "none", fontSize: 12, fontWeight: "600", color: colors.textPrimary }}
+                >
+                  <option value="All">All Approval Statuses</option>
+                  <option value="Approved">Approved Only</option>
+                  <option value="Pending">Pending Only</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ width: "100%", marginTop: 14 }}>
+              <button 
+                onClick={() => {
+                  setReportGenerated(true);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  background: activeTab === "Materials" ? "#5B5FCF" : activeTab === "Labour" ? primaryPurple : primaryLightBlue,
+                  borderRadius: 10,
+                  color: "#FFFFFF",
+                  fontWeight: "700",
+                  fontSize: 13.5,
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8
+                }}
+              >
+                Generate CSV Report
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* SECTION 6: Report Logs Table Dynamic Grid */}
+        {activeTab !== "All" && !reportGenerated ? (
+          /* Placeholder when report is not generated yet */
+          <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "60px 20px", textAlign: "center", boxShadow: shadows.card }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: activeTab === "Materials" ? "#5B5FCF15" : activeTab === "Labour" ? `${primaryPurple}15` : `${primaryLightBlue}15`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: activeTab === "Materials" ? "#5B5FCF" : activeTab === "Labour" ? primaryPurple : primaryLightBlue }}>
+              <FileText size={24} />
+            </div>
+            <h3 style={{ fontSize: 15, fontWeight: "700", color: colors.textPrimary, margin: "0 0 6px" }}>Configure Filters</h3>
+            <p style={{ fontSize: 12.5, color: colors.textLight, margin: 0, lineHeight: 1.5 }}>
+              Configure filters above and tap<br /><strong>"Generate CSV Report"</strong> to view transaction logs.
+            </p>
+          </div>
+        ) : (
+          /* Log Table */
+          <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, overflow: "hidden", boxShadow: shadows.card }}>
+            
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#F5F6FF" }}>
+                    {uiActiveCols.map((colName) => {
+                      const isSortable = ["Date", "Purchased Date", "Project", "Amount"].includes(colName);
+                      let style = { 
+                        padding: "14px 18px", 
+                        fontSize: 11, 
+                        fontWeight: 700, 
+                        color: colors.textMedium, 
+                        letterSpacing: "0.06em", 
+                        textAlign: colName === "Amount" ? "right" : "left", 
+                        whiteSpace: "nowrap",
+                        cursor: isSortable ? "pointer" : "default"
+                      };
+
+                      const handleSortClick = () => {
+                        if (colName === "Date" || colName === "Purchased Date") {
+                          setSortColumn("date");
+                          setSortAscending(!sortAscending);
+                        } else if (colName === "Project") {
+                          setSortColumn("project");
+                          setSortAscending(!sortAscending);
+                        } else if (colName === "Amount") {
+                          setSortColumn("amount");
+                          setSortAscending(!sortAscending);
+                        }
+                      };
+
+                      return (
+                        <th 
+                          key={colName} 
+                          style={style}
+                          onClick={isSortable ? handleSortClick : undefined}
+                        >
+                          {colName === "Amount" ? "AMOUNT (INR)" : colName.toUpperCase()}
+                          {isSortable && sortColumn === (colName === "Project" ? "project" : colName === "Amount" ? "amount" : "date") && (
+                            <span style={{ marginLeft: 4 }}>{sortAscending ? "▲" : "▼"}</span>
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedEntries.length === 0 ? (
+                    <tr>
+                      <td colSpan={uiActiveCols.length} style={{ padding: 48, textAlign: "center", color: colors.textLight, fontSize: 13 }}>
+                        No transaction logs match filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedEntries.map((entry) => {
+                      const projectName = getProjectName(entry.projectId);
+                      
+                      return (
+                        <tr 
+                          key={entry.id} 
+                          style={{ borderBottom: `1px solid ${colors.divider}`, cursor: "pointer" }}
+                          onClick={(e) => {
+                            // Don't open details modal if clicking button actions
+                            if (e.target.closest("button")) return;
+                            setDetailsEntry(entry);
+                          }}
+                          onMouseEnter={ev => ev.currentTarget.style.background = "#F9FAFB"}
+                          onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}
+                        >
+                          {uiActiveCols.map((colName) => {
+                            const valStyle = { padding: "14px 18px", fontSize: 12.5, color: colors.textPrimary };
+                            
+                            if (colName === "Purchased Date") {
+                              return <td key={colName} style={valStyle}>{formatDateShort(entry.date)}</td>;
+                            } else if (colName === "Payment Date") {
+                              return <td key={colName} style={valStyle}>{entry.paymentDate ? formatDateShort(entry.paymentDate) : "—"}</td>;
+                            } else if (colName === "Project") {
+                              return <td key={colName} style={{ ...valStyle, fontWeight: "600" }}>{projectName}</td>;
+                            } else if (colName === "Type") {
+                              const chipColor = entry.type === "material" ? "#5B5FCF" : entry.type === "labour" ? primaryPurple : primaryLightBlue;
+                              const chipBg = entry.type === "material" ? "#5B5FCF15" : entry.type === "labour" ? `${primaryPurple}15` : `${primaryLightBlue}15`;
+                              return (
+                                <td key={colName} style={valStyle}>
+                                  <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 10.5, fontWeight: "700", background: chipBg, color: chipColor }}>
+                                    {entry.type.toUpperCase()}
+                                  </span>
+                                </td>
+                              );
+                            } else if (colName === "Description") {
+                              return <td key={colName} style={valStyle}>{entry.description || "—"}</td>;
+                            } else if (colName === "Material" || colName === "Worker Type" || colName === "Equipment") {
+                              return <td key={colName} style={valStyle}>{entry.description}</td>;
+                            } else if (colName === "Brand") {
+                              return <td key={colName} style={valStyle}>{entry.brand || "—"}</td>;
+                            } else if (colName === "Floor") {
+                              return <td key={colName} style={valStyle}>{entry.floor || "—"}</td>;
+                            } else if (colName === "Phase") {
+                              return <td key={colName} style={valStyle}>{entry.phase || "—"}</td>;
+                            } else if (colName === "Activity") {
+                              return <td key={colName} style={valStyle}>{entry.activity || "—"}</td>;
+                            } else if (colName === "Unit") {
+                              return <td key={colName} style={valStyle}>{entry.unit || "—"}</td>;
+                            } else if (colName === "Status") {
+                              const payStatus = getPaymentStatusLabel(entry.paymentStatus);
+                              const col = payStatus === "Fully Paid" ? "#16a34a" : payStatus === "Partial" ? "#d97706" : "#dc2626";
+                              const bg = payStatus === "Fully Paid" ? "#f0fdf4" : payStatus === "Partial" ? "#fffbeb" : "#fef2f2";
+                              return (
+                                <td key={colName} style={valStyle}>
+                                  <span style={{ padding: "3px 9px", borderRadius: 6, fontSize: 10.5, fontWeight: "700", color: col, background: bg }}>
+                                    {payStatus}
+                                  </span>
+                                </td>
+                              );
+                            } else if (colName === "Amount") {
+                              return (
+                                <td key={colName} style={{ ...valStyle, textAlign: "right", fontWeight: "700" }}>
+                                  {formatINR(entry.amount)}
+                                </td>
+                              );
+                            } else if (colName === "Rate" || colName === "Rate/Day" || colName === "Rent Rate") {
+                              return (
+                                <td key={colName} style={{ ...valStyle, textAlign: "right" }}>
+                                  {formatINR(entry.ratePerUnit)}
+                                </td>
+                              );
+                            } else if (colName === "Qty" || colName === "Days" || colName === "Duration") {
+                              const rate = entry.ratePerUnit || 0;
+                              const val = (rate === 0) ? 0 : entry.amount / rate;
+                              return (
+                                <td key={colName} style={{ ...valStyle, textAlign: "right" }}>
+                                  {val.toFixed(1)}
+                                </td>
+                              );
+                            } else if (colName === "Add More") {
+                              return (
+                                <td key={colName} style={valStyle}>
+                                  <button 
+                                    onClick={() => handleAddMore(entry)}
+                                    style={{ padding: "6px 12px", border: `1.2px solid #E2E4FA`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: primaryBlue, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                  >
+                                    <PlusCircle size={12} /> Add More
+                                  </button>
+                                </td>
+                              );
+                            } else if (colName === "Record Payment") {
+                              return (
+                                <td key={colName} style={valStyle}>
+                                  <button 
+                                    onClick={() => handleRecordPaymentClick(entry)}
+                                    style={{ padding: "6px 12px", border: `1.2px solid #ca8a04`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#ca8a04", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                  >
+                                    <CreditCard size={12} /> Pay Log
+                                  </button>
+                                </td>
+                              );
+                            } else if (colName === "Edit Entry") {
+                              return (
+                                <td key={colName} style={valStyle}>
+                                  <button 
+                                    onClick={() => handleEditEntry(entry)}
+                                    style={{ padding: "6px 12px", border: `1.2px solid #4b5563`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#4b5563", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                  >
+                                    <Edit2 size={12} /> Edit
+                                  </button>
+                                </td>
+                              );
+                            } else {
+                              return <td key={colName} style={valStyle}>—</td>;
+                            }
+                          })}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalCount > 0 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderTop: `1px solid ${colors.cardBorder}`, background: "#FFF", flexWrap: "wrap", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontSize: 12, color: colors.textLight }}>{totalCount} entries found</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 11.5, color: colors.textLight }}>Show:</span>
+                    <select 
+                      value={rowsPerPage} 
+                      onChange={e => {
+                        setRowsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      style={{ padding: "4px 8px", borderRadius: 6, border: `1.2px solid #E2E4FA`, fontSize: 12, fontWeight: "700", color: colors.textPrimary, outline: "none" }}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button 
+                    disabled={safeCurrentPage <= 1}
+                    onClick={() => setCurrentPage(safeCurrentPage - 1)}
+                    style={{ border: `1px solid ${colors.cardBorder}`, background: "none", cursor: safeCurrentPage <= 1 ? "not-allowed" : "pointer", padding: 6, borderRadius: 8, color: safeCurrentPage <= 1 ? "#aaa" : colors.textPrimary }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span style={{ fontSize: 12.5, fontWeight: "600", color: colors.textPrimary }}>
+                    Page {safeCurrentPage} of {totalPages}
+                  </span>
+                  <button 
+                    disabled={safeCurrentPage >= totalPages}
+                    onClick={() => setCurrentPage(safeCurrentPage + 1)}
+                    style={{ border: `1px solid ${colors.cardBorder}`, background: "none", cursor: safeCurrentPage >= totalPages ? "not-allowed" : "pointer", padding: 6, borderRadius: 8, color: safeCurrentPage >= totalPages ? "#aaa" : colors.textPrimary }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
+
+      {/* MODAL 1: Customize Columns Dialog */}
+      {showCustomizeModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#FFF", borderRadius: 16, width: 340, padding: 20, boxShadow: shadows.card, position: "relative" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: primaryBlue }}>Customize Columns</h3>
+              <button onClick={() => setShowCustomizeModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: colors.textLight }}><X size={18} /></button>
+            </div>
+            
+            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "0 0 10px" }} />
+            
+            <p style={{ margin: "0 0 12px", fontSize: 11, color: colors.textLight, lineHeight: 1.4 }}>
+              Toggle visibility or reorder columns in the reports table log layout. Move columns up and down inside the table list.
+            </p>
+
+            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingRight: 4 }}>
+              {tempAllCols.map((col, idx) => {
+                const isChecked = tempActiveCols.includes(col);
+                return (
+                  <div key={col} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: colors.bgBase4, borderRadius: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <input 
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleColumn(col)}
+                        style={{ width: 15, height: 15, accentColor: primaryBlue, cursor: "pointer" }}
+                      />
+                      <span style={{ fontSize: 12.5, fontWeight: "700", color: colors.textPrimary }}>{col}</span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button 
+                        disabled={idx === 0}
+                        onClick={() => handleMoveColumn(idx, -1)}
+                        style={{ border: "none", background: "none", cursor: idx === 0 ? "not-allowed" : "pointer", color: idx === 0 ? "#ccc" : colors.textPrimary, fontSize: 11, fontWeight: "bold" }}
+                      >
+                        ▲
+                      </button>
+                      <button 
+                        disabled={idx === tempAllCols.length - 1}
+                        onClick={() => handleMoveColumn(idx, 1)}
+                        style={{ border: "none", background: "none", cursor: idx === tempAllCols.length - 1 ? "not-allowed" : "pointer", color: idx === tempAllCols.length - 1 ? "#ccc" : colors.textPrimary, fontSize: 11, fontWeight: "bold" }}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", justifyItems: "stretch", gap: 10, marginTop: 18 }}>
+              <button 
+                onClick={resetCustomizeColumns}
+                style={{ flex: 1, padding: "10px 0", border: `1.2px solid ${colors.cardBorder}`, background: "none", borderRadius: 10, fontSize: 13, fontWeight: "700", color: colors.textMedium, cursor: "pointer" }}
+              >
+                Reset Default
+              </button>
+              <button 
+                onClick={saveCustomizeColumns}
+                style={{ flex: 1, padding: "10px 0", border: "none", background: gradients.primaryButton, borderRadius: 10, fontSize: 13, fontWeight: "700", color: "#FFF", cursor: "pointer" }}
+              >
+                Save Columns
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Entry Details Dialog (when row clicked) */}
+      {detailsEntry && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#FFF", borderRadius: 16, width: 360, padding: 22, boxShadow: shadows.card }}>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: primaryBlue }}>Entry Details</h3>
+              <button onClick={() => setDetailsEntry(null)} style={{ background: "none", border: "none", cursor: "pointer", color: colors.textLight }}><X size={18} /></button>
+            </div>
+
+            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "0 0 14px" }} />
+
+            {/* List details */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { label: "Project", val: getProjectName(detailsEntry.projectId) },
+                { label: "Type", val: detailsEntry.type.toUpperCase() },
+                { label: "Date", val: formatDateLong(detailsEntry.date) },
+                { label: "Amount", val: formatINR(detailsEntry.amount), bold: true },
+                { label: "Status", val: getPaymentStatusLabel(detailsEntry.paymentStatus) },
+                { label: "Description", val: detailsEntry.description || "—" },
+                { label: "Brand", val: detailsEntry.brand || "—" },
+                { label: "Floor", val: detailsEntry.floor || "—" },
+                { label: "Phase", val: detailsEntry.phase || "—" },
+                { label: "Unit", val: detailsEntry.unit || "—" },
+                { label: "Rejection Reason", val: detailsEntry.rejectionReason, isWarning: true }
+              ].map((row) => {
+                if (!row.val) return null;
+                return (
+                  <div key={row.label} style={{ display: "flex", fontSize: 12.5 }}>
+                    <span style={{ width: 110, fontWeight: "600", color: colors.textSecondary }}>{row.label}</span>
+                    <span style={{ flex: 1, fontWeight: row.bold ? "800" : "700", color: row.isWarning ? "#dc2626" : colors.textPrimary }}>{row.val}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "16px 0 14px" }} />
+
+            {/* Inline dialog actions */}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => {
+                  const entry = detailsEntry;
+                  setDetailsEntry(null);
+                  handleAddMore(entry);
+                }}
+                style={{ flex: 1, padding: "8px 0", border: `1.2px solid #E2E4FA`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: primaryBlue, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+              >
+                <PlusCircle size={11} /> Add More
+              </button>
+              
+              <button 
+                onClick={() => {
+                  const entry = detailsEntry;
+                  setDetailsEntry(null);
+                  handleRecordPaymentClick(entry);
+                }}
+                style={{ flex: 1, padding: "8px 0", border: `1.2px solid #ca8a04`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#ca8a04", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+              >
+                <CreditCard size={11} /> Pay Log
+              </button>
+
+              <button 
+                onClick={() => {
+                  const entry = detailsEntry;
+                  setDetailsEntry(null);
+                  handleEditEntry(entry);
+                }}
+                style={{ flex: 1, padding: "8px 0", border: `1.2px solid #4b5563`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#4b5563", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+              >
+                <Edit2 size={11} /> Edit
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Record Payment popup modal overlay */}
+      {paymentSheetOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 950, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#FFF", borderRadius: 16, width: 340, padding: 20, boxShadow: shadows.card }}>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: colors.textPrimary }}>Record Payment</h3>
+                <p style={{ margin: "2px 0 0", fontSize: 11.5, color: colors.textLight }}>
+                  {paymentTx?.title || paymentItem?.description}
+                </p>
+              </div>
+              <button onClick={() => setPaymentSheetOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: colors.textLight }}><X size={18} /></button>
+            </div>
+
+            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "0 0 14px" }} />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              
+              {/* Payment Amount */}
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Payment Amount</label>
+                <input 
+                  type="number"
+                  value={paymentForm.amount}
+                  onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                  placeholder="0"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, fontSize: 13, color: colors.textPrimary, outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+
+              {/* Payment Mode */}
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Payment Mode</label>
+                <div style={{ position: "relative" }}>
+                  <select 
+                    value={paymentForm.method}
+                    onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, fontWeight: "600", color: colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
+                  >
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                </div>
+              </div>
+
+              {/* Payment Date */}
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Payment Date</label>
+                <input 
+                  type="date"
+                  value={paymentForm.date}
+                  onChange={e => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: "#FFF", fontSize: 13, color: colors.textPrimary, outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary, marginBottom: 6 }}>Notes</label>
+                <textarea 
+                  value={paymentForm.notes}
+                  onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  placeholder="Optional payment notes..."
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, fontSize: 13, color: colors.textPrimary, outline: "none", minHeight: 60, fontFamily: "inherit", boxSizing: "border-box", resize: "none" }}
+                />
+              </div>
+
+            </div>
+
+            <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "16px 0 14px" }} />
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button 
+                onClick={() => setPaymentSheetOpen(false)}
+                style={{ flex: 1, padding: "11px 0", border: `1.2px solid ${colors.cardBorder}`, background: "none", borderRadius: 10, fontSize: 13, fontWeight: "700", color: colors.textMedium, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button 
+                disabled={paymentSubmitLoading}
+                onClick={submitPayment}
+                style={{ flex: 1, padding: "11px 0", border: "none", background: gradients.primaryButton, borderRadius: 10, fontSize: 13, fontWeight: "700", color: "#FFF", cursor: paymentSubmitLoading ? "not-allowed" : "pointer", opacity: paymentSubmitLoading ? 0.6 : 1 }}
+              >
+                {paymentSubmitLoading ? "Recording..." : "Record"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
