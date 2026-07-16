@@ -1232,8 +1232,16 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
       if (projectId) {
         const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
         if (!pDoc) throw new Error(`Access denied or Project not found for project: ${project}`);
+      } else if (project) {
+        // Resolve project by name if not a valid ObjectId
+        const pDoc = await Project.findOne({ createdBy: adminId, projectName: String(project).trim() }).lean();
+        if (pDoc) {
+          projectId = pDoc._id;
+        } else {
+          throw new Error(`Project not found: ${project}`);
+        }
       } else {
-        throw new Error("Valid Project ID is required");
+        throw new Error("Valid Project ID or name is required");
       }
 
       const qty = Number(quantity) || 0;
