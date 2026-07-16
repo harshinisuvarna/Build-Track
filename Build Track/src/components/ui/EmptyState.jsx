@@ -1,10 +1,8 @@
-import { colors } from '../../styles/designTokens';
+import { colors, radius, typography } from '../../styles/designTokens';
+import Button from './Button';
 
 export default function EmptyState({
-  icon = '📦',
-  title = 'No data found',
-  description,
-  action,
+  icon, title, description, actionLabel, onAction, size = 'md'
 }) {
   return (
     <div
@@ -13,50 +11,39 @@ export default function EmptyState({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '48px 24px',
+        padding: size === 'lg' ? '80px 24px' : '48px 24px',
         textAlign: 'center',
-        animation: 'fadeUp 0.4s ease',
+        gap: 12,
       }}
     >
-      <div
-        style={{
-          fontSize: 48,
-          marginBottom: 16,
-          width: 80,
-          height: 80,
-          borderRadius: '50%',
-          backgroundColor: colors.iconBg,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {icon}
-      </div>
-      <h3
-        style={{
-          fontSize: 17,
-          fontWeight: 700,
-          color: colors.textPrimary,
-          marginBottom: 8,
-        }}
-      >
-        {title}
-      </h3>
-      {description && (
-        <p
+      {icon && (
+        <div
           style={{
-            fontSize: 14,
-            color: colors.textSecondary,
-            maxWidth: 360,
-            lineHeight: 1.5,
-            marginBottom: 20,
+            width: 48,
+            height: 48,
+            borderRadius: radius.lg,
+            background: colors.subtle,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: colors.textTertiary,
+            fontSize: 22,
           }}
         >
-          {description}
-        </p>
+          {icon}
+        </div>
       )}
-      {action}
+      {title && (
+        <div style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>{title}</div>
+      )}
+      {description && (
+        <div style={{ fontSize: 13.5, color: colors.textSecondary, maxWidth: 360, lineHeight: 1.5 }}>{description}</div>
+      )}
+      {actionLabel && (
+        <Button variant="primary" size="md" onClick={onAction} style={{ marginTop: 8 }}>
+          {actionLabel}
+        </Button>
+      )}
     </div>
   );
 }

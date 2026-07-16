@@ -1,63 +1,37 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { colors, radius, shadows } from '../../styles/designTokens';
 
-export default function Modal({
-  open,
-  onClose,
-  title,
-  children,
-  width = 480,
-  actions,
-}) {
-  const overlayRef = useRef(null);
-
+export default function Modal({ open, onClose, title, children, width = 480 }) {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (open) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
-
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape' && open) onClose?.();
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div
-      ref={overlayRef}
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose?.();
-      }}
+      onClick={onClose}
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        animation: 'fadeIn 0.15s ease',
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24, animation: 'fadeIn 150ms ease',
       }}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: colors.cardBg,
-          borderRadius: radius.lg,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          background: colors.card,
+          borderRadius: radius.xl,
+          boxShadow: shadows.xl,
           width: '100%',
           maxWidth: width,
           maxHeight: '85vh',
-          overflow: 'auto',
-          animation: 'slideUp 0.25s ease',
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'fadeUp 200ms ease',
         }}
       >
         {title && (
@@ -66,54 +40,26 @@ export default function Modal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '20px 24px',
-              borderBottom: `1px solid ${colors.divider}`,
+              padding: '20px 24px 0',
             }}
           >
-            <h3
-              style={{
-                fontSize: 17,
-                fontWeight: 700,
-                color: colors.textPrimary,
-                margin: 0,
-              }}
-            >
-              {title}
-            </h3>
+            <div style={{ fontSize: 17, fontWeight: 600, color: colors.textPrimary }}>{title}</div>
             <button
               onClick={onClose}
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: 'none',
-                background: colors.iconBg,
-                cursor: 'pointer',
-                fontSize: 16,
-                color: colors.textSecondary,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: 28, height: 28, borderRadius: radius.sm,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: colors.textTertiary, fontSize: 16, cursor: 'pointer',
+                transition: 'background var(--transition)',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = colors.subtle; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
             >
               ✕
             </button>
           </div>
         )}
-        <div style={{ padding: 24 }}>{children}</div>
-        {actions && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 12,
-              padding: '16px 24px',
-              borderTop: `1px solid ${colors.divider}`,
-            }}
-          >
-            {actions}
-          </div>
-        )}
+        <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>{children}</div>
       </div>
     </div>
   );

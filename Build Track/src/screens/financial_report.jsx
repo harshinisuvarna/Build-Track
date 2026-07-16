@@ -34,7 +34,11 @@ import {
   RotateCcw, 
   Search,
   Eye,
-  FileText
+  FileText,
+  User,
+  Package,
+  Wrench,
+  IndianRupee
 } from "lucide-react";
 
 // Local Fallback Theme Styles for absolute parity safety
@@ -1063,7 +1067,7 @@ export default function FinancialReportPage() {
             <div style={{ background: "linear-gradient(135deg, #173EEA 0%, #4667FF 100%)", borderRadius: radius.lg, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <span style={{ fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.7)" }}>Grand Total Expense</span>
-                <span style={{ fontSize: 16 }}>💰</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}><IndianRupee size={16} color="#FFF" /></span>
               </div>
               <div style={{ color: "#FFF", fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(grandTotal)}</div>
             </div>
@@ -1072,7 +1076,7 @@ export default function FinancialReportPage() {
             <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <span style={{ fontSize: 12, fontWeight: "700", color: colors.textLight }}>Material Cost</span>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: "#5B5FCF15", display: "flex", alignItems: "center", justifyContent: "center", color: "#5B5FCF", fontSize: 14 }}>🪵</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: "#5B5FCF15", display: "flex", alignItems: "center", justifyContent: "center", color: "#5B5FCF" }}><Package size={16} /></span>
               </div>
               <div style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(materialTotal)}</div>
             </div>
@@ -1081,7 +1085,7 @@ export default function FinancialReportPage() {
             <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <span style={{ fontSize: 12, fontWeight: "700", color: colors.textLight }}>Labour Cost</span>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: `${primaryPurple}15`, display: "flex", alignItems: "center", justifyContent: "center", color: primaryPurple, fontSize: 14 }}>👷</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: `${primaryPurple}15`, display: "flex", alignItems: "center", justifyContent: "center", color: primaryPurple }}><User size={16} /></span>
               </div>
               <div style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(labourTotal)}</div>
             </div>
@@ -1090,7 +1094,7 @@ export default function FinancialReportPage() {
             <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: "20px 24px", boxShadow: shadows.card, display: "flex", flexDirection: "column", justifyContent: "space-between", height: 110 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <span style={{ fontSize: 12, fontWeight: "700", color: colors.textLight }}>Equipment Cost</span>
-                <span style={{ width: 28, height: 28, borderRadius: 8, background: `${primaryLightBlue}15`, display: "flex", alignItems: "center", justifyContent: "center", color: primaryLightBlue, fontSize: 14 }}>🚜</span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: `${primaryLightBlue}15`, display: "flex", alignItems: "center", justifyContent: "center", color: primaryLightBlue }}><Wrench size={16} /></span>
               </div>
               <div style={{ color: colors.textPrimary, fontSize: 24, fontWeight: "900", letterSpacing: "-0.5px" }}>{formatINR(equipmentTotal)}</div>
             </div>

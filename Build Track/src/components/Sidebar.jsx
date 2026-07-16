@@ -2,37 +2,42 @@ import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { LogOut } from "lucide-react";
+import { LogOut, Building2 } from "lucide-react";
 
-const navLinkBase = {
-  padding: "10px 16px",
-  borderRadius: "12px",
-  textDecoration: "none",
+const linkStyle = {
   display: "flex",
   alignItems: "center",
-  gap: 12,
-  marginBottom: 6,
-  fontSize: "13.5px",
-  fontWeight: "600",
-  transition: "all 0.2s ease",
+  gap: 10,
+  padding: "9px 12px",
+  borderRadius: "8px",
+  textDecoration: "none",
+  fontSize: "14px",
+  fontWeight: 500,
+  transition: "all 150ms ease",
+  marginBottom: 2,
 };
 
-export default function Sidebar({ collapsed }) {
+export default function Sidebar() {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("bt_user");
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem("bt_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
   });
 
   useEffect(() => {
     const syncUser = () => {
-      const stored = localStorage.getItem("bt_user");
-      if (stored) setUser(JSON.parse(stored));
+      try {
+        const stored = localStorage.getItem("bt_user");
+        if (stored) setUser(JSON.parse(stored));
+      } catch {}
     };
     window.addEventListener("userUpdated", syncUser);
     return () => window.removeEventListener("userUpdated", syncUser);
   }, []);
 
   const photoUrl = user?.profilePhoto ? resolveImageUrl(user.profilePhoto) : null;
+  const isAdminOrSupervisor = user?.role === "admin" || user?.role === "supervisor";
 
   const handleLogout = () => {
     localStorage.removeItem("bt_token");
@@ -40,56 +45,45 @@ export default function Sidebar({ collapsed }) {
     window.location.assign("/login");
   };
 
-  const isAdminOrSupervisor = user?.role === "admin" || user?.role === "supervisor";
-
   return (
     <aside
       style={{
-        width: collapsed ? 0 : 230,
-        minWidth: collapsed ? 0 : 230,
-        background: "#FFFFFF",
-        borderRight: "1px solid #E7E8F5",
-        padding: collapsed ? 0 : "24px 16px",
+        width: 240,
+        minWidth: 240,
+        background: "#fff",
+        borderRight: "1px solid #E5E7EB",
         display: "flex",
         flexDirection: "column",
         height: "100vh",
-        boxSizing: "border-box",
-        flexShrink: 0,
-        overflow: "hidden",
-        transition: "width 0.25s ease, min-width 0.25s ease, padding 0.25s ease",
+        position: "sticky",
+        top: 0,
       }}
     >
-      <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
-        
-        {/* Modern Brand Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32, paddingLeft: 6 }}>
-          <div style={{
-            width: 32, height: 32,
-            background: "linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%)",
-            borderRadius: "9px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(108, 99, 255, 0.25)",
+      {/* Logo */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "20px 16px 24px" }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: "#5B5CEB",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             flexShrink: 0,
-          }}>
-            <span style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 16 }}>B</span>
-          </div>
-          <div>
-            <div style={{ fontWeight: "900", fontSize: 17.5, color: "#1F2937", letterSpacing: "-0.5px", lineHeight: "1" }}>
-              BuildTrack
-            </div>
-            <div style={{ fontSize: "9.5px", fontWeight: "700", color: "#6B7280", letterSpacing: "1px", marginTop: 3 }}>
-              MANAGEMENT
-            </div>
-          </div>
+          }}
+        >
+          <Building2 size={16} color="#fff" />
         </div>
+        <span style={{ fontSize: 18, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>
+          BuildTrack
+        </span>
+      </div>
 
-        {/* OPERATIONS Group */}
-        <div style={{
-          fontSize: "10px", fontWeight: "800", letterSpacing: "1.2px",
-          color: "#9CA3AF", margin: "16px 8px 10px",
-          textTransform: "uppercase",
-        }}>
-          Operations
+      {/* Navigation */}
+      <nav style={{ flex: 1, overflowY: "auto", padding: "0 12px" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.05em", padding: "0 4px 8px", textTransform: "uppercase" }}>
+          Main
         </div>
         {navItems.map((item) => (
           <NavLink
@@ -97,125 +91,114 @@ export default function Sidebar({ collapsed }) {
             to={item.path}
             end={item.path === "/"}
             style={({ isActive }) => ({
-              ...navLinkBase,
-              color: isActive ? "#6C63FF" : "#4B5563",
-              background: isActive ? "#ECEBFF" : "transparent",
-              boxShadow: "none",
+              ...linkStyle,
+              color: isActive ? "#5B5CEB" : "#64748B",
+              background: isActive ? "#EEF0FF" : "transparent",
+              fontWeight: isActive ? 600 : 500,
             })}
-            onMouseEnter={e => {
-              if (!e.currentTarget.className.includes("active")) {
-                e.currentTarget.style.background = "#F3F4F6";
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.dataset.active) {
+                e.currentTarget.style.background = "#F1F5F9";
               }
             }}
-            onMouseLeave={e => {
-              if (!e.currentTarget.className.includes("active")) {
+            onMouseLeave={(e) => {
+              if (!e.currentTarget.dataset.active) {
                 e.currentTarget.style.background = "transparent";
               }
             }}
+            data-active={undefined}
           >
-            <span style={{ fontSize: "16px" }}>{item.icon}</span>
+            <item.icon size={18} />
             <span>{item.label}</span>
           </NavLink>
         ))}
 
-        {/* GOVERNANCE & DATA Group */}
         {isAdminOrSupervisor && (
           <>
-            <div style={{
-              fontSize: "10px", fontWeight: "800", letterSpacing: "1.2px",
-              color: "#9CA3AF", margin: "24px 8px 10px",
-              textTransform: "uppercase",
-            }}>
-              Governance & Data
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.05em", padding: "20px 4px 8px", textTransform: "uppercase" }}>
+              Admin
             </div>
             {adminNavItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.path}
                 style={({ isActive }) => ({
-                  ...navLinkBase,
-                  color: isActive ? "#6C63FF" : "#4B5563",
-                  background: isActive ? "#ECEBFF" : "transparent",
-                  boxShadow: "none",
+                  ...linkStyle,
+                  color: isActive ? "#5B5CEB" : "#64748B",
+                  background: isActive ? "#EEF0FF" : "transparent",
+                  fontWeight: isActive ? 600 : 500,
                 })}
-                onMouseEnter={e => {
-                  if (!e.currentTarget.className.includes("active")) {
-                    e.currentTarget.style.background = "#F3F4F6";
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.dataset.active) {
+                    e.currentTarget.style.background = "#F1F5F9";
                   }
                 }}
-                onMouseLeave={e => {
-                  if (!e.currentTarget.className.includes("active")) {
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.dataset.active) {
                     e.currentTarget.style.background = "transparent";
                   }
                 }}
               >
-                <span style={{ fontSize: "16px" }}>{item.icon}</span>
+                <item.icon size={18} />
                 <span>{item.label}</span>
               </NavLink>
             ))}
           </>
         )}
-      </div>
+      </nav>
 
-      {/* Footer Profile card */}
-      <div style={{
-        marginTop: "auto",
-        padding: "16px 8px 0",
-        borderTop: "1px solid #E7E8F5",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: "50%",
-            background: "#F3F4F6", overflow: "hidden",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, flexShrink: 0,
-            border: "1.5px solid #E7E8F5"
-          }}>
+      {/* Profile Footer */}
+      <div style={{ borderTop: "1px solid #E5E7EB", padding: "12px 16px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "#F1F5F9",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#64748B",
+              flexShrink: 0,
+            }}
+          >
             {photoUrl ? (
-              <img src={photoUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
-              "👤"
+              user?.name?.charAt(0)?.toUpperCase() || "U"
             )}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: "700", color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {user?.name || "User"}
             </div>
-            <div style={{ fontSize: "11px", color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>
               {user?.role || "Admin"}
             </div>
           </div>
         </div>
-
         <button
           onClick={handleLogout}
           style={{
             width: "100%",
-            padding: "9px 12px",
-            background: "#F9FAFB",
-            border: "1.5px solid #E7E8F5",
-            borderRadius: "10px",
-            fontSize: "12.5px",
-            fontWeight: "700",
-            color: "#4B5563",
-            cursor: "pointer",
+            padding: "8px 12px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#64748B",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 6,
-            transition: "all 0.15s ease",
+            cursor: "pointer",
+            transition: "all 150ms ease",
           }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = "#F3F4F6";
-            e.currentTarget.style.borderColor = "#D1D5DB";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = "#F9FAFB";
-            e.currentTarget.style.borderColor = "#E7E8F5";
-          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F5F9"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
           <LogOut size={14} />
           Sign Out

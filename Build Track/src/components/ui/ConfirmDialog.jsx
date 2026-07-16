@@ -1,68 +1,50 @@
-import { colors, radius } from '../../styles/designTokens';
+import { colors, radius, typography } from '../../styles/designTokens';
 import Button from './Button';
 
-export default function ConfirmDialog({
-  open,
-  message = 'Are you sure?',
-  onConfirm,
-  onCancel,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
-  danger = false,
-}) {
-  if (!open) return null;
-
+export default function ConfirmDialog({ message, danger, confirmLabel, onConfirm, onCancel }) {
   return (
     <div
+      onClick={onCancel}
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        animation: 'fadeIn 0.15s ease',
+        position: 'fixed', inset: 0, zIndex: 1500,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24, animation: 'fadeIn 150ms ease',
       }}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: colors.cardBg,
-          borderRadius: radius.lg,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          background: colors.card,
+          borderRadius: radius.xl,
+          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
           width: '100%',
           maxWidth: 400,
-          padding: 28,
-          animation: 'slideUp 0.25s ease',
-          textAlign: 'center',
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          animation: 'fadeUp 200ms ease',
         }}
       >
         <div
           style={{
-            fontSize: 40,
-            marginBottom: 12,
+            width: 40, height: 40, borderRadius: radius.lg,
+            background: danger ? colors.dangerLight : colors.subtle,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: danger ? colors.danger : colors.textSecondary,
+            fontSize: 18,
           }}
         >
-          {danger ? '⚠️' : '❓'}
+          {danger ? '!' : '?'}
         </div>
-        <p
-          style={{
-            fontSize: 15,
-            color: colors.textPrimary,
-            fontWeight: 500,
-            marginBottom: 24,
-            lineHeight: 1.5,
-          }}
-        >
+        <div style={{ fontSize: 15, color: colors.textPrimary, fontWeight: 500, lineHeight: 1.5 }}>
           {message}
-        </p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <Button variant="ghost" onClick={onCancel}>
-            {cancelLabel}
-          </Button>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>
-            {confirmLabel}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+          <Button variant="secondary" size="md" onClick={onCancel}>Cancel</Button>
+          <Button variant={danger ? 'danger' : 'primary'} size="md" onClick={onConfirm}>
+            {confirmLabel || 'Confirm'}
           </Button>
         </div>
       </div>

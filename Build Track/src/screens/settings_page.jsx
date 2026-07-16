@@ -1,72 +1,81 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { userAPI, authAPI } from "../api";
+import { userAPI, authAPI, subscriptionAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
+import { Badge, Button, Card } from "../components/ui";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { useAuth } from "../contexts/AuthContext";
-import { subscriptionAPI } from "../api";
+import {
+  User, Mail, Shield, Bell, Globe, ChevronDown, Camera, Pencil, Lock,
+  LogOut, Trash2, Users, FileText, KeyRound, Eye, EyeOff, ArrowLeft,
+  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle,
+} from "lucide-react";
 
 function Toggle({ on, onToggle }) {
   return (
     <div onClick={onToggle}
-      style={{
-        width: 48, height: 26, borderRadius: 13, cursor: "pointer",
-        background: on ? "#6C63FF" : "#d1d5db",
-        position: "relative", transition: "background 0.25s ease",
-        flexShrink: 0,
-      }}>
-      <div style={{
-        position: "absolute", top: 3,
-        left: on ? 25 : 3,
-        width: 20, height: 20, borderRadius: "50%",
-        background: "#fff",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-        transition: "left 0.25s ease",
-      }} />
+      style={{ width: 46, height: 24, borderRadius: 12, cursor: "pointer", background: on ? "#5B5CEB" : "#CBD5E1", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+      <div style={{ position: "absolute", top: 2, left: on ? 24 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.15)", transition: "left 0.2s" }} />
+    </div>
+  );
+}
+
+function SectionCard({ title, children, style, gradient }) {
+  return (
+    <div style={{ background: gradient || "#fff", borderRadius: 12, border: gradient ? "none" : "1px solid #E5E7EB", padding: "24px 28px", marginBottom: 16, ...style }}>
+      {title && <h3 style={{ fontSize: 16, fontWeight: 700, color: gradient ? "#fff" : "#111827", margin: "0 0 20px", letterSpacing: "-0.02em" }}>{title}</h3>}
+      {children}
+    </div>
+  );
+}
+
+function SettingsRow({ icon, title, subtitle, action, border }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: border !== false ? "1px solid #F1F5F9" : "none", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B", flexShrink: 0 }}>{icon}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 12, color: "#64748B", marginTop: 1 }}>{subtitle}</div>}
+        </div>
+      </div>
+      {action}
     </div>
   );
 }
 
 export default function SettingsPage() {
   const profileInputRef = useRef(null);
-
-  const [isMobile,     setIsMobile]     = useState(window.innerWidth < 768);
-  const [profileImage, setProfileImage] = useState(null);
-  const [fullName,     setFullName]     = useState("");
-  const [email,        setEmail]        = useState("");
-  const [role,         setRole]         = useState("Site Supervisor");
-  const [language,     setLanguage]     = useState("English");
-  const [currency]     = useState("Indian Rupee (INR)");
-  const [emailNotif,   setEmailNotif]   = useState(true);
-  const [pushNotif,    setPushNotif]    = useState(false);
-  const [twoFA,        setTwoFA]        = useState(false);
-  const [saved,        setSaved]        = useState(false);
-  const [saving,       setSaving]       = useState(false);
-  const [secMsg,       setSecMsg]       = useState("");
-  const [secErr,       setSecErr]       = useState("");
-  const [showPwForm,   setShowPwForm]   = useState(false);
-  const [curPw,        setCurPw]        = useState("");
-  const [newPw,        setNewPw]        = useState("");
-  const [pwSaving,     setPwSaving]     = useState(false);
-
-  const [toast,        setToast]        = useState({ msg: "", type: "info" });
-  const [confirmDlg,   setConfirmDlg]   = useState(null);
-  const [subscription, setSubscription] = useState(null);
   const navigate = useNavigate();
-  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
-
   const { user, updateUser, logout } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "Admin";
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [profileImage, setProfileImage] = useState(null);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Site Supervisor");
+  const [language, setLanguage] = useState("English");
+  const currency = "Indian Rupee (INR)";
+  const [emailNotif, setEmailNotif] = useState(true);
+  const [pushNotif, setPushNotif] = useState(false);
+  const [twoFA, setTwoFA] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [secMsg, setSecMsg] = useState("");
+  const [secErr, setSecErr] = useState("");
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [toast, setToast] = useState({ msg: "", type: "info" });
+  const [confirmDlg, setConfirmDlg] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
   useEffect(() => {
     subscriptionAPI.getStatus()
-      .then(({ data }) => {
-        if (data && data.hasSubscription) {
-          setSubscription(data);
-        } else {
-          setSubscription(null);
-        }
-      })
+      .then(({ data }) => setSubscription(data?.hasSubscription ? data : null))
       .catch(() => {});
   }, []);
 
@@ -75,12 +84,8 @@ export default function SettingsPage() {
       setFullName(user.name || "");
       setEmail(user.email || "");
       setRole(user.role || "Site Supervisor");
-      if (user.twoFactorEnabled !== undefined) {
-        setTwoFA(user.twoFactorEnabled);
-      }
-      if (user.profilePhoto) {
-        setProfileImage(resolveImageUrl(user.profilePhoto));
-      }
+      if (user.twoFactorEnabled !== undefined) setTwoFA(user.twoFactorEnabled);
+      if (user.profilePhoto) setProfileImage(resolveImageUrl(user.profilePhoto));
     }
   }, [user]);
 
@@ -93,15 +98,12 @@ export default function SettingsPage() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setProfileImage(URL.createObjectURL(file));
     try {
       const fd = new FormData();
       fd.append("photo", file);
       const { data } = await userAPI.updatePhoto(fd);
-
       updateUser({ profilePhoto: data.profilePhoto });
-
       window.dispatchEvent(new Event("userUpdated"));
     } catch {
       setToast({ msg: "Failed to upload photo.", type: "error" });
@@ -109,30 +111,18 @@ export default function SettingsPage() {
   };
 
   const handleSaveProfile = async () => {
-    if (!fullName.trim() || !email.trim()) {
-      setToast({ msg: "Name and email cannot be empty.", type: "error" });
-      return;
-    }
+    if (!fullName.trim() || !email.trim()) { setToast({ msg: "Name and email cannot be empty.", type: "error" }); return; }
     try {
       setSaving(true);
-      const { data } = await userAPI.updateProfile({
-        name: fullName,
-        email,
-        role,
-      });
-
+      const { data } = await userAPI.updateProfile({ name: fullName, email, role });
       updateUser(data.user);
-
       window.dispatchEvent(new Event("userUpdated"));
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       setToast({ msg: err.response?.data?.message || "Failed to save profile.", type: "error" });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
-
 
   const handleChangePassword = async () => {
     setSecErr(""); setSecMsg("");
@@ -146,18 +136,14 @@ export default function SettingsPage() {
       setTimeout(() => setSecMsg(""), 4000);
     } catch (err) {
       setSecErr(err.response?.data?.message || "Failed to change password.");
-    } finally {
-      setPwSaving(false);
-    }
+    } finally { setPwSaving(false); }
   };
-
 
   const handleToggle2FA = async () => {
     try {
       const { data } = await authAPI.toggle2FA();
       setTwoFA(data.twoFactorEnabled);
       setSecMsg(data.message);
-
       updateUser({ twoFactorEnabled: data.twoFactorEnabled });
       setTimeout(() => setSecMsg(""), 4000);
     } catch (err) {
@@ -165,426 +151,208 @@ export default function SettingsPage() {
     }
   };
 
-
   const handleSignOutAll = () => {
     setConfirmDlg({
       message: "Sign out from all devices? You will need to log in again.",
       onConfirm: async () => {
         setConfirmDlg(null);
-        try {
-          await authAPI.signOutAll();
-          logout();
-          navigate("/login");
-        } catch (err) {
-          setSecErr(err.response?.data?.message || "Failed to sign out all sessions.");
-        }
+        try { await authAPI.signOutAll(); logout(); navigate("/login"); }
+        catch (err) { setSecErr(err.response?.data?.message || "Failed to sign out all sessions."); }
       },
     });
   };
-
 
   const handleDeleteAccount = () => {
     setConfirmDlg({
       message: "Are you sure you want to permanently delete your account? This action cannot be undone.",
-      danger: true,
-      confirmLabel: "Delete My Account",
+      danger: true, confirmLabel: "Delete My Account",
       onConfirm: async () => {
         setConfirmDlg(null);
-        try {
-          await authAPI.deleteAccount();
-          logout();
-          navigate("/login");
-        } catch (err) {
-          setSecErr(err.response?.data?.message || "Failed to delete account.");
-        }
+        try { await authAPI.deleteAccount(); logout(); navigate("/login"); }
+        catch (err) { setSecErr(err.response?.data?.message || "Failed to delete account."); }
       },
     });
   };
 
-  const inputStyle = {
-    width: "100%", padding: "11px 14px",
-    background: "#f9f9f9", border: "1px solid #e5e5e5",
-    borderRadius: 10, fontSize: 14, color: "#1a1a1a",
-    outline: "none", fontFamily: "'Segoe UI', sans-serif",
-    boxSizing: "border-box",
-  };
-
-  const labelStyle = {
-    fontSize: 11, fontWeight: 700, color: "#aaa",
-    letterSpacing: "0.06em", marginBottom: 8, display: "block",
-  };
-
-  const sectionCard = {
-    background: "#fff", borderRadius: 16,
-    border: "1px solid #ebebeb", padding: "28px 32px",
-    boxShadow: "0 1px 6px rgba(0,0,0,0.04)", marginBottom: 20,
-  };
-
-  const sectionTitle = {
-    fontSize: 18, fontWeight: 700, color: "#1a1a1a",
-    marginBottom: 24,
-  };
+  const baseInput = { width: "100%", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column",
-      width: "100%", minHeight: "100vh",
-      fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8",
-    }}>
-      {/* Toast + Confirm Dialog */}
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "#F8FAFC" }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
-      {confirmDlg && (
-        <ConfirmDialog
-          message={confirmDlg.message}
-          danger={confirmDlg.danger}
-          confirmLabel={confirmDlg.confirmLabel}
-          onConfirm={confirmDlg.onConfirm}
-          onCancel={() => setConfirmDlg(null)}
-        />
-      )}
+      {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
       {/* Top Bar */}
-      <div style={{
-        background: "#fff", borderBottom: "1px solid #ebebeb",
-        padding: "16px 24px", display: "flex", alignItems: "center",
-        gap: 12, flexShrink: 0,
-      }}>
+      <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#1a1a1a" }}>Settings</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: "#888" }}>Manage your account preferences and security</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>Settings</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>Manage your account preferences and security</p>
         </div>
       </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-          {/* ── Profile Settings ── */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>Profile Settings</div>
-
-            <div style={{ display: "flex", gap: 28, alignItems: "flex-start", flexWrap: isMobile ? "wrap" : "nowrap" }}>
-
-              {/* Avatar */}
+          {/* Profile */}
+          <SectionCard title="Profile Settings">
+            <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: isMobile ? "wrap" : "nowrap" }}>
               <div style={{ position: "relative", flexShrink: 0 }}>
-                <input
-                  ref={profileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: "none" }}
-                  onChange={handleImageUpload}
-                />
-                <div style={{
-                  width: 80, height: 80, borderRadius: "50%",
-                  background: "#f0e6d3", overflow: "hidden",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 40, border: "3px solid #f0f0f0",
-                }}>
-                  {profileImage
-                    ? <img src={profileImage} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : "👷"
-                  }
+                <input ref={profileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
+                <div style={{ width: 76, height: 76, borderRadius: "50%", background: "#F1F5F9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #E5E7EB" }}>
+                  {profileImage ? <img src={profileImage} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <User size={32} color="#94A3B8" />}
                 </div>
-                <div
-                  onClick={() => profileInputRef.current.click()}
-                  style={{
-                    position: "absolute", bottom: 2, right: 2,
-                    width: 24, height: 24, borderRadius: "50%",
-                    background: "#6C63FF", display: "flex",
-                    alignItems: "center", justifyContent: "center",
-                    fontSize: 12, cursor: "pointer", border: "2px solid #fff",
-                  }}>✏️</div>
+                <div onClick={() => profileInputRef.current.click()} style={{ position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: "50%", background: "#5B5CEB", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "2px solid #fff" }}>
+                  <Camera size={12} color="#fff" />
+                </div>
               </div>
-
-              {/* Fields */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                   <div>
-                    <label style={labelStyle}>FULL NAME</label>
-                    <input value={fullName} onChange={e => setFullName(e.target.value)} style={inputStyle} />
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 4 }}>FULL NAME</label>
+                    <input value={fullName} onChange={e => setFullName(e.target.value)} style={baseInput} />
                   </div>
                   <div>
-                    <label style={labelStyle}>EMAIL ADDRESS</label>
-                    <input value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 4 }}>EMAIL ADDRESS</label>
+                    <input value={email} onChange={e => setEmail(e.target.value)} style={baseInput} />
                   </div>
                 </div>
-                <div style={{ marginBottom: 20 }}>
-                  <label style={labelStyle}>ROLE</label>
-                  <input value={role} onChange={e => setRole(e.target.value)}
-                    style={{ ...inputStyle, maxWidth: isMobile ? "100%" : "calc(50% - 8px)" }} />
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 4 }}>ROLE</label>
+                  <input value={role} onChange={e => setRole(e.target.value)} style={{ ...baseInput, maxWidth: isMobile ? "100%" : "50%" }} />
                 </div>
-
-                {/* ── Edit Profile button — turns green on save ── */}
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={saving}
-                  style={{
-                    padding: "11px 24px",
-                    background: saved ? "#16a34a" : "#6C63FF",
-                    color: "#fff", border: "none", borderRadius: 10,
-                    fontWeight: 600, fontSize: 14, cursor: saving ? "not-allowed" : "pointer",
-                    boxShadow: saved
-                      ? "0 4px 12px rgba(22,163,74,0.3)"
-                      : "0 4px 12px rgba(108,99,255,0.3)",
-                    transition: "background 0.3s ease, box-shadow 0.3s ease",
-                    opacity: saving ? 0.7 : 1,
-                  }}
-                >
-                  {saving ? "Saving…" : saved ? "✓ Profile Saved!" : "Edit Profile Details"}
-                </button>
+                <Button variant={saved ? "success" : "primary"} size="md" onClick={handleSaveProfile} disabled={saving}>
+                  {saving ? "Saving\u2026" : saved ? "\u2713 Profile Saved!" : "Edit Profile Details"}
+                </Button>
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          {/* ── Preferences ── */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>Preferences</div>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
+          {/* Preferences */}
+          <SectionCard title="Preferences">
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
               <div>
-                <label style={{ ...labelStyle, fontSize: 13, color: "#444", fontWeight: 500, letterSpacing: 0 }}>Display Language</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Display Language</label>
                 <div style={{ position: "relative" }}>
-                  <select value={language} onChange={e => setLanguage(e.target.value)}
-                    style={{ ...inputStyle, appearance: "none", cursor: "pointer", paddingRight: 36 }}>
+                  <select value={language} onChange={e => setLanguage(e.target.value)} style={{ ...baseInput, appearance: "none", cursor: "pointer", paddingRight: 36 }}>
                     <option>English</option>
                     <option>Hindi</option>
                     <option>Marathi</option>
                     <option>Tamil</option>
                   </select>
-                  <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#aaa", pointerEvents: "none", fontSize: 12 }}>▾</span>
+                  <Globe size={14} color="#94A3B8" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
                 </div>
               </div>
               <div>
-                <label style={{ ...labelStyle, fontSize: 13, color: "#444", fontWeight: 500, letterSpacing: 0 }}>Currency Indicator</label>
-                <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: 10, padding: "11px 14px", gap: 10 }}>
-                  <span style={{ fontSize: 16, color: "#6C63FF", fontWeight: 700 }}>₹</span>
-                  <span style={{ fontSize: 14, color: "#1a1a1a" }}>{currency}</span>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Currency</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8 }}>
+                  <CreditCard size={14} color="#5B5CEB" />
+                  <span style={{ fontSize: 14, color: "#111827" }}>{currency}</span>
                 </div>
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          {/* ── Notifications ── */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>Notifications</div>
+          {/* Notifications */}
+          <SectionCard title="Notifications">
+            <SettingsRow icon={<Bell size={14} />} title="Email Notifications" subtitle="Receive daily reports and project updates via email"
+              action={<Toggle on={emailNotif} onToggle={() => setEmailNotif(v => !v)} />} />
+            <SettingsRow icon={<Smartphone size={14} />} title="Push Notifications" subtitle="Alerts for site issues and worker attendance" border={false}
+              action={<Toggle on={pushNotif} onToggle={() => setPushNotif(v => !v)} />} />
+          </SectionCard>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Email Notifications</div>
-                <div style={{ fontSize: 13, color: "#888" }}>Receive daily reports and project updates via email</div>
-              </div>
-              <Toggle on={emailNotif} onToggle={() => setEmailNotif(v => !v)} />
-            </div>
+          {/* Security */}
+          <SectionCard title="Security">
+            <SettingsRow icon={<Lock size={14} />} title="Account Password" subtitle="Manage your account password"
+              action={<Button variant="secondary" size="sm" onClick={() => setShowPwForm(v => !v)}>{showPwForm ? "Cancel" : "Change Password"}</Button>} />
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0" }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Push Notifications</div>
-                <div style={{ fontSize: 13, color: "#888" }}>Alerts for site issues and worker attendance</div>
-              </div>
-              <Toggle on={pushNotif} onToggle={() => setPushNotif(v => !v)} />
-            </div>
-          </div>
-
-          {/* ── Security ── */}
-          <div style={sectionCard}>
-            <div style={sectionTitle}>Security</div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Account Password</div>
-                <div style={{ fontSize: 13, color: "#888" }}>Manage your account password</div>
-              </div>
-              <button
-                onClick={() => setShowPwForm(v => !v)}
-                style={{
-                  padding: "10px 18px", background: "#fff",
-                  border: "1px solid #e5e5e5", borderRadius: 10,
-                  fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  color: "#444", display: "flex", alignItems: "center", gap: 8,
-                }}
-              >
-                🔒 {showPwForm ? "Cancel" : "Change Password"}
-              </button>
-            </div>
-
-            {/* Inline password change form */}
             {showPwForm && (
-              <div style={{ padding: "16px 0", borderBottom: "1px solid #f0f0f0" }}>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ padding: "14px 0", borderBottom: "1px solid #F1F5F9" }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 6, display: "block" }}>Current Password</label>
-                    <input type="password" value={curPw} onChange={e => setCurPw(e.target.value)}
-                      placeholder="Enter current password" style={inputStyle} />
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Current Password</label>
+                    <input type="password" value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="Enter current password" style={baseInput} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "#666", marginBottom: 6, display: "block" }}>New Password</label>
-                    <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
-                      placeholder="Enter new password (min 6 chars)" style={inputStyle} />
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>New Password</label>
+                    <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Min 6 characters" style={baseInput} />
                   </div>
                 </div>
-                <button onClick={handleChangePassword} disabled={pwSaving}
-                  style={{ padding: "10px 24px", background: "#6C63FF", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: pwSaving ? "not-allowed" : "pointer", boxShadow: "0 4px 12px rgba(108,99,255,0.25)" }}>
-                  {pwSaving ? "Saving…" : "Update Password"}
-                </button>
+                <Button variant="primary" size="sm" onClick={handleChangePassword} disabled={pwSaving}>
+                  {pwSaving ? "Saving\u2026" : "Update Password"}
+                </Button>
               </div>
             )}
 
-            {/* Security status messages */}
-            {secMsg && (
-              <div style={{ padding: "12px 16px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: 10, color: "#166534", fontSize: 13, margin: "12px 0" }}>
-                ✅ {secMsg}
-              </div>
-            )}
-            {secErr && (
-              <div style={{ padding: "12px 16px", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, color: "#991b1b", fontSize: 13, margin: "12px 0" }}>
-                ⚠️ {secErr}
-              </div>
-            )}
+            {secMsg && <div style={{ padding: "10px 14px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, color: "#166534", fontSize: 13, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}><Shield size={14} /> {secMsg}</div>}
+            {secErr && <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: 13, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> {secErr}</div>}
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Two-Factor Authentication</div>
-                <div style={{ fontSize: 13, color: "#888" }}>Add an extra layer of security to your account</div>
-              </div>
-              <button
-                onClick={handleToggle2FA}
-                style={{
-                  padding: "10px 18px",
-                  background: twoFA ? "#fff" : "#6C63FF",
-                  border: twoFA ? "1px solid #e5e5e5" : "none",
-                  borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  color: twoFA ? "#444" : "#fff",
-                  display: "flex", alignItems: "center", gap: 8,
-                  boxShadow: twoFA ? "none" : "0 4px 12px rgba(108,99,255,0.25)",
-                  transition: "all 0.25s ease",
-                }}
-              >
-                🛡️ {twoFA ? "Disable 2FA" : "Enable 2FA"}
-              </button>
-            </div>
+            <SettingsRow icon={<Shield size={14} />} title="Two-Factor Authentication" subtitle="Add an extra layer of security to your account"
+              action={<Button variant={twoFA ? "secondary" : "primary"} size="sm" onClick={handleToggle2FA}>{twoFA ? "Disable 2FA" : "Enable 2FA"}</Button>} />
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0" }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Active Sessions</div>
-                <div style={{ fontSize: 13, color: "#888" }}>2 devices currently logged in</div>
-              </div>
-              <button
-                onClick={handleSignOutAll}
-                style={{
-                  padding: "10px 18px", background: "#fff",
-                  border: "1px solid #e5e5e5", borderRadius: 10,
-                  fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  color: "#dc2626",
-                }}
-              >
-                Sign Out All
-              </button>
-            </div>
-          </div>
+            <SettingsRow icon={<Monitor size={14} />} title="Active Sessions" subtitle="Manage logged-in devices" border={false}
+              action={<Button variant="secondary" size="sm" onClick={handleSignOutAll} style={{ color: "#EF4444", borderColor: "#FECACA" }}>Sign Out All</Button>} />
+          </SectionCard>
 
-          {/* ── Subscription ── */}
+          {/* Subscription */}
           {subscription && (
-            <div style={{ ...sectionCard, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none" }}>
+            <SectionCard gradient="linear-gradient(135deg, #5B5CEB, #8B5CF6)" title="Subscription">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.7, letterSpacing: "0.08em", marginBottom: 4 }}>CURRENT PLAN</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{subscription.plan || subscription.name || "Free"}</div>
-                  <div style={{ fontSize: 13, opacity: 0.8 }}>
-                    {subscription.status === "active" ? "✓ Active" : subscription.status || "Active"}
-                    {subscription.maxUsers && ` · ${subscription.maxUsers} users`}
-                    {subscription.maxProjects && ` · ${subscription.maxProjects} projects`}
+                  <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, letterSpacing: "0.05em", marginBottom: 4, color: "#fff", textTransform: "uppercase" }}>CURRENT PLAN</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{subscription.plan || subscription.name || "Free"}</div>
+                  <div style={{ fontSize: 13, opacity: 0.8, color: "#fff" }}>
+                    {subscription.status === "active" ? "\u2713 Active" : subscription.status || "Active"}
+                    {subscription.maxUsers && ` \u00B7 ${subscription.maxUsers} users`}
+                    {subscription.maxProjects && ` \u00B7 ${subscription.maxProjects} projects`}
                   </div>
                 </div>
                 {isAdmin && (
-                  <button onClick={() => navigate("/subscription")}
-                    style={{ padding: "10px 20px", background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", backdropFilter: "blur(4px)" }}>
+                  <Button variant="secondary" size="sm" onClick={() => navigate("/subscription")}
+                    style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}>
                     Upgrade Plan
-                  </button>
+                  </Button>
                 )}
               </div>
-            </div>
+            </SectionCard>
           )}
 
-          {/* ── Team & Access (Admin Only) ── */}
+          {/* Team & Access */}
           {isAdmin && (
-            <div style={sectionCard}>
-              <div style={sectionTitle}>Team & Access</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid #f0f0f0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>👥</div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Assign Roles</div>
-                    <div style={{ fontSize: 13, color: "#888" }}>Manage team member permissions and roles</div>
-                  </div>
-                </div>
-                <button onClick={() => navigate("/assign-role")}
-                  style={{ padding: "10px 18px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 12px rgba(234,88,12,0.25)" }}>
-                  Manage
-                </button>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📋</div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Audit Logs</div>
-                    <div style={{ fontSize: 13, color: "#888" }}>View system activity and change history</div>
-                  </div>
-                </div>
-                <button onClick={() => navigate("/audit-logs")}
-                  style={{ padding: "10px 18px", background: "#fff", color: "#444", border: "1px solid #e5e5e5", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-                  View
-                </button>
-              </div>
-            </div>
+            <SectionCard title="Team & Access">
+              <SettingsRow icon={<Users size={14} />} title="Assign Roles" subtitle="Manage team member permissions and roles"
+                action={<Button variant="primary" size="sm" onClick={() => navigate("/assign-role")}>Manage</Button>} />
+              <SettingsRow icon={<FileText size={14} />} title="Audit Logs" subtitle="View system activity and change history" border={false}
+                action={<Button variant="secondary" size="sm" onClick={() => navigate("/audit-logs")}>View</Button>} />
+            </SectionCard>
           )}
 
-          {/* ── Logout ── */}
-          <div style={sectionCard}>
-            <button onClick={() => {
-              setConfirmDlg({
-                message: "Are you sure you want to log out?",
-                onConfirm: () => {
-                  setConfirmDlg(null);
-                  logout();
-                  navigate("/login");
-                },
-              });
-            }}
-              style={{
-                width: "100%", padding: "14px 0", background: "#fff",
-                border: "1.5px solid #dc2626", borderRadius: 12,
-                fontWeight: 700, fontSize: 15, cursor: "pointer",
-                color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              }}>
-              🚪 Log Out
-            </button>
+          {/* Logout */}
+          <SectionCard>
+            <Button variant="danger" size="md" fullWidth onClick={() => setConfirmDlg({
+              message: "Are you sure you want to log out?",
+              onConfirm: () => { setConfirmDlg(null); logout(); navigate("/login"); },
+            })}>
+              <LogOut size={16} /> Log Out
+            </Button>
+          </SectionCard>
+
+          {/* Version */}
+          <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>BuildTrack Version 2.4.0 (2024)</span>
           </div>
 
-          {/* ── Version ── */}
-          <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
-            <span style={{ fontSize: 12, color: "#aaa" }}>BuildTrack Version 2.4.0 (2024)</span>
-          </div>
-
-          {/* ── Danger Zone ── */}
-          <div style={{ ...sectionCard, border: "1px solid #fee2e2", background: "#fff" }}>
-            <div style={{ ...sectionTitle, color: "#dc2626" }}>Danger Zone</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          {/* Danger Zone */}
+          <SectionCard style={{ border: "1px solid #FECACA" }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#DC2626", margin: "0 0 16px", letterSpacing: "-0.02em" }}>Danger Zone</h3>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>Delete Account</div>
-                <div style={{ fontSize: 13, color: "#888" }}>Permanently delete your account and all associated data. This action cannot be undone.</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 2 }}>Delete Account</div>
+                <div style={{ fontSize: 12, color: "#64748B" }}>Permanently delete your account and all associated data.</div>
               </div>
-              <button
-                onClick={handleDeleteAccount}
-                style={{
-                  padding: "10px 20px", background: "#fff",
-                  border: "1.5px solid #dc2626", borderRadius: 10,
-                  fontWeight: 600, fontSize: 13, cursor: "pointer",
-                  color: "#dc2626", whiteSpace: "nowrap",
-                }}
-              >
-                🗑️ Delete Account
-              </button>
+              <Button variant="danger" size="sm" onClick={handleDeleteAccount}>
+                <Trash2 size={14} /> Delete Account
+              </Button>
             </div>
-          </div>
+          </SectionCard>
 
         </div>
       </div>

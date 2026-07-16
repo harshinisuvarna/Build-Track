@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { colors, radius, typography } from '../styles/designTokens';
 import { Card, Badge, Button, Spinner, EmptyState, ErrorState, Toast, ConfirmDialog } from '../components/ui';
 import { approvalAPI, transactionAPI } from '../api';
+import { CheckCircle, ClipboardCheck, User, Building2, Package } from 'lucide-react';
 
 function formatCurrency(amount) {
   return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -133,7 +134,7 @@ export default function ApprovalsPage() {
         <ErrorState message={error} onRetry={fetchEntries} />
       ) : entries.length === 0 ? (
         <EmptyState
-          icon={tab === 'pending' ? '✅' : '📋'}
+          icon={tab === 'pending' ? <CheckCircle size={48} /> : <ClipboardCheck size={48} />}
           title={tab === 'pending' ? 'No Pending Approvals' : 'No Approval History'}
           description={tab === 'pending'
             ? 'All entries have been reviewed. Great job!'
@@ -156,7 +157,7 @@ export default function ApprovalsPage() {
                     alignItems: 'center', justifyContent: 'center',
                     fontSize: 20, flexShrink: 0,
                   }}>
-                    {entry.type === 'Wages' ? '👷' : entry.type === 'Expense' ? '🏗️' : '📦'}
+                    {entry.type === 'Wages' ? <User size={18} /> : entry.type === 'Expense' ? <Building2 size={18} /> : <Package size={18} />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { transactionAPI, projectAPI, authAPI } from "../api";
 import { useAuth } from "../contexts/AuthContext";
+import { Lock, Search, ClipboardList, AlertTriangle } from "lucide-react";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -254,7 +255,7 @@ export default function AuditLogsPage() {
               fontSize: 32,
             }}
           >
-            🔒
+            <Lock size={28} />
           </div>
           <h2
             style={{
@@ -375,7 +376,7 @@ export default function AuditLogsPage() {
             }}
           >
             <span style={{ color: "#dc2626", fontSize: 14, fontWeight: 500 }}>
-              ⚠️ {error}
+              <AlertTriangle size={14} /> {error}
             </span>
             <button
               onClick={fetchLogs}
@@ -500,7 +501,7 @@ export default function AuditLogsPage() {
               gap: 8,
             }}
           >
-            <span style={{ color: "#aaa" }}>🔍</span>
+            <Search size={16} color="#aaa" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -576,7 +577,7 @@ export default function AuditLogsPage() {
                   fontSize: 24,
                 }}
               >
-                📋
+                <ClipboardList size={24} />
               </div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "#1a1a1a" }}>
                 No audit logs found
