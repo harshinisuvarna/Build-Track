@@ -243,3 +243,55 @@ div[style*="background-color: rgb(255, 255, 255)"][style*="border-radius"] {
   height: 8px !important;
 }
 
+/* Premium Topbar Actions Button styling */
+.premium-topbar-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  outline: none;
+}
+
+.premium-topbar-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.12);
+  color: var(--text-primary);
+}
+
+.premium-topbar-btn:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.premium-topbar-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(23, 62, 234, 0.15), 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 1024px) {
+  .premium-topbar-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .premium-topbar-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+}
+
