@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { colors, radius } from '../styles/designTokens';
 import { Card, Badge, Button, Spinner, EmptyState, ErrorState, SkeletonCard } from '../components/ui';
 import { authAPI, projectAPI, transactionAPI } from '../api';
+import { Users, User, ClipboardList, Building2 } from 'lucide-react';
 
 function formatCurrency(amount) {
   return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -144,7 +145,7 @@ export default function AdminOverviewPage() {
             {[1,2,3].map((i) => <SkeletonCard key={i} />)}
           </div>
         ) : users.length === 0 ? (
-          <EmptyState icon="👥" title="No Team Members" description="Invite team members to get started." />
+          <EmptyState icon={<Users size={48} />} title="No Team Members" description="Invite team members to get started." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {users.map((user) => (
@@ -160,7 +161,7 @@ export default function AdminOverviewPage() {
                   }}>
                     {user.profilePhoto ? (
                       <img src={user.profilePhoto} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                    ) : '👤'}
+                    ) : <User size={16} />}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary }}>
@@ -182,7 +183,7 @@ export default function AdminOverviewPage() {
         loadingEntries ? (
           <Spinner style={{ padding: 40 }} />
         ) : allEntries.length === 0 ? (
-          <EmptyState icon="📋" title="No Entries" description="No entries have been created yet." />
+          <EmptyState icon={<ClipboardList size={48} />} title="No Entries" description="No entries have been created yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {allEntries.slice(0, 20).map((entry) => (
@@ -219,7 +220,7 @@ export default function AdminOverviewPage() {
             {[1,2].map((i) => <SkeletonCard key={i} />)}
           </div>
         ) : projects.length === 0 ? (
-          <EmptyState icon="🏗️" title="No Projects" description="Create a project to get started." action={
+          <EmptyState icon={<Building2 size={48} />} title="No Projects" description="Create a project to get started." action={
             <Button onClick={() => navigate('/newproject')}>+ New Project</Button>
           } />
         ) : (

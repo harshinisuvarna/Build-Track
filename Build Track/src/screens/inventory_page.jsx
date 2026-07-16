@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { inventoryAPI, projectAPI, transactionAPI, paymentAPI } from "../api";
 import { Toast } from "../components/Toast";
+import { Pencil } from "lucide-react";
 import { colors, radius, spacing, shadows, gradients, typography } from "../styles/designTokens";
 
 const STATUS_META = {
@@ -1087,8 +1088,8 @@ export default function InventoryPage() {
                                                 </span>
                                               </div>
                                               <button onClick={() => navigate("/manualentry", { state: { transaction: tx } })}
-                                                style={{ background: "#FFF", border: "1px solid #ECEBFF", borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: colors.primaryBlue, fontSize: 12 }} title="Edit Transaction">
-                                                ✏️
+                                                style={{ background: "#FFF", border: "1px solid #ECEBFF", borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: colors.primaryBlue }} title="Edit Transaction">
+                                                <Pencil size={12} />
                                               </button>
                                             </div>
                                           </div>

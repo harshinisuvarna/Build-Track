@@ -1,26 +1,18 @@
-import { colors } from '../../styles/designTokens';
+import { colors, typography } from '../../styles/designTokens';
 
-export default function Spinner({ size = 32, color = colors.primaryBlue, style }) {
+export default function Spinner({ size = 20, color = colors.primary, style }) {
   return (
-    <div
+    <span
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'inline-block',
+        width: size,
+        height: size,
+        border: `2px solid ${colors.border}`,
+        borderTopColor: color,
+        borderRadius: '50%',
+        animation: 'spin 0.6s linear infinite',
         ...style,
       }}
-    >
-      <span
-        style={{
-          width: size,
-          height: size,
-          border: `3px solid ${color}20`,
-          borderTopColor: color,
-          borderRadius: '50%',
-          animation: 'spin 0.7s linear infinite',
-          display: 'inline-block',
-        }}
-      />
-    </div>
+    />
   );
 }

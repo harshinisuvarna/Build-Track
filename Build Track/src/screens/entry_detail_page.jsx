@@ -1,22 +1,26 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { colors, radius, typography } from '../styles/designTokens';
-import { Card, Badge, Button, Spinner, ConfirmDialog } from '../components/ui';
+import { Card, Badge, Button, Spinner } from '../components/ui';
 import { transactionAPI } from '../api';
+import {
+  Package, User, Wrench, DollarSign, ArrowLeft, Trash2, Calendar,
+  CreditCard, Building2, Hash, FileText, AlertTriangle, CheckCircle,
+  XCircle, Clock, MapPin, Phone, UserCheck,
+} from 'lucide-react';
 
 const typeConfig = {
-  Materials: { label: 'Material', bg: '#ECEBFF', color: '#6C63FF', icon: '📦' },
-  Wages: { label: 'Labour', bg: '#E8F5E9', color: '#2E7D32', icon: '👷' },
-  Expense: { label: 'Equipment', bg: '#FFF3E0', color: '#E65100', icon: '🏗️' },
-  Income: { label: 'Income', bg: '#F3E8FF', color: '#7C3AED', icon: '💰' },
+  Materials: { label: 'Material', bg: '#EEF0FF', color: '#5B5CEB', icon: <Package size={18} /> },
+  Wages: { label: 'Labour', bg: '#F0FDF4', color: '#22C55E', icon: <User size={18} /> },
+  Expense: { label: 'Equipment', bg: '#FFF7ED', color: '#F97316', icon: <Wrench size={18} /> },
+  Income: { label: 'Income', bg: '#F3E8FF', color: '#8B5CF6', icon: <DollarSign size={18} /> },
 };
 
 function formatCurrency(amount) {
-  return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return '\u20B9' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return '\u2014';
   try {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -35,12 +39,12 @@ export default function EntryDetailPage() {
   if (!entry) {
     return (
       <div style={{ padding: '40px 28px', textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-        <h3 style={{ color: colors.textPrimary, marginBottom: 8 }}>No Entry Data</h3>
-        <p style={{ color: colors.textSecondary, marginBottom: 20 }}>
-          Please navigate here from a transaction or entry list.
-        </p>
-        <Button variant="ghost" onClick={() => navigate(-1)}>← Go Back</Button>
+        <AlertTriangle size={48} color="#CBD5E1" style={{ marginBottom: 16 }} />
+        <h3 style={{ color: '#111827', margin: '0 0 8px', fontWeight: 700 }}>No Entry Data</h3>
+        <p style={{ color: '#64748B', marginBottom: 20 }}>Please navigate here from a transaction or entry list.</p>
+        <Button variant="secondary" size="md" onClick={() => navigate(-1)}>
+          <ArrowLeft size={14} /> Go Back
+        </Button>
       </div>
     );
   }
@@ -48,24 +52,32 @@ export default function EntryDetailPage() {
   if (deleted) {
     return (
       <div style={{ padding: '40px 28px', textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🗑️</div>
-        <h3 style={{ color: colors.textPrimary, marginBottom: 8 }}>Entry Deleted</h3>
-        <p style={{ color: colors.textSecondary, marginBottom: 20 }}>
-          The entry has been permanently removed.
-        </p>
-        <Button variant="ghost" onClick={() => navigate('/transaction')}>
-          ← Back to Transactions
+        <CheckCircle size={48} color="#22C55E" style={{ marginBottom: 16 }} />
+        <h3 style={{ color: '#111827', margin: '0 0 8px', fontWeight: 700 }}>Entry Deleted</h3>
+        <p style={{ color: '#64748B', marginBottom: 20 }}>This entry has been successfully removed.</p>
+        <Button variant="secondary" size="md" onClick={() => navigate(-1)}>
+          <ArrowLeft size={14} /> Go Back
         </Button>
       </div>
     );
   }
 
-  const type = typeConfig[entry.type] || typeConfig.Materials;
-  const amount = Number(entry.amount || entry.totalAmount || 0);
-  const paidAmount = Number(entry.paidAmount || 0);
-  const balance = amount - paidAmount;
-  const paymentHistory = entry.paymentHistory || [];
-  const paymentStatus = entry.paymentStatus || 'Pending';
+  const tc = typeConfig[entry.type] || { label: 'Entry', bg: '#F1F5F9', color: '#64748B', icon: <FileText size={18} /> };
+
+  const fields = [
+    { icon: <Calendar size={14} />, label: 'Date', value: formatDate(entry.date) },
+    { icon: <Hash size={14} />, label: 'Entry ID', value: entry._id || entry.id || '\u2014' },
+    { icon: <Building2 size={14} />, label: 'Project', value: entry.project?.projectName || entry.projectName || '\u2014' },
+    { icon: <MapPin size={14} />, label: 'Location/Site', value: entry.site || entry.location || '\u2014' },
+    { icon: <User size={14} />, label: 'Supplier/Vendor', value: entry.supplier || entry.vendor || entry.contractor || entry.workerName || '\u2014' },
+    { icon: <UserCheck size={14} />, label: 'Operator/Worker', value: entry.operator || entry.workerName || '\u2014' },
+    { icon: <Phone size={14} />, label: 'Contact', value: entry.contact || entry.phone || '\u2014' },
+    { icon: <FileText size={14} />, label: 'Category', value: entry.category || entry.materialType || entry.workType || '\u2014' },
+    { icon: <Package size={14} />, label: 'Quantity', value: entry.quantity ? `${entry.quantity} ${entry.unit || ''}` : '\u2014' },
+    { icon: <CreditCard size={14} />, label: 'Rate', value: entry.rate ? formatCurrency(entry.rate) : '\u2014' },
+    { icon: <DollarSign size={14} />, label: 'Amount', value: formatCurrency(entry.amount), highlight: true },
+    { icon: <CheckCircle size={14} />, label: 'Payment Status', value: entry.paymentStatus || '\u2014' },
+  ];
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -73,183 +85,99 @@ export default function EntryDetailPage() {
       await transactionAPI.delete(entry._id || entry.id);
       setDeleted(true);
     } catch {
-      alert('Failed to delete entry');
-    } finally {
       setDeleting(false);
       setShowDelete(false);
     }
   };
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 700, margin: '0 auto' }}>
-      <ConfirmDialog
-        open={showDelete}
-        message="This action cannot be undone. The entry will be permanently removed."
-        onConfirm={handleDelete}
-        onCancel={() => setShowDelete(false)}
-        confirmLabel="Delete"
-        danger
-      />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            border: 'none', background: colors.iconBg, cursor: 'pointer',
-            width: 36, height: 36, borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, color: colors.textPrimary,
-          }}
-        >
-          ←
+    <div style={{ padding: '24px 28px', maxWidth: 680, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => navigate(-1)}
+            style={{ border: 'none', background: '#F1F5F9', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: 0, letterSpacing: '-0.03em' }}>Entry Details</h2>
+            <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0' }}>{entry.title || tc.label}</p>
+          </div>
+        </div>
+        <button onClick={() => setShowDelete(true)}
+          style={{ border: '1px solid #FECACA', borderRadius: 8, padding: '8px 14px', background: '#fff', color: '#EF4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+          <Trash2 size={14} /> Delete
         </button>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>
-          Entry Details
-        </h2>
       </div>
 
-      <Card style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 14,
-            backgroundColor: type.bg, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            fontSize: 24,
-          }}>
-            {type.icon}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: colors.textPrimary, margin: 0 }}>
-                {entry.title || entry.name || 'Untitled'}
-              </h3>
-              <Badge variant={paymentStatus === 'Paid' ? 'success' : paymentStatus === 'Pending' ? 'pending' : 'warning'}>
-                {paymentStatus}
-              </Badge>
+      {/* Type Badge + Amount */}
+      <Card padding="20px" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: tc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: tc.color }}>
+              {tc.icon}
             </div>
-            <Badge variant="info">{type.label}</Badge>
+            <div>
+              <Badge variant={entry.type === 'Wages' ? 'success' : entry.type === 'Expense' ? 'warning' : 'info'} size="sm">{tc.label}</Badge>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginTop: 6 }}>{entry.title || 'Untitled Entry'}</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: entry.type === 'Income' ? '#22C55E' : '#111827', letterSpacing: '-0.03em' }}>
+              {entry.type === 'Income' ? '+' : '-'}{formatCurrency(entry.amount)}
+            </div>
+            <Badge variant={entry.paymentStatus === 'Paid' ? 'success' : entry.paymentStatus === 'Partial' ? 'warning' : 'info'} size="sm">{entry.paymentStatus || '\u2014'}</Badge>
           </div>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>Amount</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: colors.textPrimary }}>
-              {formatCurrency(amount)}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>Paid</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.success }}>
-              {formatCurrency(paidAmount)}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>Balance</div>
-            <div style={{
-              fontSize: 18, fontWeight: 700,
-              color: balance <= 0 ? colors.success : colors.warning,
-            }}>
-              {formatCurrency(balance)}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>Date</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>
-              {formatDate(entry.date || entry.createdAt)}
-            </div>
-          </div>
-        </div>
-
-        {(entry.project || entry.projectName) && (
-          <div style={{ paddingTop: 16, borderTop: `1px solid ${colors.divider}` }}>
-            <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>Project</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>
-              {entry.projectName || entry.project}
-            </div>
-          </div>
-        )}
-
-        {entry.notes && (
-          <div style={{ paddingTop: 16, borderTop: `1px solid ${colors.divider}` }}>
-            <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>Notes</div>
-            <div style={{ fontSize: 14, color: colors.textMedium, lineHeight: 1.5 }}>{entry.notes}</div>
-          </div>
-        )}
       </Card>
 
-      {entry.quantity > 0 && (
-        <Card style={{ marginBottom: 20 }}>
-          <h4 style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.3px', color: colors.textSecondary, marginBottom: 12, textTransform: 'uppercase' }}>
-            Details
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            {entry.quantity && (
-              <div>
-                <div style={{ fontSize: 11, color: colors.textSecondary }}>Quantity</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>{entry.quantity}</div>
-              </div>
-            )}
-            {entry.unit && (
-              <div>
-                <div style={{ fontSize: 11, color: colors.textSecondary }}>Unit</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>{entry.unit}</div>
-              </div>
-            )}
-            {entry.rate > 0 && (
-              <div>
-                <div style={{ fontSize: 11, color: colors.textSecondary }}>Rate</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>
-                  {formatCurrency(entry.rate)}
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {paymentHistory.length > 0 && (
-        <Card style={{ marginBottom: 20 }}>
-          <h4 style={{
-            fontSize: 11, fontWeight: 800, color: colors.textSecondary,
-            letterSpacing: '1px', marginBottom: 14, textTransform: 'uppercase',
-          }}>
-            Payment History
-          </h4>
-          {paymentHistory.map((pmt, i) => (
-            <div key={i} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0', borderBottom: i < paymentHistory.length - 1 ? `1px solid ${colors.divider}` : 'none',
-            }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>
-                  {formatDate(pmt.date || pmt.paymentDate)}
-                </div>
-                <Badge variant="info" style={{ fontSize: 10, padding: '2px 8px', marginTop: 4 }}>
-                  {(pmt.method || 'Cash').toUpperCase()}
-                </Badge>
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: colors.success }}>
-                {formatCurrency(pmt.amount || 0)}
+      {/* Details Grid */}
+      <Card padding="20px" style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 14px' }}>Entry Information</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+          {fields.map((f, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #F8FAFC' }}>
+              <span style={{ color: '#94A3B8', display: 'flex', flexShrink: 0 }}>{f.icon}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.03em', textTransform: 'uppercase' }}>{f.label}</div>
+                <div style={{ fontSize: 13, fontWeight: f.highlight ? 700 : 500, color: f.highlight ? '#5B5CEB' : '#111827' }}>{f.value}</div>
               </div>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Notes */}
+      {entry.notes && (
+        <Card padding="20px" style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 10px' }}>Notes</h3>
+          <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, margin: 0 }}>{entry.notes}</p>
         </Card>
       )}
 
-      <div style={{ display: 'flex', gap: 12 }}>
-        <Button variant="ghost" onClick={() => navigate(-1)} style={{ flex: 1 }}>
-          ← Back
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => setShowDelete(true)}
-          loading={deleting}
-          style={{ flex: 1 }}
-        >
-          Delete Entry
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Button variant="secondary" size="md" fullWidth onClick={() => navigate('/manualentry', { state: { transaction: { ...entry, isEditing: true } } })}>
+          <FileText size={14} /> Edit Entry
         </Button>
       </div>
+
+      {/* Delete Confirmation */}
+      {showDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}
+          onClick={() => setShowDelete(false)}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>Delete Entry?</h3>
+            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 20 }}>This action cannot be undone. Are you sure you want to delete this entry?</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button variant="secondary" size="md" fullWidth onClick={() => setShowDelete(false)} disabled={deleting}>Cancel</Button>
+              <Button variant="danger" size="md" fullWidth onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

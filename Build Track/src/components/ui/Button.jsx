@@ -1,132 +1,56 @@
-import { colors, radius, gradients } from '../../styles/designTokens';
+import { colors, radius, shadows, typography } from '../../styles/designTokens';
 
-const styles = {
-  primary: {
-    height: 48,
-    borderRadius: radius.md,
-    fontWeight: 600,
-    fontSize: 16,
-    border: 'none',
-    cursor: 'pointer',
-    background: gradients.primaryButton,
-    color: '#FFFFFF',
-    padding: '0 24px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    transition: 'opacity 0.2s, transform 0.15s',
-    fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-    minWidth: 120,
-  },
-  outline: {
-    height: 48,
-    borderRadius: radius.md,
-    fontWeight: 600,
-    fontSize: 16,
-    border: `1.5px solid ${colors.primaryBlue}`,
-    background: 'transparent',
-    color: colors.primaryBlue,
-    cursor: 'pointer',
-    padding: '0 24px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    transition: 'background 0.2s, color 0.2s',
-    fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-    minWidth: 120,
-  },
-  danger: {
-    height: 48,
-    borderRadius: radius.md,
-    fontWeight: 600,
-    fontSize: 16,
-    border: 'none',
-    cursor: 'pointer',
-    background: colors.error,
-    color: '#FFFFFF',
-    padding: '0 24px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    transition: 'opacity 0.2s',
-    fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-    minWidth: 120,
-  },
-  ghost: {
-    height: 48,
-    borderRadius: radius.md,
-    fontWeight: 500,
-    fontSize: 15,
-    border: `1px solid ${colors.cardBorder}`,
-    background: colors.cardBg,
-    color: colors.textMedium,
-    cursor: 'pointer',
-    padding: '0 20px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    transition: 'background 0.2s, border-color 0.2s',
-    fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-  },
+const sizeMap = {
+  sm: { height: 32, fontSize: 13, padding: '0 12px' },
+  md: { height: 38, fontSize: 14, padding: '0 16px' },
+  lg: { height: 44, fontSize: 15, padding: '0 20px' },
 };
 
-export default function Button({
-  children,
-  variant = 'primary',
-  disabled = false,
-  loading = false,
-  onClick,
-  style,
-  fullWidth,
-  ...props
-}) {
-  const base = styles[variant] || styles.primary;
+const variantMap = {
+  primary: { bg: colors.primary, color: colors.textInverse, hover: colors.primaryHover, border: 'none' },
+  secondary: { bg: colors.subtle, color: colors.textPrimary, hover: '#E2E8F0', border: `1px solid ${colors.border}` },
+  outline: { bg: 'transparent', color: colors.primary, hover: colors.primaryLight, border: `1px solid ${colors.border}` },
+  ghost: { bg: 'transparent', color: colors.textSecondary, hover: colors.subtle, border: 'none' },
+  danger: { bg: colors.danger, color: colors.textInverse, hover: '#DC2626', border: 'none' },
+};
+
+export default function Button({ children, variant = 'primary', size = 'md', icon, style, disabled, onClick, loading, fullWidth, type }) {
+  const s = sizeMap[size];
+  const v = variantMap[variant];
   return (
     <button
-      onClick={onClick}
+      type={type || 'button'}
       disabled={disabled || loading}
+      onClick={onClick}
       style={{
-        ...base,
-        opacity: disabled ? 0.5 : 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        height: s.height,
+        padding: s.padding,
+        fontSize: s.fontSize,
+        fontWeight: 600,
+        fontFamily: typography.fontFamily,
+        borderRadius: radius.md,
+        background: v.bg,
+        color: v.color,
+        border: v.border,
         cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        transition: 'all var(--transition)',
         width: fullWidth ? '100%' : undefined,
+        whiteSpace: 'nowrap',
         ...style,
       }}
-      onMouseEnter={(e) => {
-        if (!disabled && variant !== 'ghost') {
-          e.currentTarget.style.opacity = '0.85';
-        }
-        if (variant === 'ghost') {
-          e.currentTarget.style.background = colors.sidebarActive;
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!disabled && variant !== 'ghost') {
-          e.currentTarget.style.opacity = '1';
-        }
-        if (variant === 'ghost') {
-          e.currentTarget.style.background = colors.cardBg;
-        }
-      }}
-      {...props}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = v.hover; } }}
+      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = v.bg; } }}
     >
-      {loading && (
-        <span
-          style={{
-            width: 18,
-            height: 18,
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderTopColor: '#FFF',
-            borderRadius: '50%',
-            animation: 'spin 0.6s linear infinite',
-            display: 'inline-block',
-          }}
-        />
-      )}
+      {loading ? (
+        <span style={{ display: 'inline-flex', animation: 'spin 0.6s linear infinite' }}>⟳</span>
+      ) : icon ? (
+        <span style={{ display: 'inline-flex', fontSize: 16 }}>{icon}</span>
+      ) : null}
       {children}
     </button>
   );

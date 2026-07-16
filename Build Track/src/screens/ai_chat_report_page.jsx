@@ -18,7 +18,10 @@ import {
   TrendingUp,
   AlertTriangle,
   Info,
-  Check
+  Check,
+  Clock,
+  Hash,
+  Trophy
 } from 'lucide-react';
 
 const QUICK_PROMPTS = [
@@ -346,7 +349,7 @@ export default function AiChatReportPage() {
                         onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <span style={{ color: colors.textLight }}>🕒</span>
+                        <Clock size={14} color={colors.textLight} />
                         <span style={{ flex: 1, fontWeight: '600' }}>{s}</span>
                       </div>
                     ))}
@@ -468,7 +471,7 @@ export default function AiChatReportPage() {
                   )}
                   {result.rowCount !== null && (
                     <Card style={{ padding: 16 }}>
-                      <span style={{ fontSize: 16, color: colors.textLight }}>🔢</span>
+                      <Hash size={16} color={colors.textLight} />
                       <div style={{ fontSize: 22, fontWeight: '900', color: colors.primaryBlue, margin: '8px 0 2px' }}>
                         {result.rowCount}
                       </div>
@@ -492,7 +495,7 @@ export default function AiChatReportPage() {
                       return (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
                           <span style={{ fontWeight: isTop ? '700' : '600', color: colors.textPrimary }}>
-                            {isTop ? '🏆 ' : '• '}{item.projectName || 'Unknown'}
+                            {isTop ? <><Trophy size={14} /> </> : '• '}{item.projectName || 'Unknown'}
                           </span>
                           <span style={{ fontWeight: isTop ? '700' : '600', color: colors.textPrimary }}>
                             {valStr}

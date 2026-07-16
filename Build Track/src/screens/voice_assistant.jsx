@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { transactionAPI, projectAPI, voiceAPI } from '../api';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import { parseTranscript, computeAmount } from '../utils/voiceParser';
+import { createElement } from 'react';
 import { colors, radius, shadows, typography } from '../styles/designTokens';
+import { Package, User, Wrench, Building2, MapPin, ClipboardList, Hammer } from 'lucide-react';
 import ExecutionContextStep from '../components/ExecutionContextStep';
 import VoiceReviewSheet from '../components/VoiceReviewSheet';
 
@@ -27,10 +29,16 @@ const STATUS = {
 };
 
 const ENTRY_TYPES = [
-  { id: 'material', label: 'Material', icon: '🧱', color: '#7c3aed' },
-  { id: 'labour', label: 'Labour', icon: '👷', color: '#2563eb' },
-  { id: 'equipment', label: 'Equipment', icon: '🚜', color: '#059669' },
+  { id: 'material', label: 'Material', icon: 'material', color: '#7c3aed' },
+  { id: 'labor', label: 'Labor', icon: 'labor', color: '#0891b2' },
+  { id: 'equipment', label: 'Equipment', icon: 'equipment', color: '#d97706' },
 ];
+
+const typeIcons = {
+  material: Package,
+  labor: User,
+  equipment: Wrench,
+};
 
 const ENTRY_EXAMPLES = {
   material: 'Say: "20 bags of UltraTech cement at 420 rupees per bag"',
@@ -438,7 +446,7 @@ export default function VoiceAssistantPage() {
                     color: entryType === t.id ? '#FFF' : colors.textSecondary,
                     transition: 'all 0.2s',
                   }}>
-                  {t.icon} {t.label}
+                  {createElement(typeIcons[t.icon] || Package, { size: 16 })} {t.label}
                 </button>
               ))}
             </div>
@@ -452,23 +460,23 @@ export default function VoiceAssistantPage() {
                 display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
               }}>
                 {executionContext.project && (
-                  <span style={{ fontSize: 12, fontWeight: 600, color: colors.primaryBlue }}>
-                    🏗️ {executionContext.project.projectName || executionContext.project.name}
-                  </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: colors.primaryBlue, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Building2 size={14} /> {executionContext.project.projectName || executionContext.project.name}
+                    </span>
                 )}
                 {executionContext.floor && (
                   <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
-                    📍 {executionContext.floor}
+                    <MapPin size={12} /> {executionContext.floor}
                   </span>
                 )}
                 {executionContext.phase && (
                   <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
-                    📋 {executionContext.phase}
+                    <ClipboardList size={12} /> {executionContext.phase}
                   </span>
                 )}
                 {executionContext.activity && (
                   <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
-                    🔨 {executionContext.activity}
+                    <Hammer size={12} /> {executionContext.activity}
                   </span>
                 )}
                 <span

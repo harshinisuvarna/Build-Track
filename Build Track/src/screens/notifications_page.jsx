@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, radius } from '../styles/designTokens';
 import { Card, Badge, Button, EmptyState } from '../components/ui';
+import { Bell, CheckCheck, Trash2, ArrowLeft, CheckCircle, DollarSign, Package, Building2, User, Shield } from 'lucide-react';
 
 function formatTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -19,20 +20,29 @@ function formatTimeAgo(dateStr) {
 }
 
 const sampleNotifications = [
-  { id: 1, type: 'approval', title: 'New Entry Pending Approval', message: 'Ravi Kumar added a Material entry for Greenwood Heights. ₹45,000 pending your review.', time: '2026-07-14T10:30:00', read: false },
-  { id: 2, type: 'payment', title: 'Payment Received', message: 'Payment of ₹1,20,000 has been received for Riverside Project - Phase 2.', time: '2026-07-14T08:15:00', read: false },
+  { id: 1, type: 'approval', title: 'New Entry Pending Approval', message: 'Ravi Kumar added a Material entry for Greenwood Heights. \u20B945,000 pending your review.', time: '2026-07-14T10:30:00', read: false },
+  { id: 2, type: 'payment', title: 'Payment Received', message: 'Payment of \u20B91,20,000 has been received for Riverside Project - Phase 2.', time: '2026-07-14T08:15:00', read: false },
   { id: 3, type: 'inventory', title: 'Low Stock Alert', message: 'Cement (PPC 43 Grade) is running low at Oakwood Extension. Current stock: 12 bags.', time: '2026-07-13T16:45:00', read: true },
   { id: 4, type: 'project', title: 'Project Milestone Reached', message: 'Greenwood Heights has reached 60% completion - MEP Works phase started.', time: '2026-07-13T11:20:00', read: true },
   { id: 5, type: 'worker', title: 'Worker Attendance Updated', message: 'Weekly attendance report for Greenwood Heights is now available.', time: '2026-07-12T09:00:00', read: true },
 ];
 
 const typeIcons = {
-  approval: '✅',
-  payment: '💰',
-  inventory: '📦',
-  project: '🏗️',
-  worker: '👷',
-  system: '🔔',
+  approval: <CheckCircle size={18} />,
+  payment: <DollarSign size={18} />,
+  inventory: <Package size={18} />,
+  project: <Building2 size={18} />,
+  worker: <User size={18} />,
+  system: <Bell size={18} />,
+};
+
+const typeColors = {
+  approval: { bg: '#EEF0FF', color: '#5B5CEB' },
+  payment: { bg: '#F0FDF4', color: '#22C55E' },
+  inventory: { bg: '#FFF7ED', color: '#F97316' },
+  project: { bg: '#F3E8FF', color: '#8B5CF6' },
+  worker: { bg: '#EFF6FF', color: '#3B82F6' },
+  system: { bg: '#F1F5F9', color: '#64748B' },
 };
 
 export default function NotificationsPage() {
@@ -43,41 +53,21 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
   const filtered = filter === 'all' ? notifications : filter === 'unread' ? notifications.filter((n) => !n.read) : notifications;
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
+  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const clearAll = () => setNotifications([]);
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 700, margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: 680, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              border: 'none', background: colors.iconBg, cursor: 'pointer',
-              width: 36, height: 36, borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, color: colors.textPrimary,
-            }}
-          >
-            ←
+          <button onClick={() => navigate(-1)}
+            style={{ border: 'none', background: '#F1F5F9', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
+            <ArrowLeft size={16} />
           </button>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0, letterSpacing: '-0.03em' }}>
             Notifications
             {unreadCount > 0 && (
-              <span style={{
-                marginLeft: 8,
-                background: colors.error,
-                color: '#FFF',
-                fontSize: 12,
-                padding: '2px 8px',
-                borderRadius: 10,
-                fontWeight: 600,
-              }}>
+              <span style={{ marginLeft: 8, background: '#EF4444', color: '#FFF', fontSize: 12, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
                 {unreadCount}
               </span>
             )}
@@ -85,12 +75,12 @@ export default function NotificationsPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {unreadCount > 0 && (
-            <Button variant="ghost" onClick={markAllRead} style={{ height: 36, fontSize: 13, padding: '0 14px' }}>
+            <Button variant="secondary" size="sm" icon={<CheckCheck size={12} />} onClick={markAllRead}>
               Mark All Read
             </Button>
           )}
           {notifications.length > 0 && (
-            <Button variant="ghost" onClick={clearAll} style={{ height: 36, fontSize: 13, padding: '0 14px', color: colors.error }}>
+            <Button variant="secondary" size="sm" icon={<Trash2 size={12} />} onClick={clearAll} style={{ color: '#EF4444' }}>
               Clear All
             </Button>
           )}
@@ -102,23 +92,17 @@ export default function NotificationsPage() {
           { id: 'all', label: 'All', count: notifications.length },
           { id: 'unread', label: 'Unread', count: unreadCount },
         ].map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setFilter(t.id)}
+          <button key={t.id} onClick={() => setFilter(t.id)}
             style={{
-              padding: '8px 18px', borderRadius: radius.sm,
-              border: filter === t.id ? 'none' : `1px solid ${colors.cardBorder}`,
-              background: filter === t.id ? colors.primaryBlue : colors.cardBg,
-              color: filter === t.id ? '#FFF' : colors.textSecondary,
+              padding: '8px 18px', borderRadius: 8,
+              border: filter === t.id ? 'none' : `1px solid #E5E7EB`,
+              background: filter === t.id ? '#5B5CEB' : '#fff',
+              color: filter === t.id ? '#FFF' : '#64748B',
               fontWeight: 600, fontSize: 14, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            {t.label}
-            <span style={{
-              background: filter === t.id ? 'rgba(255,255,255,0.2)' : colors.iconBg,
-              padding: '1px 8px', borderRadius: 10, fontSize: 12,
+              display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
             }}>
+            {t.label}
+            <span style={{ background: filter === t.id ? 'rgba(255,255,255,0.2)' : '#F1F5F9', padding: '1px 8px', borderRadius: 10, fontSize: 12 }}>
               {t.count}
             </span>
           </button>
@@ -126,51 +110,36 @@ export default function NotificationsPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState
-          icon="🔔"
-          title="No Notifications"
-          description={filter === 'unread' ? 'No unread notifications.' : 'You\'re all caught up!'}
-        />
+        <EmptyState icon={<Bell size={22} />} title="No Notifications" description={filter === 'unread' ? 'No unread notifications.' : "You're all caught up!"} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map((n) => (
-            <Card key={n.id} padding="16px 20px" hoverable
-              onClick={() => {
-                setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item));
-              }}
-              style={{
-                opacity: n.read ? 0.7 : 1,
-                borderLeft: n.read ? `0.5px solid ${colors.cardBorder}` : `3px solid ${colors.primaryBlue}`,
-              }}
-            >
-              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{
-                  width: 40, height: 40, borderRadius: 12,
-                  background: n.read ? colors.iconBg : '#ECEBFF',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20, flexShrink: 0,
-                }}>
-                  {typeIcons[n.type] || '🔔'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <h4 style={{
-                      fontSize: 14, fontWeight: n.read ? 500 : 700,
-                      color: colors.textPrimary, margin: 0,
-                    }}>
-                      {n.title}
-                    </h4>
-                    <span style={{ fontSize: 11, color: colors.textSecondary, flexShrink: 0, marginLeft: 8 }}>
-                      {formatTimeAgo(n.time)}
-                    </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filtered.map((n) => {
+            const tc = typeColors[n.type] || typeColors.system;
+            return (
+              <Card key={n.id} padding="16px 20px" hoverable
+                onClick={() => setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item))}
+                style={{ opacity: n.read ? 0.7 : 1, borderLeft: n.read ? `1px solid #E5E7EB` : `3px solid #5B5CEB` }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: n.read ? '#F1F5F9' : tc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: n.read ? '#94A3B8' : tc.color, flexShrink: 0 }}>
+                    {typeIcons[n.type] || <Bell size={18} />}
                   </div>
-                  <p style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 1.5, margin: 0 }}>
-                    {n.message}
-                  </p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: n.read ? 500 : 700, color: '#111827', margin: 0 }}>
+                        {n.title}
+                      </h4>
+                      <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0, marginLeft: 8 }}>
+                        {formatTimeAgo(n.time)}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0 }}>
+                      {n.message}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

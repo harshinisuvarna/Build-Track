@@ -3,14 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { projectAPI } from "../api";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { colors, radius, spacing, shadows, gradients, typography } from "../styles/designTokens";
+import { Card, Badge, Button, SkeletonLine } from "../components/ui";
+import { Search, Plus, Building2, ArrowRight, Edit3, Trash2 } from "lucide-react";
 
 const STATUS_STYLE = {
-  planning:   { bg: "#FFF8E1", border: "#FFC107", text: "#F57F17", label: "Planning" },
-  inprogress: { bg: "#E8F0FE", border: "#4A6CF7", text: "#3D5AFE", label: "In Progress" },
-  onhold:     { bg: "#FFF3E0", border: "#FF9800", text: "#E65100", label: "On Hold" },
-  completed:  { bg: "#E8F5E9", border: "#43A047", text: "#2E7D32", label: "Completed" },
-  cancelled:  { bg: "#FFEBEE", border: "#E53935", text: "#C62828", label: "Cancelled" },
+  planning:   { bg: "#FFFBEB", text: "#B45309", label: "Planning" },
+  inprogress: { bg: "#EEF0FF", text: "#5B5CEB", label: "Active" },
+  onhold:     { bg: "#FFF7ED", text: "#C2410C", label: "On Hold" },
+  completed:  { bg: "#F0FDF4", text: "#15803D", label: "Completed" },
+  cancelled:  { bg: "#FEF2F2", text: "#DC2626", label: "Cancelled" },
 };
 
 const TABS = ["All Projects", "Active", "On Hold", "Review Needed", "Completed"];
@@ -83,12 +84,11 @@ export default function ProjectsPage() {
     const q = search.toLowerCase();
     const matchSearch = !q || p.projectName?.toLowerCase().includes(q) || (p.location || "").toLowerCase().includes(q) || (p.manager || "").toLowerCase().includes(q);
     if (activeTab === "All Projects") return matchSearch;
-    const t = activeTab;
     const status = (p.status || "").toLowerCase();
-    if (t === "Active") return matchSearch && (status === "active" || status === "inprogress" || status === "in progress");
-    if (t === "On Hold") return matchSearch && (status === "onhold" || status === "on hold");
-    if (t === "Review Needed") return matchSearch && (status === "cancelled" || status === "reviewneeded" || status === "review needed");
-    if (t === "Completed") return matchSearch && status === "completed";
+    if (activeTab === "Active") return matchSearch && (status === "active" || status === "inprogress" || status === "in progress");
+    if (activeTab === "On Hold") return matchSearch && (status === "onhold" || status === "on hold");
+    if (activeTab === "Review Needed") return matchSearch && (status === "cancelled" || status === "reviewneeded" || status === "review needed");
+    if (activeTab === "Completed") return matchSearch && status === "completed";
     return matchSearch;
   });
 
@@ -101,166 +101,140 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column",
-      width: "100%", minHeight: "100vh",
-      fontFamily: typography.fontFamily,
-      background: colors.bgBase4,
-      position: "relative",
-    }}>
+    <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      {/* Top Bar */}
-      <div style={{
-        background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`,
-        padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 12, flexShrink: 0,
-      }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Projects</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.03em', margin: 0, marginBottom: 4 }}>
+            Projects
+          </h1>
+          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>
             {loading ? "Loading..." : `${allProjects.length} project${allProjects.length !== 1 ? "s" : ""} total`}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", background: colors.bgBase4, border: `1px solid ${colors.cardBorder}`, borderRadius: radius.sm, padding: "9px 14px", gap: 8 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search projects..." style={{ border: "none", outline: "none", fontSize: 13, color: colors.textPrimary, background: "transparent", width: isMobile ? 100 : 180 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '0 12px', height: 36, gap: 8 }}>
+            <Search size={14} color="#94A3B8" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search projects..." style={{ border: 'none', outline: 'none', fontSize: 13, color: '#111827', background: 'transparent', width: isMobile ? 100 : 180, fontFamily: 'inherit' }} />
           </div>
-          <button onClick={() => navigate("/newproject")}
-            style={{
-              padding: "10px 20px", border: "none", borderRadius: radius.sm,
-              background: gradients.primaryButton, color: "#FFF", fontWeight: 600, fontSize: 13,
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
-            }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <Button variant="primary" size="md" icon={<Plus size={16} />} onClick={() => navigate("/newproject")}>
             New Project
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "0 24px", display: "flex", gap: 4, flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
             style={{
-              padding: "14px 4px", marginRight: 20, background: "none", border: "none", cursor: "pointer",
+              padding: '12px 4px 12px', marginRight: 20,
+              background: 'none', border: 'none', cursor: 'pointer',
               fontSize: 14, fontWeight: activeTab === t ? 600 : 400,
-              color: activeTab === t ? colors.primaryBlue : colors.textLight,
-              borderBottom: activeTab === t ? `2.5px solid ${colors.primaryBlue}` : "2.5px solid transparent",
-              transition: "all 0.15s", whiteSpace: "nowrap",
+              color: activeTab === t ? '#5B5CEB' : '#64748B',
+              borderBottom: activeTab === t ? '2px solid #5B5CEB' : '2px solid transparent',
+              transition: 'all 150ms', whiteSpace: 'nowrap',
+              fontFamily: 'inherit',
             }}>
             {t} ({counts[t]})
           </button>
         ))}
       </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
-        {error && (
-          <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: radius.sm, padding: "12px 16px", color: "#DC2626", fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-            {error}
-            <button onClick={fetchProjects} style={{ marginLeft: "auto", background: "transparent", border: `1px solid #FCA5A5`, borderRadius: 6, padding: "4px 12px", color: "#DC2626", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>Retry</button>
-          </div>
-        )}
+      {/* Error */}
+      {error && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '12px 16px', color: '#DC2626', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={fetchProjects} style={{ background: 'transparent', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 12px', color: '#DC2626', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Retry</button>
+        </div>
+      )}
 
-        {loading && (
-          <div style={{ textAlign: "center", padding: 60 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${colors.bgBase4}`, borderTopColor: colors.primaryBlue, animation: "spin 0.7s linear infinite", margin: "0 auto 16px" }} />
-            <div style={{ fontSize: 13, color: colors.textLight }}>Loading projects...</div>
-          </div>
-        )}
-
-        {!loading && (
-          <>
-            {/* LIVE PIPELINE badge */}
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "6px 14px", borderRadius: 20, marginBottom: 12,
-              background: `${colors.primaryBlue}15`,
-              color: colors.primaryBlue, fontSize: 11, fontWeight: 800, letterSpacing: "0.08em",
-            }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill={colors.primaryBlue}><circle cx="12" cy="12" r="6" /></svg>
-              LIVE PIPELINE
+      {/* Loading */}
+      {loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {[1,2,3].map(i => (
+            <div key={i} style={{ padding: 24, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>
+              <SkeletonLine width="40%" height={20} />
+              <div style={{ height: 8 }} />
+              <SkeletonLine width="60%" height={14} />
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Active Builds header */}
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 30, fontWeight: 900, color: colors.textPrimary }}>Active Builds</h2>
-              <div style={{
-                padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 700,
-                background: "#ECEBFF", color: colors.primaryBlue,
-              }}>
-                {allProjects.length} {allProjects.length === 1 ? "Site" : "Sites"}
-              </div>
-            </div>
+      {/* Project list */}
+      {!loading && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>Active Builds</h2>
+            <Badge variant="info">{allProjects.length} {allProjects.length === 1 ? 'Site' : 'Sites'}</Badge>
+          </div>
 
-            {/* Project list */}
-            {filtered.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
-                {filtered.map(p => {
-                  const sk = statusKey(p.status);
-                  const st = STATUS_STYLE[sk] || STATUS_STYLE.inprogress;
-                  const spent = p.spentAmount || 0;
-                  const budget = p.totalBudget || p.budget || 0;
-                  const progress = p.progress ?? (budget > 0 ? Math.min(spent / budget, 1) : 0);
-                  return (
-                    <div key={p._id}
-                      style={{
-                        background: colors.cardBg, borderRadius: radius.xl,
-                        border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
-                        padding: "18px", cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s",
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.08)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = shadows.card; }}
-                      onClick={() => navigate("/managesite", { state: { project: p } })}>
-                      {/* Name + Status */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: colors.textPrimary, letterSpacing: "-0.3px" }}>{p.projectName}</h3>
-                        <div style={{
-                          padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700,
-                          background: st.bg, border: `1px solid ${st.border}`, color: st.text,
-                          maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0,
-                        }}>
-                          {st.label}
-                        </div>
-                      </div>
-                      {/* Location */}
-                      {p.location && <div style={{ fontSize: 13, fontWeight: 600, color: colors.textLight, marginBottom: 12 }}>{p.location}</div>}
-                      {/* Budget */}
-                      <div style={{ fontSize: 12, fontWeight: 700, color: colors.primaryBlue, marginBottom: 14 }}>
-                        ₹{spent.toLocaleString("en-IN")} of ₹{budget.toLocaleString("en-IN")}
-                      </div>
-                      {/* Progress */}
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: colors.textPrimary }}>Overall Progress</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: colors.primaryBlue }}>{Math.round(progress * 100)}%</span>
-                      </div>
-                      <div style={{ height: 7, background: "#E8ECF8", borderRadius: 16, overflow: "hidden", marginBottom: 14 }}>
-                        <div style={{ width: `${Math.round(progress * 100)}%`, height: "100%", background: colors.primaryBlue, borderRadius: 16, transition: "width 0.5s ease" }} />
-                      </div>
-                      {/* Divider + View Details */}
-                      <div style={{ height: 1, background: "#EEF0F5", marginBottom: 10 }} />
-                      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: colors.primaryBlue }}>View Details</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-                      </div>
+          {filtered.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
+              {filtered.map(p => {
+                const sk = statusKey(p.status);
+                const st = STATUS_STYLE[sk] || STATUS_STYLE.inprogress;
+                const spent = p.spentAmount || 0;
+                const budget = p.totalBudget || p.budget?.total || 0;
+                const progress = p.progress ?? (budget > 0 ? Math.min(spent / budget, 1) : 0);
+                return (
+                  <div key={p._id}
+                    style={{
+                      background: '#fff', borderRadius: 12,
+                      border: '1px solid #E5E7EB', padding: '20px 24px',
+                      cursor: 'pointer', transition: 'box-shadow 150ms ease, transform 150ms ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    onClick={() => navigate("/managesite", { state: { project: p } })}>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em' }}>{p.projectName}</h3>
+                      <Badge variant={sk === 'inprogress' ? 'success' : sk === 'onhold' ? 'warning' : sk === 'completed' ? 'info' : 'default'} size="sm">
+                        {st.label}
+                      </Badge>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: 60, color: colors.textLight, fontSize: 14 }}>
-                {allProjects.length === 0
-                  ? "No projects yet. Click \"New Project\" to get started."
-                  : "No projects match your search."}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+
+                    {p.location && (
+                      <div style={{ fontSize: 13, color: '#64748B', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Building2 size={13} />
+                        {p.location}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#5B5CEB', marginBottom: 14 }}>
+                      ₹{spent.toLocaleString("en-IN")} of ₹{budget.toLocaleString("en-IN")}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>Progress</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#5B5CEB' }}>{Math.round(progress * 100)}%</span>
+                    </div>
+                    <div style={{ height: 4, background: '#F1F5F9', borderRadius: 2, overflow: 'hidden', marginBottom: 16 }}>
+                      <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#5B5CEB', borderRadius: 2, transition: 'width 0.5s ease' }} />
+                    </div>
+
+                    <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 12, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#5B5CEB' }}>View Details</span>
+                      <ArrowRight size={14} color="#5B5CEB" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 60, color: '#64748B', fontSize: 14 }}>
+              {allProjects.length === 0
+                ? 'No projects yet. Click "New Project" to get started.'
+                : 'No projects match your search.'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

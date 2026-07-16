@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Mic, FileText } from "lucide-react";
 
 export default function ChooseEntryMode() {
   const navigate = useNavigate();
@@ -27,132 +28,78 @@ export default function ChooseEntryMode() {
   const modes = [
     {
       key: "voice",
-      icon: "🎤",
+      icon: <Mic size={28} />,
       title: "Voice Entry",
-      desc: "Speak naturally to log materials, wages, or expenses. AI-powered parsing handles the details.",
-      color: "#7c3aed",
-      bg: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-      border: "#c4b5fd",
-      features: ["AI-powered parsing", "Hands-free operation", "Instant transcription"],
+      desc: "Use speech-to-text for quick hands-free data entry",
+      color: "#8B5CF6",
+      bgColor: "#F3E8FF",
+      features: ["Natural speech input", "AI extracts quantities & costs", "Smart categorization"],
     },
     {
       key: "manual",
-      icon: "📝",
+      icon: <FileText size={28} />,
       title: "Manual Entry",
-      desc: "Fill in the details manually with full control over every field and attachment.",
-      color: "#0891b2",
-      bg: "linear-gradient(135deg, #ecfeff, #cffafe)",
-      border: "#67e8f9",
-      features: ["Full field control", "Photo attachments", "Bulk CSV import"],
+      desc: "Fill in transaction details manually with precision",
+      color: "#5B5CEB",
+      bgColor: "#EEF0FF",
+      features: ["Structured form input", "Per-item transaction fields", "Full control over data"],
     },
   ];
 
   return (
-    <div style={{
-      display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh",
-      fontFamily: "'Segoe UI', sans-serif", background: "#f7f7f8",
-    }}>
-      <div style={{
-        background: "#fff", borderBottom: "1px solid #ebebeb",
-        padding: "16px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0,
-      }}>
-        <button onClick={() => navigate(-1)}
-          style={{ padding: "8px 14px", background: "#f3f4f6", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer" }}>
-          ← Back
-        </button>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Add Entry</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Choose how you'd like to add this entry</p>
-        </div>
+    <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: "Inter, 'Segoe UI', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: "#111827", margin: 0, letterSpacing: "-0.03em" }}>Choose Entry Mode</h1>
+        <p style={{ fontSize: 14, color: "#64748B", marginTop: 6 }}>Select how you'd like to add a new entry</p>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
-        <div style={{ marginBottom: 32, textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 16 }}>
-            {[1, 2, 3].map((step) => (
-              <div key={step} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  background: step <= 1 ? "#ea580c" : "#e5e5e5",
-                  color: step <= 1 ? "#fff" : "#999",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, fontWeight: 700,
-                }}>
-                  {step < 1 ? "✓" : step}
-                </div>
-                {step < 3 && <div style={{ width: 40, height: 2, background: step < 1 ? "#ea580c" : "#e5e5e5" }} />}
+      <div style={{ display: "flex", gap: 20, flexDirection: isMobile ? "column" : "row", width: "100%", maxWidth: 640 }}>
+        {modes.map((mode) => {
+          const isHovered = hovered === mode.key;
+          const isSelected = selected === mode.key;
+          return (
+            <div key={mode.key} onClick={() => setSelected(mode.key)}
+              onMouseEnter={() => setHovered(mode.key)} onMouseLeave={() => setHovered(null)}
+              style={{
+                flex: 1, background: isSelected ? mode.bgColor : "#fff",
+                borderRadius: 12, border: `1.5px solid ${isSelected ? mode.color : isHovered ? mode.color : "#E5E7EB"}`,
+                padding: "28px 24px", cursor: "pointer",
+                transition: "all 0.25s ease", position: "relative",
+                boxShadow: isSelected ? `0 4px 20px ${mode.color}25` : "none",
+                display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14,
+              }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: mode.bgColor, display: "flex", alignItems: "center", justifyContent: "center", color: mode.color }}>
+                {mode.icon}
               </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", width: 200, margin: "0 auto" }}>
-            <span style={{ fontSize: 11, color: "#ea580c", fontWeight: 600 }}>Entry Type</span>
-            <span style={{ fontSize: 11, color: "#888" }}>Context</span>
-            <span style={{ fontSize: 11, color: "#888" }}>Entry</span>
-          </div>
-        </div>
-
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a", marginBottom: 8, textAlign: "center" }}>
-          How would you like to add this entry?
-        </h2>
-        <p style={{ fontSize: 14, color: "#888", marginBottom: 32, textAlign: "center", maxWidth: 400 }}>
-          Choose the method that works best for you right now
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, maxWidth: 700, width: "100%" }}>
-          {modes.map(mode => {
-            const isActive = hovered === mode.key || selected === mode.key;
-            return (
-              <div
-                key={mode.key}
-                onClick={() => setSelected(mode.key)}
-                onMouseEnter={() => setHovered(mode.key)}
-                onMouseLeave={() => setHovered(null)}
-                style={{
-                  padding: "32px 28px", borderRadius: 20, cursor: "pointer",
-                  border: `2px solid ${isActive ? mode.color : "#e5e5e5"}`,
-                  background: isActive ? mode.bg : "#fff",
-                  boxShadow: isActive ? `0 8px 30px ${mode.color}20` : "0 2px 8px rgba(0,0,0,0.04)",
-                  transition: "all 0.25s ease",
-                  transform: isActive ? "translateY(-4px)" : "none",
-                }}
-              >
-                <div style={{
-                  width: 64, height: 64, borderRadius: 16,
-                  background: `${mode.color}15`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 32, marginBottom: 20,
-                }}>
-                  {mode.icon}
-                </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", marginBottom: 8 }}>{mode.title}</div>
-                <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, marginBottom: 20 }}>{mode.desc}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {mode.features.map(f => (
-                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#555" }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: mode.color, flexShrink: 0 }} />
-                      {f}
-                    </div>
-                  ))}
-                </div>
-                {selected === mode.key && (
-                  <div style={{
-                    marginTop: 20, padding: "10px 0", background: mode.color, color: "#fff",
-                    borderRadius: 10, textAlign: "center", fontSize: 14, fontWeight: 600,
-                  }}>
-                    Selecting…
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 4 }}>{mode.title}</div>
+                <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5 }}>{mode.desc}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+                {mode.features.map((f, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748B" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={mode.color} strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                    {f}
                   </div>
-                )}
+                ))}
               </div>
-            );
-          })}
-        </div>
-
-        {project && (
-          <div style={{ marginTop: 24, padding: "10px 20px", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, fontSize: 13, color: "#0369a1" }}>
-            📍 Adding entry for: <strong>{project.projectName || project.name}</strong>
-          </div>
-        )}
+              {isSelected && (
+                <div style={{
+                  marginTop: 8, padding: "8px 20px", borderRadius: 6, background: mode.color, color: "#fff",
+                  fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  Selected
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      <button onClick={() => navigate(-1)} style={{ marginTop: 32, padding: "8px 18px", background: "transparent", border: "1px solid #E5E7EB", borderRadius: 8, color: "#64748B", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+        Cancel
+      </button>
     </div>
   );
 }
