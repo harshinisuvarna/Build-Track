@@ -301,7 +301,7 @@ router.get("/", async (req, res) => {
       query.project = { $in: adminProjectIds };
     }
 
-    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 0;
+    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 10000;
     const filterByViewAccess = req.query.filterByViewAccess;
 
     if (filterByViewAccess === 'true') {
