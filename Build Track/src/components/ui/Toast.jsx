@@ -1,72 +1,66 @@
 import { useEffect } from 'react';
-import { colors, radius } from '../../styles/designTokens';
+import { colors, radius, shadows, typography } from '../../styles/designTokens';
 
-const typeStyles = {
-  success: { bg: '#E6F9F0', border: '#86EFAC', text: '#15803D', icon: '✅' },
-  error: { bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B', icon: '⚠️' },
-  info: { bg: '#EEF2FF', border: '#93C5FD', text: '#6C63FF', icon: 'ℹ️' },
-  warning: { bg: '#FFF4E0', border: '#FDE68A', text: '#B45309', icon: '⚠️' },
+const iconMap = {
+  success: '✓',
+  error: '✕',
+  warning: '!',
+  info: 'i',
 };
 
-export default function Toast({
-  message,
-  type = 'info',
-  onClose,
-  duration = 4000,
-}) {
+const colorMap = {
+  success: { bg: colors.successLight, icon: colors.success, border: '#BBF7D0' },
+  error: { bg: colors.dangerLight, icon: colors.danger, border: '#FECACA' },
+  warning: { bg: colors.warningLight, icon: colors.warning, border: '#FDE68A' },
+  info: { bg: colors.primaryLight, icon: colors.primary, border: '#C7D2FE' },
+};
+
+export default function Toast({ message, type = 'info', onClose }) {
   useEffect(() => {
-    if (!message || !onClose) return;
-    const timer = setTimeout(onClose, duration);
+    if (!message) return;
+    const timer = setTimeout(onClose, 4000);
     return () => clearTimeout(timer);
-  }, [message, duration, onClose]);
+  }, [message, onClose]);
 
   if (!message) return null;
 
-  const t = typeStyles[type] || typeStyles.info;
+  const c = colorMap[type] || colorMap.info;
 
   return (
     <div
       style={{
-        position: 'fixed',
-        top: 24,
-        right: 24,
-        zIndex: 9999,
-        animation: 'toastSlideIn 0.3s ease',
+        position: 'fixed', top: 20, right: 20, zIndex: 2000,
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        background: colors.card,
+        border: `1px solid ${c.border}`,
+        borderRadius: radius.lg,
+        boxShadow: shadows.lg,
+        animation: 'fadeUp 200ms ease',
         maxWidth: 400,
       }}
     >
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '14px 18px',
-          backgroundColor: t.bg,
-          border: `1px solid ${t.border}`,
-          borderRadius: radius.md,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+          width: 24, height: 24, borderRadius: radius.full,
+          background: c.bg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: c.icon, fontSize: 12, fontWeight: 700, flexShrink: 0,
         }}
       >
-        <span>{t.icon}</span>
-        <span style={{ color: t.text, fontSize: 14, fontWeight: 500, flex: 1 }}>
-          {message}
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            color: t.text,
-            fontSize: 16,
-            opacity: 0.6,
-            padding: 0,
-            lineHeight: 1,
-          }}
-        >
-          ✕
-        </button>
+        {iconMap[type] || 'i'}
       </div>
+      <div style={{ fontSize: 14, color: colors.textPrimary, fontWeight: 500, flex: 1 }}>{message}</div>
+      <button
+        onClick={onClose}
+        style={{
+          width: 20, height: 20, borderRadius: radius.sm,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: colors.textTertiary, fontSize: 12, cursor: 'pointer', flexShrink: 0,
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 }

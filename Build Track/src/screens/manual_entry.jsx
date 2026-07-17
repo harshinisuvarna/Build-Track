@@ -76,6 +76,11 @@ export default function ManualEntryPage() {
   const [selectedPhaseId, setSelectedPhaseId] = useState("");
   const [selectedActivityName, setSelectedActivityName] = useState("");
 
+  const [loadedPhaseValue, setLoadedPhaseValue] = useState("");
+  const [loadedPhaseIdValue, setLoadedPhaseIdValue] = useState("");
+  const [loadedActivityValue, setLoadedActivityValue] = useState("");
+  const [loadedActivityIdValue, setLoadedActivityIdValue] = useState("");
+
   // Derived project data
   const selectedProjectData = useMemo(() => {
     return projects.find(p => p._id === selectedProject) || null;
@@ -145,8 +150,12 @@ export default function ManualEntryPage() {
       setNotes(tx.notes || "");
       setUnit(tx.unit || "");
       setSelectedFloor(tx.floor || "");
-      setSelectedPhaseId(tx.phase || "");
+      setSelectedPhaseId(tx.phaseId || tx.phase || "");
       setSelectedActivityName(tx.activity || "");
+      setLoadedPhaseValue(tx.phase || "");
+      setLoadedPhaseIdValue(tx.phaseId || "");
+      setLoadedActivityValue(tx.activity || "");
+      setLoadedActivityIdValue(tx.activityId || "");
       setIsWithGst(tx.isWithGst || false);
       setGstPercentage(tx.gstPercentage || 18);
       setIsPaid(tx.isPaid || false);
@@ -206,6 +215,77 @@ export default function ManualEntryPage() {
       }
     }
   }, [location]);
+
+  useEffect(() => {
+    if (!isEditing || !editingId) return;
+    let cancelled = false;
+    transactionAPI.getById(editingId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const tx = data.transaction || data;
+        const typeMapRev = { "Materials": "material", "Wages": "labour", "Expense": "equipment" };
+        const eType = typeMapRev[tx.type] || "material";
+        setEntryType(eType);
+        setSelectedProject(tx.project?._id || tx.project || "");
+        if (tx.date || tx.createdAt) {
+          setDate(new Date(tx.date || tx.createdAt).toISOString().split("T")[0]);
+        }
+        setNotes(tx.notes || "");
+        setUnit(tx.unit || "");
+        setSelectedFloor(tx.floor || "");
+        setSelectedPhaseId(tx.phaseId || tx.phase || "");
+        setSelectedActivityName(tx.activity || "");
+        setLoadedPhaseValue(tx.phase || "");
+        setLoadedPhaseIdValue(tx.phaseId || "");
+        setLoadedActivityValue(tx.activity || "");
+        setLoadedActivityIdValue(tx.activityId || "");
+        setIsWithGst(tx.isWithGst || false);
+        setGstPercentage(tx.gstPercentage || 18);
+        setIsPaid(tx.isPaid || false);
+        setPaymentMethod(tx.paymentMethod || "Cash");
+        const nameVal = tx.title || tx.materialName || tx.workerName || tx.equipmentName || "";
+        if (eType === "material") {
+          setValues({ itemName: nameVal, quantity: tx.quantity || "", rate: tx.rate || "", brand: tx.brand || "", supplier: tx.supplier || "" });
+        } else if (eType === "labour") {
+          setValues({ workerName: nameVal, quantity: tx.quantity || "", rate: tx.rate || "", workType: tx.workType || "", contractor: tx.contractor || "", overtime: tx.overtime || "" });
+        } else if (eType === "equipment") {
+          setValues({ equipmentName: nameVal, quantity: tx.quantity || "", rate: tx.rate || "", model: tx.model || "", operator: tx.operator || "" });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isEditing, editingId]);
+
+  useEffect(() => {
+    if (!selectedProject || projects.length === 0) return;
+    const matchedProj = projects.find(p => String(p._id || p.id) === String(selectedProject));
+    if (!matchedProj) return;
+
+    let resolvedPhaseId = loadedPhaseIdValue || "";
+    if (!resolvedPhaseId && loadedPhaseValue) {
+      const matchPh = matchedProj.selectedPhases?.find(
+        ph => ph.phaseName?.toLowerCase() === loadedPhaseValue.toLowerCase() || ph.id === loadedPhaseValue
+      );
+      if (matchPh) resolvedPhaseId = matchPh.id;
+    }
+    if (resolvedPhaseId) {
+      setSelectedPhaseId(resolvedPhaseId);
+    }
+
+    let resolvedActivityName = loadedActivityValue || "";
+    if (resolvedPhaseId) {
+      const matchPh = matchedProj.selectedPhases?.find(ph => ph.id === resolvedPhaseId);
+      if (matchPh) {
+        const matchAct = matchPh.activities?.find(
+          a => a.name?.toLowerCase() === loadedActivityValue.toLowerCase() || a.id === loadedActivityValue || (loadedActivityIdValue && a.id === loadedActivityIdValue)
+        );
+        if (matchAct) resolvedActivityName = matchAct.name;
+      }
+    }
+    if (resolvedActivityName) {
+      setSelectedActivityName(resolvedActivityName);
+    }
+  }, [projects, selectedProject, loadedPhaseValue, loadedPhaseIdValue, loadedActivityValue, loadedActivityIdValue]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -318,9 +398,17 @@ export default function ManualEntryPage() {
       formData.append("contractor", values.contractor || "");
       formData.append("model", values.model || "");
       formData.append("operator", values.operator || "");
+        const activePhase = phases.find(p => p.id === selectedPhaseId);
+        const phaseName = activePhase?.phaseName || "";
+        const activeAct = activePhase?.activities?.find(a => a.name === selectedActivityName);
+        const activityId = activeAct?.id || activeAct?._id || "";
+
         formData.append("floor", selectedFloor);
-        formData.append("phase", selectedPhaseId);
+        formData.append("floorId", "");
+        formData.append("phase", phaseName);
+        formData.append("phaseId", selectedPhaseId);
         formData.append("activity", selectedActivityName);
+        formData.append("activityId", activityId);
       formData.append("isWithGst", isWithGst);
       formData.append("gstPercentage", gstPercentage);
       formData.append("gstAmount", gstAmount);

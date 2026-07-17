@@ -222,6 +222,10 @@ async function applyInventoryDelta(
     );
 
     if (!inv) {
+      if (transactionType !== "Materials") {
+        // Wages / Expense reversal - return early as no inventory record exists to reverse
+        return;
+      }
       throw Object.assign(
         new Error("No stock found for this material in this project"),
         { status: 400 }
@@ -229,6 +233,20 @@ async function applyInventoryDelta(
     }
 
     if (inv.closingStock < absQty) {
+      if (transactionType !== "Materials") {
+        // Wages / Expense reversal - adjust stock without throwing error
+        await Inventory.updateOne(
+          { _id: inv._id },
+          {
+            $inc: {
+              purchased: -absQty,
+              closingStock: -absQty,
+            },
+          },
+          { session }
+        );
+        return;
+      }
       throw Object.assign(
         new Error(`Insufficient stock — only ${inv.closingStock} ${inv.unit || "units"} available`),
         { status: 400 }
@@ -1250,8 +1268,16 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
       if (projectId) {
         const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
         if (!pDoc) throw new Error(`Access denied or Project not found for project: ${project}`);
+      } else if (project) {
+        // Resolve project by name if not a valid ObjectId
+        const pDoc = await Project.findOne({ createdBy: adminId, projectName: String(project).trim() }).lean();
+        if (pDoc) {
+          projectId = pDoc._id;
+        } else {
+          throw new Error(`Project not found: ${project}`);
+        }
       } else {
-        throw new Error("Valid Project ID is required");
+        throw new Error("Valid Project ID or name is required");
       }
 
       const qty = Number(quantity) || 0;

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { aiChatAPI } from "../api";
 import useAuthStore from "../stores/authStore";
 import useProjectStore from "../stores/projectStore";
+import { Bell } from "lucide-react";
 
 const SUGGESTIONS = [
   "Entries in June",
@@ -327,7 +328,7 @@ export default function AIChatPage() {
               {selectedProject.projectName || "Project"}
             </span>
           )}
-          <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer" }}>🔔</div>
+          <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer" }}><Bell size={16} /></div>
         </div>
       </div>
 

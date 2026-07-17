@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { subscriptionAPI } from "../api";
+import { Bell, Star, ClipboardList, AlertTriangle, Lock, Building2, CreditCard } from "lucide-react";
 
 const PLANS = [
   {
@@ -262,7 +263,7 @@ export default function SubscriptionPage() {
           </h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer" }}>🔔</div>
+          <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Bell size={16} /></div>
           <div style={{ width: 36, height: 36, background: "#f5f5f5", border: "2px solid #e5e5e5", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#888", cursor: "pointer" }}>?</div>
         </div>
       </div>
@@ -305,7 +306,7 @@ export default function SubscriptionPage() {
               padding: "6px 14px", fontSize: 12, fontWeight: 700,
               letterSpacing: "0.03em", marginBottom: 16, backdropFilter: "blur(4px)",
             }}>
-              ⭐ Unlock Premium Features
+              <Star size={14} /> Unlock Premium Features
             </div>
             <h2 style={{
               margin: "0 0 8px", fontSize: "clamp(22px,3vw,32px)",
@@ -341,8 +342,8 @@ export default function SubscriptionPage() {
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
                 background: "#fff5f0", display: "flex",
-                alignItems: "center", justifyContent: "center", fontSize: 16,
-              }}>📋</div>
+                alignItems: "center", justifyContent: "center",
+              }}><ClipboardList size={16} /></div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>
                   Current Plan: <span style={{ color: "#ea580c" }}>{PLANS.find(p => p.id === currentPlan)?.title || "Free"}</span>
@@ -376,7 +377,7 @@ export default function SubscriptionPage() {
             color: "#991b1b", fontSize: 13, display: "flex",
             alignItems: "center", gap: 8,
           }}>
-            <span>⚠️</span>
+            <span><AlertTriangle size={14} /></span>
             <span>{error}</span>
             <span onClick={() => setError("")} style={{ marginLeft: "auto", cursor: "pointer", fontWeight: 700, fontSize: 16, lineHeight: 1 }}>×</span>
           </div>
@@ -638,12 +639,17 @@ export default function SubscriptionPage() {
             display: "flex", alignItems: "center", gap: 16,
             marginTop: 4,
           }}>
-            {["🔒 Secure Payment", "🏦 RBI Compliant", "💳 UPI / Cards"].map((item) => (
-              <span key={item} style={{
+            {[
+              { icon: Lock, label: "Secure Payment" },
+              { icon: Building2, label: "RBI Compliant" },
+              { icon: CreditCard, label: "UPI / Cards" },
+            ].map(({ icon: Icon, label }) => (
+              <span key={label} style={{
                 fontSize: 11, color: "#888", fontWeight: 600,
                 display: "flex", alignItems: "center", gap: 4,
               }}>
-                {item}
+                <Icon size={14} />
+                {label}
               </span>
             ))}
           </div>

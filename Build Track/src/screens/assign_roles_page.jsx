@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { colors, radius } from '../styles/designTokens';
 import { Card, Badge, Button, Input, Spinner, EmptyState, Toast, ConfirmDialog } from '../components/ui';
 import { authAPI, projectAPI } from '../api';
+import { Users, User } from 'lucide-react';
 
 const roles = [
   { id: 'admin', label: 'Admin', description: 'Full access to all features and settings' },
@@ -202,7 +203,7 @@ export default function AssignRolesPage() {
           <Button variant="ghost" onClick={fetchAll}>Retry</Button>
         </div>
       ) : users.length === 0 ? (
-        <EmptyState icon="👥" title="No Users" description="Create your first team member to get started." />
+        <EmptyState icon={<Users size={48} />} title="No Users" description="Create your first team member to get started." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {users.map((user) => {
@@ -219,7 +220,7 @@ export default function AssignRolesPage() {
                   }}>
                     {user.profilePhoto ? (
                       <img src={user.profilePhoto} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                    ) : '👤'}
+                    ) : <User size={18} />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary }}>
