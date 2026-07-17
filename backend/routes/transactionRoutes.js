@@ -49,8 +49,14 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   const rt = Number(rate) || 0;
   const ot = Number(overtime) || 0;
   const directAmount = Number(rawAmount) || 0;
-  if (type === "Materials") return qty * rt;
-  if (type === "Wages") return (qty * rt) + ot;
+  if (type === "Materials") {
+    if (qty === 0 && rt === 0 && directAmount !== 0) return directAmount;
+    return qty * rt;
+  }
+  if (type === "Wages") {
+    if (qty === 0 && rt === 0 && directAmount !== 0) return directAmount + ot;
+    return (qty * rt) + ot;
+  }
   if (directAmount !== 0) return directAmount;
   return qty * rt;
 };
@@ -804,38 +810,50 @@ router.put("/:id", async (req, res) => {
       rawAmount: rawAmount ?? tx.amount,
     });
 
-    // Reverse old inventory (using old project scope)
-    if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
-      const oldType = normalizeMaterialType(tx.materialType, tx.subType);
-      const reverseDelta = (tx.type === "Materials" && oldType === "usage") ? tx.quantity : -tx.quantity;
-      await applyInventoryDelta(
-        adminId,
-        tx.project,   // use the OLD project for reversal
-        tx.category || tx.title,
-        tx.unit,
-        reverseDelta,
-        tx.type,
-        session
-      );
-    }
+    const hasInventoryFieldsChanged = 
+      (project !== undefined && project !== tx.project?.toString()) ||
+      (type !== undefined && type !== tx.type) ||
+      (materialType !== undefined && materialType !== tx.materialType) ||
+      (subType !== undefined && subType !== tx.subType) ||
+      (category !== undefined && category !== tx.category) ||
+      (title !== undefined && title !== tx.title) ||
+      (unit !== undefined && unit !== tx.unit) ||
+      (quantity !== undefined && Number(quantity) !== tx.quantity);
 
-    // Apply new inventory (using new project scope)
-    const newType = type || tx.type;
-    const newMaterialType = newType === "Materials"
-      ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
-      : "";
+    if (hasInventoryFieldsChanged) {
+      // Reverse old inventory (using old project scope)
+      if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
+        const oldType = normalizeMaterialType(tx.materialType, tx.subType);
+        const reverseDelta = (tx.type === "Materials" && oldType === "usage") ? tx.quantity : -tx.quantity;
+        await applyInventoryDelta(
+          adminId,
+          tx.project,   // use the OLD project for reversal
+          tx.category || tx.title,
+          tx.unit,
+          reverseDelta,
+          tx.type,
+          session
+        );
+      }
 
-    if ((newType === "Materials" || newType === "Wages" || newType === "Expense") && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
-      const newDelta = (newType === "Materials" && newMaterialType === "usage") ? -newQty : newQty;
-      await applyInventoryDelta(
-        adminId,
-        projectId,    // use the NEW project for application
-        category || tx.category || title || tx.title,
-        unit || tx.unit,
-        newDelta,
-        newType,
-        session
-      );
+      // Apply new inventory (using new project scope)
+      const newType = type || tx.type;
+      const newMaterialType = newType === "Materials"
+        ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
+        : "";
+
+      if ((newType === "Materials" || newType === "Wages" || newType === "Expense") && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
+        const newDelta = (newType === "Materials" && newMaterialType === "usage") ? -newQty : newQty;
+        await applyInventoryDelta(
+          adminId,
+          projectId,    // use the NEW project for application
+          category || tx.category || title || tx.title,
+          unit || tx.unit,
+          newDelta,
+          newType,
+          session
+        );
+      }
     }
 
     let updatedAttachments = req.body.attachments !== undefined ? req.body.attachments : (tx.attachments || []);
