@@ -373,18 +373,15 @@ export default function VoiceAssistantPage() {
 
       {/* Top Bar */}
       <div style={{
-        background: colors.card, borderBottom: `1px solid ${colors.border}`,
         padding: '14px 24px', display: 'flex', alignItems: 'center',
         gap: 16, flexShrink: 0, zIndex: 10,
       }}>
         <button onClick={() => navigate(-1)}
+          className="premium-topbar-btn"
           style={{
-            background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: 10, width: 38, height: 38,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-            color: colors.textPrimary, transition: 'all 150ms ease',
+            width: 38, height: 38, borderRadius: 10,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = colors.subtle; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          aria-label="Go Back"
         >
           <ArrowLeft size={16} />
         </button>
@@ -555,8 +552,7 @@ export default function VoiceAssistantPage() {
                       boxShadow: '0 10px 24px rgba(23, 62, 234, 0.25)',
                       transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05) translateY(-2px)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+                    className="hover-scale"
                   >
                     <Mic size={36} color="white" />
                   </div>
@@ -861,8 +857,7 @@ export default function VoiceAssistantPage() {
                 : '0 8px 30px rgba(23, 62, 234, 0.3)',
               transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+            className="hover-scale"
           >
             {isListening ? (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
