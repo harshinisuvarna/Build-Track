@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { Bell, Settings } from "lucide-react";
+import { colors } from "../styles/designTokens";
 
 export default function DashboardLayout() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -19,13 +20,14 @@ export default function DashboardLayout() {
   }, []);
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: colors.bg }}>
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
           style={{
             position: "fixed", inset: 0,
-            background: "rgba(0,0,0,0.4)", zIndex: 40,
+            background: "rgba(17, 24, 39, 0.4)", zIndex: 40,
+            backdropFilter: "blur(4px)",
             animation: "fadeIn 150ms ease",
           }}
         />
@@ -35,7 +37,7 @@ export default function DashboardLayout() {
         <div style={{
           position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50,
           transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 200ms ease",
+          transition: "transform 200ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}>
           <Sidebar />
         </div>
@@ -47,61 +49,49 @@ export default function DashboardLayout() {
         {/* Top bar */}
         <header
           style={{
-            height: 56,
-            borderBottom: "1px solid #E5E7EB",
-            background: "#fff",
+            height: 46,
+            marginTop: 16,
+            marginRight: 24,
+            marginLeft: 24,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 24px",
             flexShrink: 0,
+            zIndex: 20,
+            background: "transparent",
+            border: "none",
           }}
         >
           {isMobile && (
             <button
               onClick={() => setSidebarOpen(true)}
-              style={{
-                width: 32, height: 32, borderRadius: 6,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#64748B", cursor: "pointer",
-              }}
+              className="premium-topbar-btn"
+              aria-label="Open Sidebar"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
           )}
           <div style={{ flex: 1 }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
               onClick={() => navigate("/notifications")}
-              style={{
-                width: 34, height: 34, borderRadius: 8,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#64748B", cursor: "pointer",
-                transition: "background 150ms ease",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F5F9"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              className="premium-topbar-btn"
+              aria-label="Notifications"
             >
-              <Bell size={16} />
+              <Bell size={20} />
             </button>
             <button
               onClick={() => navigate("/settings")}
-              style={{
-                width: 34, height: 34, borderRadius: 8,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#64748B", cursor: "pointer",
-                transition: "background 150ms ease",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F5F9"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              className="premium-topbar-btn"
+              aria-label="Settings"
             >
-              <Settings size={16} />
+              <Settings size={20} />
             </button>
           </div>
         </header>
 
         {/* Page content */}
-        <div style={{ flex: 1, overflow: "auto" }}>
+        <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
           <Outlet />
         </div>
       </div>

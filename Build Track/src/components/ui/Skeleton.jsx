@@ -30,7 +30,7 @@ export function SkeletonCard({ style }) {
       style={{
         padding: 24,
         background: colors.card,
-        borderRadius: radius.xl,
+        borderRadius: "14px",
         border: `1px solid ${colors.border}`,
         display: 'flex',
         flexDirection: 'column',

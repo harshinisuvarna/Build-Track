@@ -3,18 +3,19 @@ import { NavLink } from "react-router-dom";
 import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { LogOut, Building2 } from "lucide-react";
+import { colors, gradients, radius, typography } from "../styles/designTokens";
 
 const linkStyle = {
   display: "flex",
   alignItems: "center",
-  gap: 10,
-  padding: "9px 12px",
-  borderRadius: "8px",
+  gap: 12,
+  padding: "10px 16px",
+  borderRadius: "12px",
   textDecoration: "none",
   fontSize: "14px",
   fontWeight: 500,
-  transition: "all 150ms ease",
-  marginBottom: 2,
+  transition: "all 200ms cubic-bezier(0.16, 1, 0.3, 1)",
+  marginBottom: 4,
 };
 
 export default function Sidebar() {
@@ -48,41 +49,48 @@ export default function Sidebar() {
   return (
     <aside
       style={{
-        width: 240,
-        minWidth: 240,
-        background: "#fff",
-        borderRight: "1px solid #E5E7EB",
+        width: 250,
+        minWidth: 250,
+        background: "rgba(255, 255, 255, 0.45)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        border: "1px solid rgba(255, 255, 255, 0.45)",
+        borderRadius: "20px",
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: "calc(100vh - 32px)",
         position: "sticky",
-        top: 0,
+        top: 16,
+        margin: "16px 0 16px 16px",
+        zIndex: 30,
+        boxShadow: "var(--shadow-lg)",
       }}
     >
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "20px 16px 24px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 20px" }}>
         <div
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: "#5B5CEB",
+            width: 36,
+            height: 36,
+            borderRadius: "10px",
+            background: gradients.primaryGradient,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
+            boxShadow: "0 4px 10px rgba(23, 62, 234, 0.25)",
           }}
         >
-          <Building2 size={16} color="#fff" />
+          <Building2 size={18} color="#fff" />
         </div>
-        <span style={{ fontSize: 18, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>
+        <span style={{ fontSize: 19, fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.03em", fontFamily: typography.fontFamily }}>
           BuildTrack
         </span>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, overflowY: "auto", padding: "0 12px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.05em", padding: "0 4px 8px", textTransform: "uppercase" }}>
+      <nav style={{ flex: 1, overflowY: "auto", padding: "0 16px", display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: "0.08em", padding: "12px 8px 6px", textTransform: "uppercase" }}>
           Main
         </div>
         {navItems.map((item) => (
@@ -92,30 +100,36 @@ export default function Sidebar() {
             end={item.path === "/"}
             style={({ isActive }) => ({
               ...linkStyle,
-              color: isActive ? "#5B5CEB" : "#64748B",
-              background: isActive ? "#EEF0FF" : "transparent",
+              color: isActive ? "#FFFFFF" : colors.textSecondary,
+              background: isActive ? gradients.primaryGradient : "transparent",
+              boxShadow: isActive ? "0 8px 16px -4px rgba(23, 62, 234, 0.35)" : "none",
               fontWeight: isActive ? 600 : 500,
             })}
             onMouseEnter={(e) => {
-              if (!e.currentTarget.dataset.active) {
+              if (!e.currentTarget.getAttribute("class")?.includes("active")) {
                 e.currentTarget.style.background = "#F1F5F9";
+                e.currentTarget.style.color = colors.textPrimary;
               }
             }}
             onMouseLeave={(e) => {
-              if (!e.currentTarget.dataset.active) {
+              if (!e.currentTarget.getAttribute("class")?.includes("active")) {
                 e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = colors.textSecondary;
               }
             }}
-            data-active={undefined}
           >
-            <item.icon size={18} />
-            <span>{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <item.icon size={18} color={isActive ? "#FFFFFF" : colors.textSecondary} style={{ transition: "color 200ms" }} />
+                <span>{item.label}</span>
+              </>
+            )}
           </NavLink>
         ))}
 
         {isAdminOrSupervisor && (
           <>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.05em", padding: "20px 4px 8px", textTransform: "uppercase" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: "0.08em", padding: "20px 8px 6px", textTransform: "uppercase" }}>
               Admin
             </div>
             {adminNavItems.map((item) => (
@@ -124,23 +138,30 @@ export default function Sidebar() {
                 to={item.path}
                 style={({ isActive }) => ({
                   ...linkStyle,
-                  color: isActive ? "#5B5CEB" : "#64748B",
-                  background: isActive ? "#EEF0FF" : "transparent",
+                  color: isActive ? "#FFFFFF" : colors.textSecondary,
+                  background: isActive ? gradients.primaryGradient : "transparent",
+                  boxShadow: isActive ? "0 8px 16px -4px rgba(23, 62, 234, 0.35)" : "none",
                   fontWeight: isActive ? 600 : 500,
                 })}
                 onMouseEnter={(e) => {
-                  if (!e.currentTarget.dataset.active) {
+                  if (!e.currentTarget.getAttribute("class")?.includes("active")) {
                     e.currentTarget.style.background = "#F1F5F9";
+                    e.currentTarget.style.color = colors.textPrimary;
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!e.currentTarget.dataset.active) {
+                  if (!e.currentTarget.getAttribute("class")?.includes("active")) {
                     e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = colors.textSecondary;
                   }
                 }}
               >
-                <item.icon size={18} />
-                <span>{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <item.icon size={18} color={isActive ? "#FFFFFF" : colors.textSecondary} style={{ transition: "color 200ms" }} />
+                    <span>{item.label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </>
@@ -148,22 +169,23 @@ export default function Sidebar() {
       </nav>
 
       {/* Profile Footer */}
-      <div style={{ borderTop: "1px solid #E5E7EB", padding: "12px 16px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+      <div style={{ borderTop: `1px solid ${colors.border}`, padding: "16px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
+              width: 38,
+              height: 38,
               borderRadius: "50%",
               background: "#F1F5F9",
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
-              color: "#64748B",
+              color: colors.textSecondary,
               flexShrink: 0,
+              border: `2px solid ${colors.border}`,
             }}
           >
             {photoUrl ? (
@@ -173,10 +195,10 @@ export default function Sidebar() {
             )}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {user?.name || "User"}
             </div>
-            <div style={{ fontSize: 11, color: "#94A3B8" }}>
+            <div style={{ fontSize: 12, color: colors.textSecondary, textTransform: "capitalize" }}>
               {user?.role || "Admin"}
             </div>
           </div>
@@ -185,20 +207,30 @@ export default function Sidebar() {
           onClick={handleLogout}
           style={{
             width: "100%",
-            padding: "8px 12px",
-            borderRadius: 8,
+            padding: "10px 12px",
+            borderRadius: "10px",
             fontSize: 13,
-            fontWeight: 500,
-            color: "#64748B",
+            fontWeight: 600,
+            color: colors.textSecondary,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 6,
+            gap: 8,
             cursor: "pointer",
+            border: `1px solid ${colors.border}`,
+            background: "transparent",
             transition: "all 150ms ease",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F5F9"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#FEF2F2";
+            e.currentTarget.style.color = colors.danger;
+            e.currentTarget.style.borderColor = "#FEE2E2";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = colors.textSecondary;
+            e.currentTarget.style.borderColor = colors.border;
+          }}
         >
           <LogOut size={14} />
           Sign Out
@@ -207,3 +239,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

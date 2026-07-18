@@ -4,13 +4,13 @@ export default function Input({
   label, error, icon, type = 'text', style, containerStyle, ...props
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', ...containerStyle }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', ...containerStyle }}>
       {label && (
-        <label style={{ fontSize: 13, fontWeight: 600, color: colors.textSecondary }}>{label}</label>
+        <label style={{ fontSize: 13, fontWeight: 600, color: colors.textSecondary, letterSpacing: '0.02em' }}>{label}</label>
       )}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {icon && (
-          <span style={{ position: 'absolute', left: 12, color: colors.textTertiary, display: 'flex', fontSize: 16, pointerEvents: 'none' }}>
+          <span style={{ position: 'absolute', left: 16, color: colors.textTertiary, display: 'flex', fontSize: 18, pointerEvents: 'none' }}>
             {icon}
           </span>
         )}
@@ -19,31 +19,37 @@ export default function Input({
           {...props}
           style={{
             width: '100%',
-            height: 40,
-            padding: icon ? '0 14px 0 38px' : '0 14px',
+            height: 48,
+            padding: icon ? '0 16px 0 46px' : '0 16px',
             fontSize: 14,
             fontWeight: 400,
             fontFamily: typography.fontFamily,
             color: colors.textPrimary,
-            background: colors.card,
-            border: `1px solid ${error ? colors.danger : colors.border}`,
-            borderRadius: radius.md,
+            background: 'rgba(255, 255, 255, 0.55)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: `1px solid ${error ? colors.danger : 'rgba(255, 255, 255, 0.45)'}`,
+            borderRadius: radius.lg, // 12px
             outline: 'none',
-            transition: 'border-color var(--transition), box-shadow var(--transition)',
-            boxShadow: error ? `0 0 0 2px ${colors.dangerLight}` : 'none',
+            transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: error ? `0 0 0 3px ${colors.danger}20` : '0 4px 10px rgba(15, 23, 42, 0.02)',
             ...style,
           }}
           onFocus={(e) => {
-            if (!error) e.currentTarget.style.borderColor = colors.primary;
-            e.currentTarget.style.boxShadow = `0 0 0 2px ${error ? colors.dangerLight : colors.primaryLight}`;
+            e.currentTarget.style.borderColor = error ? colors.danger : colors.primary;
+            e.currentTarget.style.boxShadow = error
+              ? `0 0 0 3px ${colors.danger}20`
+              : `0 0 0 3px rgba(23, 62, 234, 0.12)`;
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
           }}
           onBlur={(e) => {
-            e.currentTarget.style.borderColor = error ? colors.danger : colors.border;
-            if (!error) e.currentTarget.style.boxShadow = 'none';
+            e.currentTarget.style.borderColor = error ? colors.danger : 'rgba(255, 255, 255, 0.45)';
+            e.currentTarget.style.boxShadow = error ? `0 0 0 3px ${colors.danger}20` : '0 4px 10px rgba(15, 23, 42, 0.02)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.55)';
           }}
         />
       </div>
-      {error && <span style={{ fontSize: 12, color: colors.danger, fontWeight: 500 }}>{error}</span>}
+      {error && <span style={{ fontSize: 12, color: colors.danger, fontWeight: 500, marginTop: 2 }}>{error}</span>}
     </div>
   );
 }
