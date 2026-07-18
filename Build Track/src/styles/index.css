@@ -90,14 +90,32 @@ a { color: var(--primary); text-decoration: none; }
 a:hover { color: var(--primary-hover); }
 
 button { cursor: pointer; font-family: inherit; border: none; background: none; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid #173EEA;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
 input, textarea, select { font-family: inherit; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 250px; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes skeletonPulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 15%, 45%, 75% { transform: translateX(-6px); } 30%, 60%, 90% { transform: translateX(6px); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes slowMove { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(40px, -30px) scale(1.08); } }
+@keyframes slowMove2 { 0%, 100% { transform: translate(0, 0) scale(1.05); } 50% { transform: translate(-30px, 40px) scale(0.92); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* Modern Enterprise Utilities */
 .hover-lift {
@@ -235,6 +253,110 @@ div[style*="background-color: rgb(255, 255, 255)"][style*="border-radius"] {
   -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border: 1px solid rgba(255, 255, 255, 0.45) !important;
   box-shadow: var(--shadow-sm) !important;
+}
+
+/* Sidebar link hover effect — replaces inline handlers */
+.sidebar-link {
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-link:not(.active):hover {
+  background: #F1F5F9 !important;
+  color: #111827 !important;
+}
+
+/* Sidebar sign-out button hover effect — replaces inline handlers */
+.sidebar-signout-btn {
+  transition: all 150ms ease;
+}
+.sidebar-signout-btn:hover {
+  background: #FEF2F2 !important;
+  color: #EF4444 !important;
+  border-color: #FEE2E2 !important;
+}
+
+/* View All button in dashboard */
+.view-all-btn { transition: color 150ms ease; }
+.view-all-btn:hover { color: #1232B8 !important; }
+
+/* Recent entry row hover */
+.recent-entry-row { transition: background 150ms ease; }
+.recent-entry-row:hover { background: rgba(255, 255, 255, 0.4); }
+
+/* Login page hover utilities */
+.login-link-btn { transition: color 0.15s; }
+.login-link-btn:hover { color: #312E81 !important; }
+.login-google-btn { transition: all 0.2s; }
+.login-google-btn:hover { background: #F4F4F5 !important; }
+.login-footer-link { cursor: pointer; transition: color 0.15s; }
+.login-footer-link:hover { color: #1F2937 !important; }
+
+/* Login page background layers */
+.light-blueprint-grid {
+  position: absolute; inset: 0;
+  background-size: 64px 64px;
+  background-image:
+    linear-gradient(to right, rgba(99, 102, 241, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.035) 1px, transparent 1px);
+  z-index: 1; pointer-events: none;
+}
+.light-glow-1 {
+  position: absolute; top: 10%; left: 10%; width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, transparent 70%);
+  z-index: 2; pointer-events: none; animation: slowMove 18s ease-in-out infinite;
+}
+.light-glow-2 {
+  position: absolute; bottom: 10%; right: 15%; width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.35) 0%, transparent 70%);
+  z-index: 2; pointer-events: none; animation: slowMove2 22s ease-in-out infinite;
+}
+.light-glow-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 80%);
+  z-index: 2; pointer-events: none;
+}
+
+/* Transaction row hover lift */
+.tx-row {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tx-row:hover {
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.75) !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+/* Transaction delete button hover */
+.tx-delete-btn { transition: all 150ms ease; }
+.tx-delete-btn:hover {
+  background: #FEF2F2 !important;
+  color: #EF4444 !important;
+  border-color: #EF4444 !important;
+}
+
+/* Pagination buttons */
+.pagination-btn { transition: all 150ms ease; }
+.pagination-btn:hover:not(:disabled) { background: #F1F5F9 !important; }
+.pagination-btn:disabled { opacity: 0.5; cursor: default !important; }
+.tx-delete-btn { transition: all 150ms ease; }
+.tx-delete-btn:hover {
+  background: #FEF2F2 !important;
+  color: #EF4444 !important;
+  border-color: #EF4444 !important;
+}
+
+/* Reusable hover utilities to replace inline event handlers */
+.hover-bg-subtle { transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
+.hover-bg-subtle:hover { background: #F1F5F9 !important; }
+.hover-lift-sm { transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease; }
+.hover-lift-sm:hover { transform: translateY(-1px); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.hover-scale { transition: transform 150ms ease; }
+.hover-scale:hover { transform: scale(1.05); }
+
+/* Mobile touch delay prevention */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
 }
 
 /* Customize scrollbar width to 8px */

@@ -283,8 +283,7 @@ export default function VoiceReviewSheet({
             background: colors.card, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: colors.textSecondary,
             transition: 'all 150ms ease',
           }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = colors.subtle; e.currentTarget.style.color = colors.textPrimary; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = colors.card; e.currentTarget.style.color = colors.textSecondary; }}
+            className="hover-bg-subtle"
           >
             <X size={14} />
           </button>
@@ -460,8 +459,7 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
                     background: data.entryType === t.id ? colors.primaryLight : colors.card,
                     textAlign: 'center', transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
-                  onMouseEnter={(e) => { if (data.entryType !== t.id) e.currentTarget.style.borderColor = '#CBD5E1'; }}
-                  onMouseLeave={(e) => { if (data.entryType !== t.id) e.currentTarget.style.borderColor = colors.border; }}
+                  className="hover-lift-sm"
                 >
                   <div style={{
                     width: 48, height: 48, borderRadius: '50%',

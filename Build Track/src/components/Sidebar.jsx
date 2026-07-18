@@ -14,7 +14,6 @@ const linkStyle = {
   textDecoration: "none",
   fontSize: "14px",
   fontWeight: 500,
-  transition: "all 200ms cubic-bezier(0.16, 1, 0.3, 1)",
   marginBottom: 4,
 };
 
@@ -98,6 +97,7 @@ export default function Sidebar() {
             key={item.label}
             to={item.path}
             end={item.path === "/"}
+            className="sidebar-link"
             style={({ isActive }) => ({
               ...linkStyle,
               color: isActive ? "#FFFFFF" : colors.textSecondary,
@@ -105,22 +105,10 @@ export default function Sidebar() {
               boxShadow: isActive ? "0 8px 16px -4px rgba(23, 62, 234, 0.35)" : "none",
               fontWeight: isActive ? 600 : 500,
             })}
-            onMouseEnter={(e) => {
-              if (!e.currentTarget.getAttribute("class")?.includes("active")) {
-                e.currentTarget.style.background = "#F1F5F9";
-                e.currentTarget.style.color = colors.textPrimary;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!e.currentTarget.getAttribute("class")?.includes("active")) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = colors.textSecondary;
-              }
-            }}
           >
             {({ isActive }) => (
               <>
-                <item.icon size={18} color={isActive ? "#FFFFFF" : colors.textSecondary} style={{ transition: "color 200ms" }} />
+                <item.icon size={18} color={isActive ? "#FFFFFF" : colors.textSecondary} />
                 <span>{item.label}</span>
               </>
             )}
@@ -136,6 +124,7 @@ export default function Sidebar() {
               <NavLink
                 key={item.label}
                 to={item.path}
+                className="sidebar-link"
                 style={({ isActive }) => ({
                   ...linkStyle,
                   color: isActive ? "#FFFFFF" : colors.textSecondary,
@@ -143,22 +132,10 @@ export default function Sidebar() {
                   boxShadow: isActive ? "0 8px 16px -4px rgba(23, 62, 234, 0.35)" : "none",
                   fontWeight: isActive ? 600 : 500,
                 })}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.getAttribute("class")?.includes("active")) {
-                    e.currentTarget.style.background = "#F1F5F9";
-                    e.currentTarget.style.color = colors.textPrimary;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.getAttribute("class")?.includes("active")) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = colors.textSecondary;
-                  }
-                }}
               >
                 {({ isActive }) => (
                   <>
-                    <item.icon size={18} color={isActive ? "#FFFFFF" : colors.textSecondary} style={{ transition: "color 200ms" }} />
+                    <item.icon size={18} color={isActive ? "#FFFFFF" : colors.textSecondary} />
                     <span>{item.label}</span>
                   </>
                 )}
@@ -205,6 +182,7 @@ export default function Sidebar() {
         </div>
         <button
           onClick={handleLogout}
+          className="sidebar-signout-btn"
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -219,17 +197,6 @@ export default function Sidebar() {
             cursor: "pointer",
             border: `1px solid ${colors.border}`,
             background: "transparent",
-            transition: "all 150ms ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#FEF2F2";
-            e.currentTarget.style.color = colors.danger;
-            e.currentTarget.style.borderColor = "#FEE2E2";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = colors.textSecondary;
-            e.currentTarget.style.borderColor = colors.border;
           }}
         >
           <LogOut size={14} />

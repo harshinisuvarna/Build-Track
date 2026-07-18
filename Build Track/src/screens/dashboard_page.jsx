@@ -313,15 +313,11 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Recent Activity Log
           </div>
-          <button onClick={() => navigate('/transaction')} style={{
+          <button onClick={() => navigate('/transaction')} className="view-all-btn" style={{
             border: 'none', background: 'transparent', cursor: 'pointer',
             fontSize: 13, fontWeight: 700, color: colors.primary,
             display: 'flex', alignItems: 'center', gap: 4,
-            transition: 'color 150ms ease',
-          }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = colors.primaryHover; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = colors.primary; }}
-          >
+          }}>
             View All <ChevronRight size={14} />
           </button>
         </div>
@@ -342,15 +338,13 @@ export default function DashboardPage() {
             const type = typeConfig[entry.type] || typeConfig.Materials;
             const amt = Number(entry.amount || entry.totalAmount || 0);
             return (
-              <div key={entry._id || entry.id || i} style={{
+              <div key={entry._id || entry.id || i} className="recent-entry-row" style={{
                 display: 'flex', alignItems: 'center', gap: 16,
                 padding: '16px 24px',
                 borderBottom: i < recentEntries.length - 1 ? `1px solid ${colors.border}` : 'none',
-                cursor: 'pointer', transition: 'background 150ms ease',
+                cursor: 'pointer',
               }}
                 onClick={() => navigate('/entry-detail', { state: { entry } })}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.4)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{
                   width: 38, height: 38, borderRadius: 10,

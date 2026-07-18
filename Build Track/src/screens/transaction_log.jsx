@@ -235,25 +235,13 @@ export default function TransactionLog() {
               const TypeIcon = st.icon || DollarSign;
 
               return (
-                <div key={t._id || i} style={{
+                <div key={t._id || i} className="tx-row" style={{
                   display: 'flex', alignItems: 'center', gap: 18,
                   background: colors.card, borderRadius: 14,
                   border: `1px solid ${colors.border}`, padding: '16px 20px',
-                  cursor: 'pointer', transition: 'var(--transition)',
+                  cursor: 'pointer',
                 }}
                   onClick={() => navigate("/entry-detail", { state: { entry: t } })}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.boxShadow = 'var(--shadow-md)'; 
-                    e.currentTarget.style.transform = 'translateY(-4px)'; 
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.75)'; 
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.82)';
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.boxShadow = 'none'; 
-                    e.currentTarget.style.transform = 'none'; 
-                    e.currentTarget.style.borderColor = colors.border; 
-                    e.currentTarget.style.background = 'var(--glass-bg)';
-                  }}
                 >
                   <div style={{
                     width: 44, height: 44, borderRadius: 10, flexShrink: 0,
@@ -281,13 +269,11 @@ export default function TransactionLog() {
                           {st.label}
                         </Badge>
                         <button onClick={(e) => { e.stopPropagation(); handleDelete(t._id); }}
+                          className="tx-delete-btn"
                           style={{ 
                             color: colors.textTertiary, cursor: 'pointer', display: 'flex', padding: 6, 
                             background: 'none', border: `1px solid ${colors.border}`, borderRadius: 8,
-                            transition: 'all 150ms ease',
                           }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = colors.dangerLight; e.currentTarget.style.color = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = colors.textTertiary; e.currentTarget.style.borderColor = colors.border; }}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -317,14 +303,12 @@ export default function TransactionLog() {
               <span style={{ fontWeight: 500 }}>Showing {(page - 1) * ITEMS_PER_PAGE + 1}-{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                  className="pagination-btn"
                   style={{ 
                     padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, 
                     background: colors.card, color: page <= 1 ? colors.textTertiary : colors.textPrimary, 
                     cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: typography.fontFamily,
-                    transition: 'all 150ms ease'
                   }}
-                  onMouseEnter={(e) => { if (page > 1) e.currentTarget.style.background = colors.subtle; }}
-                  onMouseLeave={(e) => { if (page > 1) e.currentTarget.style.background = colors.card; }}
                 >
                   Prev
                 </button>
@@ -336,6 +320,7 @@ export default function TransactionLog() {
                   else p = [1, "...", page, "...", totalPages][i];
                   return typeof p === "number" ? (
                     <button key={p} onClick={() => setPage(p)}
+                      className={p !== page ? "pagination-btn" : ""}
                       style={{ 
                         padding: '8px 16px', borderRadius: 8, 
                         background: p === page ? gradients.primaryGradient : colors.card, 
@@ -343,24 +328,19 @@ export default function TransactionLog() {
                         fontWeight: 700, fontSize: 13, cursor: 'pointer', minWidth: 38, fontFamily: typography.fontFamily,
                         boxShadow: p === page ? '0 2px 8px rgba(23, 62, 234, 0.15)' : 'none',
                         border: p === page ? 'none' : `1px solid ${colors.border}`,
-                        transition: 'all 150ms ease'
                       }}
-                      onMouseEnter={(e) => { if (p !== page) e.currentTarget.style.background = colors.subtle; }}
-                      onMouseLeave={(e) => { if (p !== page) e.currentTarget.style.background = colors.card; }}
                     >
                       {p}
                     </button>
                   ) : <span key={`e${i}`} style={{ padding: '8px 6px', color: colors.textTertiary, display: 'flex', alignItems: 'center' }}>{p}</span>;
                 })}
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                  className="pagination-btn"
                   style={{ 
                     padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, 
                     background: colors.card, color: page >= totalPages ? colors.textTertiary : colors.textPrimary, 
                     cursor: page >= totalPages ? 'default' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: typography.fontFamily,
-                    transition: 'all 150ms ease'
                   }}
-                  onMouseEnter={(e) => { if (page < totalPages) e.currentTarget.style.background = colors.subtle; }}
-                  onMouseLeave={(e) => { if (page < totalPages) e.currentTarget.style.background = colors.card; }}
                 >
                   Next
                 </button>

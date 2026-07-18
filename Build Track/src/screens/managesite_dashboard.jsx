@@ -816,8 +816,7 @@ function BudgetRow({ label, allocated, spent, color, bold }) {
 function ActionBtn({ icon, label, onClick, borderColor }) {
   return (
     <button onClick={onClick} style={{ padding: "14px", background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "border-color 0.15s, box-shadow 0.15s", fontFamily: 'inherit' }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = borderColor; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none"; }}>
+      className="hover-lift-sm">
       <span style={{ color: "#475569", display: 'flex' }}>{icon}</span>
       <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>{label}</span>
     </button>
