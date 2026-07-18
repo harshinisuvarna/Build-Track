@@ -429,12 +429,11 @@ export default function InventoryPage() {
     }
     setMenuOpen(null);
   }
-
   return (
     <div style={{
       display: "flex", flexDirection: "column",
       width: "100%", minHeight: "100vh",
-      fontFamily: typography.fontFamily, background: colors.bgBase4,
+      fontFamily: typography.fontFamily, background: "transparent",
     }}>
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "info" })} />
 
@@ -453,7 +452,6 @@ export default function InventoryPage() {
 
       {/* Top Bar */}
       <div style={{
-        background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`,
         padding: "16px 24px",
       }}>
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Inventory</h1>
