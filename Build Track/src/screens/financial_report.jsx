@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { 
   projectAPI, 
   transactionAPI 
@@ -51,14 +52,14 @@ function formatINR(n) {
   return `\u20B9${Number(n || 0).toLocaleString("en-IN")}`; 
 }
 
-function formatDateShort(dt) {
-  if (!dt) return "—";
-  const date = new Date(dt);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = months[date.getMonth()];
-  const year = String(date.getFullYear()).substring(2);
-  return `${day} ${month} ${year}`;
+function formatDateShort(d) {
+  if (!d) return "—";
+  try {
+    const dt = new Date(d);
+    return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return String(d);
+  }
 }
 
 function formatDateLong(dt) {
@@ -205,6 +206,7 @@ const ALL_COLS = {
 
 export default function FinancialReportPage() {
   const navigate = useNavigate();
+  const { user, can } = useAuth();
 
   // Primary Data State
   const [projects, setProjects] = useState([]);
@@ -284,7 +286,7 @@ export default function FinancialReportPage() {
         // Map backend objects to Flutter-aligned EntryModel objects
         const mappedList = rawList
           .map(tx => mapTransactionToEntry(tx))
-          .filter(entry => entry.approvalStatus.toLowerCase() !== "rejected"); // Source-filtering matching Flutter
+          .filter(entry => (entry?.approvalStatus || "").toLowerCase() !== "rejected"); // Source-filtering matching Flutter
         setTransactions(mappedList);
       })
       .catch(() => setError("Failed to load project details and reports log."))
@@ -801,7 +803,33 @@ export default function FinancialReportPage() {
   };
 
   const activeCols = (activeColumns && activeColumns[activeTab]) || DEFAULT_COLS[activeTab] || [];
-  const uiActiveCols = [...activeCols, 'Add More', 'Record Payment', 'Edit Entry'];
+  const uiActiveCols = [...activeCols, 'Approval', 'Add More', 'Record Payment', 'Actions'];
+
+  const canRecordPayment = can('mark_paid') || can('approve_payments') || user?.role === 'Admin';
+  const canApprove = can('approve_payments') || user?.role === 'Admin';
+  const canAddEdit = can('add_entries') || user?.role === 'Admin';
+
+  const handleInlineApprove = async (entry) => {
+    try {
+      await transactionAPI.approve(entry.rawTx?._id || entry.id);
+      setToast({ msg: "Entry approved successfully!", type: "success" });
+      fetchTransactions();
+    } catch (err) {
+      setToast({ msg: err.response?.data?.message || "Failed to approve entry", type: "error" });
+    }
+  };
+
+  const handleInlineReject = async (entry) => {
+    const reason = window.prompt("Enter rejection reason:");
+    if (reason === null) return;
+    try {
+      await transactionAPI.reject(entry.rawTx?._id || entry.id, { rejectionReason: reason });
+      setToast({ msg: "Entry rejected", type: "info" });
+      fetchTransactions();
+    } catch (err) {
+      setToast({ msg: err.response?.data?.message || "Failed to reject entry", type: "error" });
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
@@ -949,9 +977,9 @@ export default function FinancialReportPage() {
                   }}
                   style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: selectedProjectId === "all" || floors.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: selectedProjectId === "all" || floors.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
                 >
-                  <option value="Select Floor">Select Floor (All)</option>
-                  {floors.map(f => (
-                    <option key={f} value={f}>{f}</option>
+                  <option value="Select Floor">Select Floor</option>
+                  {floors.map((fl, idx) => (
+                    <option key={idx} value={typeof fl === 'string' ? fl : fl.name}>{typeof fl === 'string' ? fl : fl.name}</option>
                   ))}
                 </select>
                 <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
@@ -966,13 +994,14 @@ export default function FinancialReportPage() {
                   disabled={selectedProjectId === "all" || phases.length === 0}
                   value={selectedPhaseId || "Select Phase"} 
                   onChange={e => {
-                    setSelectedPhaseId(e.target.value === "Select Phase" ? "" : e.target.value);
+                    const val = e.target.value === "Select Phase" ? "" : e.target.value;
+                    setSelectedPhaseId(val);
                     setSelectedActivityName("");
                     setCurrentPage(1);
                   }}
                   style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: selectedProjectId === "all" || phases.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: selectedProjectId === "all" || phases.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
                 >
-                  <option value="Select Phase">Select Phase (All)</option>
+                  <option value="Select Phase">Select Phase</option>
                   {phases.map(ph => (
                     <option key={ph.id} value={ph.id}>{ph.phaseName}</option>
                   ))}
@@ -994,9 +1023,9 @@ export default function FinancialReportPage() {
                   }}
                   style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.2px solid #E2E4FA`, background: selectedProjectId === "all" || uniqueActivityNames.length === 0 ? "#F9FAFB" : "#FFF", fontSize: 13, fontWeight: "600", color: selectedProjectId === "all" || uniqueActivityNames.length === 0 ? "#9CA3AF" : colors.textPrimary, outline: "none", appearance: "none", cursor: "pointer" }}
                 >
-                  <option value="Select Activity">Select Activity (All)</option>
-                  {uniqueActivityNames.map(name => (
-                    <option key={name} value={name}>{name}</option>
+                  <option value="Select Activity">Select Activity</option>
+                  {uniqueActivityNames.map((actName, idx) => (
+                    <option key={idx} value={actName}>{actName}</option>
                   ))}
                 </select>
                 <ChevronDown size={14} color="#757299" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
@@ -1395,6 +1424,27 @@ export default function FinancialReportPage() {
                                   </span>
                                 </td>
                               );
+                            } else if (colName === "Approval") {
+                              const raw = entry.rawTx || {};
+                              const appStatus = raw.approvalStatus || "Approved";
+                              const col = appStatus === "Approved" ? "#166534" : appStatus === "Rejected" ? "#991b1b" : "#854d0e";
+                              const bg = appStatus === "Approved" ? "#dcfce7" : appStatus === "Rejected" ? "#fee2e2" : "#fef9c3";
+                              const isPendingApproval = appStatus === "Pending";
+                              return (
+                                <td key={colName} style={valStyle}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ padding: "3px 8px", borderRadius: 6, fontSize: 10.5, fontWeight: "700", color: col, background: bg }}>
+                                      {appStatus}
+                                    </span>
+                                    {isPendingApproval && canApprove && (
+                                      <div style={{ display: "flex", gap: 4 }}>
+                                        <button onClick={() => handleInlineApprove(entry)} title="Approve Entry" style={{ border: "none", background: "#dcfce7", color: "#166534", borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>✓</button>
+                                        <button onClick={() => handleInlineReject(entry)} title="Reject Entry" style={{ border: "none", background: "#fee2e2", color: "#991b1b", borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>✕</button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              );
                             } else if (colName === "Amount") {
                               return (
                                 <td key={colName} style={{ ...valStyle, textAlign: "right", fontWeight: "700" }}>
@@ -1418,34 +1468,49 @@ export default function FinancialReportPage() {
                             } else if (colName === "Add More") {
                               return (
                                 <td key={colName} style={valStyle}>
-                                  <button 
-                                    onClick={() => handleAddMore(entry)}
-                                    style={{ padding: "6px 12px", border: `1.2px solid #E2E4FA`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: primaryBlue, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                                  >
-                                    <PlusCircle size={12} /> Add More
-                                  </button>
+                                  {canAddEdit ? (
+                                    <button 
+                                      onClick={() => handleAddMore(entry)}
+                                      style={{ padding: "6px 12px", border: `1.2px solid #E2E4FA`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: primaryBlue, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                    >
+                                      <PlusCircle size={12} /> Add More
+                                    </button>
+                                  ) : <span style={{ color: "#94A3B8" }}>—</span>}
                                 </td>
                               );
                             } else if (colName === "Record Payment") {
                               return (
                                 <td key={colName} style={valStyle}>
-                                  <button 
-                                    onClick={() => handleRecordPaymentClick(entry)}
-                                    style={{ padding: "6px 12px", border: `1.2px solid #ca8a04`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#ca8a04", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                                  >
-                                    <CreditCard size={12} /> Pay Log
-                                  </button>
+                                  {canRecordPayment ? (
+                                    <button 
+                                      onClick={() => handleRecordPaymentClick(entry)}
+                                      style={{ padding: "6px 12px", border: `1.2px solid #ca8a04`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#ca8a04", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                    >
+                                      <CreditCard size={12} /> Pay Log
+                                    </button>
+                                  ) : <span style={{ color: "#94A3B8" }}>—</span>}
                                 </td>
                               );
-                            } else if (colName === "Edit Entry") {
+                            } else if (colName === "Actions") {
+                              const raw = entry.rawTx || {};
                               return (
                                 <td key={colName} style={valStyle}>
-                                  <button 
-                                    onClick={() => handleEditEntry(entry)}
-                                    style={{ padding: "6px 12px", border: `1.2px solid #4b5563`, background: "#FFF", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#4b5563", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                                  >
-                                    <Edit2 size={12} /> Edit
-                                  </button>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button 
+                                      onClick={() => navigate('/entry-details', { state: { entry: raw._id ? raw : entry } })}
+                                      style={{ padding: "6px 10px", border: "1.2px solid #6366f1", background: "#fff", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#6366f1", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                    >
+                                      <Eye size={12} /> Details
+                                    </button>
+                                    {canAddEdit && (
+                                      <button 
+                                        onClick={() => handleEditEntry(entry)}
+                                        style={{ padding: "6px 10px", border: "1.2px solid #4b5563", background: "#fff", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#4b5563", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                      >
+                                        <Edit2 size={12} /> Edit
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               );
                             } else {

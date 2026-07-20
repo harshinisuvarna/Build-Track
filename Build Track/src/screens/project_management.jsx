@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { projectAPI } from "../api";
+import { useAuth } from "../contexts/AuthContext";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { Card, Badge, Button, SkeletonLine } from "../components/ui";
-import { Search, Plus, Building2, ArrowRight, Edit3, Trash2 } from "lucide-react";
+import { Search, Plus, Building2, ArrowRight, Edit3, Trash2, RefreshCw, FolderOpen } from "lucide-react";
 
 const STATUS_STYLE = {
-  planning:   { bg: "#FFFBEB", text: "#B45309", label: "Planning" },
-  inprogress: { bg: "#EEF0FF", text: "#5B5CEB", label: "Active" },
-  onhold:     { bg: "#FFF7ED", text: "#C2410C", label: "On Hold" },
-  completed:  { bg: "#F0FDF4", text: "#15803D", label: "Completed" },
-  cancelled:  { bg: "#FEF2F2", text: "#DC2626", label: "Cancelled" },
+  planning:   { bg: "#FFF8E1", text: "#F57F17", border: "#FFC107", label: "Planning" },
+  inprogress: { bg: "#E8F0FE", text: "#3D5AFE", border: "#4A6CF7", label: "In Progress" },
+  onhold:     { bg: "#FFF3E0", text: "#E65100", border: "#FF9800", label: "On Hold" },
+  completed:  { bg: "#E8F5E9", text: "#2E7D32", border: "#43A047", label: "Completed" },
+  cancelled:  { bg: "#FFEBEE", text: "#C62828", border: "#E53935", label: "Review Needed" },
 };
 
 const TABS = ["All Projects", "Active", "On Hold", "Review Needed", "Completed"];
@@ -29,6 +30,7 @@ function statusKey(raw) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const { user, can } = useAuth();
   const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,6 +39,12 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState({ msg: "", type: "info" });
   const [confirmDlg, setConfirmDlg] = useState(null);
+
+  const isAdmin = user?.role?.toLowerCase() === "admin";
+  const canCreate = isAdmin || can("create_project") || can("manage_team");
+  const canEdit = isAdmin || can("edit_project") || can("manage_team");
+  const canDelete = isAdmin || can("delete_project") || can("manage_team");
+
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   useEffect(() => {
@@ -62,7 +70,8 @@ export default function ProjectsPage() {
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
-  const handleDelete = (projectId, projectName) => {
+  const handleDelete = (e, projectId, projectName) => {
+    e.stopPropagation();
     setConfirmDlg({
       message: `Delete "${projectName}"? This action cannot be undone.`,
       danger: true,
@@ -106,7 +115,7 @@ export default function ProjectsPage() {
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.03em', margin: 0, marginBottom: 4 }}>
             Projects
@@ -115,19 +124,24 @@ export default function ProjectsPage() {
             {loading ? "Loading..." : `${allProjects.length} project${allProjects.length !== 1 ? "s" : ""} total`}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '0 12px', height: 36, gap: 8 }}>
             <Search size={14} color="#94A3B8" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search projects..." style={{ border: 'none', outline: 'none', fontSize: 13, color: '#111827', background: 'transparent', width: isMobile ? 100 : 180, fontFamily: 'inherit' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search projects..." style={{ border: 'none', outline: 'none', fontSize: 13, color: '#111827', background: 'transparent', width: isMobile ? 120 : 180, fontFamily: 'inherit' }} />
           </div>
-          <Button variant="primary" size="md" icon={<Plus size={16} />} onClick={() => navigate("/newproject")}>
-            New Project
-          </Button>
+          <button onClick={fetchProjects} title="Refresh projects" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <RefreshCw size={14} color="#64748B" />
+          </button>
+          {canCreate && (
+            <Button variant="primary" size="md" icon={<Plus size={16} />} onClick={() => navigate("/newproject")}>
+              New Project
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB', marginBottom: 24, overflowX: 'auto' }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
             style={{
@@ -187,16 +201,20 @@ export default function ProjectsPage() {
                       background: '#fff', borderRadius: 12,
                       border: '1px solid #E5E7EB', padding: '20px 24px',
                       cursor: 'pointer', transition: 'box-shadow 150ms ease, transform 150ms ease',
+                      position: 'relative',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                     onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
                     onClick={() => navigate("/managesite", { state: { project: p } })}>
                     
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em' }}>{p.projectName}</h3>
-                      <Badge variant={sk === 'inprogress' ? 'success' : sk === 'onhold' ? 'warning' : sk === 'completed' ? 'info' : 'default'} size="sm">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 12 }}>
+                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827', letterSpacing: '-0.02em', flex: 1 }}>{p.projectName}</h3>
+                      <span style={{
+                        background: st.bg, color: st.text, border: `1px solid ${st.border}`,
+                        borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap'
+                      }}>
                         {st.label}
-                      </Badge>
+                      </span>
                     </div>
 
                     {p.location && (
@@ -211,26 +229,49 @@ export default function ProjectsPage() {
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>Progress</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>Overall Progress</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#5B5CEB' }}>{Math.round(progress * 100)}%</span>
                     </div>
-                    <div style={{ height: 4, background: '#F1F5F9', borderRadius: 2, overflow: 'hidden', marginBottom: 16 }}>
-                      <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#5B5CEB', borderRadius: 2, transition: 'width 0.5s ease' }} />
+                    <div style={{ height: 6, background: '#F1F5F9', borderRadius: 3, overflow: 'hidden', marginBottom: 16 }}>
+                      <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#5B5CEB', borderRadius: 3, transition: 'width 0.4s ease' }} />
                     </div>
 
-                    <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 12, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#5B5CEB' }}>View Details</span>
-                      <ArrowRight size={14} color="#5B5CEB" />
+                    <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
+                        {canEdit && (
+                          <button onClick={() => navigate("/newproject", { state: { project: p } })} title="Edit project" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#64748B', display: 'flex', alignItems: 'center' }}>
+                            <Edit3 size={15} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={(e) => handleDelete(e, p._id, p.projectName)} title="Delete project" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#DC2626', display: 'flex', alignItems: 'center' }}>
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: '#5B5CEB' }}>
+                        <span>View Details</span>
+                        <ArrowRight size={14} color="#5B5CEB" />
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: 60, color: '#64748B', fontSize: 14 }}>
-              {allProjects.length === 0
-                ? 'No projects yet. Click "New Project" to get started.'
-                : 'No projects match your search.'}
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 16, border: '1px border #E5E7EB', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <FolderOpen size={48} color="#94A3B8" style={{ marginBottom: 12 }} />
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 4 }}>No projects found</div>
+              <div style={{ fontSize: 13, color: '#64748B', maxWidth: 300, marginBottom: 16 }}>
+                {allProjects.length === 0
+                  ? 'No projects yet. Click "New Project" to create your first project.'
+                  : 'No projects match your current search or filter criteria.'}
+              </div>
+              {allProjects.length === 0 && canCreate && (
+                <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => navigate("/newproject")}>
+                  New Project
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -238,3 +279,4 @@ export default function ProjectsPage() {
     </div>
   );
 }
+

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { projectAPI, transactionAPI } from "../api";
 import { SpendVsBudgetChart } from "../components/Charts";
 import { CategoryBudgetBar } from "../components/MetricCards";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const TYPE_DOT = {
   Materials: "#3730a3",
@@ -84,18 +86,32 @@ export default function ProjectReportPage() {
   };
   const budget = Number(project.budget || project.totalBudget) || 0;
   const remaining = budget - stats.total;
-  const chartData = [
-    { category: "Material", actual: stats.material, budget: project.budgetMaterial || project.budget?.material || 0 },
-    { category: "Labour", actual: stats.labour, budget: project.budgetLabour || project.budget?.labour || 0 },
-    { category: "Equipment", actual: stats.equipment, budget: project.budgetEquipment || project.budget?.equipment || 0 },
-  ];
-  const matEntries = transactions.filter(t => t.type === "Materials").sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 3);
-  const labEntries = transactions.filter(t => t.type === "Wages").sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 3);
-  const eqpEntries = transactions.filter(t => t.type === "Expense" || t.type === "Equipment").sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 3);
-  const recentTx = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
 
-  const st = { Active: { bg: "#dcfce7", color: "#166534" }, Completed: { bg: "#e0e7ff", color: "#3730a3" }, "On Hold": { bg: "#fef9c3", color: "#854d0e" }, "Review Needed": { bg: "#fee2e2", color: "#991b1b" } };
-  const statusStyle = st[project.status] || st.Active;
+  const exportPdf = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text(`BuildTrack — Project Report: ${project.projectName}`, 14, 20);
+    doc.setFontSize(11);
+    doc.text(`Status: ${project.status || "Active"} | Generated: ${new Date().toLocaleDateString("en-IN")}`, 14, 28);
+    doc.text(`Total Budget: Rs.${budget.toLocaleString("en-IN")} | Spent: Rs.${stats.total.toLocaleString("en-IN")} | Remaining: Rs.${remaining.toLocaleString("en-IN")}`, 14, 34);
+
+    const tableRows = transactions.map(t => [
+      t.date ? new Date(t.date).toLocaleDateString("en-IN") : "",
+      t.title || "",
+      t.type || "",
+      t.category || "",
+      `Rs. ${Number(t.amount || 0).toLocaleString("en-IN")}`,
+      t.paymentStatus || "Completed",
+    ]);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [["Date", "Description", "Type", "Category", "Amount", "Payment"]],
+      body: tableRows,
+    });
+
+    doc.save(`BuildTrack_${project.projectName}_Report.pdf`);
+  };
 
   const exportCsv = () => {
     const headers = ["Date", "Description", "Type", "Category", "Amount", "Payment"];
@@ -126,7 +142,10 @@ export default function ProjectReportPage() {
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>Project Report</p>
           </div>
         </div>
-        <button onClick={exportCsv} style={{ padding: "8px 14px", background: "#f3f4f6", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#555", cursor: "pointer" }}>📥 Export CSV</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={exportPdf} style={{ padding: "8px 14px", background: "#5B5CEB", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#fff", cursor: "pointer" }}>📄 Export PDF</button>
+          <button onClick={exportCsv} style={{ padding: "8px 14px", background: "#f3f4f6", border: "1px solid #e5e5e5", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#555", cursor: "pointer" }}>📥 Export CSV</button>
+        </div>
       </div>
 
       <div style={{ flex: 1, padding: "20px 24px" }}>
