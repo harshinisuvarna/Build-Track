@@ -17,15 +17,44 @@ const taskSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    description: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     assignee: {
       type: String,
       default: "Unknown Mason",
       trim: true,
     },
-    location: {
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    floorId: {
       type: String,
-      default: "On Site",
-      trim: true,
+      default: null,
+    },
+    floorName: {
+      type: String,
+      default: null,
+    },
+    phaseId: {
+      type: String,
+      default: null,
+    },
+    phaseName: {
+      type: String,
+      default: null,
+    },
+    activityId: {
+      type: String,
+      default: null,
+    },
+    activityName: {
+      type: String,
+      default: null,
     },
     status: {
       type: String,

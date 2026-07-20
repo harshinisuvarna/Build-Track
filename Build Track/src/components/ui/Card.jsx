@@ -1,29 +1,37 @@
-import { colors, radius, shadows } from '../../styles/designTokens';
+import { colors, radius, shadows, glass } from '../../styles/designTokens';
 
 export default function Card({ children, style, onClick, hoverable, padding }) {
+  const isInteractive = hoverable || onClick;
+  
   return (
     <div
       onClick={onClick}
       style={{
-        background: colors.card,
-        borderRadius: radius.xl,
-        border: `1px solid ${colors.border}`,
-        boxShadow: shadows.sm,
-        padding: padding || spacingToPx(24),
-        transition: 'box-shadow var(--transition), transform var(--transition)',
+        background: glass.background,
+        backdropFilter: glass.backdropFilter,
+        WebkitBackdropFilter: glass.WebkitBackdropFilter,
+        borderRadius: "14px",
+        border: glass.border,
+        boxShadow: "var(--shadow-sm)",
+        padding: padding !== undefined ? padding : 24,
+        transition: "all 300ms cubic-bezier(0.4, 0, 0.2, 1)",
         cursor: onClick ? 'pointer' : undefined,
         ...style,
       }}
       onMouseEnter={(e) => {
-        if (hoverable) {
-          e.currentTarget.style.boxShadow = shadows.lg;
-          e.currentTarget.style.transform = 'translateY(-2px)';
+        if (isInteractive) {
+          e.currentTarget.style.boxShadow = "var(--shadow-lg)";
+          e.currentTarget.style.transform = 'translateY(-4px)';
+          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.75)";
+          e.currentTarget.style.background = "rgba(255, 255, 255, 0.82)";
         }
       }}
       onMouseLeave={(e) => {
-        if (hoverable) {
-          e.currentTarget.style.boxShadow = shadows.sm;
+        if (isInteractive) {
+          e.currentTarget.style.boxShadow = "var(--shadow-sm)";
           e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.55)";
+          e.currentTarget.style.background = "var(--glass-bg)";
         }
       }}
     >
@@ -31,5 +39,3 @@ export default function Card({ children, style, onClick, hoverable, padding }) {
     </div>
   );
 }
-
-function spacingToPx(n) { return `${n}px`; }

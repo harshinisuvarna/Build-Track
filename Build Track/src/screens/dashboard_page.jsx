@@ -15,7 +15,10 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
+  Briefcase,
+  Layers,
 } from 'lucide-react';
+import { colors, gradients, typography } from '../styles/designTokens';
 
 function formatCurrency(amount) {
   return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -38,10 +41,10 @@ function relativeTime(dateStr) {
 }
 
 const typeConfig = {
-  Materials: { color: '#5B5CEB', bg: '#EEF0FF', label: 'Materials' },
+  Materials: { color: '#173EEA', bg: '#EEF0FF', label: 'Materials' },
   Wages: { color: '#22C55E', bg: '#F0FDF4', label: 'Labour' },
   Expense: { color: '#F59E0B', bg: '#FFFBEB', label: 'Equipment' },
-  Income: { color: '#8B5CF6', bg: '#F3E8FF', label: 'Income' },
+  Income: { color: '#B137FF', bg: '#F9F5FF', label: 'Income' },
 };
 
 export default function DashboardPage() {
@@ -99,25 +102,26 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: '32px 40px', maxWidth: 1240, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ padding: '40px 24px', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, marginBottom: 32 }}>
           {[1,2,3,4].map((i) => <SkeletonCard key={i} />)}
         </div>
-        <SkeletonCard />
+        <SkeletonCard style={{ height: 300 }} />
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1240, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
+    <div style={{ padding: '40px 24px', maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32, animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+      
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.03em', margin: 0, marginBottom: 4 }}>
+          <h1 style={{ fontSize: 36, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.03em', margin: 0, lineHeight: 1.1 }}>
             Dashboard
           </h1>
-          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>
-            Welcome back, {user?.name || 'User'}
+          <p style={{ fontSize: 15, color: colors.textSecondary, margin: '6px 0 0' }}>
+            Welcome back, <span style={{ fontWeight: 600, color: colors.textPrimary }}>{user?.name || 'User'}</span>
           </p>
         </div>
         <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
@@ -126,21 +130,37 @@ export default function DashboardPage() {
       </div>
 
       {/* Project Selector + Progress */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20, marginBottom: 24 }}>
-        <Card padding="20px 24px">
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 24 }}>
+        <Card padding={24}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             Active Project
           </div>
           <select
             value={selectedProjectId || ''}
             onChange={(e) => setSelectedProjectId(e.target.value)}
             style={{
-              width: '100%', height: 40, padding: '0 14px',
-              fontSize: 14, fontWeight: 600,
-              borderRadius: 8, border: '1px solid #E5E7EB',
-              color: '#111827', background: '#fff',
-              cursor: 'pointer', outline: 'none',
-              fontFamily: 'inherit',
+              width: '100%',
+              height: 48,
+              padding: '0 16px',
+              fontSize: 14,
+              fontWeight: 600,
+              borderRadius: '12px',
+              border: `1px solid ${colors.border}`,
+              color: colors.textPrimary,
+              background: colors.card,
+              cursor: 'pointer',
+              outline: 'none',
+              fontFamily: typography.fontFamily,
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
+              transition: 'all 150ms ease',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = colors.primary;
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(23, 62, 234, 0.15)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = colors.border;
+              e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.02)';
             }}
           >
             {projects.length === 0 && <option value="">No projects active</option>}
@@ -151,9 +171,9 @@ export default function DashboardPage() {
             ))}
           </select>
           {selectedProject && (
-            <div style={{ marginTop: 12, display: 'flex', gap: 12, fontSize: 13, color: '#64748B', alignItems: 'center' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Building2 size={14} />
+            <div style={{ marginTop: 16, display: 'flex', gap: 16, fontSize: 13, color: colors.textSecondary, alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+                <Building2 size={15} color={colors.textTertiary} />
                 {selectedProject.location || selectedProject.city || 'Surathkal'}
               </span>
               <Badge variant={selectedProject.status === 'Active' ? 'success' : selectedProject.status === 'On Hold' ? 'warning' : 'info'}>
@@ -163,39 +183,41 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card padding="20px 24px">
+        <Card padding={24}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Badge variant="info" size="sm">
-              <TrendingUp size={11} style={{ marginRight: 3 }} /> Overall Progress
+            <Badge variant="info" size="sm" style={{ padding: '4px 10px' }}>
+              <TrendingUp size={13} style={{ marginRight: 4 }} /> Overall Progress
             </Badge>
             {selectedProject?.city && (
-              <span style={{ fontSize: 12, color: '#64748B', fontWeight: 500 }}>
+              <span style={{ fontSize: 13, color: colors.textSecondary, fontWeight: 600 }}>
                 {selectedProject.city}
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-            <span style={{ fontSize: 30, fontWeight: 800, color: '#111827', letterSpacing: '-0.04em' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
+            <span style={{ fontSize: 32, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.04em' }}>
               {(progress * 100).toFixed(1)}%
             </span>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>
                 {selectedProject?.projectName || selectedProject?.name || 'House Construction'}
               </div>
-              <div style={{ fontSize: 12, color: '#64748B', marginTop: 1 }}>Current Milestone</div>
+              <div style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>Current Milestone</div>
             </div>
           </div>
-          <div style={{ height: 6, background: '#F1F5F9', borderRadius: 3, marginBottom: 8, overflow: 'hidden' }}>
+          {/* Brand Gradient Progress Bar */}
+          <div style={{ height: 8, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 999, marginBottom: 10, overflow: 'hidden' }}>
             <div style={{
-              height: '100%', borderRadius: 3,
-              background: '#5B5CEB',
+              height: '100%',
+              borderRadius: 999,
+              background: gradients.primaryGradient,
               width: `${Math.min((progress * 100), 100)}%`,
-              transition: 'width 0.5s ease',
+              transition: 'width 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
             }} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 500 }}>
-            <span style={{ color: '#64748B' }}>Progress Status</span>
-            <span style={{ color: '#5B5CEB', fontWeight: 600 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
+            <span style={{ color: colors.textSecondary }}>Progress Status</span>
+            <span style={{ color: colors.primary }}>
               {(progress * 100).toFixed(0)}% Completed
             </span>
           </div>
@@ -203,164 +225,153 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
         {[
-          { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#5B5CEB', alert: budget > 0 && totalCost > budget * 0.9 },
-          { label: 'Budget', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: DollarSign, color: '#8B5CF6' },
+          { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#173EEA', alert: budget > 0 && totalCost > budget * 0.9 },
+          { label: 'Budget', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: DollarSign, color: '#B137FF' },
           { label: 'Total Revenue', value: formatCurrency(totalRevenue), subtitle: 'Cash Inflow', icon: ArrowUpRight, color: '#22C55E' },
           { label: 'Net Cash Flow', value: formatCurrency(Math.abs(netCashflow)), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', icon: ArrowDownRight, color: netCashflow >= 0 ? '#22C55E' : '#EF4444', alert: netCashflow < 0 },
         ].map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} style={{
-              background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
-              padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16,
-              transition: 'box-shadow 150ms ease',
-            }}
-              onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
-            >
+            <Card key={kpi.label} padding={20} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
-                width: 44, height: 44, borderRadius: 10,
-                background: kpi.alert ? '#FEF2F2' : '#F1F5F9',
+                width: 46, height: 46, borderRadius: 12,
+                background: kpi.alert ? colors.dangerLight : `${kpi.color}10`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: kpi.alert ? '#EF4444' : kpi.color, flexShrink: 0,
+                color: kpi.alert ? colors.danger : kpi.color, flexShrink: 0,
               }}>
                 <Icon size={20} />
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: kpi.alert ? '#EF4444' : '#111827', letterSpacing: '-0.03em' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: kpi.alert ? colors.danger : colors.textPrimary, letterSpacing: '-0.03em' }}>
                   {kpi.value}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.04em', textTransform: 'uppercase', marginTop: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 2 }}>
                   {kpi.label}
                 </div>
-                <div style={{ fontSize: 12, color: kpi.alert ? '#EF4444' : '#64748B', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: kpi.alert ? colors.danger : colors.textSecondary, marginTop: 4, fontWeight: 500 }}>
                   {kpi.subtitle}
                 </div>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
 
       {/* Quick Actions */}
-      <Card padding="20px 24px" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 16 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
           Quick Actions
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
           {[
-            { label: 'Add Entry', desc: 'Log a transaction', icon: PlusCircle, path: '/add-entry', color: '#5B5CEB' },
-            { label: 'Voice Entry', desc: 'Record via voice', icon: Mic, path: '/voice', color: '#22C55E' },
-            { label: 'Manual Entry', desc: 'Enter details', icon: FileText, path: '/manualentry', color: '#F59E0B' },
-            { label: 'View Projects', desc: 'Browse all projects', icon: Building2, path: '/projects', color: '#8B5CF6' },
+            { label: 'Add Entry', desc: 'Log a transaction', icon: PlusCircle, path: '/add-entry', color: '#173EEA' },
+            { label: 'Voice Entry', desc: 'Record via voice AI', icon: Mic, path: '/voice', color: '#B137FF' },
+            { label: 'Manual Entry', desc: 'Enter details manually', icon: FileText, path: '/manualentry', color: '#67C8FF' },
+            { label: 'View Projects', desc: 'Browse all projects', icon: Building2, path: '/projects', color: '#173EEA' },
           ].map((action) => {
             const Icon = action.icon;
             return (
-              <button
+              <Card
                 key={action.label}
                 onClick={() => navigate(action.path)}
+                hoverable
+                padding={20}
                 style={{
-                  padding: '16px', borderRadius: 10,
-                  border: '1px solid #E5E7EB', background: '#fff',
-                  cursor: 'pointer', textAlign: 'left',
-                  display: 'flex', flexDirection: 'column', gap: 6,
-                  transition: 'all 150ms ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = action.color;
-                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#E5E7EB';
-                  e.currentTarget.style.boxShadow = 'none';
+                  textAlign: 'left',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  width: '100%',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{
-                    width: 32, height: 32, borderRadius: 8,
+                    width: 38, height: 38, borderRadius: 10,
                     background: `${action.color}10`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: action.color,
                   }}>
-                    <Icon size={16} />
+                    <Icon size={18} />
                   </div>
-                  <ChevronRight size={14} color="#94A3B8" />
+                  <ChevronRight size={16} color={colors.textTertiary} />
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{action.label}</div>
-                <div style={{ fontSize: 12, color: '#64748B' }}>{action.desc}</div>
-              </button>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>{action.label}</div>
+                  <div style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>{action.desc}</div>
+                </div>
+              </Card>
             );
           })}
         </div>
-      </Card>
+      </div>
 
       {/* Recent Activity Log */}
-      <Card padding="0">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #E5E7EB' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+      <Card padding={0}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Recent Activity Log
           </div>
-          <button onClick={() => navigate('/transaction')} style={{
+          <button onClick={() => navigate('/transaction')} className="view-all-btn" style={{
             border: 'none', background: 'transparent', cursor: 'pointer',
-            fontSize: 13, fontWeight: 600, color: '#5B5CEB',
+            fontSize: 13, fontWeight: 700, color: colors.primary,
             display: 'flex', alignItems: 'center', gap: 4,
-            transition: 'color 150ms ease',
-          }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#4B4CDB'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#5B5CEB'; }}
-          >
+          }}>
             View All <ChevronRight size={14} />
           </button>
         </div>
         {recentEntries.length === 0 ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ padding: '56px 24px', textAlign: 'center' }}>
             <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 12px', color: '#94A3B8',
+              width: 44, height: 44, borderRadius: 12,
+              background: colors.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px', color: colors.primary,
             }}>
               <Clock size={18} />
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 4 }}>No recent entries</div>
-            <div style={{ fontSize: 13, color: '#64748B' }}>Transactions you add will appear here.</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary, marginBottom: 4 }}>No recent entries</div>
+            <div style={{ fontSize: 13, color: colors.textSecondary }}>Transactions you add will appear here.</div>
           </div>
         ) : (
           recentEntries.map((entry, i) => {
             const type = typeConfig[entry.type] || typeConfig.Materials;
             const amt = Number(entry.amount || entry.totalAmount || 0);
             return (
-              <div key={entry._id || entry.id || i} style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '14px 24px',
-                borderBottom: i < recentEntries.length - 1 ? '1px solid #E5E7EB' : 'none',
-                cursor: 'pointer', transition: 'background 150ms ease',
+              <div key={entry._id || entry.id || i} className="recent-entry-row" style={{
+                display: 'flex', alignItems: 'center', gap: 16,
+                padding: '16px 24px',
+                borderBottom: i < recentEntries.length - 1 ? `1px solid ${colors.border}` : 'none',
+                cursor: 'pointer',
               }}
                 onClick={() => navigate('/entry-detail', { state: { entry } })}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#F8FAFC'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{
-                  width: 36, height: 36, borderRadius: 8,
+                  width: 38, height: 38, borderRadius: 10,
                   background: type.bg, display: 'flex',
                   alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <DollarSign size={16} color={type.color} />
+                  <DollarSign size={18} color={type.color} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary, marginBottom: 4 }}>
                     {entry.title || entry.name || 'Entry'}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#64748B', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 12, color: colors.textSecondary, alignItems: 'center', flexWrap: 'wrap' }}>
                     <Badge variant={entry.type === 'Wages' ? 'success' : entry.type === 'Expense' ? 'warning' : 'info'} size="sm">
                       {type.label}
                     </Badge>
-                    <span>{typeof entry.project === 'object' ? (entry.project?.projectName || entry.project?.name || '') : (entry.projectName || entry.project || '')}</span>
-                    <span>{relativeTime(entry.date || entry.createdAt)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Building2 size={13} color={colors.textTertiary} />
+                      {typeof entry.project === 'object' ? (entry.project?.projectName || entry.project?.name || '') : (entry.projectName || entry.project || '')}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={13} color={colors.textTertiary} />
+                      {relativeTime(entry.date || entry.createdAt)}
+                    </span>
                   </div>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: colors.textPrimary, whiteSpace: 'nowrap' }}>
                   {formatCurrency(Math.abs(amt))}
                 </div>
               </div>
@@ -371,3 +382,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -317,8 +317,7 @@ export default function SignUpPage() {
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                 marginBottom: 24,
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#5B55E8"; }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#6C63FF"; }}
+              className="hover-lift-sm"
               onMouseDown={e => { e.currentTarget.style.transform = "scale(0.98)"; }}
               onMouseUp={e   => { e.currentTarget.style.transform = "scale(1)"; }}>
               {loading
@@ -340,9 +339,7 @@ export default function SignUpPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
               {["Privacy policy", "Terms of service", "Support"].map((link, i, arr) => (
                 <span key={link} style={{ display: "contents" }}>
-                  <span style={{ fontSize: 12, color: "#cbd5e1", cursor: "pointer" }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#94a3b8"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#cbd5e1"}>
+                  <span className="hover-bg-subtle" style={{ fontSize: 12, color: "#cbd5e1", cursor: "pointer" }}>
                     {link}
                   </span>
                   {i < arr.length - 1 && <span style={{ color: "#e2e8f0", fontSize: 11 }}>·</span>}

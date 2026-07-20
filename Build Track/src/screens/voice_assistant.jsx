@@ -4,10 +4,12 @@ import { transactionAPI, projectAPI, voiceAPI } from '../api';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import { parseTranscript, computeAmount } from '../utils/voiceParser';
 import { createElement } from 'react';
-import { colors, radius, shadows, typography } from '../styles/designTokens';
-import { Package, User, Wrench, Building2, MapPin, ClipboardList, Hammer } from 'lucide-react';
+import { colors, radius, shadows, typography, gradients } from '../styles/designTokens';
+import { Package, User, Wrench, Building2, MapPin, ClipboardList, Hammer, ArrowLeft, Mic, Sparkles, CheckCircle2, ChevronRight, AlertTriangle, Clock } from 'lucide-react';
 import ExecutionContextStep from '../components/ExecutionContextStep';
 import VoiceReviewSheet from '../components/VoiceReviewSheet';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
 
 // ---------------------------------------------------------------------------
 // Voice Assistant — Full Flutter ai_voice_entry_screen.dart parity
@@ -29,9 +31,9 @@ const STATUS = {
 };
 
 const ENTRY_TYPES = [
-  { id: 'material', label: 'Material', icon: 'material', color: '#7c3aed' },
-  { id: 'labor', label: 'Labor', icon: 'labor', color: '#0891b2' },
-  { id: 'equipment', label: 'Equipment', icon: 'equipment', color: '#d97706' },
+  { id: 'material', label: 'Material', icon: 'material', color: '#173EEA' },
+  { id: 'labor', label: 'Labor', icon: 'labor', color: '#B137FF' },
+  { id: 'equipment', label: 'Equipment', icon: 'equipment', color: '#67C8FF' },
 ];
 
 const typeIcons = {
@@ -337,7 +339,7 @@ export default function VoiceAssistantPage() {
   return (
     <div style={{
       display: 'flex', width: '100%', height: '100vh',
-      fontFamily: typography.fontFamily, background: colors.bgBase4,
+      fontFamily: typography.fontFamily, background: colors.bg,
       overflow: 'hidden', flex: 1, minWidth: 0,
       flexDirection: 'column',
     }}>
@@ -358,10 +360,10 @@ export default function VoiceAssistantPage() {
           to { transform: rotate(360deg); }
         }
         @keyframes orbPulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(108,99,255,0.3); }
-          50% { box-shadow: 0 0 24px rgba(91,85,232,0.5); }
+          0%, 100% { box-shadow: 0 0 0 0px rgba(23, 62, 234, 0.2), 0 0 0 0px rgba(23, 62, 234, 0.1); }
+          50% { box-shadow: 0 0 0 10px rgba(23, 62, 234, 0.15), 0 0 0 20px rgba(23, 62, 234, 0.08); }
         }
-        .voice-card { animation: slideUp 0.35s ease; }
+        .voice-card { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
         .fade-in { animation: fadeIn 0.3s ease; }
         .wave-bar {
           animation: barWave 1s ease-in-out infinite;
@@ -371,21 +373,25 @@ export default function VoiceAssistantPage() {
 
       {/* Top Bar */}
       <div style={{
-        background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`,
         padding: '14px 24px', display: 'flex', alignItems: 'center',
-        gap: 12, flexShrink: 0, zIndex: 10,
+        gap: 16, flexShrink: 0, zIndex: 10,
       }}>
         <button onClick={() => navigate(-1)}
-          style={{ background: colors.bgBase4, border: 'none', borderRadius: 10, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, color: colors.textPrimary }}>
-          &larr;
+          className="premium-topbar-btn"
+          style={{
+            width: 38, height: 38, borderRadius: 10,
+          }}
+          aria-label="Go Back"
+        >
+          <ArrowLeft size={16} />
         </button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: colors.textPrimary, letterSpacing: '-0.02em' }}>
             {isContext ? 'Set Entry Context' : isCompleted ? 'Success' : 'BuildTrack AI'}
           </div>
-          <div style={{ fontSize: 11, color: colors.textLight, fontWeight: 500 }}>
+          <div style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>
             {isContext
-              ? 'Project, floor, phase & activity'
+              ? 'Specify project location, floor, phase & construction activity'
               : isListening
               ? `Listening... ${formatTime(sessionElapsed)}`
               : isProcessing
@@ -397,10 +403,10 @@ export default function VoiceAssistantPage() {
         </div>
         {isListening && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '5px 12px', borderRadius: 20,
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px', borderRadius: 20,
             background: '#FEE2E2', border: '1px solid #FCA5A5',
-            fontSize: 11, fontWeight: 600, color: '#DC2626',
+            fontSize: 12, fontWeight: 700, color: '#DC2626',
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444', animation: 'orbPulse 1.5s ease-in-out infinite' }} />
             REC {formatTime(sessionElapsed)}
@@ -410,9 +416,9 @@ export default function VoiceAssistantPage() {
 
       {/* Main scrollable body */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '24px',
+        flex: 1, overflowY: 'auto', padding: '32px 24px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 20, paddingBottom: (isIdle || isListening) ? 160 : 40,
+        gap: 24, paddingBottom: (isIdle || isListening) ? 180 : 40,
       }}>
 
         {/* ===== CONTEXT STEP ===== */}
@@ -429,24 +435,25 @@ export default function VoiceAssistantPage() {
           <>
             {/* Entry type tabs */}
             <div className="voice-card" style={{
-              background: colors.cardBg, borderRadius: radius.lg,
-              border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
-              padding: '16px 20px', maxWidth: 400, width: '100%',
-              display: 'flex', gap: 8,
+              background: colors.card, borderRadius: '14px',
+              border: `1px solid ${colors.border}`, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02)',
+              padding: '8px', maxWidth: 440, width: '100%',
+              display: 'flex', gap: 4,
             }}>
               {ENTRY_TYPES.map(t => (
                 <button key={t.id} onClick={() => !isListening && setEntryType(t.id)}
                   style={{
-                    flex: 1, padding: '10px 0', borderRadius: radius.sm, border: 'none',
-                    fontWeight: 600, fontSize: 13, cursor: isListening ? 'not-allowed' : 'pointer',
+                    flex: 1, padding: '10px 0', borderRadius: '10px', border: 'none',
+                    fontWeight: 700, fontSize: 13, cursor: isListening ? 'not-allowed' : 'pointer',
                     textTransform: 'capitalize', opacity: isListening ? 0.6 : 1,
                     background: entryType === t.id
-                      ? 'linear-gradient(135deg, #6C63FF, #B137FF)'
-                      : colors.bgBase4,
+                      ? gradients.primaryGradient
+                      : 'transparent',
                     color: entryType === t.id ? '#FFF' : colors.textSecondary,
-                    transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                   }}>
-                  {createElement(typeIcons[t.icon] || Package, { size: 16 })} {t.label}
+                  {createElement(typeIcons[t.icon] || Package, { size: 15, color: entryType === t.id ? '#FFF' : colors.textSecondary })} {t.label}
                 </button>
               ))}
             </div>
@@ -454,34 +461,34 @@ export default function VoiceAssistantPage() {
             {/* Execution context badge */}
             {(executionContext.project || executionContext.floor || executionContext.activity) && (
               <div className="voice-card" style={{
-                background: colors.primarySurface, borderRadius: radius.lg,
-                border: `1px solid ${colors.cardBorder}`,
+                background: colors.primarySubtle, borderRadius: '12px',
+                border: `1px solid ${colors.border}`,
                 padding: '12px 18px', maxWidth: 600, width: '100%',
                 display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
               }}>
                 {executionContext.project && (
-                    <span style={{ fontSize: 12, fontWeight: 600, color: colors.primaryBlue, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <Building2 size={14} /> {executionContext.project.projectName || executionContext.project.name}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: colors.primary, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Building2 size={14} color={colors.primary} /> {executionContext.project.projectName || executionContext.project.name}
                     </span>
                 )}
                 {executionContext.floor && (
-                  <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
-                    <MapPin size={12} /> {executionContext.floor}
+                  <span style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, background: colors.card, padding: '4px 10px', borderRadius: 8, border: `1px solid ${colors.border}` }}>
+                    <MapPin size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {executionContext.floor}
                   </span>
                 )}
                 {executionContext.phase && (
-                  <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
-                    <ClipboardList size={12} /> {executionContext.phase}
+                  <span style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, background: colors.card, padding: '4px 10px', borderRadius: 8, border: `1px solid ${colors.border}` }}>
+                    <ClipboardList size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {executionContext.phase}
                   </span>
                 )}
                 {executionContext.activity && (
-                  <span style={{ fontSize: 11, fontWeight: 600, color: colors.textSecondary, background: colors.bgBase4, padding: '3px 8px', borderRadius: 8 }}>
-                    <Hammer size={12} /> {executionContext.activity}
+                  <span style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, background: colors.card, padding: '4px 10px', borderRadius: 8, border: `1px solid ${colors.border}` }}>
+                    <Hammer size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> {executionContext.activity}
                   </span>
                 )}
                 <span
                   onClick={() => !isListening && setStatus(STATUS.context)}
-                  style={{ fontSize: 11, fontWeight: 600, color: colors.primaryBlue, cursor: 'pointer', marginLeft: 'auto' }}>
+                  style={{ fontSize: 12, fontWeight: 700, color: colors.primary, cursor: 'pointer', marginLeft: 'auto', textDecoration: 'underline' }}>
                   Edit
                 </span>
               </div>
@@ -489,47 +496,47 @@ export default function VoiceAssistantPage() {
 
             {/* Waveform + Mic / Live Transcript */}
             <div className="voice-card" style={{
-              background: colors.cardBg, borderRadius: radius.lg,
-              border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
-              padding: '24px', textAlign: 'center', maxWidth: 600, width: '100%',
+              background: colors.card, borderRadius: '14px',
+              border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+              padding: '32px 24px', textAlign: 'center', maxWidth: 600, width: '100%',
             }}>
               {isListening ? (
                 <>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: colors.primaryBlue, letterSpacing: '0.1em', marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: colors.primary, letterSpacing: '0.08em', marginBottom: 16, textTransform: 'uppercase' }}>
                     LIVE TRANSCRIPT
                   </div>
                   {/* Waveform bars */}
-                  <div style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 16 }}>
+                  <div style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 20 }}>
                     {Array.from({ length: 28 }).map((_, i) => (
                       <div key={i} className="wave-bar"
                         style={{
-                          width: 3, borderRadius: 2,
-                          height: `${Math.max(4, soundLevel * 32)}px`,
-                          background: `linear-gradient(to top, #6C63FF, #B137FF)`,
-                          animationDelay: `${i * 0.06}s`,
-                          animationDuration: `${0.6 + Math.random() * 0.4}s`,
+                          width: 3, borderRadius: 99,
+                          height: `${Math.max(4, soundLevel * 36)}px`,
+                          background: gradients.primaryGradient,
+                          animationDelay: `${i * 0.04}s`,
+                          animationDuration: `${0.5 + Math.random() * 0.4}s`,
                         }} />
                     ))}
                   </div>
                   {/* Transcript display */}
                   <div style={{
-                    background: `linear-gradient(135deg, ${colors.primaryBlue}15, #B137FF15)`,
-                    borderRadius: radius.md, border: `1px solid ${colors.cardBorder}`,
-                    padding: '14px 18px', fontSize: 14, color: colors.textPrimary, fontWeight: 500,
-                    lineHeight: 1.5, minHeight: 48,
+                    background: 'rgba(23, 62, 234, 0.03)',
+                    borderRadius: '12px', border: `1px solid ${colors.border}`,
+                    padding: '18px', fontSize: 15, color: colors.textPrimary, fontWeight: 500,
+                    lineHeight: 1.6, minHeight: 64, textAlign: 'left',
                   }}>
-                    {interimTranscript || accumulatedTranscript || 'Listening...'}
+                    {interimTranscript || accumulatedTranscript || 'Listening... Speak now'}
                   </div>
                   {/* Sound level bar */}
-                  <div style={{ marginTop: 12, height: 3, borderRadius: 2, background: colors.bgBase4, overflow: 'hidden' }}>
+                  <div style={{ marginTop: 16, height: 4, borderRadius: 99, background: '#F1F5F9', overflow: 'hidden' }}>
                     <div style={{
-                      height: '100%', borderRadius: 2, width: `${soundLevel * 100}%`,
-                      background: `linear-gradient(90deg, #6C63FF, #B137FF)`,
+                      height: '100%', borderRadius: 99, width: `${soundLevel * 100}%`,
+                      background: gradients.primaryGradient,
                       transition: 'width 0.1s ease',
                     }} />
                   </div>
-                  <div style={{ marginTop: 6, fontSize: 11, color: colors.textLight }}>
-                    {formatTime(sessionElapsed)} &middot; Tap mic to stop
+                  <div style={{ marginTop: 10, fontSize: 12, color: colors.textSecondary, fontWeight: 500 }}>
+                    {formatTime(sessionElapsed)} &middot; Tap mic button below to stop recording
                   </div>
                 </>
               ) : (
@@ -538,29 +545,30 @@ export default function VoiceAssistantPage() {
                   <div
                     onClick={handleStartListening}
                     style={{
-                      width: 80, height: 80, borderRadius: '50%', margin: '0 auto 16px',
-                      background: 'linear-gradient(135deg, #6C63FF, #B137FF)',
+                      width: 90, height: 90, borderRadius: '50%', margin: '0 auto 20px',
+                      background: gradients.primaryGradient,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', boxShadow: '0 8px 24px rgba(108,99,255,0.4)',
-                      transition: 'transform 0.2s',
-                    }}>
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                      <line x1="12" y1="19" x2="12" y2="23" />
-                      <line x1="8" y1="23" x2="16" y2="23" />
-                    </svg>
+                      cursor: 'pointer',
+                      boxShadow: '0 10px 24px rgba(23, 62, 234, 0.25)',
+                      transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                    className="hover-scale"
+                  >
+                    <Mic size={36} color="white" />
                   </div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, marginBottom: 8 }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em', marginBottom: 8 }}>
                     Tap to Start Listening
                   </div>
+                  <div style={{ fontSize: 14, color: colors.textSecondary, maxWidth: 360, margin: '0 auto' }}>
+                    Speak naturally. Our AI will automatically extract items, quantities, floors, and rates.
+                  </div>
                   {!hasSpeechRecognition && (
-                    <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, color: colors.danger, fontWeight: 600, marginTop: 12 }}>
                       Speech recognition not supported. Please use Chrome or Edge.
                     </div>
                   )}
                   {speechError && (
-                    <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, color: colors.danger, fontWeight: 600, marginTop: 12 }}>
                       {speechError}
                     </div>
                   )}
@@ -571,18 +579,15 @@ export default function VoiceAssistantPage() {
             {/* Example hint (idle only) */}
             {isIdle && (
               <div className="voice-card" style={{
-                background: colors.primarySurface, borderRadius: radius.lg,
-                border: `1px solid ${colors.cardBorder}`,
+                background: colors.primarySubtle, borderRadius: '12px',
+                border: `1px solid ${colors.border}`,
                 padding: '16px 20px', maxWidth: 600, width: '100%',
                 display: 'flex', alignItems: 'flex-start', gap: 12,
               }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
-                  <path d="M9 18h6" /><path d="M10 22h4" />
-                  <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
-                </svg>
+                <Sparkles size={18} color={colors.primary} style={{ flexShrink: 0, marginTop: 2 }} />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: colors.primaryBlue, marginBottom: 4 }}>Example Phrase:</div>
-                  <div style={{ fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: colors.primary, marginBottom: 4 }}>Example Phrase:</div>
+                  <div style={{ fontSize: 14, color: colors.textSecondary, fontStyle: 'italic', lineHeight: 1.4 }}>
                     {ENTRY_EXAMPLES[entryType]}
                   </div>
                 </div>
@@ -594,55 +599,47 @@ export default function VoiceAssistantPage() {
         {/* ===== PROCESSING ===== */}
         {isProcessing && (
           <div className="voice-card" style={{
-            background: colors.cardBg, borderRadius: radius.lg,
-            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            background: colors.card, borderRadius: '14px',
+            border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
             padding: '24px', maxWidth: 520, width: '100%',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
               <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: colors.primarySurface,
+                width: 44, height: 44, borderRadius: '50%',
+                background: colors.primaryLight,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: colors.primary,
               }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
+                <Sparkles size={20} />
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>BuildTrack AI</span>
-                  <span style={{
-                    padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-                    background: colors.primarySurface, color: colors.primaryBlue,
-                    textTransform: 'uppercase',
-                  }}>{entryType}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>BuildTrack AI</span>
+                  <Badge variant="gradient" size="sm" style={{ textTransform: 'uppercase' }}>
+                    {entryType}
+                  </Badge>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: colors.primaryBlue }}>Processing...</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: colors.primary, marginTop: 2 }}>Processing...</div>
               </div>
             </div>
-            <div style={{ borderRadius: radius.md, background: colors.bgBase4, padding: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.textPrimary, marginBottom: 12 }}>
+            <div style={{ borderRadius: '12px', background: colors.bg, padding: 18, border: `1px solid ${colors.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary, marginBottom: 14 }}>
                 Extracting details...
               </div>
               {['Entry Type', 'Item / Labour / Equipment', 'Quantity & Rate', 'Floor & Phase', 'Amount', 'Brand / Details'].map((label, i) => {
                 const icon = processingStage > i + 1 ? 'completed' : processingStage === i + 1 ? 'current' : 'pending';
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, opacity: icon === 'pending' ? 0.4 : 1 }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, opacity: icon === 'pending' ? 0.4 : 1 }}>
                     <div style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {icon === 'completed' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill={colors.success} stroke="white" strokeWidth="3">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="8 12 11 15 16 9" fill="none" stroke="white" strokeWidth="2" />
-                        </svg>
+                        <CheckCircle2 size={16} color={colors.success} />
                       ) : icon === 'current' ? (
-                        <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${colors.primaryBlue}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                        <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${colors.primary}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
                       ) : (
-                        <div style={{ width: 14, height: 14, borderRadius: '50%', border: `1.5px solid ${colors.textLight}` }} />
+                        <div style={{ width: 12, height: 12, borderRadius: '50%', border: `1.5px solid ${colors.textTertiary}` }} />
                       )}
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: icon === 'current' ? 700 : 500, color: colors.textPrimary }}>{label}</span>
+                    <span style={{ fontSize: 13, fontWeight: icon === 'current' ? 700 : 500, color: colors.textPrimary }}>{label}</span>
                   </div>
                 );
               })}
@@ -653,11 +650,11 @@ export default function VoiceAssistantPage() {
         {/* ===== EXTRACTING (brief preview before review sheet) ===== */}
         {isExtracting && parsedData && (
           <div className="voice-card fade-in" style={{
-            background: colors.cardBg, borderRadius: radius.lg,
-            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            background: colors.card, borderRadius: '14px',
+            border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
             padding: '24px', maxWidth: 520, width: '100%', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: colors.textPrimary, marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary, marginBottom: 14 }}>
               AI Understanding Entry
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
@@ -670,8 +667,8 @@ export default function VoiceAssistantPage() {
               ].filter(f => f.value).map(f => (
                 <div key={f.label} style={{
                   padding: '6px 12px', borderRadius: 10,
-                  background: '#DCFCE7', border: '1px solid #BBF7D0',
-                  fontSize: 11.5, fontWeight: 600, color: '#16A34A',
+                  background: colors.successLight, border: `1px solid #BBF7D0`,
+                  fontSize: 12, fontWeight: 600, color: '#16A34A',
                 }}>
                   {f.label}: {String(f.value)}
                 </div>
@@ -683,20 +680,20 @@ export default function VoiceAssistantPage() {
         {/* ===== SAVING ===== */}
         {isSaving && (
           <div className="voice-card fade-in" style={{
-            background: colors.cardBg, borderRadius: radius.lg,
-            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            background: colors.card, borderRadius: '14px',
+            border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
             padding: '32px', maxWidth: 400, width: '100%', textAlign: 'center',
           }}>
             <div style={{
               width: 48, height: 48, borderRadius: '50%', margin: '0 auto 16px',
-              border: `3px solid ${colors.primarySurface}`,
-              borderTopColor: colors.primaryBlue,
+              border: `3px solid ${colors.primaryLight}`,
+              borderTopColor: colors.primary,
               animation: 'spin 0.7s linear infinite',
             }} />
             <div style={{ fontSize: 16, fontWeight: 700, color: colors.textPrimary, marginBottom: 4 }}>
               Saving Entry...
             </div>
-            <div style={{ fontSize: 12, color: colors.textLight }}>
+            <div style={{ fontSize: 13, color: colors.textSecondary }}>
               Please wait
             </div>
           </div>
@@ -705,98 +702,84 @@ export default function VoiceAssistantPage() {
         {/* ===== COMPLETED ===== */}
         {isCompleted && (
           <div className="voice-card fade-in" style={{
-            background: colors.cardBg, borderRadius: radius.lg,
-            border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
+            background: colors.card, borderRadius: '14px',
+            border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
             padding: '32px 28px', textAlign: 'center', maxWidth: 500, width: '100%',
           }}>
             <div style={{
               width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
-              background: 'linear-gradient(135deg, #22C55E, #10B981)',
+              background: gradients.primaryGradient,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 16px rgba(34,197,94,0.3)',
+              boxShadow: '0 8px 20px rgba(23, 62, 234, 0.25)',
             }}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <CheckCircle2 size={32} color="white" />
             </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: colors.textPrimary, marginBottom: 6 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em', marginBottom: 6 }}>
               Entry Saved Successfully!
             </div>
-            <div style={{ fontSize: 13, color: colors.textLight, marginBottom: 20 }}>
+            <div style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 20 }}>
               Your {entryType} entry has been recorded.
             </div>
             {parsedData && (
               <div style={{
-                background: '#F0FDF4', borderRadius: radius.lg,
+                background: colors.successLight, borderRadius: '12px',
                 border: '1px solid #BBF7D0', padding: '16px 20px', marginBottom: 24, textAlign: 'left',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: colors.textLight }}>Type</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary, textTransform: 'capitalize' }}>{entryType}</span>
+                  <span style={{ fontSize: 12, color: colors.textSecondary }}>Type</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: colors.textPrimary, textTransform: 'capitalize' }}>{entryType}</span>
                 </div>
                 <div style={{ height: 1, background: '#DCFCE7', marginBottom: 8 }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: colors.textLight }}>Item</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary }}>
+                  <span style={{ fontSize: 12, color: colors.textSecondary }}>Item</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: colors.textPrimary }}>
                     {parsedData.items?.[0] || parsedData.labourType || parsedData.equipmentName || '-'}
                   </span>
                 </div>
                 <div style={{ height: 1, background: '#DCFCE7', marginBottom: 8 }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, color: colors.textLight }}>Amount</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary }}>₹{parsedData.amount?.toLocaleString('en-IN') || '0'}</span>
+                  <span style={{ fontSize: 12, color: colors.textSecondary }}>Amount</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: colors.textPrimary }}>₹{parsedData.amount?.toLocaleString('en-IN') || '0'}</span>
                 </div>
                 {savedEntryId && (
                   <>
                     <div style={{ height: 1, background: '#DCFCE7', margin: '8px 0' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 11, color: colors.textLight }}>Entry ID</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.textPrimary, fontFamily: 'monospace' }}>{savedEntryId}</span>
+                      <span style={{ fontSize: 12, color: colors.textSecondary }}>Entry ID</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: colors.textPrimary, fontFamily: 'monospace' }}>{savedEntryId}</span>
                     </div>
                   </>
                 )}
               </div>
             )}
-            <button onClick={resetAll}
-              style={{
-                width: '100%', padding: '15px 0', borderRadius: radius.md, border: 'none',
-                background: 'linear-gradient(135deg, #6C63FF, #B137FF)',
-                color: '#FFF', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 10,
-              }}>
-              Add Another Entry
-            </button>
-            <button onClick={viewEntries}
-              style={{
-                width: '100%', padding: '14px 0', borderRadius: radius.md,
-                border: `1.5px solid ${colors.primaryBlue}`, background: 'transparent',
-                color: colors.primaryBlue, fontWeight: 600, fontSize: 14, cursor: 'pointer',
-              }}>
-              View All Entries
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Button variant="primary" size="md" fullWidth onClick={resetAll}>
+                Add Another Entry
+              </Button>
+              <Button variant="ghost" size="md" fullWidth onClick={viewEntries} style={{ border: `1px solid ${colors.border}` }}>
+                View All Entries
+              </Button>
+            </div>
           </div>
         )}
 
         {/* ===== ERROR ===== */}
         {(isError || saveError) && (
           <div className="voice-card fade-in" style={{
-            background: colors.cardBg, borderRadius: radius.lg,
-            border: '1px solid #FCA5A5', boxShadow: shadows.card,
-            padding: '20px', maxWidth: 500, width: '100%',
+            background: colors.card, borderRadius: '14px',
+            border: `1px solid ${colors.danger}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+            padding: '24px', maxWidth: 500, width: '100%',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#DC2626' }}>Error</span>
+              <AlertTriangle size={20} color={colors.danger} />
+              <span style={{ fontSize: 15, fontWeight: 700, color: colors.danger }}>Error</span>
             </div>
-            <div style={{ fontSize: 13, color: '#991B1B', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 16 }}>
               {saveError || speechError || 'Something went wrong. Please try again.'}
             </div>
-            <button onClick={() => { setSaveError(''); resetAll(); }}
-              style={{
-                width: '100%', padding: '12px', borderRadius: radius.md, border: 'none',
-                background: '#FEE2E2', color: '#DC2626', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-              }}>
+            <Button variant="danger" size="md" fullWidth onClick={() => { setSaveError(''); resetAll(); }}>
               Try Again
-            </button>
+            </Button>
           </div>
         )}
 
@@ -806,36 +789,40 @@ export default function VoiceAssistantPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: colors.textPrimary }}>Recent Entries</h3>
               <span onClick={viewEntries}
-                style={{ fontSize: 12, color: colors.primaryBlue, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ fontSize: 13, color: colors.primary, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
                 View History
               </span>
             </div>
             <div style={{
-              background: colors.cardBg, borderRadius: radius.lg,
-              border: `1px solid ${colors.cardBorder}`, overflow: 'hidden',
+              background: colors.card, borderRadius: '14px',
+              border: `1px solid ${colors.border}`, overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
             }}>
               {recentLoading ? (
-                <div style={{ padding: 30, textAlign: 'center', color: colors.textLight, fontSize: 13 }}>Loading...</div>
+                <div style={{ padding: 30, textAlign: 'center', color: colors.textSecondary, fontSize: 14 }}>Loading...</div>
               ) : recentEntries.length === 0 ? (
-                <div style={{ padding: 30, textAlign: 'center', color: colors.textLight, fontSize: 13 }}>No entries yet</div>
+                <div style={{ padding: 30, textAlign: 'center', color: colors.textSecondary, fontSize: 14 }}>No entries yet</div>
               ) : recentEntries.map((t, i) => {
                 const typeLabel = t.type || 'Expense';
-                const typeColor = typeLabel === 'Materials' ? colors.primaryBlue : typeLabel === 'Wages' ? '#D97706' : typeLabel === 'Income' ? colors.success : colors.textSecondary;
-                const typeBg = typeLabel === 'Materials' ? colors.primarySurface : typeLabel === 'Wages' ? '#FFFBEB' : typeLabel === 'Income' ? '#F0FDF4' : colors.bgBase4;
+                const typeColor = typeLabel === 'Materials' ? colors.primary : typeLabel === 'Wages' ? '#D97706' : typeLabel === 'Income' ? colors.success : colors.textSecondary;
+                const typeBg = typeLabel === 'Materials' ? colors.primaryLight : typeLabel === 'Wages' ? '#FFFBEB' : typeLabel === 'Income' ? '#F0FDF4' : colors.subtle;
                 return (
                   <div key={t._id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '14px 20px', borderBottom: i < recentEntries.length - 1 ? `1px solid ${colors.bgBase4}` : 'none',
+                    padding: '14px 20px', borderBottom: i < recentEntries.length - 1 ? `1px solid ${colors.border}` : 'none',
                   }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: colors.textPrimary, marginBottom: 2 }}>{t.title}</div>
-                      <div style={{ fontSize: 11, color: colors.textLight }}>{new Date(t.date).toLocaleDateString()}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: colors.textPrimary, marginBottom: 2 }}>{t.title}</div>
+                      <div style={{ fontSize: 12, color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={12} color={colors.textTertiary} />
+                        {new Date(t.date).toLocaleDateString()}
+                      </div>
                     </div>
                     <span style={{
-                      padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                      padding: '4px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700,
                       background: typeBg, color: typeColor,
                     }}>{typeLabel.toUpperCase()}</span>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: typeLabel === 'Income' ? colors.success : colors.textPrimary, marginLeft: 16, minWidth: 70, textAlign: 'right' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: typeLabel === 'Income' ? colors.success : colors.textPrimary, marginLeft: 16, minWidth: 80, textAlign: 'right' }}>
                       {typeLabel === 'Income' ? '+' : '-'}₹{(t.amount || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
@@ -850,37 +837,34 @@ export default function VoiceAssistantPage() {
       {(isIdle || isListening) && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: 'linear-gradient(to top, rgba(255,255,255,0.98) 60%, rgba(255,255,255,0))',
+          background: 'linear-gradient(to top, rgba(248, 250, 252, 0.98) 60%, rgba(248, 250, 252, 0))',
           padding: '24px 24px 20px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
           display: 'flex', justifyContent: 'center', zIndex: 20,
         }}>
           <button
             onClick={isListening ? handleStopListening : handleStartListening}
             style={{
-              width: isListening ? 64 : 72,
-              height: isListening ? 64 : 72,
+              width: isListening ? 68 : 76,
+              height: isListening ? 68 : 76,
               borderRadius: '50%', border: 'none',
               background: isListening
                 ? 'linear-gradient(135deg, #EF4444, #DC2626)'
-                : 'linear-gradient(135deg, #6C63FF, #B137FF)',
+                : gradients.primaryGradient,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
               boxShadow: isListening
-                ? '0 4px 20px rgba(239,68,68,0.4)'
-                : '0 8px 30px rgba(108,99,255,0.4)',
-              transition: 'all 0.2s ease',
-            }}>
+                ? '0 6px 20px rgba(239,68,68,0.4)'
+                : '0 8px 30px rgba(23, 62, 234, 0.3)',
+              transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            className="hover-scale"
+          >
             {isListening ? (
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
                 <rect x="6" y="6" width="12" height="12" rx="2" />
               </svg>
             ) : (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
+              <Mic size={30} color="white" />
             )}
           </button>
         </div>

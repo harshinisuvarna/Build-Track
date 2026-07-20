@@ -43,19 +43,19 @@ export default function AddEntryPage() {
     <div style={{
       display: 'flex', flexDirection: 'column',
       width: '100%', minHeight: '100vh',
-      fontFamily: typography.fontFamily, background: colors.bgBase4,
+      fontFamily: typography.fontFamily, background: 'transparent',
     }}>
       {/* Top Bar */}
       <div style={{
-        background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`,
         padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12,
       }}>
         <button onClick={() => navigate(-1)}
+          className="premium-topbar-btn"
           style={{
-            background: colors.bgBase4, border: 'none', borderRadius: 10,
-            width: 36, height: 36, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', cursor: 'pointer', fontSize: 18, color: colors.textPrimary,
-          }}>
+            width: 36, height: 36, borderRadius: 10, fontSize: 18,
+          }}
+          aria-label="Go Back"
+        >
           &larr;
         </button>
         <div>

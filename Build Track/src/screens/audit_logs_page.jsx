@@ -608,8 +608,7 @@ export default function AuditLogsPage() {
                       transition: "background 0.1s",
                       cursor: "default",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    className="hover-bg-subtle"
                   >
                     {/* Action Icon */}
                     <div

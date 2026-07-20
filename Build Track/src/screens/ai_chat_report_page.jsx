@@ -327,8 +327,7 @@ export default function AiChatReportPage() {
                       key={p} 
                       onClick={() => { setQueryInput(p); submitSearch(p); }}
                       style={{ background: '#FFF', borderRadius: 16, border: '1px solid #DDE0F0', padding: 16, cursor: 'pointer', transition: 'all 0.15s ease', boxShadow: shadows.sm }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primaryBlue; e.currentTarget.style.transform = 'translateY(-1.5px)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#DDE0F0'; e.currentTarget.style.transform = 'none'; }}
+                      className="hover-lift-sm"
                     >
                       <TrendingUp size={16} color={colors.primaryBlue} style={{ marginBottom: 10 }} />
                       <div style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{p}</div>
@@ -346,8 +345,7 @@ export default function AiChatReportPage() {
                         key={idx}
                         onClick={() => { setQueryInput(s); submitSearch(s); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: idx < recentSearches.length - 1 ? `1px solid ${colors.divider}` : 'none', cursor: 'pointer', fontSize: 13, color: colors.textPrimary }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        className="hover-bg-subtle"
                       >
                         <Clock size={14} color={colors.textLight} />
                         <span style={{ flex: 1, fontWeight: '600' }}>{s}</span>
@@ -629,8 +627,7 @@ export default function AiChatReportPage() {
                           cursor: 'pointer',
                           transition: 'all 0.15s'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#DDE0F0'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#ECEBFF'}
+                        className="hover-bg-subtle"
                       >
                         {act}
                       </button>

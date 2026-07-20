@@ -167,18 +167,18 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "#F8FAFC" }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 14 }}>Loading reports\u2026</div>
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94A3B8", fontSize: 14 }}>Loading reports&hellip;</div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "#F8FAFC" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
       {/* Header */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0, flexWrap: "wrap" }}>
+      <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>Reports & Analytics</h1>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Reports & Analytics</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>{filtered.length} entries found</p>
         </div>
         <Button variant="primary" size="md" onClick={() => navigate("/ai-chat")} style={{ background: "linear-gradient(135deg, #8B5CF6, #A855F7)", border: "none" }}>
@@ -290,8 +290,7 @@ export default function ReportsPage() {
                   return (
                     <tr key={t._id}
                       onClick={() => navigate(`/entries/${t._id}`)}
-                      onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      className="hover-bg-subtle"
                       style={{ borderBottom: "1px solid #F1F5F9", cursor: "pointer" }}>
                       <td style={{ padding: "10px 14px", fontSize: 13, color: "#475569", whiteSpace: "nowrap" }}>
                         {t.date ? new Date(t.date).toLocaleDateString("en-IN") : "\u2014"}

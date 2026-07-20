@@ -39,7 +39,7 @@ function calculateProgress(stage) {
 
 router.post("/", upload.array("media"), async (req, res) => {
   try {
-    const { project, stage, workDone, startDate, endDate, remarks } = req.body;
+    const { project, stage, workDone, startDate, endDate, remarks, completedTasks } = req.body;
     if (!project || !stage) {
       return res.status(400).json({ message: "Project and Stage are required" });
     }
@@ -50,6 +50,17 @@ router.post("/", upload.array("media"), async (req, res) => {
     }
 
     const media = req.files ? req.files.map((f) => getFileUrl(f)) : [];
+    
+    // Parse completedTasks if it comes as a JSON string from frontend FormData
+    let parsedCompletedTasks = [];
+    if (completedTasks) {
+      try {
+        parsedCompletedTasks = typeof completedTasks === 'string' ? JSON.parse(completedTasks) : completedTasks;
+      } catch (e) {
+        console.error("Error parsing completedTasks", e);
+      }
+    }
+
     const update = await ProjectUpdate.create({
       createdBy: req.user._id,
       project,
@@ -60,7 +71,17 @@ router.post("/", upload.array("media"), async (req, res) => {
       remarks,
       media,
       approvalStatus: "Pending",
+      completedTasks: parsedCompletedTasks,
     });
+
+    // Update tasks to Completed
+    if (parsedCompletedTasks && parsedCompletedTasks.length > 0) {
+      const Task = require("../models/Task");
+      await Task.updateMany(
+        { _id: { $in: parsedCompletedTasks } },
+        { $set: { status: "Completed" } }
+      );
+    }
 
     res.status(201).json({ message: "Project update saved as Pending", update });
   } catch (err) {

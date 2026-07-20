@@ -610,8 +610,7 @@ export default function SubscriptionPage() {
               background: "#fff5f0", border: "1px solid #fde8d8",
               transition: "background 0.15s",
             }}
-            onMouseEnter={e => e.currentTarget.style.background = "#fde8d8"}
-            onMouseLeave={e => e.currentTarget.style.background = "#fff5f0"}
+            className="hover-bg-subtle"
             onClick={async () => {
               try {
                 await subscriptionAPI.getStatus();

@@ -22,10 +22,10 @@ function Toggle({ on, onToggle }) {
 
 function SectionCard({ title, children, style, gradient }) {
   return (
-    <div style={{ background: gradient || "#fff", borderRadius: 12, border: gradient ? "none" : "1px solid #E5E7EB", padding: "24px 28px", marginBottom: 16, ...style }}>
+    <Card style={{ background: gradient, padding: "24px 28px", marginBottom: 16, border: gradient ? "none" : undefined, ...style }}>
       {title && <h3 style={{ fontSize: 16, fontWeight: 700, color: gradient ? "#fff" : "#111827", margin: "0 0 20px", letterSpacing: "-0.02em" }}>{title}</h3>}
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -177,14 +177,14 @@ export default function SettingsPage() {
   const baseInput = { width: "100%", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "#F8FAFC" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
       {/* Top Bar */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+      <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>Settings</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Settings</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>Manage your account preferences and security</p>
         </div>
       </div>

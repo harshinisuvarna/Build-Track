@@ -84,7 +84,7 @@ function LightPremiumInput({ icon: Icon, label, error, ...props }) {
 
       {error && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#EF4444", fontSize: "11px", fontWeight: "700", animation: "slideDown 0.15s ease" }}>
-          <span>⚠️</span>
+          <AlertTriangle size={11} />
           <span>{error}</span>
         </div>
       )}
@@ -206,133 +206,7 @@ export default function LoginPage() {
     }
   };
 
-  // Light Theme CSS styles & animations injection
-  const css = `
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap');
-    
-    body {
-      margin: 0;
-      background: #FAFAFC;
-      overflow-x: hidden;
-    }
-
-    @keyframes fadeUp {
-      from {
-        opacity: 0;
-        transform: translateY(14px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      15%, 45%, 75% { transform: translateX(-6px); }
-      30%, 60%, 90% { transform: translateX(6px); }
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes slideDown {
-      from {
-        opacity: 0;
-        max-height: 0;
-      }
-      to {
-        opacity: 1;
-        max-height: 250px;
-      }
-    }
-
-    @keyframes slowMove {
-      0%, 100% {
-        transform: translate(0, 0) scale(1);
-      }
-      50% {
-        transform: translate(40px, -30px) scale(1.08);
-      }
-    }
-
-    @keyframes slowMove2 {
-      0%, 100% {
-        transform: translate(0, 0) scale(1.05);
-      }
-      50% {
-        transform: translate(-30px, 40px) scale(0.92);
-      }
-    }
-
-    .animate-fade-up {
-      animation: fadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-
-    .shake-trigger {
-      animation: shake 0.4s ease;
-    }
-
-    .spinner-spin {
-      animation: spin 0.6s linear infinite;
-    }
-
-    /* Light blueprint grid watermark background */
-    .light-blueprint-grid {
-      position: absolute;
-      inset: 0;
-      background-size: 64px 64px;
-      background-image: 
-        linear-gradient(to right, rgba(99, 102, 241, 0.035) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(99, 102, 241, 0.035) 1px, transparent 1px);
-      z-index: 1;
-      pointer-events: none;
-    }
-
-    /* Deep layered pulsing light mesh glows */
-    .light-glow-1 {
-      position: absolute;
-      top: 10%;
-      left: 10%;
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, transparent 70%);
-      z-index: 2;
-      pointer-events: none;
-      animation: slowMove 18s ease-in-out infinite;
-    }
-
-    .light-glow-2 {
-      position: absolute;
-      bottom: 10%;
-      right: 15%;
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.35) 0%, transparent 70%);
-      z-index: 2;
-      pointer-events: none;
-      animation: slowMove2 22s ease-in-out infinite;
-    }
-
-    .light-glow-center {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 800px;
-      height: 800px;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 80%);
-      z-index: 2;
-      pointer-events: none;
-    }
-  `;
-
+  
   return (
     <div 
       style={{ 
@@ -348,8 +222,6 @@ export default function LoginPage() {
         boxSizing: "border-box"
       }}
     >
-      <style>{css}</style>
-      
       {/* Background Depth Layers */}
       <div className="light-blueprint-grid" />
       <div className="light-glow-1" />
@@ -534,13 +406,15 @@ export default function LoginPage() {
                     setForgotMsg("");
                     setForgotErr("");
                   }}
-                  style={{ fontSize: "12.5px", fontWeight: "700", color: "#4F46E5", cursor: "pointer", transition: "color 0.15s" }}
-                  onMouseEnter={e => e.currentTarget.style.color = "#312E81"}
-                  onMouseLeave={e => e.currentTarget.style.color = "#4F46E5"}
+                  className="login-link-btn"
+                  style={{ fontSize: "12.5px", fontWeight: "700", color: "#4F46E5", cursor: "pointer" }}
                 >
                   {showForgot ? "← Back to login" : "Forgot password?"}
                 </span>
               </div>
+
+              {/* Primary sign-in button className */}
+              <style>{`.login-submit-btn { transition: transform 0.15s ease, box-shadow 0.15s ease; } .login-submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3); } .login-submit-btn:active:not(:disabled) { transform: translateY(0); }`}</style>
 
               {/* Reset password collapsible drawer */}
               {showForgot && (
@@ -608,6 +482,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
+                className="login-submit-btn"
                 style={{
                   width: "100%",
                   padding: "14px",
@@ -625,17 +500,6 @@ export default function LoginPage() {
                   justifyContent: "center",
                   gap: 8,
                   boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
-                  transition: "transform 0.15s ease, box-shadow 0.15s ease"
-                }}
-                onMouseEnter={e => {
-                  if (!loading) {
-                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(99, 102, 241, 0.3)";
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.boxShadow = "0 4px 14px rgba(99, 102, 241, 0.18)";
-                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
                 {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
@@ -657,6 +521,7 @@ export default function LoginPage() {
               onClick={() => {
                 window.location.href = `${API_ORIGIN}/api/auth/google`;
               }}
+              className="login-google-btn"
               style={{
                 width: "100%",
                 padding: "12px",
@@ -671,13 +536,6 @@ export default function LoginPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 10,
-                transition: "all 0.2s"
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "#F4F4F5";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "#FFFFFF";
               }}
             >
               <GoogleIcon /> Continue with Google
@@ -690,6 +548,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => navigate("/signup")}
+                  className="login-link-btn"
                   style={{
                     background: "none",
                     border: "none",
@@ -698,19 +557,17 @@ export default function LoginPage() {
                     color: "#4F46E5",
                     fontWeight: "700"
                   }}
-                  onMouseEnter={e => e.currentTarget.style.color = "#312E81"}
-                  onMouseLeave={e => e.currentTarget.style.color = "#4F46E5"}
                 >
                   Create account free
                 </button>
               </p>
 
-              <div style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 12, fontSize: "11px", color: "#8E9AA8", fontWeight: "600" }}>
-                <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#1F2937"} onMouseLeave={e => e.currentTarget.style.color = "#8E9AA8"}>Privacy Policy</span>
+              <div className="login-footer-links" style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 12, fontSize: "11px", color: "#8E9AA8", fontWeight: "600" }}>
+                <span className="login-footer-link">Privacy Policy</span>
                 <span>·</span>
-                <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#1F2937"} onMouseLeave={e => e.currentTarget.style.color = "#8E9AA8"}>Terms</span>
+                <span className="login-footer-link">Terms</span>
                 <span>·</span>
-                <span style={{ cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.color = "#1F2937"} onMouseLeave={e => e.currentTarget.style.color = "#8E9AA8"}>Support</span>
+                <span className="login-footer-link">Support</span>
               </div>
             </div>
 

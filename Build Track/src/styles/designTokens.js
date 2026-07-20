@@ -1,26 +1,26 @@
 export const colors = {
-  bg: '#F8FAFC',
-  card: '#FFFFFF',
-  subtle: '#F1F5F9',
-  hover: '#F8FAFC',
-  primary: '#5B5CEB',
-  primaryHover: '#4B4CDB',
-  primaryLight: '#EEF0FF',
-  primarySubtle: '#F5F6FF',
-  border: '#E5E7EB',
-  borderLight: '#F1F5F9',
+  bg: 'transparent',
+  card: 'var(--glass-bg)',
+  subtle: 'var(--bg-subtle)',
+  hover: 'var(--bg-hover)',
+  primary: '#173EEA',
+  primaryHover: '#1232B8',
+  primaryLight: 'var(--primary-light)',
+  primarySubtle: 'var(--primary-subtle)',
+  border: 'var(--border)',
+  borderLight: 'var(--border-light)',
   textPrimary: '#111827',
   textSecondary: '#64748B',
   textTertiary: '#94A3B8',
   textInverse: '#FFFFFF',
   success: '#22C55E',
-  successLight: '#F0FDF4',
+  successLight: 'var(--success-light)',
   danger: '#EF4444',
-  dangerLight: '#FEF2F2',
+  dangerLight: 'var(--danger-light)',
   warning: '#F59E0B',
-  warningLight: '#FFFBEB',
-  info: '#5B5CEB',
-  infoLight: '#EEF0FF',
+  warningLight: 'var(--warning-light)',
+  info: '#173EEA',
+  infoLight: 'var(--info-light)',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
@@ -28,34 +28,44 @@ export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
 export const radius = { sm: 6, md: 8, lg: 12, xl: 16, full: 9999 };
 
 export const shadows = {
-  sm: '0 1px 2px rgba(0,0,0,0.04)',
-  md: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-  lg: '0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04)',
-  xl: '0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -2px rgba(0,0,0,0.04)',
+  sm: 'var(--shadow-sm)',
+  md: 'var(--shadow-md)',
+  lg: 'var(--shadow-lg)',
+  xl: 'var(--shadow-xl)',
+};
+
+export const glass = {
+  background: 'var(--glass-bg)',
+  backdropFilter: 'blur(var(--glass-blur))',
+  WebkitBackdropFilter: 'blur(var(--glass-blur))',
+  border: 'var(--glass-border)',
 };
 
 export const typography = {
   fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
   h1: { fontSize: '36px', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.15, color: colors.textPrimary },
-  h2: { fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: colors.textPrimary },
+  h2: { fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: colors.textPrimary },
   h3: { fontSize: '18px', fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.25, color: colors.textPrimary },
   body: { fontSize: '15px', fontWeight: 400, lineHeight: 1.5, color: colors.textPrimary },
   caption: { fontSize: '13px', fontWeight: 500, lineHeight: 1.4, color: colors.textSecondary },
   label: { fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em', color: colors.textSecondary },
 };
 
-// backward-compat aliases (will be removed after full migration)
+// Official BuildTrack brand gradient
 export const gradients = {
-  primaryButton: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`,
-  progressBar: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`,
-  navActiveItem: `linear-gradient(90deg, ${colors.subtle} 0%, ${colors.primaryLight} 100%)`,
-  authBackground: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryHover} 100%)`,
-  pageBackground: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.subtle} 100%)`,
+  primaryGradient: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
+  primaryButton: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
+  progressBar: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
+  navActiveItem: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
+  authBackground: 'linear-gradient(135deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
+  pageBackground: 'linear-gradient(135deg, #F8FAFC 0%, #E6EAF2 100%)',
 };
+
 export const buttonStyles = {
   primary: { height: 44, borderRadius: radius.md, fontWeight: 600, fontSize: 15, border: 'none', cursor: 'pointer', background: gradients.primaryButton, color: '#FFFFFF' },
   outline: { height: 44, borderRadius: radius.md, fontWeight: 600, fontSize: 15, border: `1.5px solid ${colors.primary}`, background: 'transparent', color: colors.primary, cursor: 'pointer' },
 };
+
 export const inputStyles = {
   borderRadius: radius.md, border: `1px solid ${colors.border}`, padding: '12px 14px', fontSize: 14,
   fontFamily: typography.fontFamily, backgroundColor: colors.card, color: colors.textPrimary, outline: 'none', width: '100%',
@@ -73,12 +83,12 @@ colors.textMedium = colors.textSecondary;
 colors.textPrimary = colors.textPrimary;
 colors.inputBorder = colors.border;
 colors.divider = colors.border;
-colors.gradientStart = colors.primaryLight;
-colors.gradientMid = colors.subtle;
-colors.gradientEnd = colors.bg;
-colors.authStart = colors.primary;
-colors.authMid = '#8B83FF';
-colors.authEnd = '#B8B2FF';
+colors.gradientStart = '#173EEA';
+colors.gradientMid = '#B137FF';
+colors.gradientEnd = '#67C8FF';
+colors.authStart = '#173EEA';
+colors.authMid = '#B137FF';
+colors.authEnd = '#67C8FF';
 colors.bgBase1 = colors.bg;
 colors.bgBase2 = colors.subtle;
 colors.bgBase3 = colors.subtle;
@@ -102,3 +112,8 @@ colors.badgePendingBg = colors.warningLight;
 colors.badgePendingText = '#92400E';
 colors.badgeInfoBg = colors.primaryLight;
 colors.badgeInfoText = colors.primary;
+
+shadows.card = 'var(--shadow-sm)';
+shadows.large = 'var(--shadow-lg)';
+shadows.hover = 'var(--shadow-xl)';
+

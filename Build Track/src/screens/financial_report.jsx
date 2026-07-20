@@ -909,8 +909,7 @@ export default function FinancialReportPage() {
             transition: "transform 0.15s ease",
             transform: "translateY(0)"
           }}
-          onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
-          onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+          className="hover-lift-sm"
         >
           <div style={{ width: 42, height: 42, background: "rgba(255,255,255,0.18)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Sparkles size={20} color="#FFFFFF" />
@@ -1222,8 +1221,7 @@ export default function FinancialReportPage() {
                         setShowSuggestions(false);
                       }}
                       style={{ padding: "10px 14px", fontSize: 13, color: colors.textPrimary, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
-                      onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      className="hover-bg-subtle"
                     >
                       <span style={{ color: primaryBlue }}>↳</span>
                       <span>{name}</span>
@@ -1377,8 +1375,7 @@ export default function FinancialReportPage() {
                             if (e.target.closest("button")) return;
                             setDetailsEntry(entry);
                           }}
-                          onMouseEnter={ev => ev.currentTarget.style.background = "#F9FAFB"}
-                          onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}
+                          className="hover-bg-subtle"
                         >
                           {uiActiveCols.map((colName) => {
                             const valStyle = { padding: "14px 18px", fontSize: 12.5, color: colors.textPrimary };

@@ -203,8 +203,7 @@ export default function ProjectsPage() {
                       cursor: 'pointer', transition: 'box-shadow 150ms ease, transform 150ms ease',
                       position: 'relative',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    className="hover-lift-sm"
                     onClick={() => navigate("/managesite", { state: { project: p } })}>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 12 }}>
