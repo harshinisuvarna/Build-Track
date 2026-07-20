@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Badge, Button, Spinner } from '../components/ui';
 import { transactionAPI } from '../api';
+import RecordPaymentSheet from '../components/RecordPaymentSheet';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Package, User, Wrench, DollarSign, ArrowLeft, Trash2, Calendar,
   CreditCard, Building2, Hash, FileText, AlertTriangle, CheckCircle,
-  XCircle, Clock, MapPin, Phone, UserCheck,
+  XCircle, Clock, MapPin, Phone, UserCheck, FileCheck, ExternalLink,
+  Receipt, PlusCircle
 } from 'lucide-react';
 
 const typeConfig = {
@@ -30,11 +33,14 @@ function formatDate(dateStr) {
 export default function EntryDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const entry = location.state?.entry;
+  const { user, can } = useAuth();
+  const [entry, setEntry] = useState(location.state?.entry);
 
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   if (!entry) {
     return (
@@ -63,6 +69,20 @@ export default function EntryDetailPage() {
   }
 
   const tc = typeConfig[entry.type] || { label: 'Entry', bg: '#F1F5F9', color: '#64748B', icon: <FileText size={18} /> };
+  const canDelete = user?.role === 'Admin' || can('delete_project');
+  const canRecordPayment = can('mark_paid') || can('approve_payments') || user?.role === 'Admin';
+
+  const totalAmt = Number(entry.amount || 0);
+  const paidAmt = Number(entry.paidAmount || 0);
+  const outstandingAmt = Math.max(0, totalAmt - paidAmt);
+
+  // GST Math
+  const gstPct = Number(entry.gstPercentage || entry.gst || 0);
+  const isWithGst = Boolean(entry.isWithGst || gstPct > 0);
+  const taxableBase = isWithGst && gstPct > 0 ? (totalAmt / (1 + gstPct / 100)) : totalAmt;
+  const gstTaxAmt = totalAmt - taxableBase;
+
+  const paymentHistory = entry.paymentHistory || [];
 
   const fields = [
     { icon: <Calendar size={14} />, label: 'Date', value: formatDate(entry.date) },
@@ -75,7 +95,7 @@ export default function EntryDetailPage() {
     { icon: <FileText size={14} />, label: 'Category', value: entry.category || entry.materialType || entry.workType || '\u2014' },
     { icon: <Package size={14} />, label: 'Quantity', value: entry.quantity ? `${entry.quantity} ${entry.unit || ''}` : '\u2014' },
     { icon: <CreditCard size={14} />, label: 'Rate', value: entry.rate ? formatCurrency(entry.rate) : '\u2014' },
-    { icon: <DollarSign size={14} />, label: 'Amount', value: formatCurrency(entry.amount), highlight: true },
+    { icon: <DollarSign size={14} />, label: 'Total Amount', value: formatCurrency(entry.amount), highlight: true },
     { icon: <CheckCircle size={14} />, label: 'Payment Status', value: entry.paymentStatus || '\u2014' },
   ];
 
@@ -90,8 +110,27 @@ export default function EntryDetailPage() {
     }
   };
 
+  const handlePaymentSaved = async (msg) => {
+    setToastMsg(msg);
+    try {
+      const res = await transactionAPI.getById(entry._id || entry.id);
+      if (res.data?.transaction) {
+        setEntry(res.data.transaction);
+      }
+    } catch {
+      // fallback
+    }
+    setTimeout(() => setToastMsg(""), 4000);
+  };
+
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: 680, margin: '0 auto', fontFamily: "Inter, 'Segoe UI', sans-serif" }}>
+      {toastMsg && (
+        <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: "10px 14px", color: "#166534", fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+          <CheckCircle size={14} /> {toastMsg}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -104,13 +143,15 @@ export default function EntryDetailPage() {
             <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0' }}>{entry.title || tc.label}</p>
           </div>
         </div>
-        <button onClick={() => setShowDelete(true)}
-          style={{ border: '1px solid #FECACA', borderRadius: 8, padding: '8px 14px', background: '#fff', color: '#EF4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
-          <Trash2 size={14} /> Delete
-        </button>
+        {canDelete && (
+          <button onClick={() => setShowDelete(true)}
+            style={{ border: '1px solid #FECACA', borderRadius: 8, padding: '8px 14px', background: '#fff', color: '#EF4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+            <Trash2 size={14} /> Delete
+          </button>
+        )}
       </div>
 
-      {/* Type Badge + Amount */}
+      {/* Type Badge + Amount Card */}
       <Card padding="20px" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -129,6 +170,96 @@ export default function EntryDetailPage() {
             <Badge variant={entry.paymentStatus === 'Paid' ? 'success' : entry.paymentStatus === 'Partial' ? 'warning' : 'info'} size="sm">{entry.paymentStatus || '\u2014'}</Badge>
           </div>
         </div>
+      </Card>
+
+      {/* Payment Summary & Outstanding Card */}
+      <Card padding="20px" style={{ marginBottom: 16, background: '#FAFAFA', border: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment Summary</div>
+          {canRecordPayment && outstandingAmt > 0 && (
+            <button onClick={() => setShowPaymentSheet(true)}
+              style={{ border: 'none', background: '#5B5CEB', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Receipt size={14} /> Record Payment
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ background: '#fff', padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>TOTAL BILL</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginTop: 2 }}>{formatCurrency(totalAmt)}</div>
+          </div>
+          <div style={{ background: '#fff', padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <div style={{ fontSize: 11, color: '#166534', fontWeight: 600 }}>PAID AMOUNT</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#166534', marginTop: 2 }}>{formatCurrency(paidAmt)}</div>
+          </div>
+          <div style={{ background: '#fff', padding: '10px 12px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600 }}>OUTSTANDING</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginTop: 2 }}>{formatCurrency(outstandingAmt)}</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* GST Breakdown Card matching Flutter */}
+      {isWithGst && (
+        <Card padding="20px" style={{ marginBottom: 16, border: '1px solid #E2E8F0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileCheck size={16} color="#5B5CEB" /> GST & Tax Breakdown
+            </div>
+            <Badge variant="info" size="sm">{gstPct > 0 ? `${gstPct}% GST` : 'GST Included'}</Badge>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, background: '#F8FAFC', padding: 12, borderRadius: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>Taxable Base</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#334155', marginTop: 2 }}>{formatCurrency(taxableBase)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>GST Tax ({gstPct}%)</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#5B5CEB', marginTop: 2 }}>{formatCurrency(gstTaxAmt)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>Net Total</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginTop: 2 }}>{formatCurrency(totalAmt)}</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Payment History Timeline matching Flutter */}
+      <Card padding="20px" style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Clock size={16} color="#5B5CEB" /> Payment History Timeline ({paymentHistory.length})
+        </h3>
+        {paymentHistory.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+            No partial payments recorded yet.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {paymentHistory.map((log, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: idx < paymentHistory.length - 1 ? '1px dashed #E2E8F0' : 'none' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEF0FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5B5CEB', flexShrink: 0, fontSize: 12, fontWeight: 700 }}>
+                  #{idx + 1}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>+{formatCurrency(log.amount)}</span>
+                    <span style={{ fontSize: 12, color: '#64748B' }}>{formatDate(log.date)}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 2, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Badge variant="outline" size="sm">{log.method || 'Cash'}</Badge>
+                    {log.note && <span style={{ color: '#64748B' }}>{log.note}</span>}
+                  </div>
+                  {log.receipt && (
+                    <a href={log.receipt} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#5B5CEB', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 600 }}>
+                      <ExternalLink size={12} /> View Receipt
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Details Grid */}
@@ -178,6 +309,17 @@ export default function EntryDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Record Payment Sheet Modal */}
+      {showPaymentSheet && (
+        <RecordPaymentSheet
+          open={showPaymentSheet}
+          entry={{ rawTx: entry }}
+          onClose={() => setShowPaymentSheet(false)}
+          onSaved={handlePaymentSaved}
+        />
+      )}
     </div>
   );
 }
+

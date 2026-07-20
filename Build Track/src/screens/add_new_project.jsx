@@ -43,8 +43,6 @@ const kitchenReqs = ["Granite Counter", "Quartz Counter", "Stainless Steel Sink"
 const electricalPlumbing = ["Concealed Wiring", "Open Wiring", "3-Phase Connection", "AC Points", "Geyser Points"];
 const terraceInterior = ["Weathering Course", "Cool Roof Paint", "Overhead Tank", "Solar Panels"];
 
-const defaultPhases = buildDefaultPhases();
-
 const statusChips = ["Planning", "In Progress", "On Hold", "Completed", "Cancelled"];
 
 function Accordion({ title, icon, defaultOpen, children, count, subtitle }) {
@@ -141,7 +139,7 @@ export default function NewProjectPage() {
   const location = useLocation();
   const fileInputRef = useRef(null);
 
-  const editProject = location.state?.editProject || null;
+  const editProject = location.state?.editProject || location.state?.project || null;
   const isEditMode = Boolean(editProject);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -177,7 +175,7 @@ export default function NewProjectPage() {
   const [budgetMisc, setBudgetMisc] = useState("");
   const [status, setStatus] = useState("Planning");
   const [progress, setProgress] = useState(0);
-  const [phases, setPhases] = useState(defaultPhases);
+  const [phases, setPhases] = useState(() => buildDefaultPhases());
   const [selectedActivityIds, setSelectedActivityIds] = useState(() => new Set());
   const [phasesExpanded, setPhasesExpanded] = useState({});
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -186,6 +184,9 @@ export default function NewProjectPage() {
   const [saving, setSaving] = useState(false);
   const [errMsg, setErrMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [documents, setDocuments] = useState([]);
+  const [documentFiles, setDocumentFiles] = useState([]);
+
   const projectCode = isEditMode ? (editProject.projectCode || `CF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`) : `CF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   useEffect(() => {
@@ -203,54 +204,64 @@ export default function NewProjectPage() {
   }, []);
 
   useEffect(() => {
-    if (!isEditMode) return;
-    setProjectName(editProject.projectName || "");
-    setCity(editProject.city || editProject.location || "");
-    setMapAddress(editProject.mapAddress || "");
-    setClientName(editProject.clientName || "");
-    setContactNumber(editProject.contactNumber || "");
-    setSiteEngineer(editProject.siteEngineer || "");
-    setContractorName(editProject.contractorName || "");
-    setManager(editProject.manager || "");
-    setMainType(editProject.mainType || "Residential");
-    setSubType(editProject.subType || "Select Sub Type");
-    setCustomSubType(editProject.customSubType || "");
-    setLandArea(editProject.landArea || "");
-    setLandUnit(editProject.landUnit || "Sq ft");
-    setSelectedFloors(editProject.floors || []);
-    setRooms({
-      room1BHK: editProject.room1BHK || 0, room2BHK: editProject.room2BHK || 0,
-      room3BHK: editProject.room3BHK || 0, roomCustom: editProject.roomCustom || 0,
-    });
-    setBathrooms({
-      bathWestern: editProject.bathWestern || 0, bathIndian: editProject.bathIndian || 0,
-      bathCommon: editProject.bathCommon || 0, bathAttached: editProject.bathAttached || 0,
-    });
-    setFeatures(editProject.selectedFeatures || []);
-    setUtilities(editProject.utilities || []);
-    setGas(editProject.gas || []);
-    setKitchen(editProject.kitchen || []);
-    setElectrical(editProject.electrical || []);
-    setTerrace(editProject.terrace || []);
-    setBudgetMaterial(editProject.budgetMaterial || "");
-    setBudgetLabour(editProject.budgetLabour || "");
-    setBudgetEquipment(editProject.budgetEquipment || "");
-    setBudgetMisc(editProject.budgetMisc || "");
-    setStartDate(editProject.startDate ? new Date(editProject.startDate).toISOString().split("T")[0] : "");
-    setExpectedEndDate(editProject.expectedEndDate ? new Date(editProject.expectedEndDate).toISOString().split("T")[0] : "");
-    setStatus(editProject.status || "Planning");
-    setProgress(editProject.progress || 0);
-    if (editProject.selectedPhases) {
-      setPhases(editProject.selectedPhases);
-      const ids = new Set();
-      editProject.selectedPhases.forEach(p => p.activities.forEach(a => ids.add(a.id)));
-      setSelectedActivityIds(ids);
+    if (isEditMode && editProject) {
+      setProjectName(editProject.projectName || "");
+      setCity(editProject.city || editProject.location || "");
+      setMapAddress(editProject.mapAddress || "");
+      setClientName(editProject.clientName || "");
+      setContactNumber(editProject.contactNumber || "");
+      setSiteEngineer(editProject.siteEngineer || "");
+      setContractorName(editProject.contractorName || "");
+      setManager(editProject.manager || "");
+      setMainType(editProject.mainType || "Residential");
+      setSubType(editProject.subType || "Select Sub Type");
+      setCustomSubType(editProject.customSubType || "");
+      setLandArea(editProject.landArea || "");
+      setLandUnit(editProject.landUnit || "Sq ft");
+      setSelectedFloors(editProject.floors || []);
+      setRooms({
+        room1BHK: editProject.room1BHK || 0, room2BHK: editProject.room2BHK || 0,
+        room3BHK: editProject.room3BHK || 0, roomCustom: editProject.roomCustom || 0,
+      });
+      setBathrooms({
+        bathWestern: editProject.bathWestern || 0, bathIndian: editProject.bathIndian || 0,
+        bathCommon: editProject.bathCommon || 0, bathAttached: editProject.bathAttached || 0,
+      });
+      setFeatures(editProject.selectedFeatures || []);
+      setUtilities(editProject.utilities || []);
+      setGas(editProject.gas || []);
+      setKitchen(editProject.kitchen || []);
+      setElectrical(editProject.electrical || []);
+      setTerrace(editProject.terrace || []);
+      setBudgetMaterial(editProject.budgetMaterial || "");
+      setBudgetLabour(editProject.budgetLabour || "");
+      setBudgetEquipment(editProject.budgetEquipment || "");
+      setBudgetMisc(editProject.budgetMisc || "");
+      setStartDate(editProject.startDate ? new Date(editProject.startDate).toISOString().split("T")[0] : "");
+      setExpectedEndDate(editProject.expectedEndDate ? new Date(editProject.expectedEndDate).toISOString().split("T")[0] : "");
+      setStatus(editProject.status || "Planning");
+      setProgress(editProject.progress || 0);
+      if (editProject.selectedPhases && editProject.selectedPhases.length > 0) {
+        setPhases(editProject.selectedPhases);
+        const ids = new Set();
+        editProject.selectedPhases.forEach(p => p.activities.forEach(a => ids.add(a.id)));
+        setSelectedActivityIds(ids);
+      } else {
+        setPhases(buildDefaultPhases());
+        setSelectedActivityIds(new Set());
+      }
+      if (editProject.photo) {
+        setPhotoPreview(resolveImageUrl(editProject.photo));
+        setRemoveExistingPhoto(false);
+      }
+      if (editProject.documents) {
+        setDocuments(editProject.documents);
+      }
+    } else {
+      setPhases(buildDefaultPhases());
+      setSelectedActivityIds(new Set());
     }
-    if (editProject.photo) {
-      setPhotoPreview(resolveImageUrl(editProject.photo));
-      setRemoveExistingPhoto(false);
-    }
-  }, [isEditMode]);
+  }, [isEditMode, editProject]);
 
   const allActivityIds = useMemo(() => {
     const ids = new Set();
@@ -283,6 +294,16 @@ export default function NewProjectPage() {
   const selectedCount = selectedActivityIds.size;
   const totalCount = allActivityIds.size;
 
+  const movePhase = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= phases.length) return;
+    const updated = [...phases];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setPhases(updated);
+  };
+
   const handleAddCustomPhase = () => {
     const name = prompt("Enter custom phase name:");
     if (!name || !name.trim()) return;
@@ -302,6 +323,21 @@ export default function NewProjectPage() {
     setRemoveExistingPhoto(false);
   };
 
+  const handleDocumentFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setDocumentFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  const removeDocumentFile = (index) => {
+    setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingDocument = (docPath) => {
+    setDocuments(prev => prev.filter(d => d !== docPath));
+  };
+
   const removePhoto = (e) => {
     e.stopPropagation();
     setPhotoFile(null);
@@ -314,6 +350,15 @@ export default function NewProjectPage() {
     setErrMsg("");
     setSuccessMsg("");
     if (!projectName.trim()) { setErrMsg("Project name is required."); return; }
+
+    if (startDate && expectedEndDate) {
+      const s = new Date(startDate);
+      const e = new Date(expectedEndDate);
+      if (e < s) {
+        setErrMsg("Expected End Date cannot be earlier than Start Date.");
+        return;
+      }
+    }
 
     const fd = new FormData();
     fd.append("projectName", projectName.trim());
@@ -355,6 +400,11 @@ export default function NewProjectPage() {
     fd.append("status", status);
     fd.append("progress", progress);
     if (photoFile) fd.append("photo", photoFile);
+    
+    documentFiles.forEach(file => {
+      fd.append("documents", file);
+    });
+
     const filteredPhases = phases
       .map(p => ({ ...p, activities: p.activities.filter(a => selectedActivityIds.has(a.id)) }))
       .filter(p => p.activities.length > 0);
@@ -385,8 +435,185 @@ export default function NewProjectPage() {
   const baseInput = { width: "100%", padding: "10px 12px", background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box", transition: "border-color 0.15s" };
   const labelStyle = { fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4, display: "block" };
 
+  const csvFileInputRef = useRef(null);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+
+  const downloadPhaseTemplate = () => {
+    const headers = ["phase", "particular", "qty", "unit", "material_rate", "budget_material_amount", "labour_rate", "budget_labour_amount", "equipment_rate", "budget_equipment_amount"];
+    const sampleRow = ["Sub Structure", "Excavation Work", "100", "cu ft", "50", "5000", "30", "3000", "20", "2000"];
+    const csvContent = [headers.join(","), sampleRow.join(",")].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "BuildTrack_Phase_Budget_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportCurrentPhasesCsv = () => {
+    const headers = ["phase", "particular", "qty", "unit", "material_rate", "budget_material_amount", "labour_rate", "budget_labour_amount", "equipment_rate", "budget_equipment_amount"];
+    const rows = [];
+    phases.forEach(p => {
+      p.activities.forEach(a => {
+        if (selectedActivityIds.has(a.id)) {
+          rows.push([
+            `"${p.phaseName}"`,
+            `"${a.name}"`,
+            a.qty || 0,
+            `"${a.unit || ''}"`,
+            a.materialRate || 0,
+            a.budgetMaterial || a.materialAmount || 0,
+            a.labourRate || 0,
+            a.budgetLabour || a.labourAmount || 0,
+            a.equipmentRate || 0,
+            a.budgetEquipment || a.equipmentAmount || 0
+          ].join(","));
+        }
+      });
+    });
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${projectName || "Project"}_Phases_Budget.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePhaseCsvUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingCsv(true);
+    setErrMsg("");
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+      if (lines.length <= 1) {
+        throw new Error("CSV file is empty or missing headers");
+      }
+
+      const headers = lines[0].split(",").map(h => h.replace(/^"|"$/g, "").trim().toLowerCase());
+      const phaseIdx = headers.indexOf("phase");
+      let particularIdx = headers.indexOf("particular");
+      if (particularIdx === -1) particularIdx = headers.indexOf("activity");
+
+      let qtyIdx = headers.indexOf("total_qty");
+      if (qtyIdx === -1) qtyIdx = headers.indexOf("qty");
+
+      const unitIdx = headers.indexOf("unit");
+      const matRateIdx = headers.indexOf("material_rate");
+
+      let matAmtIdx = headers.indexOf("budget_material_amount");
+      if (matAmtIdx === -1) matAmtIdx = headers.indexOf("material_amount");
+
+      const labRateIdx = headers.indexOf("labour_rate");
+
+      let labAmtIdx = headers.indexOf("budget_labour_amount");
+      if (labAmtIdx === -1) labAmtIdx = headers.indexOf("labour_amount");
+
+      const eqRateIdx = headers.indexOf("equipment_rate");
+
+      let eqAmtIdx = headers.indexOf("budget_equipment_amount");
+      if (eqAmtIdx === -1) eqAmtIdx = headers.indexOf("equipment_amount");
+
+      if (phaseIdx === -1 || particularIdx === -1) {
+        throw new Error("CSV missing required 'phase' or 'particular' column headers");
+      }
+
+      const parseVal = (val) => {
+        if (!val) return 0;
+        const clean = val.replace(/[^0-9.]/g, "");
+        return parseFloat(clean) || 0;
+      };
+
+      let updatedCount = 0;
+      let matSum = 0;
+      let labSum = 0;
+      let eqSum = 0;
+
+      const newPhases = [...phases];
+      const newSelectedActivityIds = new Set(selectedActivityIds);
+
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(",").map(c => c.replace(/^"|"$/g, "").trim());
+        if (row.length <= Math.max(phaseIdx, particularIdx)) continue;
+
+        const phaseName = row[phaseIdx];
+        const activityName = row[particularIdx];
+        if (!phaseName || !activityName) continue;
+
+        const qty = qtyIdx !== -1 && row[qtyIdx] ? parseVal(row[qtyIdx]) : undefined;
+        const unit = unitIdx !== -1 && row[unitIdx] ? row[unitIdx] : "";
+
+        const matRate = matRateIdx !== -1 && row[matRateIdx] ? parseVal(row[matRateIdx]) : undefined;
+        const matAmt = matAmtIdx !== -1 && row[matAmtIdx] ? parseVal(row[matAmtIdx]) : undefined;
+
+        const labRate = labRateIdx !== -1 && row[labRateIdx] ? parseVal(row[labRateIdx]) : undefined;
+        const labAmt = labAmtIdx !== -1 && row[labAmtIdx] ? parseVal(row[labAmtIdx]) : undefined;
+
+        const eqRate = eqRateIdx !== -1 && row[eqRateIdx] ? parseVal(row[eqRateIdx]) : undefined;
+        const eqAmt = eqAmtIdx !== -1 && row[eqAmtIdx] ? parseVal(row[eqAmtIdx]) : undefined;
+
+        let phaseObj = newPhases.find(p => p.phaseName.trim().toLowerCase() === phaseName.toLowerCase());
+        if (!phaseObj) {
+          phaseObj = {
+            id: `custom_phase_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            phaseName: phaseName,
+            isCustom: true,
+            activities: [],
+          };
+          newPhases.push(phaseObj);
+        }
+
+        let actObj = phaseObj.activities.find(a => a.name.trim().toLowerCase() === activityName.toLowerCase());
+        if (!actObj) {
+          actObj = {
+            id: `${phaseName.trim().toLowerCase()}::${activityName.trim().toLowerCase()}`,
+            name: activityName,
+            isCustom: true,
+          };
+          phaseObj.activities.push(actObj);
+        }
+
+        if (matAmt !== undefined) actObj.budgetMaterial = matAmt;
+        if (labAmt !== undefined) actObj.budgetLabour = labAmt;
+        if (eqAmt !== undefined) actObj.budgetEquipment = eqAmt;
+        if (qty !== undefined) actObj.qty = qty;
+        if (unit) actObj.unit = unit;
+
+        newSelectedActivityIds.add(actObj.id);
+        updatedCount++;
+
+        if (matAmt) matSum += matAmt;
+        if (labAmt) labSum += labAmt;
+        if (eqAmt) eqSum += eqAmt;
+      }
+
+      setPhases(newPhases);
+      setSelectedActivityIds(newSelectedActivityIds);
+
+      if (matSum > 0) setBudgetMaterial(matSum.toString());
+      if (labSum > 0) setBudgetLabour(labSum.toString());
+      if (eqSum > 0) setBudgetEquipment(eqSum.toString());
+
+      setSuccessMsg(`Successfully imported budget for ${updatedCount} phase activities!`);
+    } catch (err) {
+      setErrMsg(`Upload failed: ${err.message}`);
+    } finally {
+      setIsUploadingCsv(false);
+      if (csvFileInputRef.current) csvFileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "#F8FAFC" }}>
+      {/* Hidden CSV File Input */}
+      <input ref={csvFileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handlePhaseCsvUpload} />
+
       {/* Top Bar */}
       <div style={{ height: TOPBAR_H, flexShrink: 0, background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ minWidth: 0 }}>
@@ -398,8 +625,30 @@ export default function NewProjectPage() {
         </button>
       </div>
 
-      {/* Body */}
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "20px 24px 60px", boxSizing: "border-box" }}>
+        {/* Bulk Phase CSV Card matching Flutter _buildCsvImportExportCard */}
+        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", maxWidth: 800, margin: "0 auto 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#10B9811A", display: "flex", alignItems: "center", justifyContent: "center", color: "#10B981" }}>
+              <FileText size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#64748B", letterSpacing: "0.5px", textTransform: "uppercase" }}>PHASES & BUDGET CONFIGURATION</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Import/Export CSV budgets for all phases.</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={downloadPhaseTemplate} style={{ flex: 1, padding: "9px 14px", background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13, fontWeight: 700, color: "#5B5CEB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit" }}>
+              <Upload size={14} style={{ transform: "rotate(180deg)" }} /> Download Template
+            </button>
+            <button onClick={() => csvFileInputRef.current?.click()} disabled={isUploadingCsv} style={{ flex: 1, padding: "9px 14px", background: "#5B5CEB", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, color: "#fff", cursor: isUploadingCsv ? "not-allowed" : "pointer", opacity: isUploadingCsv ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit" }}>
+              <Upload size={14} /> {isUploadingCsv ? "Uploading..." : "Upload Phase CSV"}
+            </button>
+            <button onClick={exportCurrentPhasesCsv} style={{ padding: "9px 14px", background: "#F1F5F9", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "inherit" }}>
+              Export CSV
+            </button>
+          </div>
+        </div>
         {errMsg && (
           <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", color: "#DC2626", fontSize: 13, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
@@ -672,6 +921,10 @@ export default function NewProjectPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{phase.phaseName}</div>
                       </div>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        <button onClick={(e) => { e.stopPropagation(); movePhase(idx, -1); }} disabled={idx === 0} style={{ padding: "2px 6px", fontSize: 11, background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 4, cursor: idx === 0 ? "not-allowed" : "pointer", opacity: idx === 0 ? 0.4 : 1 }}>▲</button>
+                        <button onClick={(e) => { e.stopPropagation(); movePhase(idx, 1); }} disabled={idx === phases.length - 1} style={{ padding: "2px 6px", fontSize: 11, background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 4, cursor: idx === phases.length - 1 ? "not-allowed" : "pointer", opacity: idx === phases.length - 1 ? 0.4 : 1 }}>▼</button>
+                      </div>
                       <div onClick={() => setPhasesExpanded(prev => ({ ...prev, [phase.id]: !isExpanded }))} style={{ cursor: "pointer", display: "flex", color: "#94A3B8" }}>
                         <ChevronDown size={16} style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.18s" }} />
                       </div>
@@ -721,7 +974,7 @@ export default function NewProjectPage() {
                     <Upload size={18} color="#5B5CEB" />
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#475569" }}>Click to upload or drag and drop</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#475569" }}>Click to upload site photo</div>
                     <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>PNG, JPG, GIF, WebP up to 10MB</div>
                   </div>
                 </>
@@ -729,7 +982,33 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* O. Project Scope */}
+          {/* O. Document & Blueprint Attachments */}
+          <Accordion title="Project Documents & Blueprints" icon={<FileText size={16} />} count={documentFiles.length + documents.length}>
+            <input type="file" multiple accept=".pdf,image/*,.doc,.docx" onChange={handleDocumentFiles} style={{ display: "none" }} id="doc-upload-input" />
+            <label htmlFor="doc-upload-input" style={{ border: "2px dashed #E5E7EB", borderRadius: 8, padding: "16px", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", marginBottom: 12 }}>
+              <Upload size={16} color="#5B5CEB" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#5B5CEB" }}>Upload Documents / Blueprints (PDF, Images)</span>
+            </label>
+
+            {(documents.length > 0 || documentFiles.length > 0) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {documents.map((doc, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F1F5F9", padding: "8px 12px", borderRadius: 6, fontSize: 13 }}>
+                    <span style={{ color: "#334155", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.split("/").pop()}</span>
+                    <button onClick={() => removeExistingDocument(doc)} style={{ border: "none", background: "none", color: "#DC2626", cursor: "pointer" }}><X size={14} /></button>
+                  </div>
+                ))}
+                {documentFiles.map((file, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#EEF0FF", padding: "8px 12px", borderRadius: 6, fontSize: 13 }}>
+                    <span style={{ color: "#3B82F6", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name} (New)</span>
+                    <button onClick={() => removeDocumentFile(idx)} style={{ border: "none", background: "none", color: "#DC2626", cursor: "pointer" }}><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Accordion>
+
+          {/* P. Project Scope */}
           <Accordion title="Project Scope" icon={<FileText size={16} />}>
             <textarea value={""} onChange={() => {}}
               placeholder="Describe the primary objectives and key milestones of the project..."
