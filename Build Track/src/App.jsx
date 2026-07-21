@@ -22,6 +22,7 @@ const Approvals        = lazy(() => import("./screens/approvals_page"));
 const AdminOverview    = lazy(() => import("./screens/admin_overview_page"));
 const AiChatReport     = lazy(() => import("./screens/ai_chat_report_page"));
 const AssignRoles      = lazy(() => import("./screens/assign_roles_page"));
+const AssignTask       = lazy(() => import("./screens/assign_task_page"));
 const Notifications    = lazy(() => import("./screens/notifications_page"));
 const ManageSite       = lazy(() => import("./screens/managesite_dashboard"));
 const ManualEntryPage  = lazy(() => import("./screens/manual_entry"));
@@ -46,6 +47,7 @@ export const routePreloaders = {
   "/admin": () => import("./screens/admin_overview_page"),
   "/ai-chat": () => import("./screens/ai_chat_report_page"),
   "/assign-role": () => import("./screens/assign_roles_page"),
+  "/assign-task": () => import("./screens/assign_task_page"),
   "/notifications": () => import("./screens/notifications_page"),
   "/subscription": () => import("./screens/subscription_page"),
   "/audit-logs": () => import("./screens/audit_logs_page"),
@@ -143,6 +145,12 @@ function AppRoutes() {
           <Route path="/assign-role" element={
             <RequireRole permission="assign_roles">
               <AssignRoles />
+            </RequireRole>
+          } />
+          
+          <Route path="/assign-task" element={
+            <RequireRole>
+              <AssignTask />
             </RequireRole>
           } />
           
