@@ -11,8 +11,17 @@ const useInventoryStore = create((set, get) => ({
   filterCategory: "",
   filterStatus: "",
 
-  async fetchInventory() {
-    set({ loading: true, error: null });
+  async fetchInventory(force = false) {
+    const state = get();
+    if (state.items.length > 0 && !force) {
+      inventoryAPI.getAll().then(({ data }) => {
+        const list = Array.isArray(data) ? data : data.items || data.inventory || [];
+        set({ items: list });
+      }).catch(() => {});
+      return state.items;
+    }
+
+    set({ loading: state.items.length === 0, error: null });
     try {
       const { data } = await inventoryAPI.getAll();
       const list = Array.isArray(data) ? data : data.items || data.inventory || [];
@@ -20,7 +29,7 @@ const useInventoryStore = create((set, get) => ({
       return list;
     } catch (err) {
       set({ error: err.message || "Failed to load inventory", loading: false });
-      return [];
+      return state.items || [];
     }
   },
 

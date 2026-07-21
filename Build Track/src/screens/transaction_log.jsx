@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { transactionAPI } from "../api";
+import useTransactionStore from "../stores/transactionStore";
+import perfLogger from "../utils/performanceLogger";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button, EmptyState } from "../components/ui";
 import { colors, radius, shadows, typography, gradients } from "../styles/designTokens";
@@ -64,8 +66,9 @@ function formatTime(d) {
 export default function TransactionLog() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { transactions, fetchTransactions: storeFetchTransactions } = useTransactionStore();
+
+  const [loading, setLoading] = useState(transactions.length === 0);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState(() => searchParams.get("type") || "All");
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
@@ -74,17 +77,25 @@ export default function TransactionLog() {
   const [confirmDlg, setConfirmDlg] = useState(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  const fetchTransactions = useCallback(() => {
-    setLoading(true); setError("");
-    transactionAPI.getAll()
-      .then(({ data }) => { setTransactions(data.transactions || []); setLoading(false); })
-      .catch(err => { setError(err?.response?.data?.message || "Failed to load transactions."); setLoading(false); });
+  useEffect(() => {
+    perfLogger.endRoute('/transaction');
+    perfLogger.logMount('TransactionLog');
   }, []);
+
+  const fetchTransactions = useCallback(async (force = false) => {
+    if (transactions.length === 0) setLoading(true);
+    setError("");
+    try {
+      await storeFetchTransactions({}, force);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Failed to load transactions.");
+    } finally {
+      setLoading(false);
+    }
+  }, [transactions.length, storeFetchTransactions]);
 
   useEffect(() => {
     fetchTransactions();
-    window.addEventListener("focus", fetchTransactions);
-    return () => window.removeEventListener("focus", fetchTransactions);
   }, [fetchTransactions]);
 
   const handleDelete = (id) => {

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, transactionAPI } from "../api";
+import perfLogger from "../utils/performanceLogger";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { calcProgress, getPhaseProgress, toggleActivity } from "../utils/constructionPhases";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button } from "../components/ui";
+import CsvImportExportCard from "../components/CsvImportExportCard";
 import {
   ChevronDown, Plus, FileDown, FileUp, Pencil, X, Check, ArrowRight,
   Building2, MapPin, Calendar, User, Hash, Phone, Code, Wrench,
@@ -45,7 +47,8 @@ const _kKitchen = ["Granite Counter", "Quartz Counter", "Stainless Steel Sink", 
 const _kElectrical = ["Concealed Wiring", "Open Wiring", "3-Phase Connection", "AC Points", "Geyser Points"];
 const _kTerrace = ["Weathering Course", "Cool Roof Paint", "Overhead Tank", "Solar Panels"];
 
-const _grp = (all, opts) => all.filter(f => opts.includes(f));
+const _getStr = (item) => typeof item === "object" ? (item?.name || item?.label || item?.title || item?.value || "") : String(item || "");
+const _grp = (all, opts) => all.filter(f => opts.includes(_getStr(f)));
 const _months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const _fmtDate = (d) => d ? `${d.getDate()} ${_months[d.getMonth()]} ${d.getFullYear()}` : "\u2014";
 const fmtINR = (n) => n ? `\u20B9${Number(n).toLocaleString("en-IN")}` : "\u2014";
@@ -89,6 +92,11 @@ export default function ManageSitePage() {
   const [viewingActivity, setViewingActivity] = useState(null);
   const [localProject, setLocalProject] = useState(project);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  useEffect(() => {
+    perfLogger.endRoute('/managesite');
+    perfLogger.logMount('ManageSitePage');
+  }, []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -252,14 +260,14 @@ export default function ManageSitePage() {
     );
   };
 
-  const renderBuildingType = () => {
+  const renderBuildingType = (defaultOpen = false) => {
     const raw = p.projectType || "";
     if (!raw) return null;
     const parts = raw.split(" \u2192 ");
     const mainType = parts[0]?.trim() || raw;
     const subType = parts.length > 1 ? parts[1]?.trim() : null;
     return (
-      <CollapsibleCard title={SECTIONS.buildingType} icon={<Building2 size={16} />} defaultOpen>
+      <CollapsibleCard title={SECTIONS.buildingType} icon={<Building2 size={16} />} defaultOpen={defaultOpen}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", color: "#5B5CEB", flexShrink: 0 }}>
             <Building2 size={18} />
@@ -276,12 +284,12 @@ export default function ManageSitePage() {
     );
   };
 
-  const renderLandFloors = () => {
+  const renderLandFloors = (defaultOpen = false) => {
     const hasLand = p.landArea && String(p.landArea).trim();
     const floors = p.floors || [];
     if (!hasLand && floors.length === 0) return null;
     return (
-      <CollapsibleCard title={SECTIONS.landFloors} icon={<Layers size={16} />} defaultOpen>
+      <CollapsibleCard title={SECTIONS.landFloors} icon={<Layers size={16} />} defaultOpen={defaultOpen}>
         {hasLand && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: floors.length > 0 ? 14 : 0 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", color: "#5B5CEB", flexShrink: 0 }}>
@@ -307,14 +315,14 @@ export default function ManageSitePage() {
     );
   };
 
-  const renderRoomsBaths = () => {
+  const renderRoomsBaths = (defaultOpen = false) => {
     const rooms = { "1 BHK": p.room1BHK, "2 BHK": p.room2BHK, "3 BHK": p.room3BHK, Custom: p.roomCustom };
     const baths = { Western: p.bathWestern, Indian: p.bathIndian, Common: p.bathCommon, Attached: p.bathAttached };
     const hasRoom = Object.values(rooms).some(v => (v || 0) > 0);
     const hasBath = Object.values(baths).some(v => (v || 0) > 0);
     if (!hasRoom && !hasBath) return null;
     return (
-      <CollapsibleCard title={SECTIONS.roomsBaths} icon={<Bed size={16} />} defaultOpen>
+      <CollapsibleCard title={SECTIONS.roomsBaths} icon={<Bed size={16} />} defaultOpen={defaultOpen}>
         {hasRoom && (
           <>
             <div style={labelStyle}>ROOMS</div>
@@ -343,26 +351,30 @@ export default function ManageSitePage() {
     );
   };
 
-  const renderFeatureGroup = (title, icon, items) => {
-    if (items.length === 0) return null;
+  const renderFeatureGroup = (title, icon, items, defaultOpen = false) => {
+    if (!items || items.length === 0) return null;
+    const validItems = items.map(_getStr).filter(s => Boolean(s && s.trim()));
+    if (validItems.length === 0) return null;
     return (
-      <CollapsibleCard title={title} icon={icon} defaultOpen count={items.length}>
+      <CollapsibleCard title={title} icon={icon} defaultOpen={defaultOpen} count={validItems.length}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {items.map((f, i) => (
-            <span key={i} style={{ padding: "4px 10px", borderRadius: 6, background: "#F8FAFC", border: "1px solid #E5E7EB", fontSize: 11, fontWeight: 500, color: "#475569" }}>{f}</span>
+          {validItems.map((str, i) => (
+            <span key={i} style={{ padding: "4px 10px", borderRadius: 6, background: "#F8FAFC", border: "1px solid #E5E7EB", fontSize: 11, fontWeight: 500, color: "#475569" }}>
+              {str}
+            </span>
           ))}
         </div>
       </CollapsibleCard>
     );
   };
 
-  const renderTimeline = () => {
+  const renderTimeline = (defaultOpen = false) => {
     const startDate = p.startDate ? new Date(p.startDate) : null;
     const expectedEnd = p.expectedEndDate ? new Date(p.expectedEndDate) : (p.endDate ? new Date(p.endDate) : null);
     const actualEnd = p.actualEndDate ? new Date(p.actualEndDate) : null;
     const statusColor = status === "Completed" ? "#22C55E" : status === "In Progress" ? "#5B5CEB" : status === "On Hold" ? "#F59E0B" : status === "Cancelled" ? "#EF4444" : "#64748B";
     return (
-      <CollapsibleCard title={SECTIONS.timeline} icon={<Calendar size={16} />} defaultOpen>
+      <CollapsibleCard title={SECTIONS.timeline} icon={<Calendar size={16} />} defaultOpen={defaultOpen}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <div style={{ width: 34, height: 34, borderRadius: 9, background: `${statusColor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Info size={14} color={statusColor} />
@@ -645,7 +657,7 @@ export default function ManageSitePage() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: "#F8FAFC", fontFamily: "Inter, 'Segoe UI', sans-serif" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: "#F8FAFC", fontFamily: "Inter, 'Segoe UI', sans-serif" }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
@@ -669,7 +681,7 @@ export default function ManageSitePage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, maxWidth: 1000, margin: "0 auto", width: "100%" }}>
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, maxWidth: 1000, margin: "0 auto", width: "100%" }}>
         {/* Hero Summary */}
         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: 20, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16 }}>
@@ -735,6 +747,7 @@ export default function ManageSitePage() {
         {renderFeatureGroup("Terrace & Interior", <Sun size={16} />, terrace)}
         {renderTimeline()}
         {renderFinancial()}
+        <CsvImportExportCard project={p} onProjectUpdated={setLocalProject} setToast={setToast} />
         {renderTracker()}
         {renderRecentEntries()}
 

@@ -11,6 +11,8 @@ import {
   CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle,
 } from "lucide-react";
 
+import perfLogger from "../utils/performanceLogger";
+
 function Toggle({ on, onToggle }) {
   return (
     <div onClick={onToggle}
@@ -49,6 +51,11 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, updateUser, logout } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "Admin";
+
+  useEffect(() => {
+    perfLogger.endRoute('/settings');
+    perfLogger.logMount('SettingsPage');
+  }, []);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [profileImage, setProfileImage] = useState(null);

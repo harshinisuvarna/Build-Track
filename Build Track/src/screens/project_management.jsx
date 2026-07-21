@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { projectAPI } from "../api";
 import { useAuth } from "../contexts/AuthContext";
+import useProjectStore from "../stores/projectStore";
+import perfLogger from "../utils/performanceLogger";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { Card, Badge, Button, SkeletonLine } from "../components/ui";
@@ -31,8 +33,9 @@ function statusKey(raw) {
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { user, can } = useAuth();
-  const [allProjects, setAllProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { projects: allProjects, fetchProjects: storeFetchProjects } = useProjectStore();
+
+  const [loading, setLoading] = useState(allProjects.length === 0);
   const [error, setError] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [activeTab, setActiveTab] = useState("All Projects");
@@ -48,17 +51,21 @@ export default function ProjectsPage() {
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
   useEffect(() => {
+    perfLogger.endRoute('/projects');
+    perfLogger.logMount('ProjectsPage');
+  }, []);
+
+  useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (force = false) => {
     try {
-      setLoading(true);
+      if (allProjects.length === 0) setLoading(true);
       setError("");
-      const { data } = await projectAPI.getAll();
-      setAllProjects(data.projects || []);
+      await storeFetchProjects({}, force);
     } catch (err) {
       const status = err?.response?.status;
       const msg = err?.response?.data?.message || err?.message || "Unknown error";
@@ -66,7 +73,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [allProjects.length, storeFetchProjects]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 

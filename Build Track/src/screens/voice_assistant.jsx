@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { transactionAPI, projectAPI, voiceAPI } from '../api';
+import useProjectStore from '../stores/projectStore';
+import useTransactionStore from '../stores/transactionStore';
+import perfLogger from '../utils/performanceLogger';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import { parseTranscript, computeAmount } from '../utils/voiceParser';
 import { createElement } from 'react';
@@ -92,24 +95,22 @@ export default function VoiceAssistantPage() {
     setProcessing: setSpeechProcessing,
   } = useSpeechRecognition();
 
+  const { projects: projStore, fetchProjects: storeFetchProjects } = useProjectStore();
+  const { transactions: txStore, fetchTransactions: storeFetchTx } = useTransactionStore();
+
+  useEffect(() => {
+    perfLogger.endRoute('/voice');
+    perfLogger.logMount('VoiceAssistant');
+  }, []);
+
   // --- Fetch projects & recent entries ---
   useEffect(() => {
-    projectAPI.getAll()
-      .then(res => {
-        const data = res.data;
-        const list = Array.isArray(data) ? data : (data.projects || data.data || []);
-        setProjects(list);
-      })
-      .catch(() => {});
-
-    transactionAPI.getAll()
-      .then(({ data }) => {
-        const all = data.transactions || [];
-        setRecentEntries(all.slice(0, 5));
-      })
-      .catch(() => setRecentEntries([]))
-      .finally(() => setRecentLoading(false));
-  }, []);
+    storeFetchProjects().then(list => setProjects(list || projStore || [])).catch(() => {});
+    storeFetchTx().then(list => {
+      const all = list || txStore || [];
+      setRecentEntries(all.slice(0, 5));
+    }).catch(() => setRecentEntries([])).finally(() => setRecentLoading(false));
+  }, [projStore, txStore, storeFetchProjects, storeFetchTx]);
 
   // --- Cleanup ---
   useEffect(() => {

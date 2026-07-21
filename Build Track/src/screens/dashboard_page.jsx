@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Badge, Button, SkeletonCard } from '../components/ui';
 import { dashboardAPI, transactionAPI, projectAPI, workerAPI } from '../api';
+import perfLogger from '../utils/performanceLogger';
 import {
   Clock,
   TrendingUp,
@@ -47,40 +48,43 @@ const typeConfig = {
   Income: { color: '#B137FF', bg: '#F9F5FF', label: 'Income' },
 };
 
+import useProjectStore from '../stores/projectStore';
+import useTransactionStore from '../stores/transactionStore';
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'supervisor';
 
-  const [projects, setProjects] = useState([]);
+  const { projects, fetchProjects } = useProjectStore();
+  const { transactions, fetchTransactions } = useTransactionStore();
   const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [transactions, setTransactions] = useState([]);
   const [dashData, setDashData] = useState(null);
   const [workers, setWorkers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(projects.length === 0);
+
+  useEffect(() => {
+    perfLogger.endRoute('/');
+    perfLogger.logMount('DashboardPage');
+  }, []);
 
   useEffect(() => {
     Promise.all([
-      projectAPI.getAll().catch(() => ({ data: { projects: [] } })),
+      fetchProjects(),
       dashboardAPI.getSummary().catch(() => ({ data: null })),
       workerAPI.getAll().catch(() => ({ data: { workers: [] } })),
-    ]).then(([projRes, dashRes, workerRes]) => {
-      const projList = projRes.data?.projects || projRes.data || [];
-      setProjects(projList);
-      if (projList.length > 0 && !selectedProjectId) {
+    ]).then(([projList, dashRes, workerRes]) => {
+      if (projList && projList.length > 0 && !selectedProjectId) {
         setSelectedProjectId(projList[0]._id || projList[0].id);
       }
-      setDashData(dashRes.data);
-      setWorkers(workerRes.data?.workers || workerRes.data || []);
+      setDashData(dashRes?.data || null);
+      setWorkers(workerRes?.data?.workers || workerRes?.data || []);
     }).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    transactionAPI.getAll({ project: selectedProjectId }).then((txRes) => {
-      const txList = txRes.data?.transactions || txRes.data || [];
-      setTransactions(Array.isArray(txList) ? txList : []);
-    }).catch(() => setTransactions([]));
+    fetchTransactions({ project: selectedProjectId });
   }, [selectedProjectId]);
 
   const selectedProject = projects.find((p) => (p._id || p.id) === selectedProjectId);
