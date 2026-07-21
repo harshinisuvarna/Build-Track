@@ -233,37 +233,12 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          {/* Preferences */}
-          <SectionCard title="Preferences">
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Display Language</label>
-                <div style={{ position: "relative" }}>
-                  <select value={language} onChange={e => setLanguage(e.target.value)} style={{ ...baseInput, appearance: "none", cursor: "pointer", paddingRight: 36 }}>
-                    <option>English</option>
-                    <option>Hindi</option>
-                    <option>Marathi</option>
-                    <option>Tamil</option>
-                  </select>
-                  <Globe size={14} color="#94A3B8" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Currency</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8 }}>
-                  <CreditCard size={14} color="#5B5CEB" />
-                  <span style={{ fontSize: 14, color: "#111827" }}>{currency}</span>
-                </div>
-              </div>
-            </div>
-          </SectionCard>
+
 
           {/* Notifications */}
           <SectionCard title="Notifications">
-            <SettingsRow icon={<Bell size={14} />} title="Email Notifications" subtitle="Receive daily reports and project updates via email"
+            <SettingsRow icon={<Bell size={14} />} title="Notifications" subtitle="Receive project updates and alerts" border={false}
               action={<Toggle on={emailNotif} onToggle={() => setEmailNotif(v => !v)} />} />
-            <SettingsRow icon={<Smartphone size={14} />} title="Push Notifications" subtitle="Alerts for site issues and worker attendance" border={false}
-              action={<Toggle on={pushNotif} onToggle={() => setPushNotif(v => !v)} />} />
           </SectionCard>
 
           {/* Security */}
@@ -291,12 +266,6 @@ export default function SettingsPage() {
 
             {secMsg && <div style={{ padding: "10px 14px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, color: "#166534", fontSize: 13, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}><Shield size={14} /> {secMsg}</div>}
             {secErr && <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: 13, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> {secErr}</div>}
-
-            <SettingsRow icon={<Shield size={14} />} title="Two-Factor Authentication" subtitle="Add an extra layer of security to your account"
-              action={<Button variant={twoFA ? "secondary" : "primary"} size="sm" onClick={handleToggle2FA}>{twoFA ? "Disable 2FA" : "Enable 2FA"}</Button>} />
-
-            <SettingsRow icon={<Monitor size={14} />} title="Active Sessions" subtitle="Manage logged-in devices" border={false}
-              action={<Button variant="secondary" size="sm" onClick={handleSignOutAll} style={{ color: "#EF4444", borderColor: "#FECACA" }}>Sign Out All</Button>} />
           </SectionCard>
 
           {/* Subscription */}
@@ -305,7 +274,7 @@ export default function SettingsPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, letterSpacing: "0.05em", marginBottom: 4, color: "#fff", textTransform: "uppercase" }}>CURRENT PLAN</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{subscription.plan || subscription.name || "Free"}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4, textTransform: "capitalize" }}>{subscription.plan || subscription.name || "Free"}</div>
                   <div style={{ fontSize: 13, opacity: 0.8, color: "#fff" }}>
                     {subscription.status === "active" ? "\u2713 Active" : subscription.status || "Active"}
                     {subscription.maxUsers && ` \u00B7 ${subscription.maxUsers} users`}
@@ -325,10 +294,8 @@ export default function SettingsPage() {
           {/* Team & Access */}
           {isAdmin && (
             <SectionCard title="Team & Access">
-              <SettingsRow icon={<Users size={14} />} title="Assign Roles" subtitle="Manage team member permissions and roles"
+              <SettingsRow icon={<Users size={14} />} title="Assign Roles" subtitle="Manage team member permissions and roles" border={false}
                 action={<Button variant="primary" size="sm" onClick={() => navigate("/assign-role")}>Manage</Button>} />
-              <SettingsRow icon={<FileText size={14} />} title="Audit Logs" subtitle="View system activity and change history" border={false}
-                action={<Button variant="secondary" size="sm" onClick={() => navigate("/audit-logs")}>View</Button>} />
             </SectionCard>
           )}
 
@@ -347,19 +314,7 @@ export default function SettingsPage() {
             <span style={{ fontSize: 12, color: "#94A3B8" }}>BuildTrack Version 2.4.0 (2024)</span>
           </div>
 
-          {/* Danger Zone */}
-          <SectionCard style={{ border: "1px solid #FECACA" }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#DC2626", margin: "0 0 16px", letterSpacing: "-0.02em" }}>Danger Zone</h3>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 2 }}>Delete Account</div>
-                <div style={{ fontSize: 12, color: "#64748B" }}>Permanently delete your account and all associated data.</div>
-              </div>
-              <Button variant="danger" size="sm" onClick={handleDeleteAccount}>
-                <Trash2 size={14} /> Delete Account
-              </Button>
-            </div>
-          </SectionCard>
+
 
         </div>
       </div>

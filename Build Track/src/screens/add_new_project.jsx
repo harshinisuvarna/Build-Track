@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { projectAPI, workerAPI } from "../api";
+import { projectAPI, workerAPI, subscriptionAPI } from "../api";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { buildDefaultPhases, addCustomPhase, addActivityToPhase } from "../utils/constructionPhases";
 import { Badge, Button } from "../components/ui";
@@ -186,6 +186,11 @@ export default function NewProjectPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [documents, setDocuments] = useState([]);
   const [documentFiles, setDocumentFiles] = useState([]);
+  const [subscription, setSubscription] = useState(null);
+  const [projectCount, setProjectCount] = useState(0);
+
+  const currentPlan = subscription?.plan?.toLowerCase() || 'free';
+  const limitMaxProjects = subscription?.maxProjects !== undefined ? subscription.maxProjects : (currentPlan.includes('free') ? 1 : currentPlan.includes('starter') ? 2 : currentPlan.includes('growth') ? 4 : -1);
 
   const projectCode = isEditMode ? (editProject.projectCode || `CF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`) : `CF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -201,6 +206,14 @@ export default function NewProjectPage() {
       .then(({ data }) => setSupervisors(data.supervisors || []))
       .catch(() => setSupervisors([]))
       .finally(() => setSupervisorsLoading(false));
+
+    projectAPI.getAll()
+      .then(({ data }) => setProjectCount((data?.projects || data || []).length))
+      .catch(() => {});
+      
+    subscriptionAPI.getStatus()
+      .then(({ data }) => setSubscription(data))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -356,6 +369,13 @@ export default function NewProjectPage() {
       const e = new Date(expectedEndDate);
       if (e < s) {
         setErrMsg("Expected End Date cannot be earlier than Start Date.");
+        return;
+      }
+    }
+
+    if (!isEditMode && limitMaxProjects !== -1) {
+      if (projectCount >= limitMaxProjects) {
+        setErrMsg(`Your plan allows up to ${limitMaxProjects} projects. Please upgrade your plan to add more.`);
         return;
       }
     }
@@ -662,6 +682,22 @@ export default function NewProjectPage() {
         )}
 
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
+          {!isEditMode && limitMaxProjects !== -1 && (
+            <div style={{ padding: '12px', background: '#EEF2FF', borderRadius: 8, border: '1px solid #C7D2FE', display: 'flex', gap: 8, marginBottom: 20 }}>
+              <div style={{ flexShrink: 0, color: '#5B5CEB' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              </div>
+              <div style={{ fontSize: 13, color: '#111827' }}>
+                <strong>Project Limits:</strong> You have created <strong>{projectCount}</strong> out of <strong>{limitMaxProjects}</strong> projects.
+                {projectCount >= limitMaxProjects && (
+                  <span style={{ marginLeft: 8, color: '#DC2626', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate('/subscription')}>
+                    Upgrade Plan
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* A. Project Setup */}
           <Accordion title="Project Setup" icon={<ClipboardList size={16} />} defaultOpen>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 12 }}>
