@@ -1,101 +1,91 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
-
-const CheckIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <circle cx="10" cy="10" r="10" fill="#6C63FF" />
-    <path d="M5.5 10l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const UserIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
-
-const MailIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-  </svg>
-);
-
-const LockIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
-const ShieldIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-);
+import { 
+  User,
+  Mail, 
+  Lock, 
+  Shield,
+  Eye, 
+  EyeOff, 
+  ArrowRight, 
+  Building,
+  CheckCircle,
+  AlertTriangle
+} from "lucide-react";
+import LightPremiumInput from "../components/ui/LightPremiumInput";
 
 const features = [
-  { icon: "📊", title: "Real-time dashboards",  desc: "Track every project metric live"  },
-  { icon: "👷", title: "Worker management",     desc: "Manage teams across all sites"    },
-  { icon: "💰", title: "Financial reporting",   desc: "Budgets, wages & profit margins"  },
-  { icon: "📍", title: "Site tracking",         desc: "Monitor progress on every site"   },
+  { title: "Real-time dashboards",  desc: "Track every project metric live."  },
+  { title: "Worker management",     desc: "Manage teams across all sites."    },
+  { title: "Financial reporting",   desc: "Budgets, wages & profit margins."  },
+  { title: "Site tracking",         desc: "Monitor progress on every site."   },
 ];
 
 export default function SignUpPage() {
   const navigate = useNavigate();
-  const [vw,           setVw]           = useState(window.innerWidth);
-  const [fullName,     setFullName]      = useState("");
-  const [email,        setEmail]         = useState("");
-  const [password,     setPassword]      = useState("");
-  const [confirm,      setConfirm]       = useState("");
-  const [agreed,       setAgreed]        = useState(false);
-  const [loading,      setLoading]       = useState(false);
-  const [shake,        setShake]         = useState(false);
-  const [nameFocus,    setNameFocus]     = useState(false);
-  const [emailFocus,   setEmailFocus]    = useState(false);
-  const [passFocus,    setPassFocus]     = useState(false);
-  const [confirmFocus, setConfirmFocus]  = useState(false);
-  const [errors,       setErrors]        = useState({});
-  const [serverErr,    setServerErr]     = useState("");
+  const [vw, setVw] = useState(window.innerWidth);
+
+  // Form Fields State
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  
+  // Toggles for password visibility
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
+  
+  // Errors state
+  const [errors, setErrors] = useState({});
+  const [serverErr, setServerErr] = useState("");
 
   useEffect(() => {
-    const update = () => setVw(window.innerWidth);
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    return () => { window.removeEventListener("resize", update); window.removeEventListener("orientationchange", update); };
+    const handleResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const isDesktop = vw >= 1024;
-  const isMobile  = vw < 640;
+  const isMobile = vw < 640;
 
   const validate = () => {
     const e = {};
-    if (!fullName.trim())                              e.name    = "Full name is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))    e.email   = "Enter a valid company email.";
-    if (password.length < 6)                           e.password= "Min 6 characters required.";
-    if (confirm !== password)                          e.confirm = "Passwords do not match.";
-    if (!agreed)                                       e.agreed  = "Please accept the terms.";
+    if (!fullName.trim())                           e.name = "Full name is required.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Enter a valid company email.";
+    if (password.length < 6)                        e.password = "Min 6 characters required.";
+    if (confirm !== password)                       e.confirm = "Passwords do not match.";
+    if (!agreed)                                    e.agreed = "Please accept the terms.";
     return e;
   };
 
-  const handleSubmit = async () => {
-    const e = validate();
-    if (Object.keys(e).length) {
-      setErrors(e);
+  const handleSubmit = async (e) => {
+    if (e?.preventDefault) e.preventDefault();
+
+    const eErrors = validate();
+    if (Object.keys(eErrors).length) {
+      setErrors(eErrors);
       setShake(true);
       setTimeout(() => setShake(false), 420);
       return;
     }
+    
     setErrors({});
     setServerErr("");
     setLoading(true);
+
     try {
       const { data } = await authAPI.register({
-        name:     fullName.trim(),
-        email:    email.trim(),
+        name: fullName.trim(),
+        email: email.trim(),
         password,
       });
       localStorage.setItem("bt_token", data.token);
-      localStorage.setItem("bt_user",  JSON.stringify(data.user));
+      localStorage.setItem("bt_user", JSON.stringify(data.user));
       navigate("/", { replace: true });
     } catch (err) {
       const msg =
@@ -110,232 +100,339 @@ export default function SignUpPage() {
     }
   };
 
-
-  const errText = (msg) => msg ? (
-    <p style={{ margin: "5px 0 0", fontSize: 12, color: "#dc2626", animation: "btFadeIn 0.2s ease" }}>{msg}</p>
-  ) : null;
-
   return (
-    <div style={{
-      display: "flex", width: "100vw", height: "100vh",
-      fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-      overflow: "hidden",
-    }}>
-      <style>{`
-        @keyframes btShake  { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
-        @keyframes btSpin   { to{transform:rotate(360deg)} }
-        @keyframes btFadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
-        @keyframes slideUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        .bt-feature { display:flex; align-items:center; gap:16px; transition:transform 0.18s; }
-        .bt-feature:hover { transform: translateX(5px); }
-      `}</style>
-
-      {/* ── LEFT PANEL — dark branded (matches login) ── */}
-      <div style={{
-        width: "50%",
-        background: "linear-gradient(145deg, #0d1322 0%, #1c2540 60%, #2a1a0e 100%)",
-        display: "flex", flexDirection: "column",
+    <div 
+      style={{ 
+        display: "flex", 
+        width: "100vw", 
+        height: "100vh", 
+        overflow: "hidden", 
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        alignItems: "center",
         justifyContent: "center",
-        padding: "60px 56px",
-        position: "relative", overflow: "hidden",
-        animation: "fadeIn 0.55s ease both",
-      }}>
-        {/* Glow blobs */}
-        <div style={{ position: "absolute", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(108,99,255,.18) 0%, transparent 70%)", top: -100, right: -120, pointerEvents: "none" }} />
-        <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(91,85,232,.10) 0%, transparent 70%)", bottom: -60, left: 40, pointerEvents: "none" }} />
+        position: "relative",
+        background: "linear-gradient(135deg, #C7D2FE 0%, #EDE9FE 50%, #BAE6FD 100%)",
+        boxSizing: "border-box"
+      }}
+    >
+      {/* Background Depth Layers */}
+      <div className="light-blueprint-grid" />
+      <div className="light-glow-1" />
+      <div className="light-glow-2" />
+      <div className="light-glow-center" />
 
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "baseline", marginBottom: 6 }}>
-          <span style={{ fontWeight: 800, fontSize: 42, color: "#fff", letterSpacing: -1 }}>Build</span>
-          <span style={{ fontWeight: 800, fontSize: 42, color: "#8B83FF", letterSpacing: -1 }}>Track</span>
-        </div>
-        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: 3, color: "rgba(255,255,255,.4)", textTransform: "uppercase", marginBottom: 52 }}>
-          Construction Management Platform
-        </p>
-
-        {/* Headline */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 800, fontSize: 52, color: "#fff", lineHeight: 1.05 }}>Build smarter.</div>
-          <div style={{ fontWeight: 800, fontSize: 52, color: "#8B83FF", lineHeight: 1.05 }}>Track everything.</div>
-        </div>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,.55)", lineHeight: 1.7, maxWidth: 300, marginBottom: 52 }}>
-          From site management to financial reporting — everything your construction team needs, in one place.
-        </p>
-
-        {/* Features */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {features.map((f, i) => (
-            <div key={i} className="bt-feature" style={{ animation: `slideUp 0.5s cubic-bezier(.22,.68,0,1.2) ${0.25 + i * 0.08}s both` }}>
-              <div style={{
-                width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-                background: "rgba(255,255,255,.07)",
-                border: "1px solid rgba(255,255,255,.1)",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
-              }}>{f.icon}</div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{f.title}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{f.desc}</div>
+      {/* Main Centered Hero Layout Container */}
+      <div 
+        style={{ 
+          width: "100%", 
+          maxWidth: "1280px", 
+          margin: "0 auto", 
+          padding: isDesktop ? "0 80px" : "0 24px", 
+          boxSizing: "border-box", 
+          display: "grid", 
+          gridTemplateColumns: isDesktop ? "1.15fr 0.85fr" : "1fr", 
+          gap: isDesktop ? "96px" : "32px", 
+          alignItems: "center", 
+          zIndex: 10,
+          position: "relative"
+        }}
+      >
+        
+        {/* Left Branding / Marketing Section */}
+        {isDesktop && (
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            
+            {/* Logo */}
+            <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
+                <Building size={19} color="#FFF" />
+              </div>
+              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 23, fontWeight: "800", letterSpacing: "-0.5px" }}>
+                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* ── RIGHT PANEL — signup form ── */}
-      <div style={{
-        width: "50%",
-        background: "#fff",
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        overflowY: "auto",
-        animation: "slideUp 0.5s cubic-bezier(.22,.68,0,1.2) 0.1s both",
-      }}>
-        <div style={{ width: "100%", maxWidth: 440, padding: "48px 40px", boxSizing: "border-box" }}>
+            {/* Headline and descriptions */}
+            <div style={{ marginTop: 36 }}>
+              <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
+                Build smarter.<br />
+                <span style={{ background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Track everything.</span>
+              </h1>
+              
+              <p className="animate-fade-up" style={{ fontSize: "16px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
+                From site management to financial reporting — everything your construction team needs, in one place.
+              </p>
 
-          {/* Heading */}
-          <div style={{ marginBottom: 28 }}>
-            <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 800, color: "#0f172a" }}>
-              Create your account
-            </h1>
-            <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>
-              Start your 14-day free trial. No credit card required.
-            </p>
+              {/* Checklist */}
+              <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "24px", animationDelay: "0.4s" }}>
+                {features.map((item, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
+                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#EEF2FF", border: "1px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", color: "#4F46E5", flexShrink: 0, marginTop: "2px" }}>
+                      <CheckCircle size={12} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: "700", color: "#1F2937" }}>{item.title}</h4>
+                      <p style={{ margin: 0, fontSize: "13px", color: "#8E9AA8", lineHeight: 1.45 }}>{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
           </div>
+        )}
 
-          {/* Server error banner */}
-          {serverErr && (
-            <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#991b1b" }}>
-              ⚠️ {serverErr}
-            </div>
-          )}
-
-          <div style={{ animation: shake ? "btShake 0.42s ease" : "none" }}>
-
-            {/* Full Name */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Full Name</label>
-              <div className={`signup-input-wrapper ${errors.name ? "error" : nameFocus ? "focused" : ""}`}>
-                <UserIcon />
-                <input value={fullName} onChange={e => { setFullName(e.target.value); setErrors(p => ({...p, name: ""})); }}
-                  onFocus={() => setNameFocus(true)} onBlur={() => setNameFocus(false)}
-                  placeholder="John Doe" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
-              </div>
-              {errText(errors.name)}
-            </div>
-
-            {/* Company Email */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Company Email</label>
-              <div className={`signup-input-wrapper ${errors.email ? "error" : emailFocus ? "focused" : ""}`}>
-                <MailIcon />
-                <input type="email" value={email} onChange={e => { setEmail(e.target.value); setErrors(p => ({...p, email: ""})); }}
-                  onFocus={() => setEmailFocus(true)} onBlur={() => setEmailFocus(false)}
-                  placeholder="john@company.com" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
-              </div>
-              {errText(errors.email)}
-            </div>
-
-            {/* Password + Confirm */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 18 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Password</label>
-                <div className={`signup-input-wrapper ${errors.password ? "error" : passFocus ? "focused" : ""}`}>
-                  <LockIcon />
-                  <input type="password" value={password} onChange={e => { setPassword(e.target.value); setErrors(p => ({...p, password: ""})); }}
-                    onFocus={() => setPassFocus(true)} onBlur={() => setPassFocus(false)}
-                    placeholder="••••••••" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
+        {/* Right Authentication Panel */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+          <div 
+            className={`animate-fade-up ${shake ? "shake-trigger" : ""}`}
+            style={{
+              width: "100%",
+              maxWidth: 440,
+              padding: "44px 40px",
+              background: "#FFFFFF",
+              borderRadius: 24,
+              border: "1px solid #EAEAEF",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.03)",
+              animationDelay: "0.15s",
+              boxSizing: "border-box",
+              position: "relative",
+              zIndex: 20
+            }}
+          >
+            
+            {/* Mobile Branding */}
+            {!isDesktop && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Building size={16} color="#FFF" />
                 </div>
-                {errText(errors.password)}
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Confirm Password</label>
-                <div className={`signup-input-wrapper ${errors.confirm ? "error" : confirmFocus ? "focused" : ""}`}>
-                  <ShieldIcon />
-                  <input type="password" value={confirm} onChange={e => { setConfirm(e.target.value); setErrors(p => ({...p, confirm: ""})); }}
-                    onFocus={() => setConfirmFocus(true)} onBlur={() => setConfirmFocus(false)}
-                    placeholder="••••••••" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
+                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
+                  <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
                 </div>
-                {errText(errors.confirm)}
               </div>
+            )}
+
+            <div style={{ marginBottom: 32, textAlign: isDesktop ? "left" : "center" }}>
+              <h2 style={{ fontSize: "23px", fontWeight: "800", color: "#1F2937", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Create your account</h2>
+              <p style={{ margin: 0, fontSize: "13.5px", color: "#8E9AA8", fontWeight: "500" }}>Start your 14-day free trial. No credit card required.</p>
             </div>
 
-            {/* Terms checkbox */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                <div
-                  onClick={() => { setAgreed(v => !v); setErrors(p => ({...p, agreed: ""})); }}
+            {serverErr && (
+              <div 
+                style={{ 
+                  background: "#FEF2F2", 
+                  border: "1.2px solid #FCA5A5", 
+                  borderRadius: 12, 
+                  padding: "12px 14px", 
+                  marginBottom: 22, 
+                  display: "flex", 
+                  alignItems: "flex-start", 
+                  gap: 10,
+                  animation: "slideDown 0.2s ease"
+                }}
+              >
+                <AlertTriangle size={16} color="#EF4444" style={{ marginTop: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: "12.5px", color: "#B91C1C", fontWeight: "600", lineHeight: 1.45 }}>{serverErr}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              
+              <LightPremiumInput 
+                type="text"
+                label="Full Name"
+                icon={User}
+                value={fullName}
+                onChange={e => {
+                  setFullName(e.target.value);
+                  setErrors(p => ({...p, name: ""}));
+                  setServerErr("");
+                }}
+                error={errors.name}
+                autoComplete="name"
+              />
+
+              <LightPremiumInput 
+                type="email"
+                label="Company Email"
+                icon={Mail}
+                value={email}
+                onChange={e => {
+                  setEmail(e.target.value);
+                  setErrors(p => ({...p, email: ""}));
+                  setServerErr("");
+                }}
+                error={errors.email}
+                autoComplete="email"
+              />
+
+              <div style={{ position: "relative" }}>
+                <LightPremiumInput 
+                  type={showPass ? "text" : "password"}
+                  label="Password"
+                  icon={Lock}
+                  value={password}
+                  onChange={e => {
+                    setPassword(e.target.value);
+                    setErrors(p => ({...p, password: ""}));
+                    setServerErr("");
+                  }}
+                  error={errors.password}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
                   style={{
-                    width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
-                    border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#6C63FF" : "#d0d0d0"}`,
-                    background: agreed ? "#6C63FF" : "#fff",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.15s", cursor: "pointer",
-                  }}>
-                  {agreed && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path d="M1.5 5l2.5 2.5 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-                <span style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>
-                  By creating an account, you agree to our{" "}
-                  <span style={{ color: "#6C63FF", fontWeight: 600, cursor: "pointer" }}>Terms of Service</span>
-                  {" "}and{" "}
-                  <span style={{ color: "#6C63FF", fontWeight: 600, cursor: "pointer" }}>Privacy Policy</span>.
-                </span>
-              </label>
-              {errText(errors.agreed)}
-            </div>
+                    position: "absolute",
+                    right: 14,
+                    top: 17,
+                    background: "none",
+                    border: "none",
+                    color: "#8E9AA8",
+                    cursor: "pointer",
+                    padding: 4,
+                    zIndex: 30
+                  }}
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
 
-            {/* Submit */}
-            <button
-              type="button" onClick={handleSubmit} disabled={loading}
-              style={{
-                width: "100%", padding: "15px 0",
-                background: "#6C63FF",
-                color: "#fff", border: "none", borderRadius: 10,
-                fontSize: 15, fontWeight: 700, letterSpacing: "0.06em",
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "'Segoe UI', system-ui, sans-serif",
-                boxShadow: "0 6px 22px rgba(108,99,255,0.30)",
-                transition: "background 0.18s, transform 0.1s",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                marginBottom: 24,
-              }}
-              className="hover-lift-sm"
-              onMouseDown={e => { e.currentTarget.style.transform = "scale(0.98)"; }}
-              onMouseUp={e   => { e.currentTarget.style.transform = "scale(1)"; }}>
-              {loading
-                ? <><span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "btSpin 0.7s linear infinite" }} /> Creating account…</>
-                : <>Create Account →</>
-              }
-            </button>
+              <div style={{ position: "relative" }}>
+                <LightPremiumInput 
+                  type={showConfirm ? "text" : "password"}
+                  label="Confirm Password"
+                  icon={Shield}
+                  value={confirm}
+                  onChange={e => {
+                    setConfirm(e.target.value);
+                    setErrors(p => ({...p, confirm: ""}));
+                    setServerErr("");
+                  }}
+                  error={errors.confirm}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: 17,
+                    background: "none",
+                    border: "none",
+                    color: "#8E9AA8",
+                    cursor: "pointer",
+                    padding: 4,
+                    zIndex: 30
+                  }}
+                >
+                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
 
-          </div>
-
-          {/* Footer */}
-          <div style={{ textAlign: "center" }}>
-            <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "#94a3b8" }}>
-              Already have an account?{" "}
-              <span style={{ color: "#6C63FF", fontWeight: 700, cursor: "pointer" }} onClick={() => navigate("/login")}>
-                Log in
-              </span>
-            </p>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              {["Privacy policy", "Terms of service", "Support"].map((link, i, arr) => (
-                <span key={link} style={{ display: "contents" }}>
-                  <span className="hover-bg-subtle" style={{ fontSize: 12, color: "#cbd5e1", cursor: "pointer" }}>
-                    {link}
+              {/* Terms checkbox */}
+              <div style={{ marginBottom: 24, marginTop: 10 }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                  <div
+                    onClick={() => { setAgreed(v => !v); setErrors(p => ({...p, agreed: ""})); }}
+                    style={{
+                      width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
+                      border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#6366F1" : "#d0d0d0"}`,
+                      background: agreed ? "#6366F1" : "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.15s", cursor: "pointer",
+                    }}>
+                    {agreed && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M1.5 5l2.5 2.5 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontSize: "13px", color: "#71717A", lineHeight: 1.6, fontWeight: "500" }}>
+                    By creating an account, you agree to our{" "}
+                    <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Terms</span>
+                    {" "}and{" "}
+                    <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Privacy Policy</span>.
                   </span>
-                  {i < arr.length - 1 && <span style={{ color: "#e2e8f0", fontSize: 11 }}>·</span>}
-                </span>
-              ))}
-            </div>
-          </div>
+                </label>
+                {errors.agreed && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#dc2626", fontSize: "11px", fontWeight: "700" }}>
+                    <AlertTriangle size={11} />
+                    <span>{errors.agreed}</span>
+                  </div>
+                )}
+              </div>
 
+              {/* Primary Action Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="login-submit-btn"
+                style={{
+                  width: "100%",
+                  padding: "14px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
+                  color: "#FFF",
+                  fontWeight: "800",
+                  fontSize: "13.5px",
+                  letterSpacing: "0.05em",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.75 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
+                }}
+              >
+                {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
+                {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
+                {!loading && <ArrowRight size={14} />}
+              </button>
+
+            </form>
+
+            {/* Login Link */}
+            <div style={{ textAlign: "center", marginTop: 28 }}>
+              <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#8E9AA8", fontWeight: "500" }}>
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="login-link-btn"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    color: "#4F46E5",
+                    fontWeight: "700"
+                  }}
+                >
+                  Log in
+                </button>
+              </p>
+
+              <div className="login-footer-links" style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 12, fontSize: "11px", color: "#8E9AA8", fontWeight: "600" }}>
+                <span className="login-footer-link">Privacy Policy</span>
+                <span>·</span>
+                <span className="login-footer-link">Terms</span>
+                <span>·</span>
+                <span className="login-footer-link">Support</span>
+              </div>
+            </div>
+
+          </div>
         </div>
+
       </div>
+
     </div>
   );
 }
