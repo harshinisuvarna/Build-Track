@@ -4,6 +4,9 @@ import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { LogOut, Building2 } from "lucide-react";
 import { colors, gradients, radius, typography } from "../styles/designTokens";
+import { useAuth } from "../contexts/AuthContext";
+import { preloadRoute } from "../App";
+import perfLogger from "../utils/performanceLogger";
 
 const linkStyle = {
   display: "flex",
@@ -18,12 +21,12 @@ const linkStyle = {
 };
 
 export default function Sidebar() {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem("bt_user");
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
-  });
+  const { user: authUser, logout } = useAuth();
+  const [user, setUser] = useState(authUser);
+
+  useEffect(() => {
+    setUser(authUser);
+  }, [authUser]);
 
   useEffect(() => {
     const syncUser = () => {
@@ -40,9 +43,12 @@ export default function Sidebar() {
   const isAdminOrSupervisor = user?.role === "admin" || user?.role === "supervisor";
 
   const handleLogout = () => {
-    localStorage.removeItem("bt_token");
-    localStorage.removeItem("bt_user");
-    window.location.assign("/login");
+    if (logout) logout();
+    else {
+      localStorage.removeItem("bt_token");
+      localStorage.removeItem("bt_user");
+      window.location.assign("/login");
+    }
   };
 
   return (
@@ -98,6 +104,9 @@ export default function Sidebar() {
             to={item.path}
             end={item.path === "/"}
             className="sidebar-link"
+            onMouseEnter={() => preloadRoute(item.path)}
+            onPointerDown={() => preloadRoute(item.path)}
+            onClick={() => perfLogger.startRoute(item.path)}
             style={({ isActive }) => ({
               ...linkStyle,
               color: isActive ? "#FFFFFF" : colors.textSecondary,
@@ -125,6 +134,9 @@ export default function Sidebar() {
                 key={item.label}
                 to={item.path}
                 className="sidebar-link"
+                onMouseEnter={() => preloadRoute(item.path)}
+                onPointerDown={() => preloadRoute(item.path)}
+                onClick={() => perfLogger.startRoute(item.path)}
                 style={({ isActive }) => ({
                   ...linkStyle,
                   color: isActive ? "#FFFFFF" : colors.textSecondary,

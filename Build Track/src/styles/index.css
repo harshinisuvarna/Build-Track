@@ -239,15 +239,8 @@ th, td {
   background-color: rgba(255, 255, 255, 0.82) !important;
 }
 
-/* Automatically convert any hardcoded flat white panels to glassmorphism */
-div[style*="background: #fff"][style*="border-radius"],
-div[style*="background: #FFF"][style*="border-radius"],
-div[style*="background: white"][style*="border-radius"],
-div[style*="background: rgb(255, 255, 255)"][style*="border-radius"],
-div[style*="background-color: #fff"][style*="border-radius"],
-div[style*="background-color: #FFF"][style*="border-radius"],
-div[style*="background-color: white"][style*="border-radius"],
-div[style*="background-color: rgb(255, 255, 255)"][style*="border-radius"] {
+/* Glassmorphic Cards (Explicit class only) */
+.glass-panel {
   background: var(--glass-bg) !important;
   backdrop-filter: blur(var(--glass-blur)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur)) !important;

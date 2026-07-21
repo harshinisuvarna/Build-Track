@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { inventoryAPI, projectAPI, transactionAPI } from "../api";
+import useInventoryStore from "../stores/inventoryStore";
+import useTransactionStore from "../stores/transactionStore";
+import useProjectStore from "../stores/projectStore";
+import perfLogger from "../utils/performanceLogger";
 import { Toast } from "../components/Toast";
 import RecordPaymentSheet from "../components/RecordPaymentSheet";
 import { Pencil } from "lucide-react";
@@ -178,26 +182,33 @@ export default function InventoryPage() {
     }
   }, [menuOpen]);
 
-  const fetchInventory = useCallback(() => {
-    setLoading(true);
+  const { items: dbInventoryStore, fetchInventory: storeFetchInventory } = useInventoryStore();
+  const { transactions: txStore, fetchTransactions: storeFetchTx } = useTransactionStore();
+  const { projects: projStore, fetchProjects: storeFetchProj } = useProjectStore();
+
+  useEffect(() => {
+    perfLogger.endRoute('/inventory');
+    perfLogger.logMount('InventoryPage');
+  }, []);
+
+  const fetchInventory = useCallback((force = false) => {
+    if (dbInventoryStore.length === 0 && txStore.length === 0) setLoading(true);
     Promise.all([
-      inventoryAPI.getAll(),
-      transactionAPI.getAll({ limit: 10000, filterByViewAccess: true }),
-      projectAPI.getAll()
+      storeFetchInventory(force),
+      storeFetchTx({ limit: 10000, filterByViewAccess: true }, force),
+      storeFetchProj({}, force)
     ])
-      .then(([invRes, txRes, projRes]) => {
-        const dbItems = invRes.data.inventory || [];
-        setDbInventory(dbItems);
-        const txItems = txRes.data.transactions || [];
-        setTransactions(txItems);
-        setProjects(projRes.data.projects || []);
+      .then(([dbItems, txItems, projList]) => {
+        setDbInventory(dbItems || dbInventoryStore);
+        setTransactions(txItems || txStore);
+        setProjects(projList || projStore);
         const drafts = {};
-        dbItems.forEach(item => { drafts[item._id] = Number(item.threshold ?? 5); });
+        (dbItems || dbInventoryStore || []).forEach(item => { drafts[item._id] = Number(item.threshold ?? 5); });
         setThresholdDrafts(prev => ({ ...prev, ...drafts }));
       })
       .catch(() => setToast({ msg: "Failed to load inventory", type: "error" }))
       .finally(() => setLoading(false));
-  }, []);
+  }, [dbInventoryStore, txStore, projStore, storeFetchInventory, storeFetchTx, storeFetchProj]);
 
   useEffect(() => { fetchInventory(); }, [fetchInventory]);
   useEffect(() => { setCategoryFilter("All"); }, [activeTab]);

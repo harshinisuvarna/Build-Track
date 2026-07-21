@@ -7,6 +7,7 @@ import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button } from "../components/ui";
 import ProjectMemberModal from "../components/ProjectMemberModal";
 import DocumentGallery from "../components/DocumentGallery";
+import CsvImportExportCard from "../components/CsvImportExportCard";
 import {
   ChevronDown, ArrowLeft, Building2, MapPin, Calendar, User, Phone,
   DollarSign, Target, ClipboardCheck, Package, TrendingUp, PieChart,
@@ -278,7 +279,9 @@ export default function ProjectDetailPage() {
 
   function renderProgress() {
     return (
-      <Card padding="20px">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <CsvImportExportCard project={project} onProjectUpdated={setProject} setToast={setToast} />
+        <Card padding="20px">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>Execution Tracker</h3>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#5B5CEB" }}>{progress.toFixed(1)}%</span>
@@ -329,6 +332,7 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </Card>
+      </div>
     );
   }
 

@@ -4,15 +4,24 @@ import { projectAPI } from "../api";
 
 const useProjectStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       projects: [],
       selectedProject: null,
       loading: false,
       error: null,
       stats: {},
 
-      async fetchProjects(params = {}) {
-        set({ loading: true, error: null });
+      async fetchProjects(params = {}, force = false) {
+        const state = get();
+        if (state.projects.length > 0 && !force) {
+          projectAPI.getAll(params).then(({ data }) => {
+            const list = Array.isArray(data) ? data : data.projects || [];
+            set({ projects: list });
+          }).catch(() => {});
+          return state.projects;
+        }
+
+        set({ loading: state.projects.length === 0, error: null });
         try {
           const { data } = await projectAPI.getAll(params);
           const list = Array.isArray(data) ? data : data.projects || [];
@@ -20,7 +29,7 @@ const useProjectStore = create(
           return list;
         } catch (err) {
           set({ error: err.message || "Failed to load projects", loading: false });
-          return [];
+          return state.projects || [];
         }
       },
 

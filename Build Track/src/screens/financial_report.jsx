@@ -5,6 +5,9 @@ import {
   projectAPI, 
   transactionAPI 
 } from "../api";
+import useProjectStore from "../stores/projectStore";
+import useTransactionStore from "../stores/transactionStore";
+import perfLogger from "../utils/performanceLogger";
 import { Toast } from "../components/Toast";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -270,28 +273,35 @@ export default function FinancialReportPage() {
 
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
+  const { projects: projStore, fetchProjects: storeFetchProjects } = useProjectStore();
+  const { transactions: txStore, fetchTransactions: storeFetchTransactions } = useTransactionStore();
+
+  useEffect(() => {
+    perfLogger.endRoute('/reports');
+    perfLogger.logMount('ReportsPage');
+  }, []);
+
   // Fetch initial data
-  const loadData = useCallback(() => {
-    setLoading(true);
+  const loadData = useCallback((force = false) => {
+    if (projStore.length === 0 && txStore.length === 0) setLoading(true);
     setError("");
     Promise.all([
-      projectAPI.getAll().catch(() => ({ data: { projects: [] } })),
-      transactionAPI.getAll({ limit: 10000, filterByViewAccess: true }).catch(() => ({ data: { transactions: [] } }))
+      storeFetchProjects({}, force),
+      storeFetchTransactions({ limit: 10000, filterByViewAccess: true }, force)
     ])
-      .then(([projRes, txRes]) => {
-        const projList = projRes.data?.projects || projRes.data || [];
-        setProjects(projList);
+      .then(([projList, rawList]) => {
+        const pList = projList || projStore || [];
+        setProjects(pList);
 
-        const rawList = txRes.data?.transactions || txRes.data || [];
-        // Map backend objects to Flutter-aligned EntryModel objects
-        const mappedList = rawList
+        const list = rawList || txStore || [];
+        const mappedList = list
           .map(tx => mapTransactionToEntry(tx))
-          .filter(entry => (entry?.approvalStatus || "").toLowerCase() !== "rejected"); // Source-filtering matching Flutter
+          .filter(entry => (entry?.approvalStatus || "").toLowerCase() !== "rejected");
         setTransactions(mappedList);
       })
       .catch(() => setError("Failed to load project details and reports log."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projStore, txStore, storeFetchProjects, storeFetchTransactions]);
 
   useEffect(() => {
     loadData();

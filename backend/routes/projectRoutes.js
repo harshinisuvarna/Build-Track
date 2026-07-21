@@ -263,15 +263,28 @@ const VIEW_PROJECTS = ["view_projects", "view_assigned_project"];
 router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const projects = await Project.find(ownedByCurrentUserFilter(req)).sort({ createdAt: -1 });
+    const projectIds = projects.map(p => p._id);
+    const [spentList, incomeList] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { project: { $in: projectIds }, type: { $in: ["Expense", "Wages", "Materials", "Equipment"] } } },
+        { $group: { _id: "$project", totalSpent: { $sum: "$amount" } } }
+      ]),
+      Transaction.aggregate([
+        { $match: { project: { $in: projectIds }, type: "Income" } },
+        { $group: { _id: "$project", totalIncome: { $sum: "$amount" } } }
+      ])
+    ]);
 
-    const normalizedProjects = await Promise.all(
-      projects.map(async (p) => {
-        const normalized = normalizeProjectBudget(p);
-        normalized.spentAmount = await getProjectSpentAmount(p._id);
-        normalized.totalIncome = await getProjectIncomeAmount(p._id);
-        return normalized;
-      })
-    );
+    const spentMap = new Map(spentList.map(s => [s._id.toString(), s.totalSpent]));
+    const incomeMap = new Map(incomeList.map(i => [i._id.toString(), i.totalIncome]));
+
+    const normalizedProjects = projects.map(p => {
+      const normalized = normalizeProjectBudget(p);
+      const idStr = p._id.toString();
+      normalized.spentAmount = spentMap.get(idStr) || 0;
+      normalized.totalIncome = incomeMap.get(idStr) || 0;
+      return normalized;
+    });
 
     return res.status(200).json({ projects: normalizedProjects });
   } catch (err) {
@@ -302,8 +315,8 @@ router.get("/", protect, async (req, res) => {
         query._id.$in.push(...taskProjectIds);
       }
     } else if (query.__never) {
-      // Still no access and no tasks, return empty array
-      return res.json([]);
+      // Still no access and no tasks, return empty array object
+      return res.json({ projects: [] });
     }
 
     if (status && status !== "All") query.status = status;
@@ -321,18 +334,28 @@ router.get("/", protect, async (req, res) => {
 
     const projects = await Project.find(query).sort({ createdAt: -1 });
 
-    console.log("Authenticated User:", req.user.id);
-    console.log("User Role:", req.user.role);
-    console.log("Projects Returned:", projects.length);
+    const projectIds = projects.map(p => p._id);
+    const [spentList, incomeList] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { project: { $in: projectIds }, type: { $in: ["Expense", "Wages", "Materials", "Equipment"] } } },
+        { $group: { _id: "$project", totalSpent: { $sum: "$amount" } } }
+      ]),
+      Transaction.aggregate([
+        { $match: { project: { $in: projectIds }, type: "Income" } },
+        { $group: { _id: "$project", totalIncome: { $sum: "$amount" } } }
+      ])
+    ]);
 
-    const normalizedProjects = await Promise.all(
-      projects.map(async (p) => {
-        const normalized = normalizeProjectBudget(p);
-        normalized.spentAmount = await getProjectSpentAmount(p._id);
-        normalized.totalIncome = await getProjectIncomeAmount(p._id);
-        return normalized;
-      })
-    );
+    const spentMap = new Map(spentList.map(s => [s._id.toString(), s.totalSpent]));
+    const incomeMap = new Map(incomeList.map(i => [i._id.toString(), i.totalIncome]));
+
+    const normalizedProjects = projects.map(p => {
+      const normalized = normalizeProjectBudget(p);
+      const idStr = p._id.toString();
+      normalized.spentAmount = spentMap.get(idStr) || 0;
+      normalized.totalIncome = incomeMap.get(idStr) || 0;
+      return normalized;
+    });
 
     res.json({ projects: normalizedProjects });
   } catch (err) {

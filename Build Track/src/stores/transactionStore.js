@@ -17,10 +17,18 @@ const useTransactionStore = create((set, get) => ({
     sortOrder: "desc",
   },
 
-  async fetchTransactions(params = {}) {
-    set({ loading: true, error: null });
+  async fetchTransactions(params = {}, force = false) {
+    const state = get();
+    if (state.transactions.length > 0 && !force && !params.page && !params.type && !params.search) {
+      transactionAPI.getAll(params).then(({ data }) => {
+        const list = Array.isArray(data) ? data : data.transactions || [];
+        set({ transactions: list, totalTransactions: data.total || data.totalCount || list.length });
+      }).catch(() => {});
+      return state.transactions;
+    }
+
+    set({ loading: state.transactions.length === 0, error: null });
     try {
-      const state = get();
       const queryParams = {
         page: state.page,
         limit: state.limit,
@@ -41,7 +49,7 @@ const useTransactionStore = create((set, get) => ({
       return list;
     } catch (err) {
       set({ error: err.message || "Failed to load transactions", loading: false });
-      return [];
+      return state.transactions || [];
     }
   },
 
