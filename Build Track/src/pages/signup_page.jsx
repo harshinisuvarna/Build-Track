@@ -110,20 +110,6 @@ export default function SignUpPage() {
     }
   };
 
-  const inputWrap = (focused, hasErr) => ({
-    display: "flex", alignItems: "center", gap: 10,
-    padding: "13px 14px",
-    border: `1.5px solid ${hasErr ? "#dc2626" : focused ? "#6C63FF" : "#e0e0e0"}`,
-    borderRadius: 10, background: "#fff",
-    boxShadow: focused ? `0 0 0 3px ${hasErr ? "rgba(220,38,38,0.1)" : "rgba(108,99,255,0.1)"}` : "none",
-    transition: "border-color 0.18s, box-shadow 0.18s",
-  });
-
-  const inputField = {
-    flex: 1, border: "none", outline: "none", fontSize: 15,
-    color: "#1a1a1a", background: "transparent",
-    fontFamily: "'Segoe UI', system-ui, sans-serif",
-  };
 
   const errText = (msg) => msg ? (
     <p style={{ margin: "5px 0 0", fontSize: 12, color: "#dc2626", animation: "btFadeIn 0.2s ease" }}>{msg}</p>
@@ -229,11 +215,11 @@ export default function SignUpPage() {
             {/* Full Name */}
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Full Name</label>
-              <div style={inputWrap(nameFocus, !!errors.name)}>
+              <div className={`signup-input-wrapper ${errors.name ? "error" : nameFocus ? "focused" : ""}`}>
                 <UserIcon />
                 <input value={fullName} onChange={e => { setFullName(e.target.value); setErrors(p => ({...p, name: ""})); }}
                   onFocus={() => setNameFocus(true)} onBlur={() => setNameFocus(false)}
-                  placeholder="John Doe" style={inputField} />
+                  placeholder="John Doe" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
               </div>
               {errText(errors.name)}
             </div>
@@ -241,11 +227,11 @@ export default function SignUpPage() {
             {/* Company Email */}
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Company Email</label>
-              <div style={inputWrap(emailFocus, !!errors.email)}>
+              <div className={`signup-input-wrapper ${errors.email ? "error" : emailFocus ? "focused" : ""}`}>
                 <MailIcon />
                 <input type="email" value={email} onChange={e => { setEmail(e.target.value); setErrors(p => ({...p, email: ""})); }}
                   onFocus={() => setEmailFocus(true)} onBlur={() => setEmailFocus(false)}
-                  placeholder="john@company.com" style={inputField} />
+                  placeholder="john@company.com" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
               </div>
               {errText(errors.email)}
             </div>
@@ -254,21 +240,21 @@ export default function SignUpPage() {
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 18 }}>
               <div>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Password</label>
-                <div style={inputWrap(passFocus, !!errors.password)}>
+                <div className={`signup-input-wrapper ${errors.password ? "error" : passFocus ? "focused" : ""}`}>
                   <LockIcon />
                   <input type="password" value={password} onChange={e => { setPassword(e.target.value); setErrors(p => ({...p, password: ""})); }}
                     onFocus={() => setPassFocus(true)} onBlur={() => setPassFocus(false)}
-                    placeholder="••••••••" style={inputField} />
+                    placeholder="••••••••" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
                 </div>
                 {errText(errors.password)}
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 7, letterSpacing: "0.03em" }}>Confirm Password</label>
-                <div style={inputWrap(confirmFocus, !!errors.confirm)}>
+                <div className={`signup-input-wrapper ${errors.confirm ? "error" : confirmFocus ? "focused" : ""}`}>
                   <ShieldIcon />
                   <input type="password" value={confirm} onChange={e => { setConfirm(e.target.value); setErrors(p => ({...p, confirm: ""})); }}
                     onFocus={() => setConfirmFocus(true)} onBlur={() => setConfirmFocus(false)}
-                    placeholder="••••••••" style={inputField} />
+                    placeholder="••••••••" className="custom-input-field" style={{ flex: 1, fontSize: 15, color: "#1a1a1a", fontFamily: "'Segoe UI', system-ui, sans-serif" }} />
                 </div>
                 {errText(errors.confirm)}
               </div>

@@ -410,3 +410,60 @@ button, a, input, select, textarea, [role="button"] {
   }
 }
 
+/* ==========================================================================
+   Custom & Premium Input Overrides and Resets
+   ========================================================================== */
+
+/* 1. Global Reset Class for Custom Input Fields */
+input.custom-input-field,
+input.custom-input-field:focus,
+input.custom-input-field:active {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* 2. Login Page Premium Input Wrapper */
+.premium-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border: 1.2px solid #E4E4E7;
+  border-radius: 12px;
+  padding: 13px 14px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.premium-input-wrapper.focused {
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+
+.premium-input-wrapper.error {
+  border-color: #EF4444;
+}
+
+/* 3. Signup Page Input Wrapper */
+.signup-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  background: #ffffff;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.signup-input-wrapper.focused {
+  border-color: #6C63FF;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+.signup-input-wrapper.error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+

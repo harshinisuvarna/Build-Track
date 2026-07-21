@@ -21,22 +21,13 @@ function LightPremiumInput({ icon: Icon, label, error, ...props }) {
   return (
     <div style={{ position: "relative", marginBottom: 20 }}>
       <div 
-        style={{
-          display: "flex",
-          alignItems: "center",
-          background: "#FFFFFF",
-          border: `1.2px solid ${error ? "#EF4444" : focused ? "#6366F1" : "#E4E4E7"}`,
-          borderRadius: 12,
-          padding: "13px 14px",
-          position: "relative",
-          transition: "all 0.2s ease",
-          boxShadow: focused ? "0 0 0 3px rgba(99, 102, 241, 0.08)" : "none"
-        }}
+        className={`premium-input-wrapper ${error ? "error" : focused ? "focused" : ""}`}
       >
         {Icon && <Icon size={16} style={{ color: focused ? "#6366F1" : "#8E9AA8", marginRight: 10, flexShrink: 0 }} />}
         
         <input 
           {...props}
+          className="custom-input-field"
           onFocus={(e) => {
             setFocused(true);
             props.onFocus?.(e);
@@ -52,9 +43,6 @@ function LightPremiumInput({ icon: Icon, label, error, ...props }) {
           }}
           style={{
             flex: 1,
-            background: "none",
-            border: "none",
-            outline: "none",
             color: "#18181B",
             fontSize: "14px",
             fontFamily: "inherit",
