@@ -13,7 +13,7 @@ async function testKey() {
     console.log(`Loaded Key (last 6): ${key.substring(key.length - 6)}`);
 
     const genAI = new GoogleGenerativeAI(key);
-    // Testing with gemini-flash-latest since that's what we configured
+
     const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     console.log(`Testing model: ${model.model}`);

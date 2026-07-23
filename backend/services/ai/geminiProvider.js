@@ -7,7 +7,7 @@ class GeminiProvider extends AIProvider {
     super();
     this.apiKey = process.env.GEMINI_API_KEY || "";
     this.modelName = "gemini-2.5-flash";
-    
+
     if (this.apiKey.length >= 12) {
       console.log(`Loaded GEMINI_API_KEY: ${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}`);
     } else {
@@ -39,7 +39,7 @@ class GeminiProvider extends AIProvider {
       try {
         const response = await axios.post(url, body, {
           headers: { "Content-Type": "application/json" },
-          timeout: 30000 
+          timeout: 30000
         });
 
         const candidates = response.data.candidates;
@@ -57,7 +57,7 @@ class GeminiProvider extends AIProvider {
         if (error.response && error.response.status === 429) {
           attempt++;
           if (attempt >= maxAttempts) {
-            throw error; 
+            throw error;
           }
           const waitTime = Math.pow(2, attempt) * 1000;
           console.warn(`[Gemini API] 429 Too Many Requests. Retrying in ${waitTime}ms (Attempt ${attempt}/${maxAttempts})...`);
@@ -69,9 +69,6 @@ class GeminiProvider extends AIProvider {
     }
   }
 
-  /**
-   * Generates a structured JSON intent from a natural language query.
-   */
   async generateIntent(query, context = {}, schema, reqId) {
     aiDebugLogger.logEnter("Gemini: Generate Intent", reqId);
     const startTime = Date.now();
@@ -91,8 +88,8 @@ User Query: "${query}"
 Context (Available Projects, Previous Context, etc):
 ${JSON.stringify(context, null, 2)}
 
-Respond ONLY with a raw JSON object. No markdown, no code fences, no explanation. 
-Follow this exact structure: 
+Respond ONLY with a raw JSON object. No markdown, no code fences, no explanation.
+Follow this exact structure:
 ${JSON.stringify(schema, null, 2)}
     `;
 
@@ -107,11 +104,11 @@ ${JSON.stringify(schema, null, 2)}
 
       const generationConfig = {
         responseMimeType: "application/json",
-        temperature: 0.1, 
+        temperature: 0.1,
       };
 
       const responseText = await this._callApi(prompt, generationConfig, "gemini-2.5-flash");
-      
+
       aiDebugLogger.logSection("RAW GEMINI RESPONSE", responseText, reqId);
       aiDebugLogger.logExit("Gemini: Generate Intent", reqId);
       return JSON.parse(responseText);
@@ -121,9 +118,6 @@ ${JSON.stringify(schema, null, 2)}
     }
   }
 
-  /**
-   * Generates a concise executive summary based on analytics data.
-   */
   async generateSummary(analyticsData, userQuery, reqId) {
     aiDebugLogger.logEnter("Gemini: Generate Summary", reqId);
     const startTime = Date.now();
@@ -145,7 +139,7 @@ ${JSON.stringify(analyticsData, null, 2)}
 
     try {
       const generationConfig = {
-        temperature: 0.3, 
+        temperature: 0.3,
       };
 
       const responseText = await this._callApi(prompt, generationConfig);
@@ -157,9 +151,6 @@ ${JSON.stringify(analyticsData, null, 2)}
     }
   }
 
-  /**
-   * Generates follow-up suggestions based on the current context.
-   */
   async generateFollowups(currentContext, reqId) {
     aiDebugLogger.logEnter("Gemini: Generate Followups", reqId);
     const startTime = Date.now();

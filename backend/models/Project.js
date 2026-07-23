@@ -2,9 +2,6 @@ const mongoose = require("mongoose");
 
 const projectSchema = new mongoose.Schema(
   {
-    // ======================================================
-    // CORE IDENTITY
-    // ======================================================
 
     projectName: { type: String, required: true, trim: true },
 
@@ -25,7 +22,6 @@ const projectSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // FIX: Flutter sends 'siteEngineer', schema had 'siteEngineerName' — added both
     siteEngineer: {
       type: String,
       trim: true,
@@ -70,10 +66,6 @@ const projectSchema = new mongoose.Schema(
       type: String,
     },
 
-    // ======================================================
-    // BUILDING TYPE
-    // ======================================================
-
     buildingType: {
       mainType: {
         type: String,
@@ -85,7 +77,7 @@ const projectSchema = new mongoose.Schema(
           "Industrial",
           "Business / Commercial",
         ],
-        // FIX: was required:true — removed so partial updates don't fail
+
         required: false,
       },
       subType: {
@@ -94,11 +86,6 @@ const projectSchema = new mongoose.Schema(
       },
     },
 
-    // ======================================================
-    // LAND & FLOORS
-    // ======================================================
-
-    // FIX: was missing — Flutter sends floors as array of chip labels
     floors: {
       type: [String],
       default: [],
@@ -114,11 +101,6 @@ const projectSchema = new mongoose.Schema(
       default: "Sq ft",
     },
 
-    // ======================================================
-    // ROOMS
-    // ======================================================
-
-    // FIX: all room/bathroom fields were missing from schema
     room1BHK: { type: Number, default: null },
     room2BHK: { type: Number, default: null },
     room3BHK: { type: Number, default: null },
@@ -129,22 +111,11 @@ const projectSchema = new mongoose.Schema(
     bathCommon: { type: Number, default: null },
     bathAttached: { type: Number, default: null },
 
-    // ======================================================
-    // ADDITIONAL FEATURES
-    // ======================================================
-
-    // FIX: was missing — Flutter stores selected checkboxes here
     selectedFeatures: {
       type: [String],
       default: [],
     },
 
-    // ======================================================
-    // DATES
-    // ======================================================
-
-    // FIX: startDate also stored at root level to match Flutter's toJson()
-    // Flutter sends: 'startDate' at root AND nested under 'dates'
     startDate: {
       type: Date,
     },
@@ -155,14 +126,9 @@ const projectSchema = new mongoose.Schema(
       actualEndDate: { type: Date },
     },
 
-    // FIX: expectedEndDate at root level too (Flutter sends at root)
     expectedEndDate: {
       type: Date,
     },
-
-    // ======================================================
-    // BUDGET
-    // ======================================================
 
     budget: {
       total: { type: Number, default: 0 },
@@ -172,43 +138,27 @@ const projectSchema = new mongoose.Schema(
       misc: { type: Number, default: 0 },
     },
 
-    // FIX: also store budget fields at root level — Flutter reads budgetMaterial etc.
     budgetMaterial: { type: Number, default: 0 },
     budgetLabour: { type: Number, default: 0 },
     budgetEquipment: { type: Number, default: 0 },
     budgetMisc: { type: Number, default: 0 },
     totalBudget: { type: Number, default: 0 },
 
-    // ======================================================
-    // OPTIONAL ANALYTICS
-    // ======================================================
-
     builtUpArea: { type: Number, default: 0 },
     builtUpAreaUnit: { type: String, enum: ["sqft", "sqm"], default: "sqft" },
     targetCostPerSqft: { type: Number, default: 1500 },
     currentCostPerSqft: { type: Number, default: 0 },
 
-    // ======================================================
-    // PROJECT STATUS — TWO FIELDS
-    // ======================================================
-
-    // Backend lifecycle status (used for filtering)
     status: {
       type: String,
       enum: ["Active", "Completed", "On Hold", "Review Needed"],
       default: "Active",
     },
 
-    // FIX: UI-facing status — Flutter stores the label the user picked
-    // ('Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled')
     projectStatus: {
       type: String,
       trim: true,
     },
-
-    // ======================================================
-    // EXECUTION TRACKER
-    // ======================================================
 
     selectedPhaseNames: [{ type: String }],
     trackedActivityKeys: [{ type: String }],
@@ -245,10 +195,6 @@ const projectSchema = new mongoose.Schema(
         ],
       },
     ],
-
-    // ======================================================
-    // OWNER
-    // ======================================================
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

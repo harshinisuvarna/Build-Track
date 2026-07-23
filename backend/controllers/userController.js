@@ -19,7 +19,6 @@ const updateProfile = async (req, res) => {
   }
 };
 
-//get profile
 const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -30,8 +29,6 @@ const getProfile = async (req, res) => {
   }
 };
 
-// @desc  Update profile photo
-// @route PUT /api/users/profile/photo
 const updateProfilePhoto = async (req, res) => {
   console.log('updateProfilePhoto called');
   console.log('req.user:', req.user);
@@ -61,8 +58,6 @@ const updateProfilePhoto = async (req, res) => {
   }
 };
 
-
-// PUT /api/users/subscription
 const updateSubscription = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -91,7 +86,6 @@ const updateSubscription = async (req, res) => {
   }
 };
 
-// GET /api/users/subscription
 const getSubscription = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('subscription');
@@ -102,11 +96,11 @@ const getSubscription = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-// PUT /api/users/:id/oversight
+
 const assignOversightRoles = async (req, res) => {
   try {
     const { id } = req.params;
-    const { overseesRoles } = req.body; // array of roles e.g. ["Mason", "Plumber"]
+    const { overseesRoles } = req.body;
 
     if (!Array.isArray(overseesRoles)) {
       return res.status(400).json({ message: "overseesRoles must be an array" });

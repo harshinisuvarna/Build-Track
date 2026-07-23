@@ -1,14 +1,5 @@
-// ============================================================================
-// Standalone test — matches AirPay's OFFICIAL Node SDK flow exactly.
-//
-// Posts to: https://payments.airpay.co.in/pay/v4/index.php?token=...
-// Form fields: mid, data, privatekey, checksum  (NOT encdata/merchant_id —
-// those names were our own earlier guesses; "mid" and "data" are what the
-// actual SDK route handler renders into its template).
-// ============================================================================
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
-// No forced DNS server override — let it use your normal network DNS.
 
 require('dotenv').config();
 const fs    = require('fs');
@@ -43,7 +34,7 @@ async function testPayment() {
 
     const { postUrl, formFields } = await buildPaymentPayload({
   orderId,
-  amount: '1.00', // AirPay expects a string with 2 decimals, e.g. "1.00"
+  amount: '1.00',
   buyerEmail: 'test@buildtrack.com',
   buyerPhone: '9999999999',
   buyerFirstName: 'Test',
@@ -69,7 +60,6 @@ console.log("=======================\n");
     console.log('checksum  (first 10):', formFields.checksum?.substring(0, 10) + '...');
     console.log('data      (first 20):', formFields.data?.substring(0, 20) + '...');
 
-    // ── 1) Write the HTML form so you can open it in a real browser ──
     const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>AirPay Payment Test</title></head>
@@ -89,7 +79,6 @@ console.log("=======================\n");
     fs.writeFileSync(outPath, html);
     console.log('\n✅ Wrote', outPath);
 
-    // ── 2) ALSO submit directly via axios so we can see the raw response ──
     console.log('\n── Submitting directly via axios to inspect raw response ──');
     const formBody = new URLSearchParams();
     formBody.append('mid',        formFields.mid);
@@ -141,7 +130,7 @@ console.log(bodyStr);
       console.log('AirPay response:', JSON.stringify(err.response.data, null, 2));
     }
   }
-  
+
 }
 
 testPayment();

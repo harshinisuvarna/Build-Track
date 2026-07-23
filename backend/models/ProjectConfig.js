@@ -6,7 +6,7 @@ const projectConfigSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Project",
             required: true,
-            unique: true // 1-to-1 relationship with the Project
+            unique: true
         },
 
         landArea: {
@@ -14,7 +14,7 @@ const projectConfigSchema = new mongoose.Schema(
             unit: { type: String, enum: ["Sq ft", "Sq mt"], default: "Sq ft" }
         },
 
-        floorsRequired: [{ type: String }], // Array of strings e.g., ["Ground Floor", "First Floor"]
+        floorsRequired: [{ type: String }],
 
         roomConfig: {
             oneBhk: { type: Number, default: 0 },

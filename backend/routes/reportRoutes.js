@@ -10,10 +10,6 @@ const { protect, getAdminId, canAccessProjectFilter } = require("../middleware/a
 
 router.use(protect);
 
-/// =======================================================
-/// DATE RANGE
-/// =======================================================
-
 function getDateRange(query) {
   const { year, month, rangeStart, rangeEnd } = query;
 
@@ -33,17 +29,9 @@ function getDateRange(query) {
   };
 }
 
-/// =======================================================
-/// FORMAT INR
-/// =======================================================
-
 function formatINR(n) {
   return `₹${Number(n || 0).toLocaleString("en-IN")}`;
 }
-
-/// =======================================================
-/// NORMALIZE PROJECT STATUS
-/// =======================================================
 
 function normalizeProjectStatus(status) {
   const s = String(status || "").toLowerCase();
@@ -52,18 +40,11 @@ function normalizeProjectStatus(status) {
   return "IN PROGRESS";
 }
 
-/// =======================================================
-/// BUILD ACCESSIBLE PROJECT IDS FOR NON-ADMINS
-/// =======================================================
-
-// Returns { projectIdFilter, accessibleProjectIds }
-// projectIdFilter — Mongoose filter to scope Project.find()
-// accessibleProjectIds — array of ObjectIds for Transaction queries
 async function buildProjectScope(req) {
   const isAdmin = req.user.role === "Admin";
 
   if (isAdmin) {
-    // Admin sees their own projects
+
     const projects = await Project.find({ createdBy: req.user._id }).select("_id").lean();
     const ids = projects.map((p) => p._id);
     return {
@@ -73,7 +54,6 @@ async function buildProjectScope(req) {
     };
   }
 
-  // Non-admin: scope to assigned projects only
   const projectFilter = canAccessProjectFilter(req);
   const projects = await Project.find(projectFilter).select("_id").lean();
   const ids = projects.map((p) => p._id);
@@ -84,10 +64,6 @@ async function buildProjectScope(req) {
   };
 }
 
-/// =======================================================
-/// FINANCIAL REPORT
-/// =======================================================
-
 router.get("/financial", async (req, res) => {
   try {
     const { type, category, project } = req.query;
@@ -95,10 +71,8 @@ router.get("/financial", async (req, res) => {
 
     const { startDate, endDate } = getDateRange(req.query);
 
-    // ── Build project scope ──────────────────────────────────────────────────
     const { projectFilter, projectIds, isAdmin } = await buildProjectScope(req);
 
-    // ── Base transaction query ───────────────────────────────────────────────
     const query = {
       date: { $gte: startDate, $lte: endDate },
     };
@@ -112,7 +86,6 @@ router.get("/financial", async (req, res) => {
     if (type && type !== "All") query.type = type;
     if (category) query.category = category;
 
-    // Optional project filter — validate access first
     if (project) {
       const pDoc = await Project.findOne(canAccessProjectFilter(req, project));
       if (!pDoc) {
@@ -121,13 +94,11 @@ router.get("/financial", async (req, res) => {
       query.project = project;
     }
 
-    // ── Fetch transactions ───────────────────────────────────────────────────
     const transactions = await Transaction.find(query)
       .populate("project", "projectName status budget progress")
       .populate("worker", "_id name trade dailyWage")
       .sort({ date: -1, createdAt: -1 });
 
-    // ── Financial summary ────────────────────────────────────────────────────
     const income = transactions
       .filter((t) => t.type === "Income")
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -143,8 +114,6 @@ router.get("/financial", async (req, res) => {
         ? Math.min(100, Math.max(0, (income / totalVolume) * 100))
         : 100;
 
-    // ── Project analytics ────────────────────────────────────────────────────
-    // Only show projects the user can access
     const projects = await Project.find(projectFilter).lean();
 
     const projectAnalytics = projects.map((p) => {
@@ -170,8 +139,6 @@ router.get("/financial", async (req, res) => {
       };
     });
 
-    // ── Workers ──────────────────────────────────────────────────────────────
-    // Scope workers to the admin who owns this organisation
     const adminId = await getAdminId(req.user);
     const workersRecords = await Worker.find({ createdBy: adminId }).lean();
 
@@ -207,7 +174,6 @@ router.get("/financial", async (req, res) => {
         };
       });
 
-    // ── Category breakdown ───────────────────────────────────────────────────
     const categoryBreakdown = {
       Materials: 0,
       Wages: 0,
@@ -224,7 +190,6 @@ router.get("/financial", async (req, res) => {
       categoryBreakdown[typeKey] += amount;
     });
 
-    // ── Monthly trend ────────────────────────────────────────────────────────
     const monthlyTrend = {};
     transactions.forEach((t) => {
       const d = new Date(t.date);
@@ -237,7 +202,6 @@ router.get("/financial", async (req, res) => {
       }
     });
 
-    // ── Analytics for chart UI ───────────────────────────────────────────────
     const analytics = {
       material: categoryBreakdown["Materials"] || 0,
       labour: categoryBreakdown["Wages"] || 0,
@@ -252,7 +216,6 @@ router.get("/financial", async (req, res) => {
     analytics.latestActual = latestActual;
     analytics.chartStatus = latestActual > analytics.targetCost ? "OVER_BUDGET" : "ON_TRACK";
 
-    // ── Recent transactions ──────────────────────────────────────────────────
     const recentTransactions = transactions.slice(0, 10).map((t) => ({
       _id: t._id,
       title: t.title,
@@ -285,15 +248,10 @@ router.get("/financial", async (req, res) => {
   }
 });
 
-/// =======================================================
-/// EXPORT CSV
-/// =======================================================
-
 router.get("/financial/export-csv", async (req, res) => {
   try {
     const { startDate, endDate } = getDateRange(req.query);
 
-    // Scope to accessible projects
     const { projectIds, isAdmin } = await buildProjectScope(req);
 
     const txQuery = {
@@ -342,15 +300,10 @@ router.get("/financial/export-csv", async (req, res) => {
   }
 });
 
-/// =======================================================
-/// EXPORT PDF
-/// =======================================================
-
 router.get("/financial/export-pdf", async (req, res) => {
   try {
     const { startDate, endDate } = getDateRange(req.query);
 
-    // Scope to accessible projects
     const { projectIds, isAdmin } = await buildProjectScope(req);
 
     const txQuery = {

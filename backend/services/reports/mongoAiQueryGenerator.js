@@ -10,13 +10,13 @@ COLLECTION "transactions" contains ALL financial entries:
 
   Labour/Wages entries:
     type: "Wages"
-    fields: title (e.g. "Wages - sumithra"), quantity, rate, 
+    fields: title (e.g. "Wages - sumithra"), quantity, rate,
             amount, unit, date, paymentStatus, worker, project
 
   Equipment/Machinery entries:
     type: "Expense"  ← equipment is stored as Expense
     fields: title (e.g. "JCB Excavator"), brand (e.g. "JCB Excavator"),
-            category (e.g. "JCB Excavator"), supplier, quantity, 
+            category (e.g. "JCB Excavator"), supplier, quantity,
             rate, amount, unit, date, paymentStatus, project
     To find equipment: search title/brand/category for equipment keywords
     (JCB, excavator, crane, machine, vehicle, bulldozer, etc.)
@@ -31,9 +31,9 @@ COLLECTION "transactions" contains ALL financial entries:
     type: "Income"
 
 COLLECTION "inventories" ONLY for stock level queries:
-    fields: materialName, category, closingStock, purchased, 
+    fields: materialName, category, closingStock, purchased,
             used, threshold, unit, project
-    Use ONLY when user asks: how much stock left, low stock, 
+    Use ONLY when user asks: how much stock left, low stock,
     current inventory levels, threshold alerts
 
 ════════════ ROUTING RULES ════════════
@@ -114,7 +114,7 @@ For TRANSACTIONS:
    All projects → { "project": { "$in": [<user's project ids>] } }
 
 For INVENTORIES:
-  category "material" or missing → 
+  category "material" or missing →
     { "$or": [{"category":"material"},{"category":{"$exists":false}},{"category":null}] }
   category "labour" → { "category": "labour" }
   category "equipment" → { "category": "equipment" }
@@ -177,14 +177,14 @@ async function generateMongoQuery(userQuery, projectScopeIds, adminId, projectsL
   );
 
   const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace(
-    "{{PROJECTS_PLACEHOLDER}}", 
+    "{{PROJECTS_PLACEHOLDER}}",
     projectsJson
   );
 
   const userPrompt = `User query: "${userQuery}"\nToday's date: ${new Date().toISOString().slice(0, 10)}`;
 
   const responseText = await aiProvider._callApi(systemPrompt, userPrompt, 0.1, true);
-  
+
   const cleaned = responseText
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
@@ -199,18 +199,17 @@ async function generateMongoQuery(userQuery, projectScopeIds, adminId, projectsL
     throw new Error("AI returned invalid JSON. Please retry your query.");
   }
 
-  // Ensure requested_columns always has a sensible default
   if (!plan.requested_columns || !Array.isArray(plan.requested_columns) || plan.requested_columns.length === 0) {
     plan.requested_columns = ["Purchased Date", "Project", "Type", "Description", "Amount (INR)"];
   }
-  
+
   console.log(`\n[AI QUERY PLAN]`);
   console.log(`  Explanation : ${plan.explanation}`);
   console.log(`  Collection  : ${plan.collection}`);
   console.log(`  Filter      : ${JSON.stringify(plan.filter)}`);
   console.log(`  AggregateBy : ${plan.aggregateBy || "none"}`);
   console.log(`  Columns     : ${plan.requested_columns.join(", ")}`);
-  
+
   return plan;
 }
 

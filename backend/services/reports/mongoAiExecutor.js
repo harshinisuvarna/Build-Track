@@ -3,23 +3,22 @@ const Inventory = require("../../models/Inventory");
 const mongoose = require("mongoose");
 
 function toObjectId(id) {
-  try { return new mongoose.Types.ObjectId(id.toString()); } 
+  try { return new mongoose.Types.ObjectId(id.toString()); }
   catch { return null; }
 }
 
-// Recursively convert all string ObjectIds in a filter to ObjectId type
 function convertObjectIds(obj) {
   if (!obj || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(convertObjectIds);
-  
+
   const result = {};
   for (const [key, val] of Object.entries(obj)) {
     if (key === "project" && typeof val === "string" && mongoose.Types.ObjectId.isValid(val)) {
       result[key] = toObjectId(val);
     } else if (key === "$in" && Array.isArray(val)) {
-      result[key] = val.map(v => 
-        typeof v === "string" && mongoose.Types.ObjectId.isValid(v) 
-          ? toObjectId(v) 
+      result[key] = val.map(v =>
+        typeof v === "string" && mongoose.Types.ObjectId.isValid(v)
+          ? toObjectId(v)
           : v
       ).filter(Boolean);
     } else if (typeof val === "object" && val !== null) {
@@ -33,24 +32,22 @@ function convertObjectIds(obj) {
 
 async function executeAiQuery(queryPlan, projectScopeIds) {
   const scopeIds = projectScopeIds.map(toObjectId).filter(Boolean);
-  
-  // Deep clone and convert ObjectId strings
+
   let filter = convertObjectIds(
     JSON.parse(JSON.stringify(queryPlan.filter || {}))
   );
 
-  // ── SECURITY: enforce project scope always ─────────────────────
   if (!filter.project) {
     filter.project = { $in: scopeIds };
   } else if (filter.project && filter.project["$in"]) {
-    // Validate that requested projects are within user scope
+
     const requested = filter.project["$in"].map(id => id.toString());
     const allowed = scopeIds.map(id => id.toString());
     const valid = requested.filter(id => allowed.includes(id));
-    filter.project = { 
-      $in: valid.length > 0 
-        ? valid.map(toObjectId) 
-        : scopeIds 
+    filter.project = {
+      $in: valid.length > 0
+        ? valid.map(toObjectId)
+        : scopeIds
     };
   } else if (filter.project && mongoose.Types.ObjectId.isValid(filter.project)) {
     const pid = filter.project.toString();
@@ -65,7 +62,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
   let totalPurchased = null;
   let comparisonData = null;
 
-  // ── COMPARISON / BRAND AGGREGATION ────────────────────────────
   if (queryPlan.aggregateBy === "brand") {
     const pipeline = [
       { $match: filter },
@@ -91,7 +87,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
       }))
     };
 
-    // Also get individual rows for the detail table
     const docs = await Transaction.find(filter)
       .populate("project", "projectName")
       .populate("worker", "name")
@@ -102,8 +97,7 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
     totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
 
   } else if (queryPlan.collection === "inventories") {
-    // ── INVENTORY QUERY ────────────────────────────────────────
-    // Safety net: expand material category to include null/missing
+
     if (filter.category === "material") {
       delete filter.category;
       filter["$or"] = [
@@ -126,7 +120,7 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
         : "ok";
       return {
         date: doc.createdAt
-          ? new Date(doc.createdAt).toISOString().slice(0, 10) 
+          ? new Date(doc.createdAt).toISOString().slice(0, 10)
           : "-",
         projectName: doc.project?.projectName || "Unknown",
         item: doc.materialName || "-",
@@ -148,7 +142,7 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
     totalPurchased = rows.reduce((s, r) => s + (r.purchased || 0), 0);
 
   } else {
-    // ── TRANSACTION QUERY ──────────────────────────────────────
+
     const docs = await Transaction.find(filter)
       .populate("project", "projectName")
       .populate("worker", "name")
@@ -160,7 +154,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
     totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
   }
 
-  // ── PROJECT BREAKDOWN ──────────────────────────────────────────
   const projectMap = {};
   rows.forEach(r => {
     const p = r.projectName || "Unknown";
@@ -174,7 +167,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
     .map(([name, v]) => ({ projectName: name, ...v }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
 
-  // ── METRICS ────────────────────────────────────────────────────
   const metrics = {
     criticalCount: rows.filter(r => r.severity === "critical").length,
     lowCount: rows.filter(r => r.severity === "low").length,
@@ -196,8 +188,8 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
 
 function mapTransactionRows(docs) {
   return docs.map(t => ({
-    date: t.date 
-      ? new Date(t.date).toISOString().slice(0, 10) 
+    date: t.date
+      ? new Date(t.date).toISOString().slice(0, 10)
       : "-",
     projectName: t.project?.projectName || "Unknown",
     item: t.title || "-",

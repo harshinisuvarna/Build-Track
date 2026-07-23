@@ -1,4 +1,3 @@
-// backend/models/Worker.js
 const mongoose = require("mongoose");
 function toTitleCase(str) {
   if (!str) return str;

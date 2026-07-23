@@ -13,7 +13,7 @@ function editDistance(a, b) {
       dp[i][j] = a[i - 1] === b[j - 1]
         ? dp[i - 1][j - 1]
         : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-          
+
     }
   }
   return dp[m][n];
@@ -57,7 +57,7 @@ function fuzzyMatch(input, list) {
     if (consMatch) return consMatch;
   }
   let bestMatch = null, bestSim = 0;
-  const threshold = 0.55; 
+  const threshold = 0.55;
   for (const item of list) {
     const sim = similarity(lower, item.toLowerCase());
     if (sim > bestSim && sim >= threshold) {

@@ -1,4 +1,3 @@
-// test_ai_pipeline.js
 const axios = require('axios');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
@@ -8,20 +7,18 @@ const BASE_URL = 'http://localhost:5001/api/reports/dashboard/query';
 
 async function runTests() {
   try {
-    // Connect to DB temporarily to get an admin user
+
     await mongoose.connect(process.env.MONGO_URI);
     const User = require('./models/User');
-    
-    // Find any admin user
+
     const adminUser = await User.findOne({ role: 'Admin' });
     if (!adminUser) {
         console.error("No admin user found. Cannot run test.");
         process.exit(1);
     }
-    
+
     console.log(`Using Admin: ${adminUser.email}`);
-    
-    // Generate Token
+
     const token = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -42,13 +39,13 @@ async function runTests() {
       console.log(`\n===========================================`);
       console.log(`Testing Query: "${q}"`);
       console.log(`===========================================`);
-      
+
       try {
         const res = await axios.post(BASE_URL, {
           query: q,
           projectId: "all"
         }, { headers });
-        
+
         const data = res.data.data;
         console.log(`Intent: ${data.intent?.intent}`);
         console.log(`table rows count: ${data.table?.rows?.length}`);
@@ -57,7 +54,6 @@ async function runTests() {
         console.log(`Test failed:`, err.response ? err.response.data : { error: err.message });
       }
 
-      // Wait 3 seconds to avoid rate limits (using Groq now, limits are higher)
       console.log(`Waiting 3 seconds...`);
       await new Promise(resolve => setTimeout(resolve, 3000));
     }

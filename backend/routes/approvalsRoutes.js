@@ -6,7 +6,6 @@ const User = require("../models/User");
 const mongoose = require("mongoose");
 const { protect } = require("../middleware/auth");
 
-// GET /api/approvals/pending
 router.get("/pending", protect, async (req, res) => {
   try {
     const user = req.user;
@@ -19,7 +18,7 @@ router.get("/pending", protect, async (req, res) => {
     let puQuery = { approvalStatus: "Pending" };
 
     if (user.role === "Admin") {
-      // Admin sees pending entries from ALL users they provisioned
+
       const provisionedUsers = await User.find({
         createdBy: user._id,
       }).select("_id");
@@ -35,8 +34,7 @@ router.get("/pending", protect, async (req, res) => {
       puQuery.createdBy = { $in: provisionedIds };
 
     } else {
-      // Supervisor (or any non-admin): 
-      // Find which admin created this supervisor
+
       const supervisorDoc = await User.findById(user._id).select("createdBy overseesRoles");
       const overseesRoles = supervisorDoc?.overseesRoles || [];
 
@@ -47,7 +45,6 @@ router.get("/pending", protect, async (req, res) => {
         return res.json({ transactions: [], projectUpdates: [] });
       }
 
-      // Find the admin who created this supervisor
       const adminId = supervisorDoc?.createdBy;
       console.log(`[Approvals] Supervisor's admin: ${adminId}`);
 
@@ -56,15 +53,12 @@ router.get("/pending", protect, async (req, res) => {
         return res.json({ transactions: [], projectUpdates: [] });
       }
 
-      // Find all users created by the same admin whose role is in overseesRoles
-      // Use case-insensitive comparison
       const allOrgUsers = await User.find({
         createdBy: adminId,
       }).select("_id name role");
 
       console.log(`[Approvals] All org users: ${JSON.stringify(allOrgUsers.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
 
-      // Case-insensitive role matching
       const overseesRolesLower = overseesRoles.map((r) => r.toLowerCase().trim());
       const usersToOversee = allOrgUsers.filter((u) =>
         overseesRolesLower.includes((u.role || "").toLowerCase().trim())
@@ -111,7 +105,6 @@ router.get("/pending", protect, async (req, res) => {
   }
 });
 
-// GET /api/approvals/history
 router.get("/history", protect, async (req, res) => {
   try {
     const Transaction = require("../models/Transaction");
@@ -128,7 +121,7 @@ router.get("/history", protect, async (req, res) => {
         return res.json({ transactions: [] });
       }
     } else {
-      // Supervisor
+
       const supervisorDoc = await User.findById(user._id)
         .select("createdBy overseesRoles");
       const overseesRoles = supervisorDoc?.overseesRoles || [];

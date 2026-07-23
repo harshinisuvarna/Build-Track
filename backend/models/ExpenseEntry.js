@@ -13,13 +13,11 @@ const expenseEntrySchema = new mongoose.Schema(
             required: true
         },
 
-        // Categorization
         floor: { type: String, trim: true },
         mainStage: { type: String, trim: true },
         subStage: { type: String, trim: true },
         activity: { type: String, trim: true },
 
-        // Core Expense Data
         entryType: {
             type: String,
             enum: ["Material", "Labour", "Equipment", "Misc"],
@@ -28,13 +26,11 @@ const expenseEntrySchema = new mongoose.Schema(
         itemName: { type: String, required: true },
         vendorName: { type: String },
 
-        // Math
         quantity: { type: Number, required: true, min: 0 },
         unit: { type: String },
         ratePerUnit: { type: Number, required: true, min: 0 },
-        totalAmount: { type: Number, required: true, min: 0 }, // Auto-calculated by frontend/controller
+        totalAmount: { type: Number, required: true, min: 0 },
 
-        // Billing & Payment
         purchaseDate: { type: Date, required: true },
         invoiceNumber: { type: String },
         paymentStatus: {
@@ -47,9 +43,8 @@ const expenseEntrySchema = new mongoose.Schema(
             type: String,
             enum: ["Cash", "UPI", "Bank", "Bank Transfer", "Cheque", "Card", ""]
         },
-        paymentReference: { type: String }, // UTR or Cheque No
+        paymentReference: { type: String },
 
-        // Attachments (URLs from Cloudinary/AWS)
         invoiceAttachment: { type: String },
         paymentReceiptAttachment: { type: String },
         photoAttachment: { type: String },

@@ -3,7 +3,6 @@ const Project = require("../models/Project");
 const User = require("../models/User");
 require("dotenv").config();
 
-// Set public DNS servers to resolve MongoDB Atlas SRV queries if local ISP DNS fails
 try {
   require("dns").setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
 } catch (dnsErr) {
@@ -15,7 +14,6 @@ async function runOwnershipMigration() {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Connected to DB...");
 
-    // Find the first admin user as a fallback owner if one is missing
     const firstAdmin = await User.findOne({ role: "Admin" });
     if (!firstAdmin) {
       console.error("❌ No Admin user found in the database. Please create an Admin user first.");
@@ -34,7 +32,7 @@ async function runOwnershipMigration() {
         await project.save();
         patchedCount++;
       } else {
-        // Verify if the owner exists in the database
+
         const ownerExists = await User.findById(project.createdBy);
         if (!ownerExists) {
           console.log(`⚠️ Project "${project.projectName}" (${project._id}) has orphan owner ID "${project.createdBy}". Re-assigning to Admin.`);

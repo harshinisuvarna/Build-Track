@@ -7,14 +7,13 @@ const { protect } = require("../middleware/auth");
 
 router.use(protect);
 
-// GET assignable users for tasks (in the same account)
 router.get("/users", async (req, res) => {
   try {
     const accountOwnerId = req.user.createdBy || req.user._id;
-    
+
     let query;
     if (req.user.role === 'Admin') {
-      // Admin sees all users in account
+
       query = {
         $or: [
           { _id: accountOwnerId },
@@ -22,7 +21,7 @@ router.get("/users", async (req, res) => {
         ]
       };
     } else {
-      // Supervisor sees users they oversee + themselves
+
       const overseesRoles = req.user.overseesRoles || [];
       query = {
         $or: [
@@ -34,7 +33,7 @@ router.get("/users", async (req, res) => {
     }
 
     const users = await User.find(query).select("_id name role profilePhoto");
-    
+
     res.json(users);
   } catch (err) {
     console.error("Fetch assignable users error:", err);
@@ -42,7 +41,6 @@ router.get("/users", async (req, res) => {
   }
 });
 
-// GET tasks for a specific project
 router.get("/project/:projectId", async (req, res) => {
   try {
     const tasks = await Task.find({ project: req.params.projectId })
@@ -56,7 +54,6 @@ router.get("/project/:projectId", async (req, res) => {
   }
 });
 
-// GET daily tasks for the logged in user
 router.get("/daily", async (req, res) => {
   try {
     const accountOwnerId = req.user.createdBy || req.user._id;
@@ -66,14 +63,14 @@ router.get("/daily", async (req, res) => {
     ];
 
     if (req.user.role === 'Admin') {
-      // Admin sees all tasks in account (by finding tasks where assignedTo is anyone in the account)
+
       const allAccountUsers = await User.find({
         $or: [{ _id: accountOwnerId }, { createdBy: accountOwnerId }]
       }).select("_id");
       queryConditions.push({ assignedTo: { $in: allAccountUsers.map(u => u._id) } });
-      queryConditions.push({ createdBy: accountOwnerId }); // Also tasks created by admin
+      queryConditions.push({ createdBy: accountOwnerId });
     } else if (req.user.overseesRoles && req.user.overseesRoles.length > 0) {
-      // Supervisor sees tasks assigned to users they oversee
+
       const overseenUsers = await User.find({
         createdBy: accountOwnerId,
         role: { $in: req.user.overseesRoles }
@@ -86,9 +83,9 @@ router.get("/daily", async (req, res) => {
     }).populate("assignedTo", "name role profilePhoto");
 
     if (tasks.length === 0) {
-      // Find user's projects to link the seeded tasks
+
       const projects = await Project.find({ createdBy: req.user._id });
-      
+
       if (projects.length > 0) {
         const projectId = projects[0]._id;
         const defaultTasks = [
@@ -113,7 +110,7 @@ router.get("/daily", async (req, res) => {
             time: "11:30 AM",
           }
         ];
-        
+
         tasks = await Task.insertMany(defaultTasks);
       }
     }
@@ -125,19 +122,17 @@ router.get("/daily", async (req, res) => {
   }
 });
 
-// POST create a new task
 router.post("/", async (req, res) => {
   try {
-    const { 
+    const {
       project, title, description, assignedTo, status, time,
       floorId, floorName, phaseId, phaseName, activityId, activityName
     } = req.body;
-    
+
     if (!project || !title) {
       return res.status(400).json({ message: "Project and Title are required" });
     }
 
-    // Optionally get the assignee user's name if assignedTo is provided
     let assigneeName = "Unknown Mason";
     if (assignedTo) {
       const assigneeUser = await User.findById(assignedTo);
@@ -170,7 +165,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT update task status
 router.put("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
@@ -193,7 +187,6 @@ router.put("/:id/status", async (req, res) => {
   }
 });
 
-// PUT update a task (full details including status)
 router.put("/:id", async (req, res) => {
   try {
     const {
@@ -222,7 +215,6 @@ router.put("/:id", async (req, res) => {
     if (activityId !== undefined) task.activityId = activityId;
     if (activityName !== undefined) task.activityName = activityName;
 
-    // Handle assignee update
     if (assignedTo !== undefined) {
       task.assignedTo = assignedTo || null;
       let assigneeName = "Unknown Mason";

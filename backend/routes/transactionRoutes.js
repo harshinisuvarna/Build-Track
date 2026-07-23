@@ -22,10 +22,6 @@ const cloudinary = require("../config/cloudinary");
 
 router.use(protect);
 
-/// =======================================================
-/// HELPERS
-/// =======================================================
-
 const parseId = (id) =>
   mongoose.Types.ObjectId.isValid(id) ? id : null;
 
@@ -61,7 +57,6 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   return qty * rt;
 };
 
-// Normalize unit values from frontend display names to backend enum values
 const UNIT_MAP = {
   bags: "bag", bag: "bag",
   kg: "kg", kgs: "kg",
@@ -83,12 +78,11 @@ const normalizeUnit = (raw) => {
   if (!raw) return "unit";
   const key = String(raw).toLowerCase().trim();
   if (UNIT_MAP[key]) return UNIT_MAP[key];
-  // Check if already a valid enum value
+
   if (VALID_UNITS.includes(raw)) return raw;
   return "unit";
 };
 
-// Normalize paymentMode from frontend (lowercase) to backend enum (title-case)
 const PAYMENT_MODE_MAP = {
   cash: "Cash",
   bank: "Bank",
@@ -105,14 +99,10 @@ const normalizePaymentMode = (raw) => {
   if (!raw) return "Cash";
   const key = String(raw).toLowerCase().trim();
   if (PAYMENT_MODE_MAP[key]) return PAYMENT_MODE_MAP[key];
-  // Check if already a valid enum value
+
   if (VALID_PAYMENT_MODES.includes(raw)) return raw;
   return "Cash";
 };
-
-/// =======================================================
-/// FILE UPLOADS
-/// =======================================================
 
 const runTransactionCreateUpload = (req, res) =>
   new Promise((resolve, reject) => {
@@ -134,10 +124,6 @@ const runTransactionUpdateUpload = (req, res) =>
       resolve();
     });
   });
-
-/// =======================================================
-/// RESOLVE IDS
-/// =======================================================
 
 async function resolveIds(userId, { worker, project }) {
   let workerId = parseId(worker);
@@ -162,16 +148,9 @@ async function resolveIds(userId, { worker, project }) {
   return { workerId, projectId };
 }
 
-/// =======================================================
-/// INVENTORY DELTA
-/// FIX: scope by { createdBy, project, materialName }
-/// so the same material can exist in multiple projects
-/// without hitting the unique index.
-/// =======================================================
-
 async function applyInventoryDelta(
-  adminId,      // always the organisation's admin _id (from getAdminId)
-  projectId,    // the specific project this entry belongs to
+  adminId,
+  projectId,
   category,
   unit,
   delta,
@@ -182,12 +161,11 @@ async function applyInventoryDelta(
 
   const invCategory = transactionType === "Wages" ? "labour" : transactionType === "Expense" ? "equipment" : "material";
 
-  // ── PURCHASE (delta > 0) ─────────────────────────────────────────────────
   if (delta > 0) {
     await Inventory.updateOne(
       {
         createdBy: adminId,
-        project: projectId,       // FIX: include project in filter
+        project: projectId,
         materialName: category,
       },
       {
@@ -207,14 +185,13 @@ async function applyInventoryDelta(
     );
   }
 
-  // ── USAGE (delta < 0) ────────────────────────────────────────────────────
   else if (delta < 0) {
     const absQty = Math.abs(delta);
 
     const inv = await Inventory.findOne(
       {
         createdBy: adminId,
-        project: projectId,       // FIX: include project in filter
+        project: projectId,
         materialName: category,
       },
       null,
@@ -223,7 +200,7 @@ async function applyInventoryDelta(
 
     if (!inv) {
       if (transactionType !== "Materials") {
-        // Wages / Expense reversal - return early as no inventory record exists to reverse
+
         return;
       }
       throw Object.assign(
@@ -234,7 +211,7 @@ async function applyInventoryDelta(
 
     if (inv.closingStock < absQty) {
       if (transactionType !== "Materials") {
-        // Wages / Expense reversal - adjust stock without throwing error
+
         await Inventory.updateOne(
           { _id: inv._id },
           {
@@ -266,13 +243,6 @@ async function applyInventoryDelta(
   }
 }
 
-/// =======================================================
-/// GET ALL TRANSACTIONS
-/// FIX: honour optional ?createdBy= query param so the
-/// mobile app can fetch only a specific user's entries
-/// (used for "Recent Entries" and autocomplete suggestions).
-/// =======================================================
-
 router.get("/", async (req, res) => {
   try {
     const {
@@ -282,20 +252,20 @@ router.get("/", async (req, res) => {
       project,
       startDate,
       endDate,
-      // FIX: new optional query param — scopes results to a specific user
+
       createdBy: queryCreatedBy,
     } = req.query;
 
     const query = {};
 
     if (req.user.role !== "Admin") {
-      // Non-admin: scope to assigned projects only
+
       const projectFilter = canAccessProjectFilter(req);
       const projects = await Project.find(projectFilter).select("_id");
       const projectIds = projects.map((p) => p._id);
       query.project = { $in: projectIds };
     } else {
-      // Admin: scope to ALL projects they own (not just their own entries)
+
       const adminProjects = await Project.find({ createdBy: req.user._id }).select("_id");
       const adminProjectIds = adminProjects.map((p) => p._id);
       query.project = { $in: adminProjectIds };
@@ -308,7 +278,7 @@ router.get("/", async (req, res) => {
       if (req.user.role !== "Admin") {
         const supervisorDoc = await User.findById(req.user._id).select("createdBy overseesRoles");
         const overseesRoles = supervisorDoc?.overseesRoles || [];
-        
+
         let viewableUserIds = [req.user._id];
 
         if (overseesRoles.length > 0 && supervisorDoc?.createdBy) {
@@ -353,9 +323,6 @@ router.get("/", async (req, res) => {
       ];
     }
 
-    // ── Optional limit param (used by mobile "recent entries" fetch) ─────────
-    // limitParam was moved up to before the query builder is defined
-
     let txQuery = Transaction.find(query)
       .populate("worker", "name trade")
       .populate("project", "projectName status progress")
@@ -372,9 +339,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-/// =======================================================
-/// GET MY TRANSACTIONS (current user only, used by Mason dashboard)
-/// =======================================================
 router.get("/my", async (req, res) => {
   try {
     const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 10;
@@ -390,10 +354,6 @@ router.get("/my", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
-
-/// =======================================================
-/// GET SINGLE TRANSACTION
-/// =======================================================
 
 router.get("/:id", async (req, res) => {
   try {
@@ -429,10 +389,6 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
-
-/// =======================================================
-/// CREATE TRANSACTION
-/// =======================================================
 
 router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   try {
@@ -498,12 +454,8 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
     const normalizedMaterialType =
       type === "Materials" ? normalizeMaterialType(materialType, subType) : "";
 
-    // FIX: resolveIds uses admin's _id for project lookup since non-admin
-    // users don't own the project themselves. Use getAdminId for consistency.
     const adminId = await getAdminId(req.user);
 
-    // For project lookup: non-admins are assigned to projects they don't own,
-    // so we look up by _id directly (canAccessProjectFilter already validated access).
     let workerId = parseId(worker);
     let projectId = parseId(project);
 
@@ -516,15 +468,13 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
     }
 
     if (projectId) {
-      // Validate this user can access this project
+
       const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
       if (!pDoc) projectId = null;
     }
 
     const attachmentFiles = (req.files?.attachments || []).map(getFileUrl);
 
-// FIX: mobile app sends attachments as base64 data URIs in the JSON body
-// (not multipart files). The old code silently dropped these.
 if (req.body.attachments) {
   let bodyAttachments = req.body.attachments;
   if (typeof bodyAttachments === "string") {
@@ -547,7 +497,7 @@ if (req.body.attachments) {
           console.error("Cloudinary attachment upload error:", uploadErr);
         }
       } else {
-        // already a URL (e.g. re-saved from an existing entry)
+
         attachmentFiles.push(att);
       }
     }
@@ -565,7 +515,6 @@ if (req.body.receiptImage) {
   }
 }
 
-// Payment receipt captured via the "Pay Now" toggle at entry-creation time
 let paymentReceiptUrl = null;
 if (req.body.paymentReceipt) {
   if (typeof req.body.paymentReceipt === "string" && req.body.paymentReceipt.startsWith("data:")) {
@@ -683,14 +632,12 @@ if (req.body.paymentReceipt) {
 
     await transaction.save({ session });
 
-    // FIX: pass adminId (org admin) AND projectId to applyInventoryDelta
-    // so inventory is scoped to { adminId, projectId, materialName }
     if ((type === "Materials" || type === "Wages" || type === "Expense") && qty > 0 && projectId && txApprovalStatus === "Approved") {
       const inventoryDelta = (type === "Materials" && normalizedMaterialType === "usage") ? -qty : qty;
 
       await applyInventoryDelta(
-        adminId,      // organisation's admin (owns inventory records)
-        projectId,    // FIX: scope inventory to this specific project
+        adminId,
+        projectId,
         resolvedCategory || title,
         unit,
         inventoryDelta,
@@ -718,10 +665,6 @@ if (req.body.paymentReceipt) {
     session.endSession();
   }
 });
-
-/// =======================================================
-/// UPDATE TRANSACTION
-/// =======================================================
 
 router.put("/:id", async (req, res) => {
   try {
@@ -828,7 +771,7 @@ router.put("/:id", async (req, res) => {
       rawAmount: rawAmount ?? tx.amount,
     });
 
-    const hasInventoryFieldsChanged = 
+    const hasInventoryFieldsChanged =
       (project !== undefined && project !== tx.project?.toString()) ||
       (type !== undefined && type !== tx.type) ||
       (materialType !== undefined && materialType !== tx.materialType) ||
@@ -839,13 +782,13 @@ router.put("/:id", async (req, res) => {
       (quantity !== undefined && Number(quantity) !== tx.quantity);
 
     if (hasInventoryFieldsChanged) {
-      // Reverse old inventory (using old project scope)
+
       if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
         const oldType = normalizeMaterialType(tx.materialType, tx.subType);
         const reverseDelta = (tx.type === "Materials" && oldType === "usage") ? tx.quantity : -tx.quantity;
         await applyInventoryDelta(
           adminId,
-          tx.project,   // use the OLD project for reversal
+          tx.project,
           tx.category || tx.title,
           tx.unit,
           reverseDelta,
@@ -854,7 +797,6 @@ router.put("/:id", async (req, res) => {
         );
       }
 
-      // Apply new inventory (using new project scope)
       const newType = type || tx.type;
       const newMaterialType = newType === "Materials"
         ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
@@ -864,7 +806,7 @@ router.put("/:id", async (req, res) => {
         const newDelta = (newType === "Materials" && newMaterialType === "usage") ? -newQty : newQty;
         await applyInventoryDelta(
           adminId,
-          projectId,    // use the NEW project for application
+          projectId,
           category || tx.category || title || tx.title,
           unit || tx.unit,
           newDelta,
@@ -890,8 +832,6 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    // Payment receipt (separate from invoice attachments) — uploaded from
-    // the Fulfillment & Payment screen when recording/settling a payment.
     let newPaymentReceiptUrl = null;
     if (paymentReceipt) {
       if (typeof paymentReceipt === "string" && paymentReceipt.startsWith("data:")) {
@@ -904,7 +844,7 @@ router.put("/:id", async (req, res) => {
           console.error("Cloudinary paymentReceipt upload error:", uploadErr);
         }
       } else {
-        // already a URL (e.g. unchanged from a previous save)
+
         newPaymentReceiptUrl = paymentReceipt;
       }
     }
@@ -1033,10 +973,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-/// =======================================================
-/// DELETE TRANSACTION
-/// =======================================================
-
 router.delete("/:id", async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1070,7 +1006,6 @@ router.delete("/:id", async (req, res) => {
 
     await Transaction.deleteOne({ _id: tx._id }).session(session);
 
-    // Reverse inventory on delete
     if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
       const adminId = await getAdminId(req.user);
       const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
@@ -1078,7 +1013,7 @@ router.delete("/:id", async (req, res) => {
 
       await applyInventoryDelta(
         adminId,
-        tx.project,   // FIX: scope to the transaction's project
+        tx.project,
         tx.category || tx.title,
         tx.unit,
         reverseDelta,
@@ -1105,9 +1040,6 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-/// =======================================================
-/// APPROVE TRANSACTION
-/// =======================================================
 router.put("/:id/approve", requirePermission(["approve_payments", "add_entries", "approve_updates"]), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1126,7 +1058,6 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries",
 
     const adminId = await getAdminId(req.user);
 
-    // Apply inventory since it's now approved
     if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.project) {
       const materialType = normalizeMaterialType(tx.materialType, tx.subType);
       const inventoryDelta = (tx.type === "Materials" && materialType === "usage") ? -tx.quantity : tx.quantity;
@@ -1155,9 +1086,6 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries",
   }
 });
 
-/// =======================================================
-/// REJECT TRANSACTION
-/// =======================================================
 router.put("/:id/reject", requirePermission(["approve_payments", "add_entries", "approve_updates"]), async (req, res) => {
   try {
     const { rejectionReason } = req.body;
@@ -1181,16 +1109,13 @@ router.put("/:id/reject", requirePermission(["approve_payments", "add_entries", 
   }
 });
 
-/// =======================================================
-/// PROJECT PHASE BUDGET UPDATE HELPER
-/// =======================================================
 async function updateProjectPhaseBudget(projectId, phaseId, activityId, type, amount, session) {
   if (!projectId || !phaseId || !activityId || !amount) return;
-  
+
   const incPayload = {
     "selectedPhases.$[phase].activities.$[activity].totalAmount": amount
   };
-  
+
   if (type === "Materials") {
     incPayload["selectedPhases.$[phase].activities.$[activity].materialAmount"] = amount;
   } else if (type === "Wages") {
@@ -1212,12 +1137,9 @@ async function updateProjectPhaseBudget(projectId, phaseId, activityId, type, am
   );
 }
 
-/// =======================================================
-/// CREATE TRANSACTIONS (BULK)
-/// =======================================================
 router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   const { transactions } = req.body;
-  
+
   if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
     return res.status(400).json({ message: "No transactions provided for bulk upload" });
   }
@@ -1269,7 +1191,7 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
         if (!pDoc) throw new Error(`Access denied or Project not found for project: ${project}`);
       } else if (project) {
-        // Resolve project by name if not a valid ObjectId
+
         const pDoc = await Project.findOne({ createdBy: adminId, projectName: String(project).trim() }).lean();
         if (pDoc) {
           projectId = pDoc._id;
@@ -1313,7 +1235,6 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         await applyInventoryDelta(adminId, projectId, resolvedCategory || title, unit, inventoryDelta, type, session);
       }
 
-      // Update Phase budget reflection
       if (projectId && phaseId && activityId && txApprovalStatus === "Approved") {
         await updateProjectPhaseBudget(projectId, phaseId, activityId, type, finalAmount, session);
       }

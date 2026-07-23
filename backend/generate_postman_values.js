@@ -1,12 +1,3 @@
-// ============================================================================
-// Generates the exact field values you need to paste into Postman.
-// Does NOT make any HTTP calls itself — just prints values to copy.
-//
-// USAGE:
-//   1. Place this file in backend/ (next to .env and utils/)
-//   2. Run: node generate_postman_values.js
-//   3. Copy the printed values into Postman as described in the chat.
-// ============================================================================
 require('dotenv').config();
 const {
   encrypt,
@@ -32,7 +23,6 @@ if (missing.length) {
 const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
 const privatekey    = generatePrivateKey(cfg.secret, cfg.username, cfg.password);
 
-// ── 1) OAuth2 payload (for getting an access_token in Postman) ──────────
 const oauthPayload = {
   client_id:     cfg.clientId,
   client_secret: cfg.secret,
@@ -42,7 +32,6 @@ const oauthPayload = {
 const oauthEncdata  = encrypt(JSON.stringify(oauthPayload), encryptionKey);
 const oauthChecksum = generateChecksum(oauthPayload);
 
-// ── 2) Payment transaction payload (for the /pay/v4/ step) ──────────────
 const orderId = `TEST${Date.now()}`;
 const transactionData = {
   orderid:         orderId,

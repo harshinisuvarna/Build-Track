@@ -14,10 +14,6 @@ const applyInventoryDelta = async (materialId, quantity, actionType) => {
   );
 };
 
-/**
- * POST /api/inventory
- * Creates a new inventory material entry for the authenticated user.
- */
 const createMaterial = async (req, res) => {
   try {
     const { materialName, project, unit, openingStock, threshold } = req.body;
@@ -42,7 +38,7 @@ const createMaterial = async (req, res) => {
     const saved = await doc.save();
     res.status(201).json(saved);
   } catch (err) {
-    // Duplicate key → material already exists for this project
+
     if (err.code === 11000) {
       return res
         .status(409)

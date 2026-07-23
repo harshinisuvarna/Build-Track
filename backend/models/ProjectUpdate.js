@@ -25,10 +25,10 @@ const projectUpdateSchema = new mongoose.Schema(
       ],
       required: true,
     },
-    workDone: Number, // sqft
+    workDone: Number,
     startDate: Date,
     endDate: Date,
-    media: [String], // URLs/filenames for photos/videos
+    media: [String],
     remarks: String,
     approvalStatus: {
       type: String,

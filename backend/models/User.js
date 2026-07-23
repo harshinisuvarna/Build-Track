@@ -30,8 +30,6 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
-    // ── NEW: Dynamic Supervisor permissions ──────────────
-    // Roles that this user (if Supervisor) is allowed to oversee/approve
     overseesRoles: {
       type: [String],
       default: [],
@@ -43,16 +41,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ── CHANGED: single projectId → array of projectIds ──────────────
-    // Allows admin to assign a user to one or more projects.
-    // Old field kept as alias for backward compat during migration.
     projectIds: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }],
       default: [],
     },
 
-    // Legacy single-project field — kept so old tokens/sessions don't break.
-    // New code should use projectIds[0] as the "primary" project if needed.
     projectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",

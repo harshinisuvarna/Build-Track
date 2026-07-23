@@ -1,34 +1,18 @@
-// ============================================================================
-// Standalone test script — run this FIRST to verify your AirPay credentials
-// and crypto implementation work, before testing the full Flutter flow.
-//
-// USAGE:
-//   1. Place this file in your backend root (next to server.js and .env)
-//   2. Make sure your .env has: AIRPAY_MERCHANT_ID, AIRPAY_CLIENT_ID,
-//      AIRPAY_SECRET_KEY (this script reads them automatically — no
-//      need to paste values into this file)
-//   3. Run: node test_airpay_oauth.js
-//   4. Check the output — should print "access_token" if everything works
-// ============================================================================
-
 require('dotenv').config();
 
-// FIX: force Node to use Google DNS — same reason as test_airpay_payment.js
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // loads your .env file — make sure 'dotenv' is installed
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const { encrypt, decrypt, generateChecksum, generateEncryptionKeyFromCreds } = require('./utils/airpayCrypto');
 const axios = require('axios');
 
-// ── Reads directly from your .env — matches your actual variable names ──
 const AIRPAY_MERCHANT_ID = process.env.AIRPAY_MERCHANT_ID;
 const AIRPAY_CLIENT_ID = process.env.AIRPAY_CLIENT_ID;
-const AIRPAY_SECRET = process.env.AIRPAY_SECRET_KEY; // your .env uses this exact name
+const AIRPAY_SECRET = process.env.AIRPAY_SECRET_KEY;
 const AIRPAY_USERNAME = process.env.AIRPAY_USERNAME;
 const AIRPAY_PASSWORD = process.env.AIRPAY_PASSWORD;
 
-// Alternate key per Encryption docs page: md5(username + "~:~" + password)
 const ALT_ENCRYPTION_KEY = (AIRPAY_USERNAME && AIRPAY_PASSWORD)
   ? generateEncryptionKeyFromCreds(AIRPAY_USERNAME, AIRPAY_PASSWORD)
   : null;
@@ -57,9 +41,6 @@ async function testOAuth() {
     grant_type: 'client_credentials',
   };
 
-  // FIX: AirPay actually expects the MD5-derived key for AES encryption,
-  // not the raw secretKey — confirmed by successfully decrypting their
-  // response using this key in our diagnostic test.
   const encryptionKey = ALT_ENCRYPTION_KEY || AIRPAY_SECRET;
   console.log('Using encryption key:', encryptionKey === ALT_ENCRYPTION_KEY ? 'MD5-derived (alt)' : 'raw secret (fallback)');
 
@@ -87,9 +68,6 @@ async function testOAuth() {
     console.log(JSON.stringify(response.data, null, 2));
     console.log('========================================');
 
-    // AirPay's actual sandbox shape wraps EVERYTHING (success or failure)
-    // inside an encrypted "response" field, alongside merchant_id.
-    // We must decrypt it first to know what actually happened.
     if (response.data.response) {
       console.log('Found encrypted "response" field — decrypting now...');
 

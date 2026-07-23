@@ -15,9 +15,9 @@ async function checkKey() {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
     console.log(`Calling: https://generativelanguage.googleapis.com/v1beta/models`);
-    
+
     const response = await axios.get(url);
-    
+
     console.log(`\nHTTP Status: ${response.status} ${response.statusText}`);
     console.log("Response Body (first 500 chars):");
     console.log(JSON.stringify(response.data, null, 2).substring(0, 500) + "...\n(truncated)");

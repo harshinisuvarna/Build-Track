@@ -12,7 +12,7 @@ const aiDebugLogger = {
       }
     }
   },
-  
+
   logEnter: (stage, reqId) => {
     if (!AI_DEBUG) return;
     console.log(`\n[AI][${reqId}] ENTER ${stage}`);
@@ -38,7 +38,7 @@ const aiDebugLogger = {
     if (!AI_DEBUG) return;
     console.log(...args);
   },
-  
+
   isActive: () => AI_DEBUG
 };
 

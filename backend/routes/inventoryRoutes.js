@@ -49,11 +49,11 @@ router.post("/add", async (req, res) => {
     const adminId = await getAdminId(req.user);
     let item = await Inventory.findOne({ project, materialName, createdBy: adminId });
     if (item) {
-      // Item already exists — top up the stock
+
       item.purchased   += qty;
       item.closingStock = item.purchased - item.used;
     } else {
-      // Brand new item
+
       item = new Inventory({
         materialName,
         purchased:    qty,

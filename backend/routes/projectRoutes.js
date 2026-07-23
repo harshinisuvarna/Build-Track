@@ -19,7 +19,6 @@ const Subscription = require("../models/Subscription");
 
 router.use(protect);
 
-// HELPERS
 const normalizeProjectBudget = (project) => {
   if (!project) return project;
 
@@ -103,7 +102,6 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
   const summaries = new Map();
   const nowStr = new Date().toISOString();
 
-  // Helper to initialize default/zero budget structure
   const makeDefaultBudget = (act) => {
     const matAlloc = Number(act.budgetMaterial || 0);
     const labAlloc = Number(act.budgetLabour || 0);
@@ -119,7 +117,6 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
     };
   };
 
-  // Pre-populate with default zeros to handle "no entries" case cleanly
   for (const act of activities) {
     const aid = act.id || act._id?.toString();
     summaries.set(aid, makeDefaultBudget(act));
@@ -145,7 +142,6 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
       },
     ]);
 
-    // Build a nested map: activityId → type → spent
     const spendMap = new Map();
     for (const row of rows) {
       const aid = row._id.activityId;
@@ -208,7 +204,7 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
     }
   } catch (err) {
     console.error("[computeActivityBudgetSummaries] error:", err);
-    // On failure, return the pre-populated default zeros so endpoint doesn't crash
+
   }
 
   return summaries;
@@ -247,19 +243,13 @@ const mapUiStatusToBackend = (uiStatus) => {
   return "Active";
 };
 
-// ── ownedByCurrentUserFilter — used by /mine (AssignRole project list) ──────
 const ownedByCurrentUserFilter = (req, projectId = null) => {
   if (projectId) return { _id: projectId, createdBy: req.user.id };
   return { createdBy: req.user.id };
 };
 
-// ── VIEW PERMISSION KEYS ────────────────────────────────────────────────────
-// Both the legacy key ("view_projects") and the new key ("view_assigned_project")
-// are accepted on all read routes so that supervisors and masons provisioned
-// with either key can access their projects without a 403.
 const VIEW_PROJECTS = ["view_projects", "view_assigned_project"];
 
-// GET MY OWN PROJECTS ONLY
 router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const projects = await Project.find(ownedByCurrentUserFilter(req)).sort({ createdAt: -1 });
@@ -293,29 +283,26 @@ router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   }
 });
 
-// GET ALL PROJECTS
 router.get("/", protect, async (req, res) => {
   try {
     const { status, search } = req.query;
     let query = canAccessProjectFilter(req);
-    
-    // Find all projects where this user has an assigned task
+
     const Task = require("../models/Task");
     const userTasks = await Task.find({ assignedTo: req.user._id }).select("project");
     const taskProjectIds = userTasks.map(t => t.project).filter(Boolean);
 
-    // If the user has tasks for projects, allow access to those projects
     if (taskProjectIds.length > 0) {
       if (query.__never) {
-        // If they had NO access previously, override with their task project IDs
+
         delete query.__never;
         query._id = { $in: taskProjectIds };
       } else if (query._id && query._id.$in) {
-        // If they had some access, append the task project IDs
+
         query._id.$in.push(...taskProjectIds);
       }
     } else if (query.__never) {
-      // Still no access and no tasks, return empty array object
+
       return res.json({ projects: [] });
     }
 
@@ -364,7 +351,6 @@ router.get("/", protect, async (req, res) => {
   }
 });
 
-// GET SINGLE PROJECT
 router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
@@ -374,7 +360,6 @@ router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
     normalized.spentAmount = await getProjectSpentAmount(project._id);
     normalized.totalIncome = await getProjectIncomeAmount(project._id);
 
-    // Compute and enrich activity budgets
     if (normalized.selectedPhases && normalized.selectedPhases.length > 0) {
       const allActivities = normalized.selectedPhases.flatMap(p => p.activities || []);
       const summaries = await computeActivityBudgetSummaries(project._id, allActivities);
@@ -383,7 +368,7 @@ router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
         if (!phase.activities) continue;
         for (const act of phase.activities) {
           const aid = act.id || act._id?.toString();
-          // Ensure default allocation fields exist
+
           act.budgetMaterial = Number(act.budgetMaterial || 0);
           act.budgetLabour = Number(act.budgetLabour || 0);
           act.budgetEquipment = Number(act.budgetEquipment || 0);
@@ -406,7 +391,6 @@ router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
   }
 });
 
-// GET PROJECT STATS
 router.get("/:id/stats", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
@@ -454,7 +438,6 @@ router.get("/:id/stats", requirePermission(VIEW_PROJECTS), async (req, res) => {
   }
 });
 
-// GET PROJECT BUDGET
 router.get("/:id/budget", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
@@ -498,7 +481,6 @@ router.get("/:id/budget", requirePermission(VIEW_PROJECTS), async (req, res) => 
   }
 });
 
-// CREATE PROJECT
 router.post("/", requirePermission(["create_project", "manage_team"]), async (req, res) => {
   try {
     await runUpload(req, res);
@@ -514,7 +496,7 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
       endDate: { $gt: new Date() }
     }).sort({ createdAt: -1 });
 
-    let limit = 1; // free plan limit
+    let limit = 1;
     if (activeSub) {
       const plan = activeSub.plan || 'free';
       if (plan === 'starter') limit = 2;
@@ -644,7 +626,6 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
   }
 });
 
-// UPDATE PROJECT
 router.put("/:id", protect, async (req, res) => {
   try {
     await runUpload(req, res);
@@ -655,18 +636,15 @@ router.put("/:id", protect, async (req, res) => {
   try {
     const body = req.body;
     console.log("PUT /projects/:id body.selectedPhases:", JSON.stringify(body.selectedPhases));
-    
-    // Find the project first
+
     const existing = await Project.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: "Project not found" });
 
-    // Verify permissions manually
     const userPerms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
     const hasEdit = req.user.role === 'Admin' || userPerms.includes("edit_project") || userPerms.includes("manage_team") || userPerms.includes("add_entry");
-    
+
     if (!hasEdit) {
-      // If no explicit edit permission, check if they have a task assigned for this project
-      // We must require mongoose for this check
+
       const Task = require("../models/Task");
       const hasTask = await Task.exists({ project: existing._id, assignedTo: req.user._id });
       if (!hasTask) {
@@ -811,7 +789,6 @@ router.put("/:id", protect, async (req, res) => {
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
 
-    // Compute and enrich activity budgets
     if (normalized.selectedPhases && normalized.selectedPhases.length > 0) {
       const allActivities = normalized.selectedPhases.flatMap(p => p.activities || []);
       const summaries = await computeActivityBudgetSummaries(project._id, allActivities);
@@ -848,7 +825,6 @@ router.put("/:id", protect, async (req, res) => {
   }
 });
 
-// DELETE PROJECT
 router.delete("/:id", requirePermission(["delete_project", "manage_team"]), async (req, res) => {
   try {
     const project = await Project.findOneAndDelete(canManageProjectFilter(req, req.params.id));
@@ -862,7 +838,6 @@ router.delete("/:id", requirePermission(["delete_project", "manage_team"]), asyn
   }
 });
 
-// IMPORT CSV ROUTE
 const memoryUpload = multer({ storage: multer.memoryStorage() });
 
 router.post("/import-phases", memoryUpload.single("csvFile"), (req, res) => {

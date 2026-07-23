@@ -1,20 +1,6 @@
-// ============================================================================
-// Decrypts the `response` field AirPay sends back from the payment endpoint
-// (the same wrapped format as OAuth2: { merchant_id, response }).
-//
-// USAGE:
-//   1. Open the Network tab in your browser (or just look at what
-//      test_payment_form.html's destination page returned, or what
-//      Postman returned) and copy the FULL value of the "response" field
-//      — don't truncate it.
-//   2. Paste it into RAW_RESPONSE below (locally — do not share this
-//      value with anyone, it's tied to your live sandbox session).
-//   3. Run: node decrypt_payment_response.js
-// ============================================================================
 require('dotenv').config();
 const { decrypt, generateEncryptionKeyFromCreds } = require('./utils/airpayCrypto');
 
-// Paste the full "response" string here (between the quotes):
 const RAW_RESPONSE = '0a97f1b4a18051fffwve8EEw2vtVVUyxHyIvy4qRq2LQlO\/ZNkxicL52979EjVswW\/ZC2SMebKqydIsB\/vISpQFMufCsWWO2g4fPRp9k7eNiuhl9lp3mh2Kxtn\/aCYZgOYj2Q7d7uzC7OJiZNeheB3wD1VrB9\/vjG5Fw\/2s9fYff7J8Z\/uug4FfyFtQ=';
 
 function main() {

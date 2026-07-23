@@ -2,20 +2,18 @@ require("dotenv").config();
 
 console.log('AirPay Merchant ID loaded:', !!process.env.AIRPAY_MERCHANT_ID);
 
-// ─── DNS fix: resolve MongoDB Atlas SRV via Google DNS to bypass ISP DNS failures ───
 const dns = require("dns");
 dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
 async function resolveMongoSrvUri(uri) {
   if (!uri || !uri.startsWith("mongodb+srv://")) return uri;
   try {
     const url = new URL(uri);
-    const host = url.hostname; // e.g. cluster0.ehqxxl8.mongodb.net
+    const host = url.hostname;
     const userInfo = url.username
       ? `${url.username}:${encodeURIComponent(decodeURIComponent(url.password))}@`
       : "";
     const dbName = url.pathname || "/";
 
-    // Resolve SRV records
     const srvRecords = await new Promise((resolve, reject) => {
       dns.resolveSrv(`_mongodb._tcp.${host}`, (err, records) => {
         if (err) reject(err);
@@ -23,7 +21,6 @@ async function resolveMongoSrvUri(uri) {
       });
     });
 
-    // Resolve TXT records (contains replicaSet + authSource)
     let txtOptions = {};
     try {
       const txtRecords = await new Promise((resolve, reject) => {
@@ -38,15 +35,13 @@ async function resolveMongoSrvUri(uri) {
         if (k && v) txtOptions[k] = v;
       });
     } catch (_) {
-      // TXT is optional
+
     }
 
-    // Build host list from SRV
     const hosts = srvRecords
       .map((r) => `${r.name}:${r.port}`)
       .join(",");
 
-    // Merge query params: SRV defaults + TXT options + original URI params
     const params = new URLSearchParams({
       tls: "true",
       authSource: "admin",
@@ -80,7 +75,7 @@ const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const passport = require("./config/passport");
-// Add this with your other requires at the top
+
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const app = express();
 const PORT = Number(process.env.PORT) || 5001;
@@ -103,18 +98,15 @@ app.use(cors({
   credentials: false,
 }));
 
-// Handle preflight for all routes
 app.options('/{*path}', cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
 }));
 
-
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProd ? 200 : 10000, // relaxed limit for development
+  max: isProd ? 200 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests — please try again later." },
@@ -130,14 +122,12 @@ if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !pr
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
 
-// Resolve SRV URI before connecting (fixes local ISP DNS failures)
 resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
   console.log("[MongoDB] Connecting...");
   return mongoose.connect(resolvedUri, { serverSelectionTimeoutMS: 15000 });
 }).then(async () => {
     console.log("✅ MongoDB connected");
 
-    // Run database cleanups in the background so they do not block/slow down initial incoming requests
     setImmediate(async () => {
       try {
         console.log("[Cleanup] Starting background database cleanups...");
@@ -161,13 +151,13 @@ resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
           const projects = groups[key];
           if (projects.length > 1) {
             duplicateCount++;
-            const keptProject = projects[0]; // Keep the most recently created one
+            const keptProject = projects[0];
             const duplicatesToDelete = projects.slice(1);
 
             console.log(`[Cleanup] Found duplicate projects for name "${keptProject.projectName}". Keeping ${keptProject._id}`);
 
             for (const dup of duplicatesToDelete) {
-              // Re-assign transactions to the kept project
+
               const updateRes = await Transaction.updateMany(
                 { project: dup._id },
                 { $set: { project: keptProject._id } }
@@ -176,7 +166,6 @@ resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
                 console.log(`[Cleanup] Reassigned ${updateRes.modifiedCount} transactions from duplicate ${dup._id} to kept project ${keptProject._id}`);
               }
 
-              // Delete the duplicate project
               await Project.deleteOne({ _id: dup._id });
               console.log(`[Cleanup] Deleted duplicate project document: ${dup._id}`);
             }
@@ -188,11 +177,11 @@ resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
         } else {
           console.log("[Cleanup] Database is clean. No duplicate projects found.");
         }
-        // One-off: Set overseesRoles for supervisors who have none
+
         try {
           const supervisorUpdateRes = await require('./models/User').updateMany(
-            { 
-              role: 'Supervisor', 
+            {
+              role: 'Supervisor',
               $or: [
                 { overseesRoles: { $exists: false } },
                 { overseesRoles: { $size: 0 } }
@@ -207,7 +196,6 @@ resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
           console.error('[Cleanup] overseesRoles patch error:', cleanupErr);
         }
 
-        // One-off backend DB cleanup for incorrect Labour/Equipment units
         const invalidUnits = [
           'kg', 'Kg', 'KG',
           'bag', 'Bag', 'BAG',
@@ -240,7 +228,6 @@ resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
     console.error("❌ MongoDB connection failed:", err.message);
   });
 
-// Database connectivity check middleware
 const dbCheck = (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     console.error(`[DBCheck] Blocked request to ${req.originalUrl}: Database not connected (readyState: ${mongoose.connection.readyState})`);
@@ -258,7 +245,6 @@ app.get("/", (_req, res) =>
 
 app.get("/api/test", (_req, res) => res.json({ ok: true }));
 
-// Apply database connectivity check to all other /api routes
 app.use("/api", dbCheck);
 
 app.use("/api/auth", require("./routes/authRoutes"));

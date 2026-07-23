@@ -1,8 +1,3 @@
-// routes/aiReportRoutes.js
-//
-// Wire into server.js:
-//   app.use("/api/reports", require("./routes/aiReportRoutes"));
-
 const express = require("express");
 const router = express.Router();
 const Transaction = require("../models/Transaction");
@@ -11,8 +6,6 @@ const Project = require("../models/Project");
 const { protect, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
 
 router.use(protect);
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDate(d) {
   if (!d) return "-";
@@ -46,23 +39,17 @@ async function baseTxQuery(req) {
   return { project: { $in: ids } };
 }
 
-// ─── Intent detection (improved) ─────────────────────────────────────────────
-
 function detectIntent(q) {
   const lower = q.toLowerCase();
 
-  // ── Date range: "Jun 1 to Jun 8", "june entries", "entries in june",
-  //    "last week", "this month", "today", "yesterday" ──────────────────────
   const dateRangeMatch = lower.match(
     /(?:from\s+)?(\w+\s+\d+)\s+(?:to|-)\s+(\w+\s+\d+)/
   );
 
-  // Named month: "entries in june", "june spend", "materials in march"
   const monthNames = ["january","february","march","april","may","june",
                       "july","august","september","october","november","december"];
   const monthMatch = monthNames.find((m) => lower.includes(m));
 
-  // Relative dates
   const isToday    = /\btoday\b/.test(lower);
   const isYesterday= /\byesterday\b/.test(lower);
   const isThisWeek = /this week|last 7 days/.test(lower);
@@ -93,19 +80,11 @@ function detectIntent(q) {
   };
 }
 
-// ─── Merge current intent with prior turns (conversational memory) ──────────
-//
-// Since there's no LLM in this route, "memory" means: if the current
-// question doesn't specify something (a date range, a type), but a recent
-// user turn did, carry that forward — UNLESS the current question clearly
-// specifies its own value for that slot, in which case it wins.
-
 const FOLLOWUP_HINTS = /\b(instead|what about|and|also|same|now|this time)\b/i;
 
 function mergeWithHistory(intent, question, history) {
   if (!Array.isArray(history) || history.length === 0) return intent;
 
-  // Only look at prior USER turns, most recent first.
   const priorUserQuestions = history
     .filter((h) => h.role === "user" && h.text && h.text.trim())
     .map((h) => h.text)
@@ -116,13 +95,9 @@ function mergeWithHistory(intent, question, history) {
   const looksLikeFollowUp =
     FOLLOWUP_HINTS.test(question) || question.trim().split(/\s+/).length <= 4;
 
-  // Walk backwards through prior questions, re-detecting their intent,
-  // and fill in any slot the CURRENT question left empty.
   for (const prevQ of priorUserQuestions) {
     const prevIntent = detectIntent(prevQ);
 
-    // Date window: only inherit if current question has no date signal
-    // AND (this is a short follow-up OR current question matched nothing date-wise)
     const currentHasDateSignal =
       intent.dateRangeMatch || intent.monthMatch || intent.isToday ||
       intent.isYesterday || intent.isThisWeek || intent.isThisMonth || intent.isLastMonth;
@@ -140,9 +115,6 @@ function mergeWithHistory(intent, question, history) {
       intent.isLastMonth    = prevIntent.isLastMonth;
     }
 
-    // Type filter: only inherit if current question names NO type at all
-    // (so "labour instead" still correctly switches type, since isLabour
-    // would already be true on intent and this branch is skipped for type).
     const currentHasTypeSignal =
       intent.isMaterial || intent.isLabour || intent.isEquipment || intent.isExpense;
     const prevHasTypeSignal =
@@ -155,13 +127,10 @@ function mergeWithHistory(intent, question, history) {
       intent.isExpense   = prevIntent.isExpense;
     }
 
-    // Specific material: only inherit if current question names none
     if (!intent.specificMaterial && prevIntent.specificMaterial && looksLikeFollowUp) {
       intent.specificMaterial = prevIntent.specificMaterial;
     }
 
-    // Stop once we've found one prior turn with usable signal — don't keep
-    // walking further back and overwriting with even older context.
     if (prevHasDateSignal || prevHasTypeSignal || prevIntent.specificMaterial) {
       break;
     }
@@ -170,13 +139,10 @@ function mergeWithHistory(intent, question, history) {
   return intent;
 }
 
-// ─── Resolve date window from intent ─────────────────────────────────────────
-
 function resolveDateWindow(intent) {
   const now = new Date();
   const year = now.getFullYear();
 
-  // Explicit "Jun 1 to Jun 8"
   if (intent.dateRangeMatch) {
     const start = parseShortDate(intent.dateRangeMatch[1], year);
     const end   = parseShortDate(intent.dateRangeMatch[2], year);
@@ -186,7 +152,6 @@ function resolveDateWindow(intent) {
     }
   }
 
-  // Named month: "entries in june"
   if (intent.monthMatch) {
     const monthIndex = ["january","february","march","april","may","june",
                         "july","august","september","october","november","december"]
@@ -243,8 +208,6 @@ function parseShortDate(str, referenceYear) {
   return new Date(referenceYear || new Date().getFullYear(), month, day);
 }
 
-// ─── POST /api/reports/ai-chat ────────────────────────────────────────────────
-
 router.post("/ai-chat", async (req, res) => {
   try {
     const { question, projectId, history = [] } = req.body;
@@ -262,7 +225,6 @@ router.post("/ai-chat", async (req, res) => {
       scope.project = projectId;
     }
 
-    // ── PROGRESS / ACTIVITIES ───────────────────────────────────────────────
     if (intent.isProgress) {
       const projectIds = await getProjectIds(req);
       const projectFilter = req.user.role === "Admin"
@@ -318,7 +280,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── INVENTORY ───────────────────────────────────────────────────────────
     if (intent.isInventory) {
       const invQuery = { createdBy: adminId };
       if (projectId && projectId !== "all") invQuery.project = projectId;
@@ -338,7 +299,6 @@ router.post("/ai-chat", async (req, res) => {
         });
       }
 
-      // Show ALL items, mark severity
       const inventoryRows = items.map((i) => {
         const pct      = i.threshold > 0 ? i.closingStock / i.threshold : 1;
         const severity = i.closingStock <= 0
@@ -356,7 +316,6 @@ router.post("/ai-chat", async (req, res) => {
         };
       });
 
-      // Sort: critical first, then low, then ok
       const order = { critical: 0, low: 1, ok: 2 };
       inventoryRows.sort((a, b) => order[a.severity] - order[b.severity]);
 
@@ -382,7 +341,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── BUDGET HEALTH ───────────────────────────────────────────────────────
     if (intent.isBudget) {
       const projectIds = await getProjectIds(req);
       const projectFilter = req.user.role === "Admin"
@@ -431,7 +389,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── PENDING ─────────────────────────────────────────────────────────────
     if (intent.isPending) {
       const pendingTx = await Transaction.find({ ...scope, paymentStatus: "Pending" })
         .populate("project", "projectName")
@@ -467,14 +424,12 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── TYPE FILTER ─────────────────────────────────────────────────────────
     let typeFilter = null;
     if (intent.isLabour)         typeFilter = "Wages";
     else if (intent.isEquipment) typeFilter = "Equipment";
     else if (intent.isExpense)   typeFilter = "Expense";
     else if (intent.isMaterial)  typeFilter = "Materials";
 
-    // ── DATE WINDOW (catches "entries in june", "today", "this week" etc.) ──
     const dateWindow = resolveDateWindow(intent);
 
     if (dateWindow) {
@@ -484,7 +439,6 @@ router.post("/ai-chat", async (req, res) => {
       };
       if (typeFilter) txQuery.type = typeFilter;
 
-      // For date queries don't filter by paymentStatus — show all entries
       const txs   = await Transaction.find(txQuery)
         .populate("project", "projectName")
         .sort({ date: -1 })
@@ -519,7 +473,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── SPECIFIC MATERIAL ───────────────────────────────────────────────────
     if (intent.specificMaterial) {
       const mat = intent.specificMaterial;
       const txs = await Transaction.find({
@@ -560,7 +513,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── GENERAL TYPE QUERY ──────────────────────────────────────────────────
     if (typeFilter) {
       const txs = await Transaction.find({ ...scope, type: typeFilter })
         .sort({ date: -1 })
@@ -586,7 +538,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── TOTAL SPEND ─────────────────────────────────────────────────────────
     if (intent.isTotal || intent.isEntries) {
       const txs       = await Transaction.find(scope).sort({ date: -1 }).limit(50).lean();
       const total     = txs.reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -612,7 +563,6 @@ router.post("/ai-chat", async (req, res) => {
       });
     }
 
-    // ── FALLBACK ────────────────────────────────────────────────────────────
     return res.json({
       result: {
         text: "Try asking:\n• 'Entries in June'\n• 'Cement spend'\n• 'Labour entries this week'\n• 'Inventory status'\n• 'Budget health'\n• 'Project progress'\n• 'Pending payments'",

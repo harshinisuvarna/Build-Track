@@ -56,7 +56,6 @@ function validateIntentOutput(parsedJson) {
     return { isValid: false, error: "Output is not an object" };
   }
 
-  // Sanitize the raw JSON to convert "null", "none", etc. to actual null
   const sanitizedJson = sanitizeIntentValues(parsedJson);
 
   if (!sanitizedJson.intent) {
@@ -65,13 +64,12 @@ function validateIntentOutput(parsedJson) {
   if (sanitizedJson.confidenceScore === undefined || typeof sanitizedJson.confidenceScore !== "number") {
     return { isValid: false, error: "Missing or invalid confidenceScore" };
   }
-  
-  // Normalize fields safely using the sanitized object
+
   sanitizedJson.category = sanitizedJson.category || "all";
   sanitizedJson.aggregation = sanitizedJson.aggregation || "summary";
   sanitizedJson.sort = sanitizedJson.sort || "date_desc";
   sanitizedJson.comparison = !!sanitizedJson.comparison;
-  
+
   return { isValid: true, intent: sanitizedJson, sanitizedRaw: sanitizedJson };
 }
 

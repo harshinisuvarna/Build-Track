@@ -2,13 +2,10 @@ const Transaction = require("../../models/Transaction");
 const Inventory = require("../../models/Inventory");
 const aiDebugLogger = require("../../utils/aiDebugLogger");
 
-/**
- * Executes the query and calculates totals and aggregations.
- */
 async function processAnalytics(intent, query, scope, reqId) {
   aiDebugLogger.logEnter("Analytics Engine", reqId);
   const startTime = Date.now();
-  
+
   try {
     let results = {
     totalAmount: 0,
@@ -27,10 +24,10 @@ async function processAnalytics(intent, query, scope, reqId) {
          itemQuery.brand = { $regex: new RegExp(item, "i") };
          const aggPipeline = [
            { $match: itemQuery },
-           { $group: { 
-               _id: "$project", 
-               totalAmount: { $sum: "$amount" }, 
-               totalQty: { $sum: "$quantity" } 
+           { $group: {
+               _id: "$project",
+               totalAmount: { $sum: "$amount" },
+               totalQty: { $sum: "$quantity" }
            } },
            { $lookup: { from: "projects", localField: "_id", foreignField: "_id", as: "projectDetails" } },
            { $unwind: { path: "$projectDetails", preserveNullAndEmptyArrays: true } }
@@ -59,23 +56,22 @@ async function processAnalytics(intent, query, scope, reqId) {
   }
 
   if (intent.intent === "inventory_status") {
-    // query is now completely built by mongoQueryBuilder for Inventory!
+
     let items = await Inventory.find(query).populate("project", "projectName").lean();
-    
+
     results.rows = items.map(doc => {
        const pct = doc.threshold > 0 ? doc.closingStock / doc.threshold : 1;
        const severity = doc.closingStock <= 0 ? "critical" : pct <= 0.5 ? "critical" : pct < 1.0 ? "low" : "ok";
-       
+
        return {
-         // Transaction-like fields for the table
+
          date: doc.createdAt ? new Date(doc.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
          projectName: doc.project?.projectName || "Unknown",
          item: doc.materialName,
          quantity: String(doc.closingStock),
          unit: doc.unit || "units",
          amount: 0,
-         
-         // Inventory-specific fields
+
          name: doc.materialName,
          category: doc.category,
          purchased: doc.purchased,
@@ -85,16 +81,14 @@ async function processAnalytics(intent, query, scope, reqId) {
          severity: severity
        };
     });
-    
-    // Apply filters if deterministically requested
+
     if (intent.filters && intent.filters.severity) {
        results.rows = results.rows.filter(r => intent.filters.severity.includes(r.severity));
     }
-    
-    // Sort
+
     const order = { critical: 0, low: 1, ok: 2 };
     results.rows.sort((a, b) => order[a.severity] - order[b.severity]);
-    
+
     results.metrics.criticalCount = results.rows.filter(r => r.severity === "critical").length;
     results.metrics.lowCount = results.rows.filter(r => r.severity === "low").length;
     results.rowCount = results.rows.length;
@@ -102,7 +96,6 @@ async function processAnalytics(intent, query, scope, reqId) {
 
     results.rowCount = results.rows.length;
 
-    // Feature 3: Cross Project Breakdown for Inventory
     const projectTotals = {};
     items.forEach(doc => {
        const pName = doc.project?.projectName || "Unknown";
@@ -116,18 +109,17 @@ async function processAnalytics(intent, query, scope, reqId) {
        totalPurchased: projectTotals[name].totalPurchased
     })).sort((a,b) => b.totalPurchased - a.totalPurchased);
 
-
   } else {
-    // Transaction query
+
     const txs = await Transaction.find(query)
       .populate("project", "projectName")
       .sort({ date: -1 })
       .limit(100)
       .lean();
-    
+
     results.totalAmount = txs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
     results.rowCount = txs.length;
-    
+
     results.rows = txs.map(t => ({
       date: new Date(t.date).toISOString().slice(0, 10),
       item: t.title || t.category || "-",
@@ -136,9 +128,7 @@ async function processAnalytics(intent, query, scope, reqId) {
       amount: Number(t.amount || 0),
       projectName: t.project?.projectName || "-"
     }));
-    
 
-    // Feature 3: Cross Project Breakdown for Transactions
     if (!query.project || query.project === "all" || query.project.$in) {
        const projectTotals = {};
        txs.forEach(t => {

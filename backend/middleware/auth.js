@@ -4,8 +4,6 @@ const mongoose = require("mongoose");
 
 const SECRET = process.env.JWT_SECRET;
 
-// ── protect ──────────────────────────────────────────────────────────────────
-// Verifies JWT, attaches full user doc to req.user
 const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -25,7 +23,6 @@ const protect = async (req, res, next) => {
       return res.status(403).json({ message: "Account deactivated" });
     }
 
-    // Guard against invalidated sessions (sign-out-all)
     if ((user.tokenVersion || 0) !== (decoded.tokenVersion || 0)) {
       return res.status(401).json({ message: "Session expired — please log in again" });
     }
@@ -38,8 +35,6 @@ const protect = async (req, res, next) => {
   }
 };
 
-// ── authorize ─────────────────────────────────────────────────────────────────
-// Role-based guard — pass one or more role strings
 const authorize = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user?.role)) {
     return res.status(403).json({
@@ -49,9 +44,6 @@ const authorize = (...roles) => (req, res, next) => {
   next();
 };
 
-// ── requirePermission ─────────────────────────────────────────────────────────
-// Permission-based guard — pass an array of permission keys (OR logic).
-// Admins always pass through.
 const requirePermission = (permissions) => (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -74,12 +66,6 @@ const requirePermission = (permissions) => (req, res, next) => {
   next();
 };
 
-// ── getAdminId ────────────────────────────────────────────────────────────────
-// Returns the root Admin's _id for a given user.
-// - Admin  → their own _id
-// - Others → createdBy (the Admin who provisioned them)
-// This ensures workers/inventory scoped to the organisation's Admin
-// are visible to all members of that organisation.
 const getAdminId = async (user) => {
   if (!user) return null;
 
@@ -87,26 +73,16 @@ const getAdminId = async (user) => {
     return user._id;
   }
 
-  // Prefer the populated createdBy field; fall back to a DB lookup
   if (user.createdBy) {
     return typeof user.createdBy === "object" && user.createdBy._id
       ? user.createdBy._id
       : user.createdBy;
   }
 
-  // Edge-case: createdBy not set — look up from DB
   const freshUser = await User.findById(user._id).select("createdBy role").lean();
   return freshUser?.createdBy || user._id;
 };
 
-// ── canAccessProjectFilter ────────────────────────────────────────────────────
-// Returns a Mongoose query filter for projects a user may READ.
-//
-//  Admin       → all projects they created              { createdBy: adminId }
-//  Non-admin   → only projects they are assigned to     { _id: { $in: [...] } }
-//
-// Pass an optional projectId to produce a single-document filter
-// (used for "does this user have access to THIS project?" checks).
 const canAccessProjectFilter = (req, projectId = null) => {
   const user = req.user;
 
@@ -115,7 +91,6 @@ const canAccessProjectFilter = (req, projectId = null) => {
     return { createdBy: user._id };
   }
 
-  // Merge projectIds array + legacy single projectId
   const assignedIds = Array.isArray(user.projectIds)
     ? user.projectIds.filter(Boolean).map((id) => id.toString())
     : [];
@@ -130,10 +105,10 @@ const canAccessProjectFilter = (req, projectId = null) => {
     .map((id) => new mongoose.Types.ObjectId(id));
 
   if (projectId) {
-    // Single-document check: must be in assigned list
+
     const pidStr = projectId.toString();
     if (!assignedIds.includes(pidStr)) {
-      // Return a filter that will never match — forces 404/403 upstream
+
       return { _id: new mongoose.Types.ObjectId(), __never: true };
     }
     return { _id: projectId };
@@ -142,12 +117,6 @@ const canAccessProjectFilter = (req, projectId = null) => {
   return { _id: { $in: objectIds } };
 };
 
-// ── canManageProjectFilter ────────────────────────────────────────────────────
-// Returns a Mongoose query filter for projects a user may WRITE (edit/delete).
-//
-//  Admin       → projects they created                  { _id, createdBy }
-//  Non-admin   → assigned projects only (they must also hold the relevant
-//                edit/delete permission, checked separately via requirePermission)
 const canManageProjectFilter = (req, projectId = null) => {
   const user = req.user;
 
@@ -156,8 +125,6 @@ const canManageProjectFilter = (req, projectId = null) => {
     return { createdBy: user._id };
   }
 
-  // Non-admins: same scope as canAccessProjectFilter —
-  // they need the matching permission guard applied on the route as well.
   return canAccessProjectFilter(req, projectId);
 };
 

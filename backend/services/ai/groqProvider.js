@@ -2,9 +2,6 @@ const axios = require("axios");
 const AIProvider = require("./aiProvider");
 const aiDebugLogger = require("../../utils/aiDebugLogger");
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GroqAuthError — Thrown on 401/403 so callers can distinguish auth failures
-// ─────────────────────────────────────────────────────────────────────────────
 class GroqAuthError extends Error {
   constructor(message, statusCode) {
     super(message);
@@ -12,12 +9,6 @@ class GroqAuthError extends Error {
     this.statusCode = statusCode;
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GroqProvider — Drop-in replacement for GeminiProvider
-// Model: llama-3.3-70b-versatile (free tier: 14,400 req/day, 6000 req/min)
-// Switch: set GROQ_API_KEY in your .env file
-// ─────────────────────────────────────────────────────────────────────────────
 
 class GroqProvider extends AIProvider {
   constructor() {
@@ -34,7 +25,6 @@ class GroqProvider extends AIProvider {
     }
   }
 
-  // ─── Core API call with exponential backoff on 429 ────────────────────────
   async _callApi(systemPrompt, userPrompt, temperature = 0.1, expectJson = false) {
     if (!this.apiKey) {
       throw new Error("GROQ_API_KEY is missing");
@@ -73,11 +63,11 @@ class GroqProvider extends AIProvider {
         if (error.response?.status === 429) {
           attempt++;
           if (attempt >= maxAttempts) throw error;
-          const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          const waitTime = Math.pow(2, attempt) * 1000;
           console.warn(`[GroqProvider] 429 rate limit hit. Retrying in ${waitTime}ms (attempt ${attempt}/${maxAttempts})...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
         } else if (error.response?.status === 401 || error.response?.status === 403) {
-          // ── Auth failure — throw a typed error the route can catch ──
+
           const code = error.response.status;
           console.error(`[GroqProvider] ${code} Auth Error — API key invalid or revoked`);
           if (error.response?.data) {
@@ -88,7 +78,7 @@ class GroqProvider extends AIProvider {
             code
           );
         } else {
-          // Log the actual error body for easier debugging
+
           if (error.response?.data) {
             console.error("[GroqProvider] API Error:", JSON.stringify(error.response.data));
           }
@@ -98,7 +88,6 @@ class GroqProvider extends AIProvider {
     }
   }
 
-  // ─── Strip markdown/code fences from JSON responses ──────────────────────
   _cleanJson(text) {
     return text
       .replace(/^```json\s*/i, "")
@@ -107,7 +96,6 @@ class GroqProvider extends AIProvider {
       .trim();
   }
 
-  // ─── 1. generateIntent ────────────────────────────────────────────────────
   async generateIntent(query, context = {}, schema, reqId) {
     aiDebugLogger.logEnter("Groq: Generate Intent", reqId);
     const startTime = Date.now();
@@ -160,7 +148,6 @@ ${JSON.stringify(context, null, 2)}
     }
   }
 
-  // ─── 2. generateSummary ───────────────────────────────────────────────────
   async generateSummary(analyticsData, userQuery, reqId) {
     aiDebugLogger.logEnter("Groq: Generate Summary", reqId);
     const startTime = Date.now();
@@ -196,7 +183,6 @@ ${JSON.stringify(analyticsData, null, 2)}
     }
   }
 
-  // ─── 3. generateFollowups ─────────────────────────────────────────────────
   async generateFollowups(currentContext, reqId) {
     aiDebugLogger.logEnter("Groq: Generate Followups", reqId);
     const startTime = Date.now();
@@ -224,7 +210,6 @@ ${JSON.stringify(currentContext, null, 2)}
 
       const data = JSON.parse(cleaned);
 
-      // Handle both array and object responses gracefully
       if (Array.isArray(data)) return data.slice(0, 3);
       if (data.followUps && Array.isArray(data.followUps)) return data.followUps.slice(0, 3);
       if (data.suggestions && Array.isArray(data.suggestions)) return data.suggestions.slice(0, 3);
@@ -232,7 +217,7 @@ ${JSON.stringify(currentContext, null, 2)}
       return ["Export CSV", "Filter by project", "Show summary"];
     } catch (error) {
       aiDebugLogger.logError("Groq: Generate Followups", error, reqId, Date.now() - startTime);
-      return ["Export CSV", "Filter by project", "Show summary"]; // Safe fallback
+      return ["Export CSV", "Filter by project", "Show summary"];
     }
   }
 }

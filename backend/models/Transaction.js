@@ -16,19 +16,12 @@ const toObjectIdOrNull = function (value) {
 
 const transactionSchema = new mongoose.Schema(
   {
-    // ======================================================
-    // OWNER
-    // ======================================================
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
-    // ======================================================
-    // BASIC INFO
-    // ======================================================
 
     title: {
       type: String,
@@ -61,10 +54,6 @@ const transactionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
-    // ======================================================
-    // MATERIAL SUB TYPES
-    // ======================================================
 
     subType: {
       type: String,
@@ -100,10 +89,6 @@ const transactionSchema = new mongoose.Schema(
       default: "",
     },
 
-    // ======================================================
-    // UNITS
-    // ======================================================
-
     unit: {
       type: String,
 
@@ -126,10 +111,6 @@ const transactionSchema = new mongoose.Schema(
       default: "unit",
     },
 
-    // ======================================================
-    // QUANTITY & RATE
-    // ======================================================
-
     quantity: {
       type: Number,
       min: 0,
@@ -147,10 +128,6 @@ const transactionSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
-
-    // ======================================================
-    // OPTIONAL ANALYTICS FIELDS
-    // ======================================================
 
     sqftArea: {
       type: Number,
@@ -187,18 +164,10 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // ======================================================
-    // AUTO CALCULATED
-    // ======================================================
-
     amount: {
       type: Number,
       required: true,
     },
-
-    // ======================================================
-    // TRANSACTION TYPE
-    // ======================================================
 
     type: {
       type: String,
@@ -214,10 +183,6 @@ const transactionSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ======================================================
-    // RELATIONS
-    // ======================================================
-
     worker: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Worker",
@@ -232,18 +197,10 @@ const transactionSchema = new mongoose.Schema(
       set: toObjectIdOrNull,
     },
 
-    // ======================================================
-    // DATE
-    // ======================================================
-
     date: {
       type: Date,
       default: Date.now,
     },
-
-    // ======================================================
-    // PAYMENT TRACKING
-    // ======================================================
 
     paymentStatus: {
       type: String,
@@ -285,10 +242,6 @@ const transactionSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // ======================================================
-    // APPROVAL
-    // ======================================================
-
     approvalStatus: {
       type: String,
 
@@ -311,10 +264,6 @@ const transactionSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-
-    // ======================================================
-    // RECEIPTS & ATTACHMENTS
-    // ======================================================
 
     receipts: [
       {
@@ -345,17 +294,10 @@ const transactionSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Receipt proof uploaded when recording a payment via
-    // the Fulfillment & Payment screen — separate from `attachments`
-    // (which holds the original invoice/bill).
     paymentReceipt: {
       type: String,
       default: null,
     },
-
-    // ======================================================
-    // NOTES
-    // ======================================================
 
     notes: {
       type: String,
@@ -384,13 +326,8 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: true, optimisticConcurrency: true }
 );
 
-// ======================================================
-// PRE SAVE
-// ======================================================
-
 transactionSchema.pre("save", function () {
 
-  // Auto amount calculation
   if (
     ["Materials", "Equipment"].includes(this.type) &&
     this.quantity &&
@@ -399,7 +336,6 @@ transactionSchema.pre("save", function () {
     this.amount = this.quantity * this.rate;
   }
 
-  // Validation: Prevent overpayment — runs BEFORE status overwrites
   if (Math.abs(this.paidAmount || 0) > Math.abs(this.amount || 0)) {
     throw Object.assign(
       new Error("Paid amount cannot exceed total amount"),
@@ -407,7 +343,6 @@ transactionSchema.pre("save", function () {
     );
   }
 
-  // Payment balance calculation
   if (this.paymentStatus === "Paid") {
     this.paidAmount = this.amount;
     this.remainingAmount = 0;
@@ -418,9 +353,6 @@ transactionSchema.pre("save", function () {
     this.remainingAmount = this.amount - (this.paidAmount || 0);
   }
 
-  // FIX: use paymentDate (actual date payment was made), not date
-  // (which is the purchase/entry date) — these were being conflated,
-  // making Payment History always show the same timestamp as Purchase Date.
   if (Math.abs(this.paidAmount || 0) > 0 && (!this.paymentHistory || this.paymentHistory.length === 0)) {
     this.paymentHistory = [{
       date: this.paymentDate || this.date || new Date(),
@@ -431,9 +363,6 @@ transactionSchema.pre("save", function () {
   }
 });
 
-// ======================================================
-// INDEXES
-// ======================================================
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });

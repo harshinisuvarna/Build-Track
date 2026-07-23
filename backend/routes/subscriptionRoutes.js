@@ -4,7 +4,6 @@ const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/auth');
 const { buildPaymentPayload, decryptCallbackData } = require('../utils/airpayservice');
 
-// Your Render deployment URL — AirPay posts the callback here
 const BACKEND_URL = process.env.BACKEND_URL
   || 'https://build-track.onrender.com';
 
@@ -24,9 +23,6 @@ const PLAN_DURATION_DAYS = {
   enterprise: 30,
 };
 
-// =================================================================
-// POST /api/subscriptions/initiate
-// =================================================================
 router.post('/initiate', protect, async (req, res) => {
   try {
     const { plan } = req.body;
@@ -77,10 +73,6 @@ router.post('/initiate', protect, async (req, res) => {
   }
 });
 
-// =================================================================
-// POST /api/subscriptions/callback
-// AirPay posts here — no auth middleware
-// =================================================================
 router.post('/callback', async (req, res) => {
   try {
     console.log('AirPay callback raw body:', JSON.stringify(req.body));
@@ -137,12 +129,6 @@ router.post('/callback', async (req, res) => {
   }
 });
 
-// =================================================================
-// GET /api/subscriptions/status
-// Admins check their own subscription. Provisioned users (Supervisor,
-// Mason, custom roles, etc.) have no Subscription of their own — they
-// inherit whatever plan the Admin who created them is on.
-// =================================================================
 router.get('/status', protect, async (req, res) => {
   try {
     const isAdmin = (req.user.role || '').toLowerCase() === 'admin';

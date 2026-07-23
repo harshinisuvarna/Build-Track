@@ -21,7 +21,6 @@ async function buildBaseScope(req) {
   return { isAdmin, adminId, projectFilter, projectScopeIds, projects };
 }
 
-// ─── Map display columns to underlying MongoDB/Executor fields ───────────────
 const COLUMN_TO_FIELD_MAP = {
   "Purchased Date": "date",
   "Project": "projectName",
@@ -41,18 +40,17 @@ const COLUMN_TO_FIELD_MAP = {
   "Payment Date": "date"
 };
 
-// ─── Format rows dynamically based on AI requested columns ───────────────────
 function formatDynamicRows(rows, requestedColumns, tableType) {
   return rows.map((r, idx) => {
-    const mobileRow = { number: idx + 1 }; // Always prepend row number
-    
+    const mobileRow = { number: idx + 1 };
+
     for (const colName of requestedColumns) {
       if (colName === "Amount (INR)" && tableType === "inventory") {
         mobileRow[colName] = r.closingStock ?? 0;
       } else {
         const fieldKey = COLUMN_TO_FIELD_MAP[colName];
         if (fieldKey && r[fieldKey] !== undefined && r[fieldKey] !== null && r[fieldKey] !== "") {
-          // Special formatting for Quantity to include unit
+
           if (colName === "Qty" && r.unit && r.unit !== "-") {
              mobileRow[colName] = `${r.quantity} ${r.unit}`;
           } else {
@@ -73,7 +71,7 @@ router.post("/query", async (req, res) => {
   try {
     const { query } = req.body;
     if (!query || !query.trim()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: "Query is required",
         message: "Please provide a search query.",
@@ -81,14 +79,12 @@ router.post("/query", async (req, res) => {
       });
     }
 
-    // 1. Get user's project scope
     const baseScope = await buildBaseScope(req);
     const projectsList = baseScope.projects.map(p => ({
       id: p._id.toString(),
       name: p.projectName
     }));
 
-    // 2. AI generates the MongoDB query plan (can throw GroqAuthError)
     let queryPlan;
     try {
       queryPlan = await generateMongoQuery(
@@ -98,7 +94,7 @@ router.post("/query", async (req, res) => {
         projectsList
       );
     } catch (aiError) {
-      // ── Graceful handling: Groq auth failure ──────────────────
+
       if (aiError instanceof GroqAuthError || aiError.name === "GroqAuthError") {
         console.error(`[${reqId}] GroqAuthError: ${aiError.message}`);
         return res.status(500).json({
@@ -109,7 +105,7 @@ router.post("/query", async (req, res) => {
           statusCode: 500
         });
       }
-      // ── Graceful handling: JSON parse / other AI errors ────────
+
       console.error(`[${reqId}] AI Query Generation Error:`, aiError.message);
       return res.status(500).json({
         success: false,
@@ -120,7 +116,6 @@ router.post("/query", async (req, res) => {
       });
     }
 
-    // 3. Execute safely
     const analyticsData = await executeAiQuery(
       queryPlan,
       baseScope.projectScopeIds
@@ -128,18 +123,16 @@ router.post("/query", async (req, res) => {
 
     console.log(`[${reqId}] Query: "${query}" → ${analyticsData.rowCount} rows from ${queryPlan.collection}`);
 
-    // 4. Format rows dynamically based on the AI's requested columns
     const mobileRows = formatDynamicRows(analyticsData.rows, queryPlan.requested_columns, analyticsData.tableType);
     const total = analyticsData.tableType === "inventory"
       ? (analyticsData.totalPurchased || 0)
       : (analyticsData.totalAmount || 0);
 
-    // 5. Generate AI summary
     let summary = `Found ${analyticsData.rowCount} records.`;
     try {
       summary = await aiProvider.generateSummary(analyticsData, query, reqId);
     } catch(e) {
-      // ── Summary is non-critical; log and continue with default ──
+
       if (e instanceof GroqAuthError || e.name === "GroqAuthError") {
         console.error(`[${reqId}] Summary skipped (auth error): ${e.message}`);
         summary = `Found ${analyticsData.rowCount} records. (AI summary unavailable — API key issue)`;
@@ -148,7 +141,6 @@ router.post("/query", async (req, res) => {
       }
     }
 
-    // 6. Generate follow-ups
     let followUps = ["Export CSV", "Filter by project", "Show summary"];
     try {
       followUps = await aiProvider.generateFollowups({
@@ -159,7 +151,6 @@ router.post("/query", async (req, res) => {
       }, reqId);
     } catch(e) {}
 
-    // 7. Generate alerts (low stock warnings)
     let alerts = [];
     try {
       if (queryPlan.collection === "inventories") {
@@ -179,7 +170,6 @@ router.post("/query", async (req, res) => {
       }
     } catch(e) {}
 
-    // 8. Return strict response with Excel-style table schema
     return res.json({
       success: true,
       data: {
@@ -204,10 +194,9 @@ router.post("/query", async (req, res) => {
     });
 
   } catch (error) {
-    // ── Final safety net — catch anything unexpected ──────────────
+
     console.error(`[${reqId}] AI Dashboard Error:`, error.message);
 
-    // Check if it's a Groq auth error that somehow wasn't caught above
     if (error instanceof GroqAuthError || error.name === "GroqAuthError") {
       return res.status(500).json({
         success: false,

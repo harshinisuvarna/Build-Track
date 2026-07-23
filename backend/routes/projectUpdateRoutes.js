@@ -50,8 +50,7 @@ router.post("/", upload.array("media"), async (req, res) => {
     }
 
     const media = req.files ? req.files.map((f) => getFileUrl(f)) : [];
-    
-    // Parse completedTasks if it comes as a JSON string from frontend FormData
+
     let parsedCompletedTasks = [];
     if (completedTasks) {
       try {
@@ -74,7 +73,6 @@ router.post("/", upload.array("media"), async (req, res) => {
       completedTasks: parsedCompletedTasks,
     });
 
-    // Update tasks to Completed
     if (parsedCompletedTasks && parsedCompletedTasks.length > 0) {
       const Task = require("../models/Task");
       await Task.updateMany(
@@ -145,4 +143,3 @@ router.put("/:id/reject", requirePermission(["approve_updates", "reject_updates"
 });
 
 module.exports = router;
-

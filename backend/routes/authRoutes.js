@@ -30,16 +30,14 @@ const makeToken = (user) =>
     { expiresIn: "7d" }
   );
 
-// ── safeUser: returns projectIds array + legacy projectId for compat ──────────
 const safeUser = (user) => {
-  // Normalise projectIds — could be ObjectIds or strings
+
   const projectIds = Array.isArray(user.projectIds)
     ? user.projectIds
         .filter(Boolean)
         .map((id) => id.toString())
     : [];
 
-  // Legacy single projectId — use first of projectIds if not set
   const legacyProjectId =
     user.projectId?.toString() || projectIds[0] || null;
 
@@ -49,9 +47,9 @@ const safeUser = (user) => {
     email: user.email,
     role: user.role || "Mason",
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
-    // ✅ NEW: array of project IDs this user can access
+
     projectIds,
-    // ✅ KEPT: single projectId for backward compat
+
     projectId: legacyProjectId,
     profilePhoto: user.profilePhoto || null,
     provider: user.provider || "local",
@@ -67,7 +65,6 @@ const normalizePermissions = (permissions) => {
   return [...new Set(permissions.map((p) => String(p).trim()).filter(Boolean))];
 };
 
-// Converts a string or array of strings to an array of valid ObjectIds
 const toObjectIdArray = (value) => {
   if (!value) return [];
   const arr = Array.isArray(value) ? value : [value];
@@ -128,7 +125,7 @@ const ADMIN_PERMISSIONS = [
   "manage_labour_master",
   "manage_equipment_master",
   "view_contractor_performance",
-  // Legacy keys kept for backward compat with existing assigned users
+
   "view_projects",
   "add_entries",
   "mark_paid",
@@ -136,7 +133,6 @@ const ADMIN_PERMISSIONS = [
   "manage_team",
 ];
 
-// ── PUBLIC REGISTER — always creates Admin ───────────────────────────────────
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, projectId } = req.body;
@@ -200,7 +196,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ── ADMIN PROVISION — creates Supervisor / Mason / Custom role ───────────────
 router.post("/provision", protect, authorize("Admin"), async (req, res) => {
   try {
     const {
@@ -210,8 +205,8 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       password,
       role,
       permissions,
-      projectIds,   // ✅ now accepts array
-      projectId,    // legacy single — still supported
+      projectIds,
+      projectId,
     } = req.body;
 
     const finalPassword = temporaryPassword || password;
@@ -222,7 +217,7 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       endDate: { $gt: new Date() }
     }).sort({ createdAt: -1 });
 
-    let limit = 2; // free plan limit
+    let limit = 2;
     if (activeSub) {
       const plan = activeSub.plan || 'free';
       if (plan === 'starter') limit = 5;
@@ -264,7 +259,6 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       return res.status(409).json({ message: "User already exists" });
     }
 
-    // ✅ Accept both projectIds array and legacy single projectId
     const finalProjectIds = projectIds
       ? toObjectIdArray(projectIds)
       : toObjectIdArray(projectId);
@@ -298,7 +292,6 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
   }
 });
 
-// ── LOGIN ─────────────────────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -342,7 +335,6 @@ router.post("/login", async (req, res) => {
         .json({ success: false, message: "Invalid email or password" });
     }
 
-    // Auto-heal broken admin accounts
     const needsHeal =
       user.role === "Admin" && user.permissions.length === 0;
 
@@ -461,7 +453,6 @@ router.post("/forgot-password", async (req, res) => {
 
     let emailSent = false;
 
-    // 1. Try AWS SES if configured
     if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
       try {
         const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
@@ -510,7 +501,6 @@ router.post("/forgot-password", async (req, res) => {
       }
     }
 
-    // 2. Try Resend if configured
     if (!emailSent && process.env.RESEND_API_KEY) {
       try {
         const { Resend } = require('resend');
@@ -523,8 +513,8 @@ router.post("/forgot-password", async (req, res) => {
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
               <h2 style="color: #333;">Password Reset Request</h2>
               <p style="color: #555; line-height: 1.5;">
-                We received a request to reset your BuildTrack password. 
-                Click the link below or use the token in the app to set a new password. 
+                We received a request to reset your BuildTrack password.
+                Click the link below or use the token in the app to set a new password.
                 This token expires in <strong>30 minutes</strong>.
               </p>
               <div style="margin: 24px 0; text-align: center;">
@@ -549,7 +539,6 @@ router.post("/forgot-password", async (req, res) => {
       }
     }
 
-    // 3. Try Nodemailer SMTP if configured
     if (!emailSent && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         const transporter = nodemailer.createTransport({
@@ -566,8 +555,8 @@ router.post("/forgot-password", async (req, res) => {
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
               <h2 style="color: #333;">Password Reset Request</h2>
               <p style="color: #555; line-height: 1.5;">
-                We received a request to reset your BuildTrack password. 
-                Click the link below or use the token in the app to set a new password. 
+                We received a request to reset your BuildTrack password.
+                Click the link below or use the token in the app to set a new password.
                 This token expires in <strong>30 minutes</strong>.
               </p>
               <div style="margin: 24px 0; text-align: center;">
@@ -592,7 +581,6 @@ router.post("/forgot-password", async (req, res) => {
       }
     }
 
-    // 4. Default / Dev Logging Fallback
     if (!emailSent && process.env.NODE_ENV !== "production") {
       console.log(`[DEV] PASSWORD RESET TOKEN: ${token}`);
       console.log(`PASSWORD RESET LINK: ${resetUrl}`);
@@ -698,13 +686,12 @@ router.delete("/account", protect, async (req, res) => {
   }
 });
 
-// GET /api/auth/users — Admin-only: list all provisioned users in this org
 router.get("/users", protect, authorize("Admin"), async (req, res) => {
   try {
     const users = await User.find({
       $or: [
-        { _id: req.user._id },           // include self
-        { createdBy: req.user._id },      // include provisioned users
+        { _id: req.user._id },
+        { createdBy: req.user._id },
       ],
     }).select("-password -resetPasswordToken -resetPasswordExpires");
     return res.json({ users });
@@ -714,14 +701,13 @@ router.get("/users", protect, authorize("Admin"), async (req, res) => {
   }
 });
 
-// PUT /api/auth/users/:id — Admin updates a provisioned user
 router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
   try {
     const { name, email, role, permissions, projectIds, overseesRoles, password } = req.body;
 
     const user = await User.findOne({
       _id: req.params.id,
-      createdBy: req.user._id,   // can only edit users you provisioned
+      createdBy: req.user._id,
     });
 
     if (!user) return res.status(404).json({ message: "User not found or access denied" });
