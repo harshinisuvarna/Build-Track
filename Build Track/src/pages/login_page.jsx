@@ -2,20 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI, API_ORIGIN } from "../api";
 import { useAuth } from "../contexts/AuthContext";
-import { 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
   Building,
   CheckCircle,
   AlertTriangle
 } from "lucide-react";
 import LightPremiumInput from "../components/ui/LightPremiumInput";
 
-
-// Google OAuth Icon
 const GoogleIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -29,26 +27,22 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Authentication Fields State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
 
-  // Errors state
   const [emailErr, setEmailErr] = useState("");
   const [passErr, setPassErr] = useState("");
   const [serverErr, setServerErr] = useState("");
 
-  // Forgot Password Drawer state
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotMsg, setForgotMsg] = useState("");
   const [forgotErr, setForgotErr] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // Layout responsiveness tracking
   const [vw, setVw] = useState(window.innerWidth);
 
   useEffect(() => {
@@ -129,14 +123,13 @@ export default function LoginPage() {
     }
   };
 
-  
   return (
-    <div 
-      style={{ 
-        display: "flex", 
-        width: "100vw", 
-        height: "100vh", 
-        overflow: "hidden", 
+    <div
+      style={{
+        display: "flex",
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
         fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
         alignItems: "center",
         justifyContent: "center",
@@ -145,34 +138,30 @@ export default function LoginPage() {
         boxSizing: "border-box"
       }}
     >
-      {/* Background Depth Layers */}
       <div className="light-blueprint-grid" />
       <div className="light-glow-1" />
       <div className="light-glow-2" />
       <div className="light-glow-center" />
 
-      {/* Main Centered Hero Layout Container */}
-      <div 
-        style={{ 
-          width: "100%", 
-          maxWidth: "1280px", 
-          margin: "0 auto", 
-          padding: isDesktop ? "0 80px" : "0 24px", 
-          boxSizing: "border-box", 
-          display: "grid", 
-          gridTemplateColumns: isDesktop ? "1.15fr 0.85fr" : "1fr", 
-          gap: isDesktop ? "96px" : "32px", 
-          alignItems: "center", 
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "1280px",
+          margin: "0 auto",
+          padding: isDesktop ? "0 80px" : "0 24px",
+          boxSizing: "border-box",
+          display: "grid",
+          gridTemplateColumns: isDesktop ? "1.15fr 0.85fr" : "1fr",
+          gap: isDesktop ? "96px" : "32px",
+          alignItems: "center",
           zIndex: 10,
           position: "relative"
         }}
       >
-        
-        {/* Left Branding / Marketing Section */}
+
         {isDesktop && (
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            
-            {/* Logo */}
+
             <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
                 <Building size={19} color="#FFF" />
@@ -182,18 +171,16 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Headline and descriptions */}
             <div style={{ marginTop: 36 }}>
               <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
                 The Platform for<br />
                 <span style={{ background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Modern Construction.</span>
               </h1>
-              
+
               <p className="animate-fade-up" style={{ fontSize: "16px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
                 From real-time budgets to field inventory tracking — everything your construction team needs to deliver projects on time and under budget.
               </p>
 
-              {/* High-quality spacious feature checklist */}
               <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "24px", animationDelay: "0.4s" }}>
                 {[
                   { title: "Real-time Budgets", desc: "Track cash flows and expenses live across all project sites." },
@@ -217,9 +204,8 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Right Authentication Panel */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-          <div 
+          <div
             className={`animate-fade-up ${shake ? "shake-trigger" : ""}`}
             style={{
               width: "100%",
@@ -235,8 +221,7 @@ export default function LoginPage() {
               zIndex: 20
             }}
           >
-            
-            {/* Mobile-only Header Branding */}
+
             {!isDesktop && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -254,15 +239,15 @@ export default function LoginPage() {
             </div>
 
             {serverErr && (
-              <div 
-                style={{ 
-                  background: "#FEF2F2", 
-                  border: "1.2px solid #FCA5A5", 
-                  borderRadius: 12, 
-                  padding: "12px 14px", 
-                  marginBottom: 22, 
-                  display: "flex", 
-                  alignItems: "flex-start", 
+              <div
+                style={{
+                  background: "#FEF2F2",
+                  border: "1.2px solid #FCA5A5",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginBottom: 22,
+                  display: "flex",
+                  alignItems: "flex-start",
                   gap: 10,
                   animation: "slideDown 0.2s ease"
                 }}
@@ -273,8 +258,8 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleLogin}>
-              
-              <LightPremiumInput 
+
+              <LightPremiumInput
                 type="email"
                 label="Email address"
                 icon={Mail}
@@ -289,7 +274,7 @@ export default function LoginPage() {
               />
 
               <div style={{ position: "relative" }}>
-                <LightPremiumInput 
+                <LightPremiumInput
                   type={showPass ? "text" : "password"}
                   label="Password"
                   icon={Lock}
@@ -321,9 +306,8 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* Reset trigger link */}
               <div style={{ textAlign: "right", margin: "-10px 0 26px" }}>
-                <span 
+                <span
                   onClick={() => {
                     setShowForgot(!showForgot);
                     setForgotMsg("");
@@ -336,12 +320,10 @@ export default function LoginPage() {
                 </span>
               </div>
 
-              {/* Primary sign-in button className */}
               <style>{`.login-submit-btn { transition: transform 0.15s ease, box-shadow 0.15s ease; } .login-submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3); } .login-submit-btn:active:not(:disabled) { transform: translateY(0); }`}</style>
 
-              {/* Reset password collapsible drawer */}
               {showForgot && (
-                <div 
+                <div
                   style={{
                     background: "#F5F3FF",
                     border: "1px solid #DDD6FE",
@@ -353,8 +335,8 @@ export default function LoginPage() {
                 >
                   <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", fontWeight: "700", color: "#1F2937" }}>Reset Password</h4>
                   <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#6F7C8F", lineHeight: 1.45 }}>Enter your recovery email and we will mail you a reset link.</p>
-                  
-                  <LightPremiumInput 
+
+                  <LightPremiumInput
                     type="email"
                     label="Recovery Email"
                     icon={Mail}
@@ -401,7 +383,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Primary Action Button (Stripe style) */}
               <button
                 type="submit"
                 disabled={loading}
@@ -438,7 +419,6 @@ export default function LoginPage() {
               <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
             </div>
 
-            {/* Google Button */}
             <button
               type="button"
               onClick={() => {
@@ -464,7 +444,6 @@ export default function LoginPage() {
               <GoogleIcon /> Continue with Google
             </button>
 
-            {/* Signup Link */}
             <div style={{ textAlign: "center", marginTop: 28 }}>
               <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#8E9AA8", fontWeight: "500" }}>
                 New to BuildTrack?{" "}

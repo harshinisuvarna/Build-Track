@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../api";
-import { 
+import {
   User,
-  Mail, 
-  Lock, 
+  Mail,
+  Lock,
   Shield,
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
+  Eye,
+  EyeOff,
+  ArrowRight,
   Building,
   CheckCircle,
   AlertTriangle
@@ -26,21 +26,18 @@ export default function SignUpPage() {
   const navigate = useNavigate();
   const [vw, setVw] = useState(window.innerWidth);
 
-  // Form Fields State
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
-  
-  // Toggles for password visibility
+
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
-  
-  // Errors state
+
   const [errors, setErrors] = useState({});
   const [serverErr, setServerErr] = useState("");
 
@@ -73,7 +70,7 @@ export default function SignUpPage() {
       setTimeout(() => setShake(false), 420);
       return;
     }
-    
+
     setErrors({});
     setServerErr("");
     setLoading(true);
@@ -101,12 +98,12 @@ export default function SignUpPage() {
   };
 
   return (
-    <div 
-      style={{ 
-        display: "flex", 
-        width: "100vw", 
-        height: "100vh", 
-        overflow: "hidden", 
+    <div
+      style={{
+        display: "flex",
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
         fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
         alignItems: "center",
         justifyContent: "center",
@@ -115,34 +112,30 @@ export default function SignUpPage() {
         boxSizing: "border-box"
       }}
     >
-      {/* Background Depth Layers */}
       <div className="light-blueprint-grid" />
       <div className="light-glow-1" />
       <div className="light-glow-2" />
       <div className="light-glow-center" />
 
-      {/* Main Centered Hero Layout Container */}
-      <div 
-        style={{ 
-          width: "100%", 
-          maxWidth: "1280px", 
-          margin: "0 auto", 
-          padding: isDesktop ? "0 80px" : "0 24px", 
-          boxSizing: "border-box", 
-          display: "grid", 
-          gridTemplateColumns: isDesktop ? "1.15fr 0.85fr" : "1fr", 
-          gap: isDesktop ? "96px" : "32px", 
-          alignItems: "center", 
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "1280px",
+          margin: "0 auto",
+          padding: isDesktop ? "0 80px" : "0 24px",
+          boxSizing: "border-box",
+          display: "grid",
+          gridTemplateColumns: isDesktop ? "1.15fr 0.85fr" : "1fr",
+          gap: isDesktop ? "96px" : "32px",
+          alignItems: "center",
           zIndex: 10,
           position: "relative"
         }}
       >
-        
-        {/* Left Branding / Marketing Section */}
+
         {isDesktop && (
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            
-            {/* Logo */}
+
             <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
                 <Building size={19} color="#FFF" />
@@ -152,18 +145,16 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            {/* Headline and descriptions */}
             <div style={{ marginTop: 36 }}>
               <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
                 Build smarter.<br />
                 <span style={{ background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Track everything.</span>
               </h1>
-              
+
               <p className="animate-fade-up" style={{ fontSize: "16px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
                 From site management to financial reporting — everything your construction team needs, in one place.
               </p>
 
-              {/* Checklist */}
               <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "24px", animationDelay: "0.4s" }}>
                 {features.map((item, idx) => (
                   <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
@@ -183,9 +174,8 @@ export default function SignUpPage() {
           </div>
         )}
 
-        {/* Right Authentication Panel */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
-          <div 
+          <div
             className={`animate-fade-up ${shake ? "shake-trigger" : ""}`}
             style={{
               width: "100%",
@@ -201,8 +191,7 @@ export default function SignUpPage() {
               zIndex: 20
             }}
           >
-            
-            {/* Mobile Branding */}
+
             {!isDesktop && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -220,15 +209,15 @@ export default function SignUpPage() {
             </div>
 
             {serverErr && (
-              <div 
-                style={{ 
-                  background: "#FEF2F2", 
-                  border: "1.2px solid #FCA5A5", 
-                  borderRadius: 12, 
-                  padding: "12px 14px", 
-                  marginBottom: 22, 
-                  display: "flex", 
-                  alignItems: "flex-start", 
+              <div
+                style={{
+                  background: "#FEF2F2",
+                  border: "1.2px solid #FCA5A5",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginBottom: 22,
+                  display: "flex",
+                  alignItems: "flex-start",
                   gap: 10,
                   animation: "slideDown 0.2s ease"
                 }}
@@ -239,8 +228,8 @@ export default function SignUpPage() {
             )}
 
             <form onSubmit={handleSubmit}>
-              
-              <LightPremiumInput 
+
+              <LightPremiumInput
                 type="text"
                 label="Full Name"
                 icon={User}
@@ -254,7 +243,7 @@ export default function SignUpPage() {
                 autoComplete="name"
               />
 
-              <LightPremiumInput 
+              <LightPremiumInput
                 type="email"
                 label="Company Email"
                 icon={Mail}
@@ -269,7 +258,7 @@ export default function SignUpPage() {
               />
 
               <div style={{ position: "relative" }}>
-                <LightPremiumInput 
+                <LightPremiumInput
                   type={showPass ? "text" : "password"}
                   label="Password"
                   icon={Lock}
@@ -302,7 +291,7 @@ export default function SignUpPage() {
               </div>
 
               <div style={{ position: "relative" }}>
-                <LightPremiumInput 
+                <LightPremiumInput
                   type={showConfirm ? "text" : "password"}
                   label="Confirm Password"
                   icon={Shield}
@@ -334,7 +323,6 @@ export default function SignUpPage() {
                 </button>
               </div>
 
-              {/* Terms checkbox */}
               <div style={{ marginBottom: 24, marginTop: 10 }}>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
                   <div
@@ -367,7 +355,6 @@ export default function SignUpPage() {
                 )}
               </div>
 
-              {/* Primary Action Button */}
               <button
                 type="submit"
                 disabled={loading}
@@ -398,7 +385,6 @@ export default function SignUpPage() {
 
             </form>
 
-            {/* Login Link */}
             <div style={{ textAlign: "center", marginTop: 28 }}>
               <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#8E9AA8", fontWeight: "500" }}>
                 Already have an account?{" "}

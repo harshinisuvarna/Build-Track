@@ -2,14 +2,6 @@ import { useState } from 'react';
 import { Building, ChevronDown, ChevronRight, MapPin, Layers, Hammer } from 'lucide-react';
 import { ACTIVITY_OPTIONS, PHASE_OPTIONS } from '../utils/voiceConstants';
 
-// ---------------------------------------------------------------------------
-// ExecutionContextStep — Port of Flutter ExecutionContextScreen
-//
-// Allows the user to pre-select project, floor, phase, and activity
-// before starting voice entry. These values are used to auto-fill the
-// parsed data and reduce review steps.
-// ---------------------------------------------------------------------------
-
 const FLOOR_OPTIONS = [
   'Basement', 'Ground', '1st', '2nd', '3rd', '4th', '5th',
   '6th', '7th', '8th', '9th', '10th',
@@ -72,7 +64,6 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
         </p>
       </div>
 
-      {/* Project Selection */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>
           <Building size={14} color="#6B7280" /> Project *
@@ -116,7 +107,6 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
         </div>
       </div>
 
-      {/* Floor */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>
           <MapPin size={14} color="#6B7280" /> Floor / Level
@@ -156,7 +146,6 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
         </div>
       </div>
 
-      {/* Phase */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>
           <Layers size={14} color="#6B7280" /> Phase
@@ -196,7 +185,6 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
         </div>
       </div>
 
-      {/* Activity */}
       <div style={{ marginBottom: 24 }}>
         <label style={labelStyle}>
           <Hammer size={14} color="#6B7280" /> Activity
@@ -236,7 +224,6 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
         </div>
       </div>
 
-      {/* Actions */}
       <div style={{ display: 'flex', gap: 12 }}>
         {onCancel && (
           <button
@@ -285,7 +272,6 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
   );
 }
 
-// --- Styles ---
 const labelStyle = {
   display: 'flex',
   alignItems: 'center',

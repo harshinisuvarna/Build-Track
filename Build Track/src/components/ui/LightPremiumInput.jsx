@@ -7,12 +7,12 @@ export default function LightPremiumInput({ icon: Icon, label, error, ...props }
 
   return (
     <div style={{ position: "relative", marginBottom: 20, width: "100%" }}>
-      <div 
+      <div
         className={`premium-input-wrapper ${error ? "error" : focused ? "focused" : ""}`}
       >
         {Icon && <Icon size={16} style={{ color: focused ? "#6366F1" : "#8E9AA8", marginRight: 10, flexShrink: 0 }} />}
-        
-        <input 
+
+        <input
           {...props}
           className="custom-input-field"
           onFocus={(e) => {
@@ -38,8 +38,7 @@ export default function LightPremiumInput({ icon: Icon, label, error, ...props }
           }}
         />
 
-        {/* Floating Label */}
-        <label 
+        <label
           style={{
             position: "absolute",
             left: Icon ? 38 : 14,

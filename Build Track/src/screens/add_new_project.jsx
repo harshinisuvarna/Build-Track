@@ -210,7 +210,7 @@ export default function NewProjectPage() {
     projectAPI.getAll()
       .then(({ data }) => setProjectCount((data?.projects || data || []).length))
       .catch(() => {});
-      
+
     subscriptionAPI.getStatus()
       .then(({ data }) => setSubscription(data))
       .catch(() => {});
@@ -420,7 +420,7 @@ export default function NewProjectPage() {
     fd.append("status", status);
     fd.append("progress", progress);
     if (photoFile) fd.append("photo", photoFile);
-    
+
     documentFiles.forEach(file => {
       fd.append("documents", file);
     });
@@ -631,10 +631,8 @@ export default function NewProjectPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "#F8FAFC" }}>
-      {/* Hidden CSV File Input */}
       <input ref={csvFileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handlePhaseCsvUpload} />
 
-      {/* Top Bar */}
       <div style={{ height: TOPBAR_H, flexShrink: 0, background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ minWidth: 0 }}>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>{isEditMode ? "Edit Project" : "New Project"}</h1>
@@ -646,7 +644,6 @@ export default function NewProjectPage() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "20px 24px 60px", boxSizing: "border-box" }}>
-        {/* Bulk Phase CSV Card matching Flutter _buildCsvImportExportCard */}
         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", maxWidth: 800, margin: "0 auto 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "#10B9811A", display: "flex", alignItems: "center", justifyContent: "center", color: "#10B981" }}>
@@ -698,7 +695,6 @@ export default function NewProjectPage() {
             </div>
           )}
 
-          {/* A. Project Setup */}
           <Accordion title="Project Setup" icon={<ClipboardList size={16} />} defaultOpen>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 12 }}>
               <div>
@@ -715,9 +711,7 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* B. Basic Information */}
           <Accordion title="Basic Information" icon={<InfoIcon />} defaultOpen>
-            {/* Project Code */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Project Code</label>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#F8FAFC", borderRadius: 8, border: "1px solid #E5E7EB" }}>
@@ -734,7 +728,6 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            {/* Client Details */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <User size={14} color="#5B5CEB" />
@@ -746,7 +739,6 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            {/* Site Team */}
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <HardHat size={14} color="#5B5CEB" />
@@ -759,7 +751,6 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* C. Building Type */}
           <Accordion title="Building Type" icon={<Building2 size={16} />} defaultOpen>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <div>
@@ -790,7 +781,6 @@ export default function NewProjectPage() {
             )}
           </Accordion>
 
-          {/* D. Land & Floors */}
           <Accordion title="Land & Floors" icon={<Layers size={16} />} defaultOpen>
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Total Land Area</label>
@@ -811,7 +801,6 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* E. Rooms & Bathrooms */}
           <Accordion title="Rooms & Bathrooms" icon={<Bed size={16} />} count={rooms.room1BHK + rooms.room2BHK + rooms.room3BHK + rooms.roomCustom + bathrooms.bathWestern + bathrooms.bathIndian + bathrooms.bathCommon + bathrooms.bathAttached}>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.05em", marginBottom: 6, textTransform: "uppercase" }}>Room Types</div>
@@ -829,39 +818,31 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* F. Additional Configuration */}
           <Accordion title="Additional Configuration" icon={<Settings size={16} />} count={features.length}>
             <CheckboxGroup items={additionalFeatures} selected={features} onChange={setFeatures} />
           </Accordion>
 
-          {/* G. Utility & Services */}
           <Accordion title="Utility & Services" icon={<Zap size={16} />} count={utilities.length}>
             <CheckboxGroup items={utilityServices} selected={utilities} onChange={setUtilities} />
           </Accordion>
 
-          {/* H. Gas Connection */}
           <Accordion title="Gas Connection" icon={<Flame size={16} />} count={gas.length}>
             <CheckboxGroup items={gasConnections} selected={gas} onChange={setGas} />
           </Accordion>
 
-          {/* I. Kitchen Requirements */}
           <Accordion title="Kitchen Requirements" icon={<ChefHat size={16} />} count={kitchen.length}>
             <CheckboxGroup items={kitchenReqs} selected={kitchen} onChange={setKitchen} />
           </Accordion>
 
-          {/* J. Electrical & Plumbing */}
           <Accordion title="Electrical & Plumbing" icon={<Zap size={16} />} count={electrical.length}>
             <CheckboxGroup items={electricalPlumbing} selected={electrical} onChange={setElectrical} />
           </Accordion>
 
-          {/* K. Terrace & Interior */}
           <Accordion title="Terrace & Interior" icon={<Sun size={16} />} count={terrace.length}>
             <CheckboxGroup items={terraceInterior} selected={terrace} onChange={setTerrace} />
           </Accordion>
 
-          {/* L. Dates, Budget & Status */}
           <Accordion title="Dates, Budget & Status" icon={<CalendarDays size={16} />} defaultOpen>
-            {/* Timeline */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.05em", marginBottom: 6, textTransform: "uppercase" }}>Project Timeline</div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
@@ -882,7 +863,6 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            {/* Budget Breakdown */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.05em", marginBottom: 6, textTransform: "uppercase" }}>Budget Breakdown</div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
@@ -922,14 +902,12 @@ export default function NewProjectPage() {
               )}
             </div>
 
-            {/* Status */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.05em", marginBottom: 6, textTransform: "uppercase" }}>Project Status</div>
               <ChipSelect options={statusChips} selected={status} onChange={setStatus} multi={false} />
             </div>
           </Accordion>
 
-          {/* M. Construction Phases */}
           <Accordion title="Construction Phases" icon={<ClipboardList size={16} />} defaultOpen>
             <div style={{ background: "#F8FAFC", borderRadius: 8, border: "1px solid #E5E7EB", padding: "12px 14px", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -993,7 +971,6 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* N. Site Photo */}
           <Accordion title="Site Photo" icon={<Camera size={16} />}>
             <input ref={fileInputRef} type="file" accept="image/png, image/jpeg, image/gif, image/webp" style={{ display: "none" }} onChange={e => handlePhotoFile(e.target.files[0])} />
             <div onClick={() => fileInputRef.current.click()} style={{ border: `2px dashed ${photoPreview ? "#5B5CEB" : "#E5E7EB"}`, borderRadius: 8, padding: photoPreview ? 0 : "24px 20px", background: photoPreview ? "transparent" : "#F8FAFC", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, cursor: "pointer", transition: "all 0.2s", overflow: "hidden", minHeight: 100, justifyContent: "center" }}>
@@ -1018,7 +995,6 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          {/* O. Document & Blueprint Attachments */}
           <Accordion title="Project Documents & Blueprints" icon={<FileText size={16} />} count={documentFiles.length + documents.length}>
             <input type="file" multiple accept=".pdf,image/*,.doc,.docx" onChange={handleDocumentFiles} style={{ display: "none" }} id="doc-upload-input" />
             <label htmlFor="doc-upload-input" style={{ border: "2px dashed #E5E7EB", borderRadius: 8, padding: "16px", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer", marginBottom: 12 }}>
@@ -1044,7 +1020,6 @@ export default function NewProjectPage() {
             )}
           </Accordion>
 
-          {/* P. Project Scope */}
           <Accordion title="Project Scope" icon={<FileText size={16} />}>
             <textarea value={""} onChange={() => {}}
               placeholder="Describe the primary objectives and key milestones of the project..."
@@ -1052,7 +1027,6 @@ export default function NewProjectPage() {
               style={{ ...baseInput, resize: "vertical", lineHeight: 1.6, width: "100%", fontFamily: 'inherit' }} />
           </Accordion>
 
-          {/* Buttons */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 6 }}>
             <button onClick={handleSubmit} disabled={saving}
               style={{ minHeight: 46, padding: "12px 0", background: "#5B5CEB", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: saving ? 0.6 : 1, transition: "background 0.2s", fontFamily: 'inherit' }}>

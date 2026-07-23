@@ -1,6 +1,3 @@
-// BuildTrack Performance Logger & Telemetry Helper
-// Tracks route transition times, component mount, API durations, and re-renders
-
 const marks = new Map();
 const renderCounts = new Map();
 

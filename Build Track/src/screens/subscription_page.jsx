@@ -227,7 +227,6 @@ export default function SubscriptionPage() {
       background: "#f7f7f8",
     }}>
 
-      {/* ── Topbar ── */}
       <div style={{
         height: TOPBAR_H, flexShrink: 0,
         background: "#fff", borderBottom: "1px solid #ebebeb",
@@ -245,7 +244,6 @@ export default function SubscriptionPage() {
         </div>
       </div>
 
-      {/* ── Scrollable content ── */}
       <div style={{
         flex: 1,
         minHeight: 0,
@@ -255,7 +253,6 @@ export default function SubscriptionPage() {
         boxSizing: "border-box",
       }}>
 
-        {/* ── Hero Section ── */}
         <div style={{
           background: "linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fb923c 100%)",
           borderRadius: "clamp(16px,2vw,20px)",
@@ -264,7 +261,6 @@ export default function SubscriptionPage() {
           position: "relative",
           overflow: "hidden",
         }}>
-          {/* Decorative circles */}
           <div style={{
             position: "absolute", top: -60, right: -40,
             width: 220, height: 220, borderRadius: "50%",
@@ -301,7 +297,6 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* ── Current Plan Banner ── */}
         {subStatus && (
           <div style={{
             background: "#fff",
@@ -346,7 +341,6 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* ── Error Banner ── */}
         {error && (
           <div style={{
             padding: "12px 16px", background: "#fee2e2",
@@ -360,7 +354,6 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* ── Plan Cards Grid ── */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isNarrow
@@ -405,7 +398,6 @@ export default function SubscriptionPage() {
                     : "0 1px 8px rgba(0,0,0,0.04)";
                 }}>
 
-                {/* ── Badges ── */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
                   {plan.highlighted && (
                     <span style={{
@@ -429,7 +421,6 @@ export default function SubscriptionPage() {
                   )}
                 </div>
 
-                {/* ── Title ── */}
                 <div style={{
                   fontSize: "clamp(16px,1.6vw,20px)", fontWeight: 800,
                   color: "#1a1a1a", marginBottom: 4,
@@ -437,7 +428,6 @@ export default function SubscriptionPage() {
                   {plan.title}
                 </div>
 
-                {/* ── Tagline ── */}
                 <div style={{
                   fontSize: "clamp(11px,1.1vw,13px)", color: "#888",
                   marginBottom: 16, lineHeight: 1.4,
@@ -445,7 +435,6 @@ export default function SubscriptionPage() {
                   {plan.tagline}
                 </div>
 
-                {/* ── Price ── */}
                 <div style={{ marginBottom: 20 }}>
                   <span style={{
                     fontSize: "clamp(28px,3vw,36px)", fontWeight: 800,
@@ -462,7 +451,6 @@ export default function SubscriptionPage() {
                   </span>
                 </div>
 
-                {/* ── Limits ── */}
                 <div style={{
                   display: "flex", gap: 12, marginBottom: 18,
                   paddingBottom: 16, borderBottom: "1px solid #f0f0f0",
@@ -483,7 +471,6 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
 
-                {/* ── Features ── */}
                 <div style={{
                   flex: 1, display: "flex", flexDirection: "column", gap: 10,
                   marginBottom: 20,
@@ -501,7 +488,6 @@ export default function SubscriptionPage() {
                   ))}
                 </div>
 
-                {/* ── CTA Button ── */}
                 <button
                   onClick={() => handleSubscribe(plan.id)}
                   disabled={isCurrent || isProcessing}
@@ -570,7 +556,6 @@ export default function SubscriptionPage() {
           })}
         </div>
 
-        {/* ── Bottom Links ── */}
         <div style={{
           display: "flex",
           flexDirection: "column",
@@ -579,7 +564,6 @@ export default function SubscriptionPage() {
           marginTop: 8,
           paddingBottom: 20,
         }}>
-          {/* Restore Purchases */}
           <span
             style={{
               fontSize: 14, color: "#ea580c", fontWeight: 700,
@@ -600,7 +584,6 @@ export default function SubscriptionPage() {
             Restore Purchases
           </span>
 
-          {/* Auto-renew Disclaimer */}
           <p style={{
             fontSize: 11, color: "#aaa", textAlign: "center",
             maxWidth: 520, lineHeight: 1.6, margin: 0,
@@ -610,7 +593,6 @@ export default function SubscriptionPage() {
             account settings. Payment is processed securely through our payment partner.
           </p>
 
-          {/* Security & Compliance */}
           <div style={{
             display: "flex", alignItems: "center", gap: 16,
             marginTop: 4,

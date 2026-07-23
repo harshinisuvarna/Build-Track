@@ -76,7 +76,6 @@ export default function EntryDetailPage() {
   const paidAmt = Number(entry.paidAmount || 0);
   const outstandingAmt = Math.max(0, totalAmt - paidAmt);
 
-  // GST Math
   const gstPct = Number(entry.gstPercentage || entry.gst || 0);
   const isWithGst = Boolean(entry.isWithGst || gstPct > 0);
   const taxableBase = isWithGst && gstPct > 0 ? (totalAmt / (1 + gstPct / 100)) : totalAmt;
@@ -118,7 +117,7 @@ export default function EntryDetailPage() {
         setEntry(res.data.transaction);
       }
     } catch {
-      // fallback
+
     }
     setTimeout(() => setToastMsg(""), 4000);
   };
@@ -131,7 +130,6 @@ export default function EntryDetailPage() {
         </div>
       )}
 
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => navigate(-1)}
@@ -151,7 +149,6 @@ export default function EntryDetailPage() {
         )}
       </div>
 
-      {/* Type Badge + Amount Card */}
       <Card padding="20px" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -172,7 +169,6 @@ export default function EntryDetailPage() {
         </div>
       </Card>
 
-      {/* Payment Summary & Outstanding Card */}
       <Card padding="20px" style={{ marginBottom: 16, background: '#FAFAFA', border: '1px solid #E5E7EB' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment Summary</div>
@@ -199,7 +195,6 @@ export default function EntryDetailPage() {
         </div>
       </Card>
 
-      {/* GST Breakdown Card matching Flutter */}
       {isWithGst && (
         <Card padding="20px" style={{ marginBottom: 16, border: '1px solid #E2E8F0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -225,7 +220,6 @@ export default function EntryDetailPage() {
         </Card>
       )}
 
-      {/* Payment History Timeline matching Flutter */}
       <Card padding="20px" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Clock size={16} color="#5B5CEB" /> Payment History Timeline ({paymentHistory.length})
@@ -262,7 +256,6 @@ export default function EntryDetailPage() {
         )}
       </Card>
 
-      {/* Details Grid */}
       <Card padding="20px" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 14px' }}>Entry Information</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
@@ -278,7 +271,6 @@ export default function EntryDetailPage() {
         </div>
       </Card>
 
-      {/* Notes */}
       {entry.notes && (
         <Card padding="20px" style={{ marginBottom: 16 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 10px' }}>Notes</h3>
@@ -286,14 +278,12 @@ export default function EntryDetailPage() {
         </Card>
       )}
 
-      {/* Actions */}
       <div style={{ display: 'flex', gap: 10 }}>
         <Button variant="secondary" size="md" fullWidth onClick={() => navigate('/manualentry', { state: { transaction: { ...entry, isEditing: true } } })}>
           <FileText size={14} /> Edit Entry
         </Button>
       </div>
 
-      {/* Delete Confirmation */}
       {showDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}
           onClick={() => setShowDelete(false)}>
@@ -310,7 +300,6 @@ export default function EntryDetailPage() {
         </div>
       )}
 
-      {/* Record Payment Sheet Modal */}
       {showPaymentSheet && (
         <RecordPaymentSheet
           open={showPaymentSheet}
@@ -322,4 +311,3 @@ export default function EntryDetailPage() {
     </div>
   );
 }
-

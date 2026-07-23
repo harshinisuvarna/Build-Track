@@ -175,7 +175,6 @@ export default function ReportsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
-      {/* Header */}
       <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Reports & Analytics</h1>
@@ -194,7 +193,6 @@ export default function ReportsPage() {
       )}
 
       <div style={{ flex: 1, padding: "20px 24px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
-        {/* Filters */}
         <Card padding="16px 20px" style={{ marginBottom: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: 14, alignItems: "end" }}>
             <div>
@@ -240,7 +238,6 @@ export default function ReportsPage() {
           </div>
         </Card>
 
-        {/* Metric Cards */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
           <MetricCard icon={<BarChart3 size={16} />} label="Total Cost" value={stats.total} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budget?.["total"] || projects.find(p => (p._id || p.id) === selectedProject)?.totalBudget || 0} color="#3B82F6" />
           <MetricCard icon={<Layers size={16} />} label="Material" value={stats.material} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetMaterial || 0} color="#5B5CEB" />
@@ -248,7 +245,6 @@ export default function ReportsPage() {
           <MetricCard icon={<DollarSign size={16} />} label="Equipment" value={stats.equipment} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetEquipment || 0} color="#06B6D4" />
         </div>
 
-        {/* Charts */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: 14, marginBottom: 16 }}>
           <Card padding="20px">
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Spend vs Budget</div>
@@ -262,7 +258,6 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        {/* Transaction Table */}
         <Card>
           <div style={{ padding: "14px 20px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Transaction Log ({filtered.length})</span>

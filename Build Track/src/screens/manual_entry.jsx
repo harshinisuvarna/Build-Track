@@ -71,7 +71,6 @@ export default function ManualEntryPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // Project Context state
   const [selectedFloor, setSelectedFloor] = useState("");
   const [selectedPhaseId, setSelectedPhaseId] = useState("");
   const [selectedActivityName, setSelectedActivityName] = useState("");
@@ -81,7 +80,6 @@ export default function ManualEntryPage() {
   const [loadedActivityValue, setLoadedActivityValue] = useState("");
   const [loadedActivityIdValue, setLoadedActivityIdValue] = useState("");
 
-  // Derived project data
   const selectedProjectData = useMemo(() => {
     return projects.find(p => p._id === selectedProject) || null;
   }, [projects, selectedProject]);
@@ -106,25 +104,20 @@ export default function ManualEntryPage() {
     return [...new Set(activities.map(a => a.name))];
   }, [selectedProjectData, phases, selectedPhaseId]);
 
-  // GST state
   const [isWithGst, setIsWithGst] = useState(false);
   const [gstPercentage, setGstPercentage] = useState(18);
 
-  // Payment state
   const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [receiptFile, setReceiptFile] = useState(null);
   const receiptInputRef = useRef(null);
 
-  // Attachments
   const [attachments, setAttachments] = useState([]);
   const attachmentInputRef = useRef(null);
 
-  // Recent entries
   const [recentEntries, setRecentEntries] = useState([]);
 
-  // Autocomplete state
   const [autocompleteState, setAutocompleteState] = useState({ field: null, suggestions: [] });
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
@@ -139,7 +132,7 @@ export default function ManualEntryPage() {
       const tx = location.state.transaction;
       setIsEditing(true);
       setEditingId(tx._id || tx.id);
-      
+
       const typeMapRev = { "Materials": "material", "Wages": "labour", "Expense": "equipment" };
       const eType = typeMapRev[tx.type] || "material";
       setEntryType(eType);
@@ -294,7 +287,6 @@ export default function ManualEntryPage() {
     }
   }, [entryType, isEditing]);
 
-  // Fetch recent entries when project changes
   useEffect(() => {
     if (selectedProject) {
       transactionAPI.getAll({ project: selectedProject, limit: 5 })
@@ -379,7 +371,7 @@ export default function ManualEntryPage() {
     try {
       const typeMap = { material: "Materials", labour: "Wages", equipment: "Expense" };
       const nameKey = entryType === "material" ? "itemName" : entryType === "labour" ? "workerName" : "equipmentName";
-      
+
       const formData = new FormData();
       formData.append("title", values[nameKey] || `${entryType} entry`);
       formData.append("amount", grandTotal);
@@ -476,7 +468,6 @@ export default function ManualEntryPage() {
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
-      {/* Top Bar */}
       <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         <button onClick={() => navigate(-1)}
           style={{ background: colors.bgBase4, border: "none", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, color: colors.textPrimary }}>
@@ -488,9 +479,7 @@ export default function ManualEntryPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 100px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
-        {/* Entry Type Tabs */}
         <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           {ENTRY_TYPES.map(t => (
             <button key={t.key} onClick={() => !isEditing && setEntryType(t.key)}
@@ -508,9 +497,8 @@ export default function ManualEntryPage() {
           ))}
         </div>
 
-        {/* Project Context Card */}
         <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
-          
+
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 34, height: 34, background: "rgba(23, 62, 234, 0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primaryBlue, flexShrink: 0 }}>
               <Building size={16} />
@@ -523,15 +511,13 @@ export default function ManualEntryPage() {
 
           <hr style={{ border: "none", borderTop: `1px solid ${colors.divider || '#E7E8F5'}`, margin: "0 0 16px" }} />
 
-          {/* Selector Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-            
-            {/* Project dropdown */}
+
             <div>
               <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: colors.textSecondary || '#6B7280', marginBottom: 6 }}>Project <span style={{ color: colors.error }}>*</span></label>
               <div style={{ position: "relative" }}>
-                <select 
-                  value={selectedProject} 
+                <select
+                  value={selectedProject}
                   onChange={e => {
                     setSelectedProject(e.target.value);
                     setSelectedFloor("");
@@ -549,13 +535,12 @@ export default function ManualEntryPage() {
               </div>
             </div>
 
-            {/* Floor dropdown */}
             <div>
               <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: !selectedProject || floors.length === 0 ? "#C5CAE9" : colors.textSecondary || '#6B7280', marginBottom: 6 }}>Floor</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   disabled={!selectedProject || floors.length === 0}
-                  value={selectedFloor || "Select Floor"} 
+                  value={selectedFloor || "Select Floor"}
                   onChange={e => {
                     setSelectedFloor(e.target.value === "Select Floor" ? "" : e.target.value);
                   }}
@@ -570,13 +555,12 @@ export default function ManualEntryPage() {
               </div>
             </div>
 
-            {/* Phase dropdown */}
             <div>
               <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: !selectedProject || phases.length === 0 ? "#C5CAE9" : colors.textSecondary || '#6B7280', marginBottom: 6 }}>Phase</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   disabled={!selectedProject || phases.length === 0}
-                  value={selectedPhaseId || "Select Phase"} 
+                  value={selectedPhaseId || "Select Phase"}
                   onChange={e => {
                     setSelectedPhaseId(e.target.value === "Select Phase" ? "" : e.target.value);
                     setSelectedActivityName("");
@@ -592,13 +576,12 @@ export default function ManualEntryPage() {
               </div>
             </div>
 
-            {/* Activity dropdown */}
             <div>
               <label style={{ display: "block", fontSize: 11.5, fontWeight: "600", color: !selectedProject || uniqueActivityNames.length === 0 ? "#C5CAE9" : colors.textSecondary || '#6B7280', marginBottom: 6 }}>Activity</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   disabled={!selectedProject || uniqueActivityNames.length === 0}
-                  value={selectedActivityName || "Select Activity"} 
+                  value={selectedActivityName || "Select Activity"}
                   onChange={e => {
                     setSelectedActivityName(e.target.value === "Select Activity" ? "" : e.target.value);
                   }}
@@ -616,7 +599,6 @@ export default function ManualEntryPage() {
           </div>
         </div>
 
-        {/* Entry Card */}
         <div style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.primaryBlue} strokeWidth="2">
@@ -630,13 +612,11 @@ export default function ManualEntryPage() {
             </span>
           </div>
 
-          {/* Date */}
           <div style={{ marginBottom: 16 }}>
             <div style={labelStyle}>DATE <span style={{ color: colors.error }}>*</span></div>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
           </div>
 
-          {/* Fields */}
           {currentFields.map(f => (
             <div key={f.key} style={{ marginBottom: 16, position: "relative" }}>
               <div style={labelStyle}>
@@ -681,7 +661,6 @@ export default function ManualEntryPage() {
             </div>
           ))}
 
-          {/* Unit */}
           <div style={{ marginBottom: 16 }}>
             <div style={labelStyle}>UNIT <span style={{ color: colors.error }}>*</span></div>
             <select value={unit} onChange={e => setUnit(e.target.value)} style={inputStyle}>
@@ -689,7 +668,6 @@ export default function ManualEntryPage() {
             </select>
           </div>
 
-          {/* Auto-calculated Amount */}
           <div style={{ background: "#F0F2FF", borderRadius: radius.sm, padding: "14px 16px", marginBottom: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: colors.primaryBlue, letterSpacing: "0.08em", marginBottom: 4 }}>AMOUNT (₹)</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: colors.primaryBlue }}>
@@ -702,7 +680,6 @@ export default function ManualEntryPage() {
             )}
           </div>
 
-          {/* Notes */}
           <div style={{ marginBottom: 16 }}>
             <div style={labelStyle}>NOTES (OPTIONAL)</div>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add notes..." rows={3}
@@ -710,7 +687,6 @@ export default function ManualEntryPage() {
           </div>
         </div>
 
-        {/* GST Card */}
         <div style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -771,7 +747,6 @@ export default function ManualEntryPage() {
           )}
         </div>
 
-        {/* Payment Card */}
         <div style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -812,7 +787,6 @@ export default function ManualEntryPage() {
                 </div>
               </div>
 
-              {/* Receipt Upload */}
               <div style={{ marginBottom: 16 }}>
                 <div style={labelStyle}>RECEIPT (OPTIONAL)</div>
                 <input ref={receiptInputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
@@ -836,7 +810,6 @@ export default function ManualEntryPage() {
           )}
         </div>
 
-        {/* Attachments Card */}
         <div style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.textSecondary} strokeWidth="2">
@@ -884,7 +857,6 @@ export default function ManualEntryPage() {
           )}
         </div>
 
-        {/* Recent Entries */}
         {recentEntries.length > 0 && !isEditing && (
           <div style={cardStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
@@ -916,7 +888,6 @@ export default function ManualEntryPage() {
           </div>
         )}
 
-        {/* Submit */}
         {errMsg && (
           <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: radius.sm, padding: "10px 14px", color: "#DC2626", fontSize: 12, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>

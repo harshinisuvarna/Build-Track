@@ -57,7 +57,6 @@ export default function AssignRolesPage() {
   const [toast, setToast] = useState({ message: '', type: 'info', key: 0 });
   const [confirmDlg, setConfirmDlg] = useState(null);
 
-  // Form State
   const [showForm, setShowForm] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -102,7 +101,7 @@ export default function AssignRolesPage() {
   useEffect(() => {
     if (location.state?.user && !showForm) {
       handleEditClick(location.state.user);
-      navigate(location.pathname, { replace: true, state: {} }); // Clear state
+      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, showForm, navigate, location.pathname]);
 
@@ -142,8 +141,8 @@ export default function AssignRolesPage() {
     setEditingUserId(userToEdit._id || userToEdit.id);
     setNewName(userToEdit.name || '');
     setNewEmail(userToEdit.email || '');
-    setNewPassword(''); // Leave blank in edit mode
-    
+    setNewPassword('');
+
     const role = userToEdit.role || '';
     if (roleOptions.includes(role)) {
       setSelectedRole(role);
@@ -173,7 +172,6 @@ export default function AssignRolesPage() {
       return;
     }
 
-    // Subscription Limit Check
     if (!isEditMode && limitMaxUsers !== -1) {
       if (users.length >= limitMaxUsers) {
         setConfirmDlg({
@@ -187,7 +185,7 @@ export default function AssignRolesPage() {
 
     setSaving(true);
     const selectedPerms = Object.keys(permissions).filter(k => permissions[k]);
-    
+
     try {
       if (isEditMode) {
         const payload = {
@@ -240,7 +238,7 @@ export default function AssignRolesPage() {
   };
 
   const toggleOverseesRole = (role) => {
-    setSelectedOverseesRoles(prev => 
+    setSelectedOverseesRoles(prev =>
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
   };
@@ -261,7 +259,7 @@ export default function AssignRolesPage() {
             </div>
           );
         }
-        
+
         const renderCheckbox = (key) => {
           if (!key) return <div style={{ width: 52, textAlign: 'center', color: colors.textLight, fontSize: 14, fontWeight: 600 }}>—</div>;
           return (
@@ -346,7 +344,7 @@ export default function AssignRolesPage() {
           <Input label="Full Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter full name" />
           <Input label="Email Address" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Enter email address" />
           <Input label={isEditMode ? "New Password (optional)" : "Temporary Password"} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter password" />
-          
+
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, marginBottom: 6, display: 'block', textTransform: 'uppercase' }}>Role</label>
             <div style={{ display: 'flex', gap: 8 }}>

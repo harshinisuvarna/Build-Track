@@ -4,16 +4,16 @@ import { aiDashboardAPI } from '../api';
 import { colors, radius, shadows, gradients } from '../styles/designTokens';
 import { Card, Spinner } from '../components/ui';
 import { Toast } from '../components/Toast';
-import { 
-  Sparkles, 
-  ArrowLeft, 
-  RefreshCw, 
-  RotateCcw, 
-  Trash, 
-  Download, 
-  Share2, 
-  Search, 
-  X, 
+import {
+  Sparkles,
+  ArrowLeft,
+  RefreshCw,
+  RotateCcw,
+  Trash,
+  Download,
+  Share2,
+  Search,
+  X,
   SlidersHorizontal,
   TrendingUp,
   AlertTriangle,
@@ -45,24 +45,20 @@ export default function AiChatReportPage() {
   const location = useLocation();
   const messagesEndRef = useRef(null);
 
-  // Read active project context from location state
   const projectId = location.state?.projectId || 'all';
 
-  // Primary page states
-  const [state, setState] = useState('initial'); // initial, loading, results, error
+  const [state, setState] = useState('initial');
   const [errorMsg, setErrorMsg] = useState('');
   const [queryInput, setQueryInput] = useState('');
   const [currentQuery, setCurrentQuery] = useState('');
   const [result, setResult] = useState(null);
   const [toast, setToast] = useState({ msg: '', type: 'info' });
 
-  // Columns customization inside AI results table
   const [visibleColumns, setVisibleColumns] = useState([]);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [tempActiveCols, setTempActiveCols] = useState([]);
   const [tempAllCols, setTempAllCols] = useState([]);
 
-  // Search History
   const [recentSearches, setRecentSearches] = useState(() => {
     const cached = localStorage.getItem('bt_ai_searches_v1');
     return cached ? JSON.parse(cached) : [];
@@ -70,7 +66,6 @@ export default function AiChatReportPage() {
 
   const clearToast = () => setToast({ msg: '', type: 'info' });
 
-  // Update localStorage search history
   const addRecentSearch = (query) => {
     const trimmed = query.trim();
     if (!trimmed) return;
@@ -82,7 +77,6 @@ export default function AiChatReportPage() {
     });
   };
 
-  // Submit query call
   const submitSearch = async (queryText) => {
     const trimmed = queryText.trim();
     if (!trimmed || state === 'loading') return;
@@ -133,7 +127,6 @@ export default function AiChatReportPage() {
     setState('initial');
   };
 
-  // Customize Columns Modal Actions
   const openCustomizeModal = () => {
     if (!result) return;
     const all = result.columns;
@@ -186,13 +179,12 @@ export default function AiChatReportPage() {
     setToast({ msg: "Columns updated!", type: "success" });
   };
 
-  // CSV Exporter for AI Table Rows
   const exportCsv = () => {
     if (!result || result.tableRows.length === 0) return;
 
     try {
       const csvData = [];
-      
+
       if (result.tableType === 'inventory') {
         csvData.push(['Material', 'Quantity', 'Unit', 'Status']);
         for (const row of result.tableRows) {
@@ -204,7 +196,7 @@ export default function AiChatReportPage() {
           ]);
         }
       } else {
-        // Dynamic export based on active columns
+
         const headers = ['#', ...visibleColumns];
         csvData.push(headers);
         for (const row of result.tableRows) {
@@ -245,7 +237,6 @@ export default function AiChatReportPage() {
     }
   };
 
-  // Helper for AI Table dynamic column width
   const getColWidth = (colName) => {
     if (colName === 'Amount (INR)' || colName === 'Amount' || colName === 'Price') return 120;
     if (colName === 'Description' || colName === 'Project' || colName === 'Material' || colName === 'Name') return 180;
@@ -257,10 +248,9 @@ export default function AiChatReportPage() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: colors.bgBase4, fontFamily: typography.fontFamily }}>
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
-      {/* Top Header Bar */}
       <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button 
+          <button
             onClick={() => navigate(-1)}
             style={{ border: 'none', background: colors.bgBase4, cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.textPrimary }}
           >
@@ -277,7 +267,7 @@ export default function AiChatReportPage() {
         </div>
 
         {state === 'results' && (
-          <button 
+          <button
             onClick={handleReset}
             style={{ padding: "8px 14px", borderRadius: radius.md, border: `1px solid ${colors.cardBorder}`, background: '#FFF', color: colors.textMedium, fontWeight: "700", fontSize: 12, cursor: "pointer", display: 'flex', alignItems: 'center', gap: 6 }}
           >
@@ -287,11 +277,10 @@ export default function AiChatReportPage() {
         )}
       </div>
 
-      {/* Persistent AI Prompt Input Bar */}
       <div style={{ padding: '16px 24px 8px', maxWidth: 840, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FFF', border: `1.2px solid #E2E4FA`, borderRadius: 16, padding: '10px 16px', boxShadow: shadows.sm }}>
           <Sparkles size={18} color={colors.primaryBlue} style={{ flexShrink: 0 }} />
-          <input 
+          <input
             value={queryInput}
             onChange={e => setQueryInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submitSearch(queryInput); }}
@@ -301,7 +290,7 @@ export default function AiChatReportPage() {
           {queryInput.trim().length > 0 && (
             <button onClick={() => setQueryInput('')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: colors.textLight }}><X size={16} /></button>
           )}
-          <button 
+          <button
             disabled={!queryInput.trim() || state === 'loading'}
             onClick={() => submitSearch(queryInput)}
             style={{ border: 'none', background: gradients.primaryButton, color: '#FFF', fontWeight: '700', padding: '6px 14px', borderRadius: 8, fontSize: 12.5, cursor: (!queryInput.trim() || state === 'loading') ? 'not-allowed' : 'pointer' }}
@@ -311,20 +300,18 @@ export default function AiChatReportPage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
         <div style={{ maxWidth: 840, width: '100%', margin: '0 auto' }}>
-          
-          {/* STATE 1: Initial state view */}
+
           {state === 'initial' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 12 }}>
-              
+
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary, margin: '0 0 12px' }}>Quick Insights</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
                   {QUICK_PROMPTS.map(p => (
-                    <div 
-                      key={p} 
+                    <div
+                      key={p}
                       onClick={() => { setQueryInput(p); submitSearch(p); }}
                       style={{ background: '#FFF', borderRadius: 16, border: '1px solid #DDE0F0', padding: 16, cursor: 'pointer', transition: 'all 0.15s ease', boxShadow: shadows.sm }}
                       className="hover-lift-sm"
@@ -341,7 +328,7 @@ export default function AiChatReportPage() {
                   <h3 style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary, margin: '0 0 10px' }}>Recent Queries</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: '#FFF', border: `1px solid ${colors.cardBorder}`, borderRadius: 14, overflow: 'hidden' }}>
                     {recentSearches.map((s, idx) => (
-                      <div 
+                      <div
                         key={idx}
                         onClick={() => { setQueryInput(s); submitSearch(s); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: idx < recentSearches.length - 1 ? `1px solid ${colors.divider}` : 'none', cursor: 'pointer', fontSize: 13, color: colors.textPrimary }}
@@ -358,20 +345,16 @@ export default function AiChatReportPage() {
             </div>
           )}
 
-          {/* STATE 2: Skeleton Loading view */}
           {state === 'loading' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 12 }}>
-              
-              {/* Summary skeleton */}
+
               <div style={{ background: '#E2E8F0', height: 120, borderRadius: 16, animation: 'pulse 1.5s infinite' }} />
-              
-              {/* Metrics skeleton */}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div style={{ background: '#E2E8F0', height: 90, borderRadius: 16, animation: 'pulse 1.5s infinite' }} />
                 <div style={{ background: '#E2E8F0', height: 90, borderRadius: 16, animation: 'pulse 1.5s infinite' }} />
               </div>
 
-              {/* Table skeleton */}
               <div style={{ background: '#E2E8F0', height: 180, borderRadius: 16, animation: 'pulse 1.5s infinite' }} />
 
               <div style={{ textAlign: 'center', padding: '24px 0' }}>
@@ -382,13 +365,12 @@ export default function AiChatReportPage() {
             </div>
           )}
 
-          {/* STATE 3: Error view */}
           {state === 'error' && (
             <div style={{ textAlign: 'center', padding: '60px 16px', background: '#FFF', borderRadius: 16, border: `1px solid ${colors.cardBorder}`, marginTop: 12 }}>
               <AlertTriangle size={48} color="#dc2626" style={{ marginBottom: 16 }} />
               <h3 style={{ fontSize: 16, fontWeight: '800', color: colors.textPrimary, margin: '0 0 8px' }}>Failed to generate report</h3>
               <p style={{ fontSize: 13, color: colors.textLight, margin: '0 0 20px', lineHeight: 1.5 }}>{errorMsg}</p>
-              <button 
+              <button
                 onClick={() => submitSearch(currentQuery)}
                 style={{ padding: '10px 20px', background: colors.primaryBlue, border: 'none', borderRadius: 8, color: '#FFF', fontWeight: '700', fontSize: 13, cursor: 'pointer' }}
               >
@@ -397,15 +379,13 @@ export default function AiChatReportPage() {
             </div>
           )}
 
-          {/* STATE 4: Results dashboard view */}
           {state === 'results' && result && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              
-              {/* Alerts banner */}
+
               {result.alerts.map((alert, idx) => {
                 const isCritical = alert.type === 'critical';
                 return (
-                  <div 
+                  <div
                     key={idx}
                     style={{
                       display: 'flex',
@@ -426,7 +406,6 @@ export default function AiChatReportPage() {
                 );
               })}
 
-              {/* Executive Summary Markdown Card */}
               <div style={{ background: 'linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 100%)', border: '2.5px solid #FFF', borderRadius: 20, padding: 20, boxShadow: shadows.md }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: colors.primaryBlue }}>
                   <Sparkles size={16} />
@@ -437,16 +416,15 @@ export default function AiChatReportPage() {
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button 
+                <button
                   onClick={shareSummary}
                   style={{ border: 'none', background: 'none', cursor: 'pointer', color: colors.primaryBlue, fontWeight: '700', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
                 >
                   <Share2 size={14} /> Copy Summary
                 </button>
                 {result.tableRows.length > 0 && (
-                  <button 
+                  <button
                     onClick={exportCsv}
                     style={{ border: 'none', background: 'none', cursor: 'pointer', color: colors.primaryBlue, fontWeight: '700', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12 }}
                   >
@@ -455,7 +433,6 @@ export default function AiChatReportPage() {
                 )}
               </div>
 
-              {/* Metrics Grid */}
               {(result.totalAmount !== null || result.rowCount !== null) && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   {result.totalAmount !== null && (
@@ -481,7 +458,6 @@ export default function AiChatReportPage() {
                 </div>
               )}
 
-              {/* Project Breakdown list */}
               {result.projectBreakdown.length > 1 && (
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: '800', color: colors.textPrimary, margin: '0 0 10px' }}>By Project</h3>
@@ -505,18 +481,16 @@ export default function AiChatReportPage() {
                 </div>
               )}
 
-              {/* Data Table */}
               {result.tableRows.length > 0 && (
                 <div style={{ background: '#FFF', border: `1px solid ${colors.cardBorder}`, borderRadius: 16, overflow: 'hidden' }}>
-                  
-                  {/* Table title header */}
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: `1px solid ${colors.divider}` }}>
                     <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: colors.textPrimary }}>
                       {result.tableType === 'inventory' ? 'Inventory Details' : 'Transaction Details'}
                     </h3>
-                    
+
                     {result.tableType !== 'inventory' && (
-                      <button 
+                      <button
                         onClick={openCustomizeModal}
                         style={{ border: 'none', background: 'none', color: colors.primaryBlue, fontWeight: '700', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                       >
@@ -526,7 +500,7 @@ export default function AiChatReportPage() {
                   </div>
 
                   {result.tableType === 'inventory' ? (
-                    /* Inventory Table */
+
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
@@ -541,7 +515,7 @@ export default function AiChatReportPage() {
                             const severity = (r.severity || 'ok').toLowerCase();
                             const statusColor = severity === 'critical' ? '#dc2626' : (severity === 'low' ? '#d97706' : '#16a34a');
                             const statusBg = severity === 'critical' ? '#fef2f2' : (severity === 'low' ? '#fffbeb' : '#f0fdf4');
-                            
+
                             return (
                               <tr key={i} style={{ borderBottom: `1px solid ${colors.divider}` }}>
                                 <td style={{ padding: '12px 16px', fontSize: 13, color: colors.textPrimary, fontWeight: '600' }}>{r.name || '—'}</td>
@@ -557,15 +531,15 @@ export default function AiChatReportPage() {
                       </table>
                     </div>
                   ) : (
-                    /* Transactions Dynamic Table */
+
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                           <tr style={{ background: '#F1F3F8', borderBottom: `1.5px solid ${colors.divider}` }}>
                             <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: '700', color: '#64748B', textAlign: 'left', width: 36 }}>#</th>
                             {visibleColumns.map(col => (
-                              <th 
-                                key={col} 
+                              <th
+                                key={col}
                                 style={{ padding: '12px 16px', fontSize: 11, fontWeight: '700', color: '#64748B', textAlign: col.includes('Amount') ? 'right' : 'left', minWidth: getColWidth(col) }}
                               >
                                 {col.toUpperCase()}
@@ -581,16 +555,16 @@ export default function AiChatReportPage() {
                                 const isAmount = col.includes('Amount') || col.includes('Amount (INR)') || col.includes('Price');
                                 const val = r[col];
                                 const displayVal = isAmount ? formatCurrency(Number(val || 0)) : String(val !== undefined ? val : '—');
-                                
+
                                 return (
-                                  <td 
-                                    key={col} 
-                                    style={{ 
-                                      padding: '12px 16px', 
-                                      fontSize: 13, 
-                                      color: colors.textPrimary, 
-                                      fontWeight: isAmount ? '700' : '500', 
-                                      textAlign: isAmount ? 'right' : 'left' 
+                                  <td
+                                    key={col}
+                                    style={{
+                                      padding: '12px 16px',
+                                      fontSize: 13,
+                                      color: colors.textPrimary,
+                                      fontWeight: isAmount ? '700' : '500',
+                                      textAlign: isAmount ? 'right' : 'left'
                                     }}
                                   >
                                     {displayVal}
@@ -607,13 +581,12 @@ export default function AiChatReportPage() {
                 </div>
               )}
 
-              {/* Suggested Exploration prompt chips */}
               {result.actions.length > 0 && (
                 <div>
                   <h4 style={{ fontSize: 11.5, fontWeight: '800', color: colors.textLight, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suggested Explorations</h4>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {result.actions.map((act, idx) => (
-                      <button 
+                      <button
                         key={idx}
                         onClick={() => { setQueryInput(act); submitSearch(act); }}
                         style={{
@@ -642,7 +615,6 @@ export default function AiChatReportPage() {
         </div>
       </div>
 
-      {/* MODAL: Customize columns inside Results state */}
       {showCustomizeModal && result && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ background: "#FFF", borderRadius: 16, width: 340, padding: 20, boxShadow: shadows.lg, position: "relative" }}>
@@ -650,9 +622,9 @@ export default function AiChatReportPage() {
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: colors.primaryBlue }}>Customize Columns</h3>
               <button onClick={() => setShowCustomizeModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: colors.textLight }}><X size={18} /></button>
             </div>
-            
+
             <hr style={{ border: "none", borderTop: `1px solid ${colors.divider}`, margin: "0 0 10px" }} />
-            
+
             <p style={{ margin: "0 0 12px", fontSize: 11, color: colors.textLight, lineHeight: 1.4 }}>
               Toggle visibility or reorder columns in the AI transaction breakdown table.
             </p>
@@ -663,7 +635,7 @@ export default function AiChatReportPage() {
                 return (
                   <div key={col} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: colors.bgBase4, borderRadius: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <input 
+                      <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleToggleColumn(col)}
@@ -673,14 +645,14 @@ export default function AiChatReportPage() {
                     </div>
 
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button 
+                      <button
                         disabled={idx === 0}
                         onClick={() => handleMoveColumn(idx, -1)}
                         style={{ border: "none", background: "none", cursor: idx === 0 ? "not-allowed" : "pointer", color: idx === 0 ? "#ccc" : colors.textPrimary }}
                       >
                         ▲
                       </button>
-                      <button 
+                      <button
                         disabled={idx === tempAllCols.length - 1}
                         onClick={() => handleMoveColumn(idx, 1)}
                         style={{ border: "none", background: "none", cursor: idx === tempAllCols.length - 1 ? "not-allowed" : "pointer", color: idx === tempAllCols.length - 1 ? "#ccc" : colors.textPrimary }}
@@ -694,7 +666,7 @@ export default function AiChatReportPage() {
             </div>
 
             <div style={{ display: "flex", justifyItems: "stretch", gap: 10, marginTop: 18 }}>
-              <button 
+              <button
                 onClick={() => {
                   setTempActiveCols([...result.columns]);
                   setTempAllCols([...result.columns]);
@@ -703,7 +675,7 @@ export default function AiChatReportPage() {
               >
                 Reset Default
               </button>
-              <button 
+              <button
                 onClick={saveCustomizeColumns}
                 style={{ flex: 1, padding: "10px 0", border: "none", background: gradients.primaryButton, borderRadius: 10, fontSize: 13, fontWeight: "700", color: "#FFF", cursor: "pointer" }}
               >

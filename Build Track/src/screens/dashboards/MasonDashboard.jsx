@@ -9,7 +9,7 @@ import { colors, gradients } from '../../styles/designTokens';
 export default function MasonDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -23,8 +23,7 @@ export default function MasonDashboard() {
         ]);
         const tData = taskRes.data?.data || taskRes.data?.tasks || taskRes.data;
         setTasks(Array.isArray(tData) ? tData : []);
-        
-        // Sometimes the API wraps in { transactions: [] }
+
         const entriesData = entryRes.data?.data || entryRes.data?.transactions || entryRes.data;
         setEntries(Array.isArray(entriesData) ? entriesData : []);
       } catch (e) {
@@ -49,12 +48,11 @@ export default function MasonDashboard() {
 
   return (
     <div style={{ padding: '24px', maxWidth: 800, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
-      
-      {/* Greeting Banner */}
-      <div style={{ 
-        background: gradients.primaryGradient, 
-        padding: 24, 
-        borderRadius: 16, 
+
+      <div style={{
+        background: gradients.primaryGradient,
+        padding: 24,
+        borderRadius: 16,
         color: '#fff',
         boxShadow: '0 10px 25px rgba(23,62,234,0.2)'
       }}>
@@ -68,19 +66,19 @@ export default function MasonDashboard() {
 
       {/* Quick Actions */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Button 
-          variant="primary" 
-          size="lg" 
-          icon={<PlusCircle size={20} />} 
+        <Button
+          variant="primary"
+          size="lg"
+          icon={<PlusCircle size={20} />}
           style={{ width: '100%', height: 60, fontSize: 16 }}
           onClick={() => navigate('/add-entry')}
         >
           Add Daily Update
         </Button>
-        <Button 
-          variant="outline" 
-          size="lg" 
-          icon={<Package size={20} />} 
+        <Button
+          variant="outline"
+          size="lg"
+          icon={<Package size={20} />}
           style={{ width: '100%', height: 60, fontSize: 16 }}
           onClick={() => navigate('/add-entry')} // Material entry
         >
@@ -95,7 +93,7 @@ export default function MasonDashboard() {
             <Briefcase size={20} color={colors.primary} />
             <h3 style={{ margin: 0, fontSize: 18, color: colors.textPrimary }}>Assigned Tasks</h3>
           </div>
-          
+
           {tasks.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: colors.textSecondary, background: colors.background, borderRadius: 12 }}>
               No specific tasks assigned for today.
@@ -123,7 +121,7 @@ export default function MasonDashboard() {
             <Clock size={20} color={colors.primary} />
             <h3 style={{ margin: 0, fontSize: 18, color: colors.textPrimary }}>My Recent Entries</h3>
           </div>
-          
+
           {entries.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: colors.textSecondary, background: colors.background, borderRadius: 12 }}>
               You haven't logged any entries yet.
@@ -135,7 +133,7 @@ export default function MasonDashboard() {
                 let badgeVariant = 'warning';
                 if (status === 'approved') badgeVariant = 'success';
                 if (status === 'rejected') badgeVariant = 'danger';
-                
+
                 return (
                   <div key={e._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, border: `1px solid ${colors.border}`, borderRadius: 12, cursor: 'pointer' }} onClick={() => navigate('/entry-detail', { state: { entry: e } })}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

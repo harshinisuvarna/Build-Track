@@ -2,7 +2,7 @@ import { colors, radius, shadows, glass } from '../../styles/designTokens';
 
 export default function Card({ children, style, onClick, hoverable, padding }) {
   const isInteractive = hoverable || onClick;
-  
+
   return (
     <div
       onClick={onClick}

@@ -29,7 +29,7 @@ export default function Input({
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             border: `1px solid ${error ? colors.danger : 'rgba(255, 255, 255, 0.45)'}`,
-            borderRadius: radius.lg, // 12px
+            borderRadius: radius.lg,
             outline: 'none',
             transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: error ? `0 0 0 3px ${colors.danger}20` : '0 4px 10px rgba(15, 23, 42, 0.02)',

@@ -71,7 +71,6 @@ export default function Sidebar() {
         boxShadow: "var(--shadow-lg)",
       }}
     >
-      {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 20px" }}>
         <div
           style={{
@@ -93,7 +92,6 @@ export default function Sidebar() {
         </span>
       </div>
 
-      {/* Navigation */}
       <nav style={{ flex: 1, overflowY: "auto", padding: "0 16px", display: "flex", flexDirection: "column", gap: 2 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: "0.08em", padding: "12px 8px 6px", textTransform: "uppercase" }}>
           Main
@@ -157,7 +155,6 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Profile Footer */}
       <div style={{ borderTop: `1px solid ${colors.border}`, padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div
@@ -218,4 +215,3 @@ export default function Sidebar() {
     </aside>
   );
 }
-

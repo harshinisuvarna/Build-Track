@@ -70,7 +70,6 @@ export default function ProjectMemberModal({ isOpen, onClose, project, onUpdateM
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ background: "#fff", borderRadius: 16, maxWidth: 520, width: "100%", padding: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", animation: "fadeUp 200ms ease" }}>
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#EEF0FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -84,7 +83,6 @@ export default function ProjectMemberModal({ isOpen, onClose, project, onUpdateM
           <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#94A3B8" }}><X size={20} /></button>
         </div>
 
-        {/* Add Member Bar */}
         <div style={{ background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 12, padding: 14, marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>ADD TEAM MEMBER</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8 }}>
@@ -107,7 +105,6 @@ export default function ProjectMemberModal({ isOpen, onClose, project, onUpdateM
           {errMsg && <div style={{ fontSize: 12, color: "#DC2626", marginTop: 8 }}>{errMsg}</div>}
         </div>
 
-        {/* Members List */}
         <div style={{ maxHeight: 220, overflowY: "auto", marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 10 }}>ASSIGNED MEMBERS ({team.length})</div>
           {team.length === 0 ? (
@@ -139,7 +136,6 @@ export default function ProjectMemberModal({ isOpen, onClose, project, onUpdateM
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button onClick={onClose} style={{ padding: "8px 16px", background: "#fff", border: "1px solid #CBD5E1", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#475569", cursor: "pointer" }}>Cancel</button>
           <button onClick={handleSave} disabled={saving} style={{ padding: "8px 20px", background: "#5B5CEB", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>

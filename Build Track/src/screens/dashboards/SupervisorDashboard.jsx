@@ -9,7 +9,7 @@ export default function SupervisorDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Pending');
   const [loading, setLoading] = useState(true);
-  
+
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -37,7 +37,7 @@ export default function SupervisorDashboard() {
         taskAPI.getDaily().catch(() => ({ data: [] })),
         projectAPI.getMine().catch(() => ({ data: { projects: [] } }))
       ]);
-      
+
       setPending(extractArray(pendRes));
       setHistory(extractArray(histRes));
       setTasks(extractArray(taskRes));
@@ -100,7 +100,6 @@ export default function SupervisorDashboard() {
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32, animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 36, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.03em', margin: 0 }}>
@@ -120,7 +119,6 @@ export default function SupervisorDashboard() {
         </div>
       </div>
 
-      {/* Summary Buttons */}
       <div style={{ display: 'flex', gap: 16 }}>
         {[
           { name: 'Pending', count: pending.length, icon: Clock, color: colors.warning },
@@ -145,8 +143,8 @@ export default function SupervisorDashboard() {
             >
               <Icon size={16} />
               {btn.name}
-              <span style={{ 
-                background: isActive ? btn.color : colors.background, 
+              <span style={{
+                background: isActive ? btn.color : colors.background,
                 color: isActive ? '#fff' : colors.textTertiary,
                 padding: '2px 8px', borderRadius: 999, fontSize: 12
               }}>
@@ -157,15 +155,13 @@ export default function SupervisorDashboard() {
         })}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: 24 }}>
-        
-        {/* Approvals and History Sections */}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Tabbed Content */}
           <Card padding={24} style={{ minHeight: 400 }}>
             <h3 style={{ margin: '0 0 20px', fontSize: 18, color: colors.textPrimary }}>
               {activeTab} Entries
             </h3>
-            
+
             {activeTab === 'Pending' && (
               pending.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 0', color: colors.textSecondary, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -233,7 +229,7 @@ export default function SupervisorDashboard() {
             <h3 style={{ margin: '0 0 20px', fontSize: 18, color: colors.textPrimary }}>
               Recent History
             </h3>
-            
+
             {[...approved, ...rejected].length === 0 ? (
               <p style={{ color: colors.textSecondary, textAlign: 'center', padding: '20px 0' }}>No recent history.</p>
             ) : (

@@ -661,7 +661,6 @@ export default function ManageSitePage() {
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      {/* Top Bar */}
       <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
           <span onClick={() => navigate("/projects")} style={{ color: "#5B5CEB", cursor: "pointer", fontWeight: 500, fontSize: 13 }}>Projects</span>
@@ -682,7 +681,6 @@ export default function ManageSitePage() {
       </div>
 
       <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, maxWidth: 1000, margin: "0 auto", width: "100%" }}>
-        {/* Hero Summary */}
         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: 20, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -751,7 +749,6 @@ export default function ManageSitePage() {
         {renderTracker()}
         {renderRecentEntries()}
 
-        {/* Action Buttons */}
         <CollapsibleCard title="Actions" icon={<Zap size={16} />} defaultOpen>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
             <ActionBtn icon={<FileText size={18} />} label="Add Entry" onClick={() => navigate("/add-entry", { state: { project: p } })} borderColor="#EA580C" />
@@ -900,7 +897,6 @@ function ActivityDetailSheet({ activity, phaseName, onClose }) {
   );
 }
 
-/* Inline SVG icon components for icons not in Lucide */
 function MicIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -8,7 +8,7 @@ import MasonDashboard from './dashboards/MasonDashboard';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  
+
   useEffect(() => {
     perfLogger.endRoute('/');
     perfLogger.logMount('DashboardPage');
@@ -25,7 +25,7 @@ export default function DashboardPage() {
   } else if (role === 'mason' || role === 'labour' || role === 'contractor') {
     return <MasonDashboard />;
   } else {
-    // Fallback to Admin for any custom or unhandled roles (they might have custom permissions)
+
     return <AdminDashboard />;
   }
 }

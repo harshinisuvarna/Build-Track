@@ -51,7 +51,6 @@ export const typography = {
   label: { fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em', color: colors.textSecondary },
 };
 
-// Official BuildTrack brand gradient
 export const gradients = {
   primaryGradient: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
   primaryButton: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
@@ -71,7 +70,6 @@ export const inputStyles = {
   fontFamily: typography.fontFamily, backgroundColor: colors.card, color: colors.textPrimary, outline: 'none', width: '100%',
 };
 
-// backward-compat aliases for old color names
 colors.primaryBlue = colors.primary;
 colors.primaryHover = colors.primaryHover;
 colors.primaryLight = colors.primaryLight;
@@ -116,4 +114,3 @@ colors.badgeInfoText = colors.primary;
 shadows.card = 'var(--shadow-sm)';
 shadows.large = 'var(--shadow-lg)';
 shadows.hover = 'var(--shadow-xl)';
-

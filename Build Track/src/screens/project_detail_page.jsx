@@ -168,7 +168,6 @@ export default function ProjectDetailPage() {
           </div>
         </Card>
 
-        {/* Cost per Sqft Metric */}
         <Card padding="20px">
           <h3 style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: "0 0 8px" }}>Cost Efficiency</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -377,7 +376,6 @@ export default function ProjectDetailPage() {
       {deleteConfirm && <ConfirmDialog message={deleteConfirm.message} danger={deleteConfirm.danger} confirmLabel={deleteConfirm.confirmLabel} onConfirm={deleteConfirm.onConfirm} onCancel={() => setDeleteConfirm(null)} />}
       <ProjectMemberModal isOpen={isMemberModalOpen} onClose={() => setIsMemberModalOpen(false)} project={project} onUpdateMembers={handleUpdateMembers} />
 
-      {/* Top Bar */}
       <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={() => navigate(-1)} style={{ border: "none", background: "#F1F5F9", cursor: "pointer", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
@@ -393,7 +391,6 @@ export default function ProjectDetailPage() {
         </Button>
       </div>
 
-      {/* Progress Banner */}
       <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Overall Progress</span>
@@ -404,12 +401,10 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: "flex", gap: 6, padding: "14px 24px", borderBottom: "1px solid #F1F5F9", background: "#fff", flexWrap: "wrap" }}>
         {TABS.map(renderTab)}
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", maxWidth: 900, margin: "0 auto", width: "100%" }}>
         {tabContent()}
       </div>
@@ -587,7 +582,6 @@ export default function ProjectDetailPage() {
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {deleteConfirm && <ConfirmDialog message={deleteConfirm.message} danger={deleteConfirm.danger} confirmLabel={deleteConfirm.confirmLabel} onConfirm={deleteConfirm.onConfirm} onCancel={() => setDeleteConfirm(null)} />}
 
-      {/* Top Bar */}
       <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={() => navigate(-1)} style={{ border: "none", background: "#F1F5F9", cursor: "pointer", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
@@ -603,7 +597,6 @@ export default function ProjectDetailPage() {
         </Button>
       </div>
 
-      {/* Progress Banner */}
       <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Overall Progress</span>
@@ -614,12 +607,10 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: "flex", gap: 6, padding: "14px 24px", borderBottom: "1px solid #F1F5F9", background: "#fff", flexWrap: "wrap" }}>
         {TABS.map(renderTab)}
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", maxWidth: 900, margin: "0 auto", width: "100%" }}>
         {tabContent()}
       </div>

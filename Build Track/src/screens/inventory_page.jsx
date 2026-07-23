@@ -23,8 +23,6 @@ const PAYMENT_STATUS_COLORS = {
   overdue: { bg: "#FFEBEE", text: "#C62828", border: "#E53935" },
 };
 
-
-
 function getStatus(balance, threshold = 5) {
   if (balance <= 0) return "Out of Stock";
   if (balance <= threshold) return "Low Stock";
@@ -86,7 +84,6 @@ function isTransactionInDateRange(dateStr, filter, customRange) {
   }
 }
 
-// ── Type-specific helpers (matching Flutter) ──────────────────────────────
 function getTypeLabel(type) {
   if (type === "labour") return "Days";
   if (type === "equipment") return "Hours";
@@ -112,7 +109,6 @@ function getCategoryIcon(categoryName, type) {
   return { path: "M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z", bg: "#EEF2FF", color: colors.primaryBlue };
 }
 
-// ── Date grouping (matching Flutter _groupByDate) ─────────────────────────
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function groupByDate(transactions) {
@@ -158,18 +154,14 @@ export default function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [expandedItems, setExpandedItems] = useState({});
 
-  // ── NEW: Overflow menu state ─────────────────────────────────────────────
   const [menuOpen, setMenuOpen] = useState(null);
   const menuRef = useRef(null);
 
-  // ── Record Payment Sheet state ──────────────────────────────────────────
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [recordPaymentEntry, setRecordPaymentEntry] = useState(null);
 
-  // ── NEW: Date group collapsed state ──────────────────────────────────────
   const [collapsedGroups, setCollapsedGroups] = useState({});
 
-  // Close overflow menu on outside click
   useEffect(() => {
     function handleClick(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -220,7 +212,6 @@ export default function InventoryPage() {
     return isTransactionInDateRange(tDate, dateFilter, customDateRange);
   });
 
-  // ── Grouped items engine (matching Flutter) ──────────────────────────────
   const groupedItems = (() => {
     const grouped = {};
     for (const t of dateFilteredTransactions) {
@@ -332,7 +323,6 @@ export default function InventoryPage() {
     return "Search by name, vendor, brand...";
   })();
 
-  // ── Payment Summary calculations (matching Flutter) ──────────────────────
   const paymentSummary = (() => {
     let totalBill = 0;
     let totalPaid = 0;
@@ -424,7 +414,6 @@ export default function InventoryPage() {
     }
   }
 
-  // ── NEW: Delete item handler ─────────────────────────────────────────────
   async function deleteItem(item) {
     if (!item?.isDbRecord) {
       setToast({ msg: "Only database items can be deleted", type: "error" });
@@ -448,7 +437,6 @@ export default function InventoryPage() {
     }}>
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "info" })} />
 
-      {/* Record Payment Sheet (Flutter parity — uses PUT /transactions/$id) */}
       <RecordPaymentSheet
         open={recordPaymentOpen}
         entry={recordPaymentEntry}
@@ -461,7 +449,6 @@ export default function InventoryPage() {
         }}
       />
 
-      {/* Top Bar */}
       <div style={{
         padding: "16px 24px",
       }}>
@@ -471,10 +458,8 @@ export default function InventoryPage() {
         </p>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
 
-        {/* Project Selector */}
         <div style={{
           display: "flex", alignItems: "center", gap: 10,
           background: colors.cardBg, borderRadius: radius.md,
@@ -493,7 +478,7 @@ export default function InventoryPage() {
             <div style={{ fontSize: 14, fontWeight: 800, color: colors.textPrimary }}>{projectLabel}</div>
           </div>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
-          
+
           <select
             value={selectedProjectId || ""}
             onChange={e => setSelectedProjectId(e.target.value || null)}
@@ -516,7 +501,6 @@ export default function InventoryPage() {
           </select>
         </div>
 
-        {/* Search + Status + Date Filter */}
         <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 2, minWidth: 200, display: "flex", alignItems: "center", gap: 10, background: colors.cardBg, borderRadius: radius.md, border: `1px solid #E8E5F6`, padding: "0 14px", boxShadow: shadows.card }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -566,7 +550,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Tabs */}
         <div style={{ display: "flex", gap: 5, padding: 5, marginBottom: 12, background: colors.cardBg, borderRadius: radius.md, border: `1px solid #E8E5F6`, boxShadow: shadows.card }}>
           {TABS.map((tab, i) => {
             const active = i === activeTab;
@@ -586,7 +569,6 @@ export default function InventoryPage() {
           })}
         </div>
 
-        {/* Category Chips */}
         {categoryChips.length > 1 && (
           <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 12, scrollbarWidth: "thin" }}>
             {categoryChips.map(chip => {
@@ -605,7 +587,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* KPI Strip */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
           {kpiData.map((kpi, i) => (
             <div key={i} style={{
@@ -622,7 +603,6 @@ export default function InventoryPage() {
           ))}
         </div>
 
-        {/* ── NEW: Payment Summary Banner (matching Flutter gradient banner) ── */}
         {paymentSummary.totalBill > 0 && (
           <div style={{
             background: `linear-gradient(135deg, ${colors.primaryBlue}, ${colors.primaryPurple || "#B137FF"})`,
@@ -653,7 +633,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Alert Banner */}
         {(lowItems > 0 || emptyItems > 0) && (
           <div style={{
             display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: radius.md, marginBottom: 16,
@@ -671,7 +650,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* ── Card List with Date Grouping ──────────────────────────────────── */}
         {loading ? (
           <div style={{ textAlign: "center", padding: 60 }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${colors.bgBase4}`, borderTopColor: colors.primaryBlue, animation: "spin 0.7s linear infinite", margin: "0 auto 16px" }} />
@@ -685,10 +663,10 @@ export default function InventoryPage() {
             </div>
           </div>
         ) : (
-          /* ── NEW: Date-grouped list (matching Flutter timeline) ────────────── */
+
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {(() => {
-              // Group each item's transactions by date for the expanded timeline
+
               const allGroups = [];
               filtered.forEach(item => {
                 const groups = groupByDate(item.transactions);
@@ -708,11 +686,9 @@ export default function InventoryPage() {
                 const typeLabel = getTypeLabel(item.category);
                 const vendorLbl = getVendorLabel(item.category);
 
-                // Get vendor/worker/operator name from latest transaction
                 const latestTx = item.transactions[0];
                 const vendorName = latestTx?.supplier || latestTx?.vendor || latestTx?.workerName || latestTx?.operator || latestTx?.contractor || "";
 
-                // Payment summary for this item
                 let itemBill = 0, itemPaid = 0;
                 item.transactions.forEach(t => {
                   const q = Number(t.quantity || t.purchased || 0);
@@ -734,9 +710,7 @@ export default function InventoryPage() {
                     border: `1px solid ${colors.cardBorder}`, boxShadow: shadows.card,
                     padding: "16px 18px", position: "relative",
                   }}>
-                    {/* Row 1: Icon + Name + Vendor + Status + Overflow Menu */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                      {/* Category-aware icon */}
                       <div style={{
                         width: 44, height: 44, borderRadius: 12, background: catIcon.bg,
                         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
@@ -744,7 +718,6 @@ export default function InventoryPage() {
                         <svg width="22" height="22" viewBox="0 0 24 24" fill={catIcon.color}><path d={catIcon.path} /></svg>
                       </div>
 
-                      {/* Name + vendor */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14.5, fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.2px", marginBottom: 2 }}>{item.materialName}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -762,7 +735,6 @@ export default function InventoryPage() {
                         </div>
                       </div>
 
-                      {/* Payment Status Chip */}
                       <span style={{
                         display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px",
                         borderRadius: 20, fontSize: 10.5, fontWeight: 700,
@@ -772,7 +744,6 @@ export default function InventoryPage() {
                         {payStatus.charAt(0).toUpperCase() + payStatus.slice(1)}
                       </span>
 
-                      {/* ── NEW: Three-dot Overflow Menu ─────────────────────── */}
                       <div style={{ position: "relative" }} ref={menuOpen === item._id ? menuRef : undefined}>
                         <button onClick={(e) => {
                           e.stopPropagation();
@@ -864,7 +835,6 @@ export default function InventoryPage() {
                       </div>
                     </div>
 
-                    {/* Row 2: Stock Metrics (with type-specific labels) */}
                     <div style={{
                       display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10,
                       background: `${colors.primaryPurple}08`, borderRadius: radius.sm, padding: "10px 12px",
@@ -883,7 +853,6 @@ export default function InventoryPage() {
                       </div>
                     </div>
 
-                    {/* Row 3: Threshold + Actions */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: colors.textLight }}>Threshold:</span>
@@ -906,7 +875,6 @@ export default function InventoryPage() {
                       </div>
                     </div>
 
-                    {/* ── NEW: Expanded Transaction History with Date Grouping ── */}
                     {expandedItems[item._id] && (
                       <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${colors.cardBorder}` }}>
                         <div style={{ fontSize: 12, fontWeight: 800, color: colors.textPrimary, marginBottom: 10 }}>
@@ -921,7 +889,6 @@ export default function InventoryPage() {
                               const isCollapsed = collapsedGroups[`${item._id}_${group.label}`] ?? false;
                               return (
                                 <div key={gi} style={{ marginBottom: 8 }}>
-                                  {/* ── NEW: Sticky Date Header (matching Flutter) ── */}
                                   <div
                                     onClick={() => setCollapsedGroups(prev => ({ ...prev, [`${item._id}_${group.label}`]: !isCollapsed }))}
                                     style={{
@@ -944,7 +911,6 @@ export default function InventoryPage() {
                                     </svg>
                                   </div>
 
-                                  {/* Transaction entries for this date group */}
                                   {!isCollapsed && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "6px 0 0" }}>
                                       {group.transactions.map((tx, idx) => {
@@ -1008,7 +974,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Footer */}
         {!loading && filtered.length > 0 && (
           <div style={{ marginTop: 16, fontSize: 12, color: colors.textLight, textAlign: "right" }}>
             Showing {filtered.length} of {groupedItems.filter(item => item.category === activeTabKey).length} {labelPlural}s &middot;

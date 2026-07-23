@@ -8,10 +8,10 @@ import { colors, gradients } from '../styles/designTokens';
 export default function AssignTaskPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  
+
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     project: '',
     title: '',
@@ -41,7 +41,7 @@ export default function AssignTaskPage() {
       alert('Please fill all required fields');
       return;
     }
-    
+
     setLoading(true);
     try {
       await taskAPI.createTask(formData);
@@ -56,7 +56,7 @@ export default function AssignTaskPage() {
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 800, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
-      <button 
+      <button
         onClick={() => navigate(-1)}
         style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: colors.textSecondary, cursor: 'pointer', marginBottom: 24, fontSize: 15, fontWeight: 600 }}
       >
@@ -70,12 +70,12 @@ export default function AssignTaskPage() {
 
       <Card padding={32}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
+
           <div>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Project *</label>
-            <select 
-              name="project" 
-              value={formData.project} 
+            <select
+              name="project"
+              value={formData.project}
               onChange={handleChange}
               style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
             >
@@ -89,41 +89,41 @@ export default function AssignTaskPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Phase</label>
-              <input 
+              <input
                 name="phaseName" value={formData.phaseName} onChange={handleChange} placeholder="e.g. Foundation"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }} 
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
               />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Activity</label>
-              <input 
+              <input
                 name="activityName" value={formData.activityName} onChange={handleChange} placeholder="e.g. Concrete Pour"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }} 
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
               />
             </div>
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Task Title *</label>
-            <input 
+            <input
               name="title" value={formData.title} onChange={handleChange} placeholder="What needs to be done?"
-              style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }} 
+              style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
             />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Description</label>
-            <textarea 
+            <textarea
               name="description" value={formData.description} onChange={handleChange} placeholder="Any additional details..." rows={3}
-              style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15, fontFamily: 'inherit' }} 
+              style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15, fontFamily: 'inherit' }}
             />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Assign To *</label>
-            <select 
-              name="assignedTo" 
-              value={formData.assignedTo} 
+            <select
+              name="assignedTo"
+              value={formData.assignedTo}
               onChange={handleChange}
               style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
             >
@@ -139,7 +139,7 @@ export default function AssignTaskPage() {
               {loading ? 'Assigning...' : 'Assign Task'}
             </Button>
           </div>
-          
+
         </form>
       </Card>
     </div>

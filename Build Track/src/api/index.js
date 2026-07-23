@@ -42,7 +42,6 @@ api.interceptors.response.use(
   }
 );
 
-// ── Auth ────────────────────────────────────────────────────────────────────
 export const authAPI = {
   login:          (data) => api.post("/auth/login",    data),
   register:       (data) => api.post("/auth/register", data),
@@ -60,7 +59,6 @@ export const authAPI = {
   updateUser:     (id, d)=> api.put(`/auth/users/${id}`, d),
 };
 
-// ── Workers ─────────────────────────────────────────────────────────────────
 export const workerAPI = {
   getAll:         (p = {}) => api.get("/workers", { params: p }),
   getSupervisors: ()       => api.get("/workers/supervisors"),
@@ -72,7 +70,6 @@ export const workerAPI = {
   getStats:       ()       => api.get("/workers/stats/summary"),
 };
 
-// ── Projects ────────────────────────────────────────────────────────────────
 export const projectAPI = {
   getAll:       (p = {}) => api.get("/projects", { params: p }),
   getMine:      (p = {}) => api.get("/projects/mine", { params: p }),
@@ -85,7 +82,6 @@ export const projectAPI = {
   importPhases: (fd)     => api.post("/projects/import-phases", fd),
 };
 
-// ── Transactions ────────────────────────────────────────────────────────────
 export const transactionAPI = {
   getAll:     (p = {}) => api.get("/transactions", { params: p }),
   getMine:    (p = {}) => api.get("/transactions/my", { params: p }),
@@ -98,7 +94,6 @@ export const transactionAPI = {
   reject:     (id, d)  => api.put(`/transactions/${id}/reject`, d),
 };
 
-// ── Project Updates ─────────────────────────────────────────────────────────
 export const projectUpdateAPI = {
   getByProject: (projectId)                => api.get(`/project-updates/${projectId}`),
   create:       (data)                     => api.post("/project-updates", data),
@@ -106,7 +101,6 @@ export const projectUpdateAPI = {
   reject:       (id, d)                    => api.put(`/project-updates/${id}/reject`, d),
 };
 
-// ── Approvals ───────────────────────────────────────────────────────────────
 export const approvalAPI = {
   getPending: (p = {}) => api.get("/approvals/pending", { params: p }),
   getHistory: (p = {}) => api.get("/approvals/history", { params: p }),
@@ -114,34 +108,28 @@ export const approvalAPI = {
   reject: (txId, reason) => api.put(`/transactions/${txId}/reject`, { reason }),
 };
 
-// ── Dashboard ───────────────────────────────────────────────────────────────
 export const dashboardAPI = {
   getSummary: () => api.get("/dashboard/summary"),
 };
 
-// ── Reports ─────────────────────────────────────────────────────────────────
 export const reportAPI = {
   getFinancial: (params) => api.get("/reports/financial", { params }),
   exportCSV:    (params) => api.get("/reports/financial/export-csv", { params, responseType: "blob" }),
   exportPDF:    (params) => api.get("/reports/financial/export-pdf", { params, responseType: "blob" }),
 };
 
-// ── AI Chat (Report Insights) ───────────────────────────────────────────────
 export const aiChatAPI = {
   ask: (data) => api.post("/reports/ai-chat", data),
 };
 
-// ── AI Dashboard Query ──────────────────────────────────────────────────────
 export const aiDashboardAPI = {
   query: (data) => api.post("/reports/dashboard/query", data),
 };
 
-// ── Tasks ───────────────────────────────────────────────────────────────────
 export const taskAPI = {
   getDaily: () => api.get("/tasks/daily"),
 };
 
-// ── Subscriptions ───────────────────────────────────────────────────────────
 export const subscriptionAPI = {
   getStatus:  ()      => api.get("/subscriptions/status"),
   initiate:   (data)  => api.post("/subscriptions/initiate", data),
@@ -149,7 +137,6 @@ export const subscriptionAPI = {
   updateUserSub: (d)  => api.put("/users/subscription", d),
 };
 
-// ── Users (Admin) ───────────────────────────────────────────────────────────
 export const userAPI = {
   updateProfile:         (data) => api.put("/auth/profile", data),
   updatePhoto:           (fd)   => api.put("/auth/photo",   fd),
@@ -159,12 +146,10 @@ export const userAPI = {
   assignSupervisorOversight: (id, data) => api.put(`/users/${id}/oversight`, data),
 };
 
-// ── Voice ───────────────────────────────────────────────────────────────────
 export const voiceAPI = {
   parse: (data) => api.post("/voice/parse", data),
 };
 
-// ── Inventory ───────────────────────────────────────────────────────────────
 export const inventoryAPI = {
   getAll:          ()         => api.get("/inventory"),
   getSummary:      (p = {})  => api.get("/inventory", { params: { ...p, summary: true } }),
@@ -175,7 +160,6 @@ export const inventoryAPI = {
   deleteItem:      (id)      => api.delete(`/inventory/${id}`),
 };
 
-// ── Payment Recording ───────────────────────────────────────────────────────
 export const paymentAPI = {
   record:          (data)    => api.post("/transaction/payment", data),
   addFulfillment:  (data)    => api.post("/transaction/payment", data),

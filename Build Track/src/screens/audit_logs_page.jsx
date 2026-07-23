@@ -214,7 +214,6 @@ export default function AuditLogsPage() {
     approve: logs.filter((l) => l.action === "approve").length,
   };
 
-  /* ── Admin Access Gate ── */
   if (!isAdmin) {
     return (
       <div

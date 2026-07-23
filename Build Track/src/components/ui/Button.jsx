@@ -8,8 +8,7 @@ const sizeMap = {
 
 export default function Button({ children, variant = 'primary', size = 'md', icon, style, disabled, onClick, loading, fullWidth, type }) {
   const s = sizeMap[size];
-  
-  // Base variant styles
+
   const getVariantStyles = () => {
     switch (variant) {
       case 'primary':
@@ -66,7 +65,7 @@ export default function Button({ children, variant = 'primary', size = 'md', ico
         fontSize: s.fontSize,
         fontWeight: 600,
         fontFamily: typography.fontFamily,
-        borderRadius: radius.lg, // 12px
+        borderRadius: radius.lg,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
         transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
@@ -120,4 +119,3 @@ export default function Button({ children, variant = 'primary', size = 'md', ico
     </button>
   );
 }
-

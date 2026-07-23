@@ -164,7 +164,7 @@ const COLUMN_MAPPINGS = {
 function parseCsv(text) {
   const lines = text.trim().split("\n");
   if (lines.length < 2) return { headers: [], rows: [], error: "CSV must have a header row and at least one data row" };
-  
+
   const parseLine = (line) => {
     const result = [];
     let start = 0;
@@ -217,23 +217,20 @@ function normalizeStr(str) {
   return (str || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-// Resolve project name to project object from the projects list
 function resolveProject(projectName, projects) {
   if (!projectName || !projects.length) return null;
   const norm = normalizeStr(projectName);
-  return projects.find(p => normalizeStr(p.projectName) === norm) || 
-         projects.find(p => normalizeStr(p.projectName).includes(norm) || norm.includes(normalizeStr(p.projectName))) || 
+  return projects.find(p => normalizeStr(p.projectName) === norm) ||
+         projects.find(p => normalizeStr(p.projectName).includes(norm) || norm.includes(normalizeStr(p.projectName))) ||
          null;
 }
 
-// Resolve floor from project's floors array
 function resolveFloor(floorName, project) {
   if (!floorName || !project?.floors?.length) return floorName || "";
   const norm = normalizeStr(floorName);
   return project.floors.find(f => normalizeStr(f) === norm) || floorName;
 }
 
-// Resolve phase from project's selectedPhases - returns { phaseName, phaseId }
 function resolvePhase(phaseName, project) {
   if (!phaseName || !project?.selectedPhases?.length) return { phaseName: phaseName || "", phaseId: "" };
   const norm = normalizeStr(phaseName);
@@ -243,12 +240,10 @@ function resolvePhase(phaseName, project) {
   return { phaseName, phaseId: "" };
 }
 
-// Resolve activity from within a phase - returns { activityName, activityId }
 function resolveActivity(activityName, project, phaseId) {
   if (!activityName || !project?.selectedPhases?.length) return { activityName: activityName || "", activityId: "" };
   const norm = normalizeStr(activityName);
-  
-  // If we have a phase ID, search within that phase first
+
   if (phaseId) {
     const phase = project.selectedPhases.find(p => p.id === phaseId);
     if (phase?.activities?.length) {
@@ -257,25 +252,24 @@ function resolveActivity(activityName, project, phaseId) {
       if (act) return { activityName: act.name, activityId: act.id };
     }
   }
-  
-  // Search across all phases
+
   for (const phase of project.selectedPhases) {
     if (!phase.activities?.length) continue;
     const act = phase.activities.find(a => normalizeStr(a.name) === norm) ||
                 phase.activities.find(a => normalizeStr(a.name).includes(norm) || norm.includes(normalizeStr(a.name)));
     if (act) return { activityName: act.name, activityId: act.id };
   }
-  
+
   return { activityName, activityId: "" };
 }
 
 function mapRowToPayload(row, detectedType, columnMapping, projects) {
   const payload = {};
-  
+
   for (const [csvCol, dbField] of Object.entries(columnMapping)) {
     const val = row[csvCol] || "";
     if (!val) continue;
-    
+
     switch (dbField) {
       case "quantity":
       case "rate":
@@ -304,7 +298,7 @@ function mapRowToPayload(row, detectedType, columnMapping, projects) {
         payload[dbField] = val;
     }
   }
-  
+
   if (payload.type) {
     const normType = normalizeStr(payload.type);
     if (normType.includes("material")) {
@@ -320,44 +314,39 @@ function mapRowToPayload(row, detectedType, columnMapping, projects) {
     const typeMap = { material: "Materials", labour: "Wages", equipment: "Expense" };
     payload.type = typeMap[detectedType] || "Expense";
   }
-  
-  // Resolve project name to ID
+
   const projectName = payload.project;
   const project = resolveProject(projectName, projects);
   if (project) {
     payload.project = project._id;
-    payload._resolvedProject = project; // keep reference for floor/phase/activity resolution
+    payload._resolvedProject = project;
     payload._resolvedProjectName = project.projectName;
-    
-    // Resolve floor
+
     if (payload.floor) {
       payload.floor = resolveFloor(payload.floor, project);
     }
-    
-    // Resolve phase
+
     if (payload.phase) {
       const { phaseName, phaseId } = resolvePhase(payload.phase, project);
       payload.phase = phaseName;
       payload.phaseId = phaseId;
-      
-      // Resolve activity within this phase context
+
       if (payload.activity) {
         const { activityName, activityId } = resolveActivity(payload.activity, project, phaseId);
         payload.activity = activityName;
         payload.activityId = activityId;
       }
     } else if (payload.activity) {
-      // Try to resolve activity without phase context
+
       const { activityName, activityId } = resolveActivity(payload.activity, project, null);
       payload.activity = activityName;
       payload.activityId = activityId;
     }
   }
-  
+
   return payload;
 }
 
-// ─── Customize Template Sheet ────────────────────────────────────────
 function CustomizeTemplateSheet({ initialColumns, initialVisibility, onSave, onClose }) {
   const [columns, setColumns] = useState([...initialColumns]);
   const [visibility, setVisibility] = useState({ ...initialVisibility });
@@ -399,7 +388,6 @@ function CustomizeTemplateSheet({ initialColumns, initialVisibility, onSave, onC
           }}>✕</button>
         </div>
 
-        {/* Add Column */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <input value={newColumn} onChange={e => setNewColumn(e.target.value)}
             placeholder="Add custom column..."
@@ -414,7 +402,6 @@ function CustomizeTemplateSheet({ initialColumns, initialVisibility, onSave, onC
           }}>Add</button>
         </div>
 
-        {/* Column List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
           {columns.map((col) => (
             <div key={col} style={{
@@ -446,7 +433,6 @@ function CustomizeTemplateSheet({ initialColumns, initialVisibility, onSave, onC
           ))}
         </div>
 
-        {/* Save */}
         <button onClick={() => onSave({ columns, visibility })}
           style={{
             width: '100%', padding: '14px', borderRadius: radius.md, border: 'none',
@@ -460,7 +446,6 @@ function CustomizeTemplateSheet({ initialColumns, initialVisibility, onSave, onC
   );
 }
 
-// ─── Main CsvImport Component ────────────────────────────────────────
 export default function CsvImport({ onComplete }) {
   const fileRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
@@ -480,7 +465,6 @@ export default function CsvImport({ onComplete }) {
     () => Object.fromEntries(CSV_COLUMNS.map(c => [c, true]))
   );
 
-  // Fetch projects on mount for name-to-ID resolution
   useEffect(() => {
     const fetchProjects = async () => {
       try {
@@ -502,7 +486,6 @@ export default function CsvImport({ onComplete }) {
     fetchProjects();
   }, []);
 
-  // Re-resolve rows when projects load or preview changes
   useEffect(() => {
     if (!preview || !projects.length) {
       setResolvedRows([]);
@@ -529,7 +512,7 @@ export default function CsvImport({ onComplete }) {
       try {
         const { headers, rows, error: parseError } = parseCsv(e.target.result);
         if (parseError) { setError(parseError); setParsing(false); return; }
-        
+
         const detectedType = detectEntryType(headers);
         setSelectedTemplate(detectedType || "all");
         setPreview({ headers, rows, total: rows.length, detectedType });
@@ -544,8 +527,7 @@ export default function CsvImport({ onComplete }) {
 
   const doImport = async () => {
     if (!preview || !resolvedRows.length) return;
-    
-    // Check if all rows have resolved projects
+
     const unresolved = resolvedRows.filter(r => !r.payload._resolvedProject);
     if (unresolved.length > 0) {
       const names = [...new Set(unresolved.map(r => r.raw["Project"] || "Unknown"))];
@@ -558,14 +540,13 @@ export default function CsvImport({ onComplete }) {
     setImportErrors([]);
     setImportProgress({ current: 0, total: preview.total });
 
-    // Build transaction payloads for bulk API
     const transactions = resolvedRows.map(({ payload }) => {
       const qty = payload.quantity || 0;
       const rt = payload.rate || 0;
       return {
         title: payload.title || "Untitled",
         type: payload.type || "Expense",
-        project: payload.project, // already resolved to ObjectId
+        project: payload.project,
         date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
         quantity: qty,
         rate: rt,
@@ -595,15 +576,15 @@ export default function CsvImport({ onComplete }) {
     try {
       const response = await transactionAPI.createBulk({ transactions });
       const data = response.data?.results || response.data;
-      
+
       const success = data?.successCount || 0;
       const failed = data?.failedCount || 0;
       const failures = data?.failures || [];
-      
+
       setResult({ success, failed, total: preview.total });
       setImportErrors(failures.map(f => ({ row: (f.index || 0) + 1, message: f.reason || "Import failed" })));
       setImportProgress({ current: preview.total, total: preview.total });
-      
+
       if (onComplete) onComplete({ success, failed });
     } catch (err) {
       console.error("Bulk import error:", err);
@@ -639,7 +620,6 @@ export default function CsvImport({ onComplete }) {
     URL.revokeObjectURL(url);
   };
 
-  // Check resolution status per row
   const getRowStatus = (resolved) => {
     if (!resolved?.payload?._resolvedProject) return "unresolved";
     return "ok";
@@ -650,7 +630,6 @@ export default function CsvImport({ onComplete }) {
 
   return (
     <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #e5e5e5", padding: 20, boxShadow: "0 2px 10px rgba(20,20,50,0.05)" }}>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
         <div style={{
           width: 42, height: 42, borderRadius: 12,
@@ -677,7 +656,6 @@ export default function CsvImport({ onComplete }) {
         Import Materials, Labour, or Equipment entries. Download the template, fill it with your data including project names, and upload. Projects, floors, phases, and activities are automatically matched.
       </p>
 
-      {/* Template Selection */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           SELECT TEMPLATE
@@ -703,7 +681,6 @@ export default function CsvImport({ onComplete }) {
         </div>
       </div>
 
-      {/* Download Template & Customize buttons */}
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <button onClick={() => downloadTemplate(selectedTemplate)}
           style={{
@@ -720,7 +697,6 @@ export default function CsvImport({ onComplete }) {
         </button>
       </div>
 
-      {/* Customize Template Columns button */}
       <button onClick={() => setShowCustomizeSheet(true)}
         style={{
           width: '100%', padding: '10px', borderRadius: 8, border: 'none',
@@ -736,7 +712,6 @@ export default function CsvImport({ onComplete }) {
         Customize Template Columns
       </button>
 
-      {/* File Upload */}
       <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }}
         onChange={e => { handleFile(e.target.files[0]); e.target.value = ""; }} />
 
@@ -759,7 +734,6 @@ export default function CsvImport({ onComplete }) {
         <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>CSV files only</div>
       </div>
 
-      {/* Loading projects indicator */}
       {loadingProjects && (
         <div style={{ fontSize: 12, color: colors.primaryBlue, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
@@ -773,7 +747,6 @@ export default function CsvImport({ onComplete }) {
         </div>
       )}
 
-      {/* Preview */}
       {preview && !result && (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
@@ -787,8 +760,8 @@ export default function CsvImport({ onComplete }) {
             </div>
             <button onClick={doImport} disabled={importing || !allResolved}
               style={{
-                padding: "8px 20px", 
-                background: importing ? "#8B83FF" : !allResolved ? "#ccc" : gradients.primaryButton, 
+                padding: "8px 20px",
+                background: importing ? "#8B83FF" : !allResolved ? "#ccc" : gradients.primaryButton,
                 color: "#fff",
                 border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13,
                 cursor: importing || !allResolved ? "not-allowed" : "pointer",
@@ -797,9 +770,8 @@ export default function CsvImport({ onComplete }) {
             </button>
           </div>
 
-          {/* Resolution Status */}
           {resolvedRows.length > 0 && (
-            <div style={{ 
+            <div style={{
               marginBottom: 12, padding: "10px 14px", borderRadius: 10,
               background: allResolved ? "#dcfce7" : "#fef3c7",
               border: `1px solid ${allResolved ? "#86efac" : "#fde68a"}`,
@@ -819,8 +791,7 @@ export default function CsvImport({ onComplete }) {
               )}
             </div>
           )}
-          
-          {/* Progress Bar */}
+
           {importing && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ height: 6, background: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
@@ -835,8 +806,7 @@ export default function CsvImport({ onComplete }) {
               </div>
             </div>
           )}
-          
-          {/* Preview Table */}
+
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
@@ -866,8 +836,8 @@ export default function CsvImport({ onComplete }) {
                         const isProjectCol = h === "Project";
                         const isResolved = resolved && status === "ok";
                         return (
-                          <td key={h} style={{ 
-                            padding: "8px 10px", 
+                          <td key={h} style={{
+                            padding: "8px 10px",
                             color: isProjectCol && !isResolved ? "#dc2626" : "#333",
                             fontWeight: isProjectCol ? 600 : 400,
                           }}>
@@ -890,19 +860,17 @@ export default function CsvImport({ onComplete }) {
         </div>
       )}
 
-      {/* Result */}
       {result && (
         <div>
-          <div style={{ 
-            background: result.failed ? "#fef9c3" : "#dcfce7", 
-            border: `1px solid ${result.failed ? "#fde047" : "#86efac"}`, 
-            borderRadius: 10, padding: "14px 16px", fontSize: 13, marginBottom: 12 
+          <div style={{
+            background: result.failed ? "#fef9c3" : "#dcfce7",
+            border: `1px solid ${result.failed ? "#fde047" : "#86efac"}`,
+            borderRadius: 10, padding: "14px 16px", fontSize: 13, marginBottom: 12
           }}>
             {result.failed ? "⚠️" : "✅"} Imported <strong>{result.success}</strong> of {result.total} entries
             {result.failed > 0 && <span style={{ color: "#991b1b" }}> ({result.failed} failed)</span>}
           </div>
-          
-          {/* Error Summary */}
+
           {importErrors.length > 0 && (
             <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 10, padding: "14px 16px", fontSize: 12 }}>
               <div style={{ fontWeight: 700, color: "#991b1b", marginBottom: 8 }}>Import Errors:</div>
@@ -915,7 +883,7 @@ export default function CsvImport({ onComplete }) {
               </div>
             </div>
           )}
-          
+
           <button onClick={() => { setResult(null); setPreview(null); setImportErrors([]); setResolvedRows([]); }}
             style={{
               marginTop: 12, padding: "10px 20px", borderRadius: 8, border: "1px solid #e5e5e5",
@@ -926,7 +894,6 @@ export default function CsvImport({ onComplete }) {
         </div>
       )}
 
-      {/* Customize Template Sheet */}
       {showCustomizeSheet && (
         <CustomizeTemplateSheet
           initialColumns={CSV_COLUMNS}

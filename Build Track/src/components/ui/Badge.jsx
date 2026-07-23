@@ -31,4 +31,3 @@ export default function Badge({ children, variant = 'default', style, size = 'md
     </span>
   );
 }
-

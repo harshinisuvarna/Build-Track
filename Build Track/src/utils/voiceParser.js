@@ -1,9 +1,5 @@
 import { MATERIAL_KEYWORDS, LABOUR_KEYWORDS, EQUIPMENT_KEYWORDS, ACTIVITY_KEYWORDS, FLOOR_KEYWORDS } from './voiceConstants';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const _l = (s) => (s || '').toLowerCase().trim();
 
 const _num = (s) => {
@@ -12,7 +8,6 @@ const _num = (s) => {
   return isNaN(n) ? null : n;
 };
 
-// Map spoken digits / words to a number string
 const DIGIT_MAP = {
   zero: '0', one: '1', two: '2', three: '3', four: '4',
   five: '5', six: '6', seven: '7', eight: '8', nine: '9',
@@ -26,7 +21,7 @@ const DIGIT_MAP = {
 function spokenToDigits(text) {
   if (!text) return '';
   let t = text.toLowerCase().trim();
-  // "twenty five" → "25"
+
   const compound = t.match(/^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[\s-](one|two|three|four|five|six|seven|eight|nine)$/);
   if (compound) {
     const tens = DIGIT_MAP[compound[1]];
@@ -39,10 +34,10 @@ function spokenToDigits(text) {
 
 function extractNumber(text) {
   if (!text) return null;
-  // digits in text
+
   const digitMatch = text.match(/(\d[\d,]*\.?\d*)/);
   if (digitMatch) return _num(digitMatch[1]);
-  // spoken words
+
   const wordMatch = text.match(
     /([\w]+(?:\s+[\w]+)*)/i
   );
@@ -53,10 +48,6 @@ function extractNumber(text) {
   }
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// Item extraction
-// ---------------------------------------------------------------------------
 
 function extractItem(raw, keywordList) {
   const lower = _l(raw);
@@ -115,15 +106,10 @@ function extractUnit(raw) {
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Amount / Quantity separation
-// ---------------------------------------------------------------------------
-
 function extractAmountAndQuantity(raw) {
   if (!raw) return { amount: null, quantity: null, unitPrice: null };
   const lower = _l(raw);
 
-  // "X at Y rate"  or  "X for Y rupees"
   const rateMatch = lower.match(/(\d[\d,]*\.?\d*)\s*(?:pieces?|pcs?|bags?|units?|kg|kgs?|metres?|meters?|feet|ft|rolls?|loads?|trips?)\s*(?:at|@|for|per)\s*(?:rs\.?|inr|rupees)?\s*(\d[\d,]*\.?\d*)/);
   if (rateMatch) {
     return {
@@ -133,17 +119,15 @@ function extractAmountAndQuantity(raw) {
     };
   }
 
-  // "amount is X" or "total X" or "cost X"
   const amountMatch = lower.match(/(?:amount|total|cost|price|rate|value|bill)\s*(?:is|:)?\s*(?:rs\.?|inr|rupees)?\s*(\d[\d,]*\.?\d*)/);
   if (amountMatch) {
     return { amount: _num(amountMatch[1]), quantity: null, unitPrice: null };
   }
 
-  // Standalone number
   const standalone = raw.match(/(\d[\d,]*\.?\d*)/);
   if (standalone) {
     const val = _num(standalone[1]);
-    // Heuristic: if followed by a unit word, treat as quantity
+
     const after = lower.slice(lower.indexOf(standalone[1]) + standalone[1].length).trim();
     const unitWords = ['bags', 'bag', 'kg', 'kgs', 'pieces', 'pcs', 'units', 'metres', 'meters', 'feet', 'ft', 'loads', 'trips', 'rolls'];
     if (unitWords.some(uw => after.startsWith(uw))) {
@@ -155,34 +139,26 @@ function extractAmountAndQuantity(raw) {
   return { amount: null, quantity: null, unitPrice: null };
 }
 
-// ---------------------------------------------------------------------------
-// Labour-specific extraction
-// ---------------------------------------------------------------------------
-
 function extractLabourDetails(raw, transcript) {
   if (!raw) return {};
   const lower = _l(raw) + ' ' + _l(transcript);
   const result = {};
 
-  // Worker count: "five workers" "10 masons" "three carpenters"
   const workerMatch = lower.match(/(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)\s*(?:workers?|labourers?|masons?|carpenters?|painters?|plumbers?|electricians?|helpers?|fitters?|welders?|bar benders?|tilers?|mazdoors?|maistries?|supervisors?|contractors?)/);
   if (workerMatch) {
     result.workerCount = extractNumber(workerMatch[1]);
   }
 
-  // Hours: "8 hours" "eight hrs"
   const hoursMatch = lower.match(/(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)\s*(?:hours?|hrs?)/);
   if (hoursMatch) {
     result.hoursWorked = extractNumber(hoursMatch[1]);
   }
 
-  // Advance: "advance 500" "advance rs 2000"
   const advanceMatch = lower.match(/advance\s*(?:rs\.?|inr|rupees)?\s*(\d[\d,]*\.?\d*)/);
   if (advanceMatch) {
     result.advanceAmount = _num(advanceMatch[1]);
   }
 
-  // Daily wage / Rate: "daily wage 800" "rate per day 1000"
   const wageMatch = lower.match(/(?:daily\s*wage|rate|per\s*day|wages?)\s*(?:is|:)?\s*(?:rs\.?|inr|rupees)?\s*(\d[\d,]*\.?\d*)/);
   if (wageMatch) {
     result.dailyWage = _num(wageMatch[1]);
@@ -191,28 +167,21 @@ function extractLabourDetails(raw, transcript) {
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// Equipment-specific extraction
-// ---------------------------------------------------------------------------
-
 function extractEquipmentDetails(raw, transcript) {
   if (!raw) return {};
   const lower = _l(raw) + ' ' + _l(transcript);
   const result = {};
 
-  // Operator: "operator ramesh" "with operator"
   const operatorMatch = lower.match(/operator\s+(\w+(?:\s+\w+)?)/);
   if (operatorMatch) {
     result.operatorName = operatorMatch[1].trim();
   }
 
-  // Hours: "8 hours" or "for 8 hours"
   const hoursMatch = lower.match(/(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)\s*(?:hours?|hrs?)/);
   if (hoursMatch) {
     result.hoursUsed = extractNumber(hoursMatch[1]);
   }
 
-  // Fuel cost: "fuel cost 500" "diesel 1000" "fuel 800"
   const fuelMatch = lower.match(/(?:fuel|diesel|petrol|fuel\s*cost)\s*(?:is|:)?\s*(?:rs\.?|inr|rupees)?\s*(\d[\d,]*\.?\d*)/);
   if (fuelMatch) {
     result.fuelCost = _num(fuelMatch[1]);
@@ -220,10 +189,6 @@ function extractEquipmentDetails(raw, transcript) {
 
   return result;
 }
-
-// ---------------------------------------------------------------------------
-// Main parse function
-// ---------------------------------------------------------------------------
 
 export function parseTranscript(rawTranscript, projectContext = null) {
   const transcript = (rawTranscript || '').trim();
@@ -254,7 +219,6 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     rawTranscript: transcript,
   };
 
-  // --- Entry Type Detection ---
   const materialScore = MATERIAL_KEYWORDS.filter(kw => lower.includes(_l(kw))).length;
   const labourScore = LABOUR_KEYWORDS.filter(kw => lower.includes(_l(kw))).length;
   const equipmentScore = EQUIPMENT_KEYWORDS.filter(kw => lower.includes(_l(kw))).length;
@@ -267,12 +231,11 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     result.entryType = 'material';
   }
 
-  // --- Floor Detection ---
   for (const kw of FLOOR_KEYWORDS) {
     const fl = _l(kw);
     const idx = lower.indexOf(fl);
     if (idx !== -1) {
-      // Extract what follows: "floor 1", "floor one", "first floor"
+
       const afterFloor = transcript.slice(idx + fl.length).trim();
       const floorNum = extractNumber(afterFloor);
       if (floorNum !== null) {
@@ -282,7 +245,6 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     }
   }
 
-  // Also handle "first floor", "second floor", etc.
   const ordinals = { first: '1', second: '2', third: '3', fourth: '4', fifth: '5', sixth: '6', seventh: '7', eighth: '8', ninth: '9', tenth: '10' };
   for (const [word, num] of Object.entries(ordinals)) {
     if (lower.includes(word + ' floor')) {
@@ -291,7 +253,6 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     }
   }
 
-  // --- Phase Detection ---
   for (const kw of ACTIVITY_KEYWORDS) {
     const fl = _l(kw);
     if (lower.includes(fl)) {
@@ -300,7 +261,6 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     }
   }
 
-  // --- GST Detection ---
   const gstMatch = lower.match(/(?:gst|goods?\s*and\s*services?\s*tax)\s*(?:applicable|included|yes|on)?\s*(?:at)?\s*(\d{1,2})\s*%?/);
   if (gstMatch) {
     result.gstApplicable = true;
@@ -310,7 +270,6 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     result.gstPercentage = result.gstPercentage || 18;
   }
 
-  // --- Payment Mode Detection ---
   const paymentModes = ['cash', 'upi', 'bank transfer', 'neft', 'rtgs', 'cheque', 'check', 'credit', 'debit card', 'online'];
   for (const pm of paymentModes) {
     if (lower.includes(pm)) {
@@ -319,7 +278,6 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     }
   }
 
-  // --- Item Extraction ---
   const itemKeywords = result.entryType === 'material'
     ? MATERIAL_KEYWORDS
     : result.entryType === 'labour'
@@ -331,23 +289,19 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     result.items.push(item);
   }
 
-  // --- Brand ---
   result.brand = extractBrand(transcript);
 
-  // --- Unit ---
   result.unit = extractUnit(transcript);
 
-  // --- Numbers ---
   const { amount, quantity, unitPrice } = extractAmountAndQuantity(transcript);
   result.amount = amount;
   result.quantity = quantity;
   result.unitPrice = unitPrice;
 
-  // --- Entry-type-specific details ---
   if (result.entryType === 'labour') {
     const labour = extractLabourDetails(transcript, transcript);
     Object.assign(result, labour);
-    // Compute amount if we have workerCount * hoursWorked * dailyWage
+
     if (!result.amount && result.workerCount && result.hoursWorked && result.dailyWage) {
       result.amount = result.workerCount * result.hoursWorked * result.dailyWage;
     }
@@ -356,28 +310,20 @@ export function parseTranscript(rawTranscript, projectContext = null) {
     Object.assign(result, eq);
   }
 
-  // --- Notes: use raw transcript as notes ---
   result.notes = transcript;
 
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// Amount computation helpers (used by review screen)
-// ---------------------------------------------------------------------------
-
 export function computeAmount(parsed) {
   if (!parsed) return 0;
 
-  // If amount already set, use it
   if (parsed.amount) return parsed.amount;
 
-  // Material: quantity * unitPrice
   if (parsed.entryType === 'material' && parsed.quantity && parsed.unitPrice) {
     return parsed.quantity * parsed.unitPrice;
   }
 
-  // Labour: workerCount * hoursWorked * dailyWage
   if (parsed.entryType === 'labour') {
     if (parsed.workerCount && parsed.hoursWorked && parsed.dailyWage) {
       return parsed.workerCount * parsed.hoursWorked * parsed.dailyWage;
@@ -387,7 +333,6 @@ export function computeAmount(parsed) {
     }
   }
 
-  // Equipment: quantity * unitPrice or hoursUsed * unitPrice
   if (parsed.entryType === 'equipment') {
     if (parsed.quantity && parsed.unitPrice) return parsed.quantity * parsed.unitPrice;
     if (parsed.hoursUsed && parsed.unitPrice) return parsed.hoursUsed * parsed.unitPrice;

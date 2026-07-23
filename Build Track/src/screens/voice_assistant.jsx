@@ -14,14 +14,8 @@ import VoiceReviewSheet from '../components/VoiceReviewSheet';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 
-// ---------------------------------------------------------------------------
-// Voice Assistant — Full Flutter ai_voice_entry_screen.dart parity
-//
-// Flow:  ExecutionContext → Voice Recording → AI Parse → Review/Edit → Save
-// ---------------------------------------------------------------------------
-
 const STATUS = {
-  context: 'context',       // pre-step: project/floor/phase/activity
+  context: 'context',
   idle: 'idle',
   listening: 'listening',
   processing: 'processing',
@@ -56,7 +50,6 @@ export default function VoiceAssistantPage() {
   const location = useLocation();
   const preselectedProject = location.state?.project || null;
 
-  // --- State ---
   const [status, setStatus] = useState(preselectedProject ? STATUS.idle : STATUS.context);
   const [entryType, setEntryType] = useState('material');
   const [executionContext, setExecutionContext] = useState({
@@ -78,7 +71,6 @@ export default function VoiceAssistantPage() {
   const processTimerRef = useRef(null);
   const autoResetTimerRef = useRef(null);
 
-  // --- Speech Recognition Hook ---
   const {
     interimTranscript,
     accumulatedTranscript,
@@ -103,7 +95,6 @@ export default function VoiceAssistantPage() {
     perfLogger.logMount('VoiceAssistant');
   }, []);
 
-  // --- Fetch projects & recent entries ---
   useEffect(() => {
     storeFetchProjects().then(list => setProjects(list || projStore || [])).catch(() => {});
     storeFetchTx().then(list => {
@@ -112,7 +103,6 @@ export default function VoiceAssistantPage() {
     }).catch(() => setRecentEntries([])).finally(() => setRecentLoading(false));
   }, [projStore, txStore, storeFetchProjects, storeFetchTx]);
 
-  // --- Cleanup ---
   useEffect(() => {
     return () => {
       if (processTimerRef.current) clearInterval(processTimerRef.current);
@@ -120,7 +110,6 @@ export default function VoiceAssistantPage() {
     };
   }, []);
 
-  // --- Processing stage animation ---
   useEffect(() => {
     if (status === STATUS.processing) {
       setProcessingStage(0);
@@ -136,23 +125,20 @@ export default function VoiceAssistantPage() {
     return () => { if (processTimerRef.current) clearInterval(processTimerRef.current); };
   }, [status]);
 
-  // --- Execution context complete → go to idle/voice ---
   const handleContextComplete = useCallback((ctx) => {
     setExecutionContext(ctx);
     setStatus(STATUS.idle);
   }, []);
 
-  // --- Start listening ---
   const handleStartListening = useCallback(() => {
     resetTranscript();
     startRecording();
     setStatus(STATUS.listening);
   }, [startRecording, resetTranscript]);
 
-  // --- Stop listening → process ---
   const handleStopListening = useCallback(() => {
     stopRecording();
-    // Give a moment for final transcript to arrive
+
     setTimeout(() => {
       const fullText = accumulatedTranscript || transcript;
       if (fullText.trim()) {
@@ -163,18 +149,15 @@ export default function VoiceAssistantPage() {
     }, 300);
   }, [stopRecording, accumulatedTranscript, transcript]);
 
-  // --- Process transcript via AI + local parser ---
   const processTranscript = useCallback(async (text) => {
     setStatus(STATUS.processing);
     setSpeechProcessing(true);
     setTranscript(text);
 
-    // Local parse first (instant)
     let parsed = parseTranscript(text, {
       projectName: executionContext.project?.projectName || executionContext.project?.name,
     });
 
-    // Apply execution context overrides
     if (executionContext.floor) parsed.floor = parsed.floor || executionContext.floor;
     if (executionContext.phase) parsed.phase = parsed.phase || executionContext.phase;
     if (executionContext.activity) parsed.activity = parsed.activity || executionContext.activity;
@@ -183,7 +166,6 @@ export default function VoiceAssistantPage() {
       parsed.projectName = parsed.projectName || executionContext.project.projectName || executionContext.project.name;
     }
 
-    // Try backend AI parse (Gemini) for enhanced extraction
     try {
       const { data } = await voiceAPI.parse({
         transcript: text,
@@ -192,7 +174,7 @@ export default function VoiceAssistantPage() {
         entryType: parsed.entryType,
       });
       if (data && data.fields) {
-        // Merge AI fields (AI takes precedence for detected fields)
+
         Object.entries(data.fields).forEach(([k, v]) => {
           if (v !== null && v !== undefined && v !== '') {
             parsed[k] = v;
@@ -200,11 +182,8 @@ export default function VoiceAssistantPage() {
         });
       }
     } catch {
-      // Fallback to local parser — already done above
-    }
 
-    // Auto-detect entry type from speech if not clearly material
-    // (parser already does this, but allow user override later)
+    }
 
     parsed.amount = computeAmount(parsed);
     setParsedData(parsed);
@@ -212,14 +191,12 @@ export default function VoiceAssistantPage() {
     setSpeechProcessing(false);
     setStatus(STATUS.extracting);
 
-    // Brief pause then go to summary
     setTimeout(() => {
       setStatus(STATUS.summary);
       setShowReview(true);
     }, 800);
   }, [executionContext, projects, setSpeechProcessing]);
 
-  // --- Review sheet save ---
   const handleReviewSave = useCallback(async (reviewData) => {
     setShowReview(false);
     setStatus(STATUS.saving);
@@ -235,13 +212,13 @@ export default function VoiceAssistantPage() {
         type: typeMap[reviewData.entryType] || 'Expense',
         date: new Date().toISOString(),
         notes: reviewData.notes || transcript || 'Entered via Voice Assistant',
-        // Project & context
+
         project: reviewData.project || executionContext.project?._id || undefined,
         projectName: reviewData.projectName || executionContext.project?.projectName || undefined,
         floor: reviewData.floor || executionContext.floor || undefined,
         phase: reviewData.phase || executionContext.phase || undefined,
         activity: reviewData.activity || executionContext.activity || undefined,
-        // Entry-type specific
+
         entryType: reviewData.entryType,
         itemName: reviewData.itemName || undefined,
         labourType: reviewData.labourType || undefined,
@@ -256,7 +233,7 @@ export default function VoiceAssistantPage() {
         hoursUsed: reviewData.hoursUsed ? Number(reviewData.hoursUsed) : undefined,
         operatorName: reviewData.operatorName || undefined,
         fuelCost: reviewData.fuelCost ? Number(reviewData.fuelCost) : undefined,
-        // Optional
+
         brand: reviewData.brand || undefined,
         supplier: reviewData.supplier || undefined,
         gstApplicable: reviewData.gstApplicable || false,
@@ -265,7 +242,6 @@ export default function VoiceAssistantPage() {
         rawTranscript: transcript,
       };
 
-      // Remove undefined values
       Object.keys(payload).forEach(k => {
         if (payload[k] === undefined) delete payload[k];
       });
@@ -295,7 +271,6 @@ export default function VoiceAssistantPage() {
       .finally(() => setRecentLoading(false));
   }, []);
 
-  // --- Reset for new entry ---
   const resetAll = useCallback(() => {
     if (autoResetTimerRef.current) {
       clearTimeout(autoResetTimerRef.current);
@@ -311,12 +286,10 @@ export default function VoiceAssistantPage() {
     setStatus(STATUS.idle);
   }, [resetSpeech]);
 
-  // --- Navigate to transaction log ---
   const viewEntries = useCallback(() => {
     navigate('/transaction');
   }, [navigate]);
 
-  // --- Derived state ---
   const isListening = status === STATUS.listening;
   const isIdle = status === STATUS.idle;
   const isProcessing = status === STATUS.processing;
@@ -332,10 +305,6 @@ export default function VoiceAssistantPage() {
     const s = String(secs % 60).padStart(2, '0');
     return `${m}:${s}`;
   };
-
-  // =====================================================================
-  // RENDER
-  // =====================================================================
 
   return (
     <div style={{
@@ -372,7 +341,6 @@ export default function VoiceAssistantPage() {
         }
       `}</style>
 
-      {/* Top Bar */}
       <div style={{
         padding: '14px 24px', display: 'flex', alignItems: 'center',
         gap: 16, flexShrink: 0, zIndex: 10,
@@ -415,14 +383,12 @@ export default function VoiceAssistantPage() {
         )}
       </div>
 
-      {/* Main scrollable body */}
       <div style={{
         flex: 1, overflowY: 'auto', padding: '32px 24px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         gap: 24, paddingBottom: (isIdle || isListening) ? 180 : 40,
       }}>
 
-        {/* ===== CONTEXT STEP ===== */}
         {isContext && (
           <ExecutionContextStep
             projects={projects}
@@ -431,10 +397,8 @@ export default function VoiceAssistantPage() {
           />
         )}
 
-        {/* ===== IDLE / LISTENING ===== */}
         {(isIdle || isListening) && (
           <>
-            {/* Entry type tabs */}
             <div className="voice-card" style={{
               background: colors.card, borderRadius: '14px',
               border: `1px solid ${colors.border}`, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02)',
@@ -459,7 +423,6 @@ export default function VoiceAssistantPage() {
               ))}
             </div>
 
-            {/* Execution context badge */}
             {(executionContext.project || executionContext.floor || executionContext.activity) && (
               <div className="voice-card" style={{
                 background: colors.primarySubtle, borderRadius: '12px',
@@ -495,7 +458,6 @@ export default function VoiceAssistantPage() {
               </div>
             )}
 
-            {/* Waveform + Mic / Live Transcript */}
             <div className="voice-card" style={{
               background: colors.card, borderRadius: '14px',
               border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
@@ -506,7 +468,6 @@ export default function VoiceAssistantPage() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: colors.primary, letterSpacing: '0.08em', marginBottom: 16, textTransform: 'uppercase' }}>
                     LIVE TRANSCRIPT
                   </div>
-                  {/* Waveform bars */}
                   <div style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 20 }}>
                     {Array.from({ length: 28 }).map((_, i) => (
                       <div key={i} className="wave-bar"
@@ -519,7 +480,6 @@ export default function VoiceAssistantPage() {
                         }} />
                     ))}
                   </div>
-                  {/* Transcript display */}
                   <div style={{
                     background: 'rgba(23, 62, 234, 0.03)',
                     borderRadius: '12px', border: `1px solid ${colors.border}`,
@@ -528,7 +488,6 @@ export default function VoiceAssistantPage() {
                   }}>
                     {interimTranscript || accumulatedTranscript || 'Listening... Speak now'}
                   </div>
-                  {/* Sound level bar */}
                   <div style={{ marginTop: 16, height: 4, borderRadius: 99, background: '#F1F5F9', overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', borderRadius: 99, width: `${soundLevel * 100}%`,
@@ -542,7 +501,6 @@ export default function VoiceAssistantPage() {
                 </>
               ) : (
                 <div style={{ padding: '16px 0' }}>
-                  {/* Idle mic */}
                   <div
                     onClick={handleStartListening}
                     style={{
@@ -577,7 +535,6 @@ export default function VoiceAssistantPage() {
               )}
             </div>
 
-            {/* Example hint (idle only) */}
             {isIdle && (
               <div className="voice-card" style={{
                 background: colors.primarySubtle, borderRadius: '12px',
@@ -597,7 +554,6 @@ export default function VoiceAssistantPage() {
           </>
         )}
 
-        {/* ===== PROCESSING ===== */}
         {isProcessing && (
           <div className="voice-card" style={{
             background: colors.card, borderRadius: '14px',
@@ -648,7 +604,6 @@ export default function VoiceAssistantPage() {
           </div>
         )}
 
-        {/* ===== EXTRACTING (brief preview before review sheet) ===== */}
         {isExtracting && parsedData && (
           <div className="voice-card fade-in" style={{
             background: colors.card, borderRadius: '14px',
@@ -678,7 +633,6 @@ export default function VoiceAssistantPage() {
           </div>
         )}
 
-        {/* ===== SAVING ===== */}
         {isSaving && (
           <div className="voice-card fade-in" style={{
             background: colors.card, borderRadius: '14px',
@@ -700,7 +654,6 @@ export default function VoiceAssistantPage() {
           </div>
         )}
 
-        {/* ===== COMPLETED ===== */}
         {isCompleted && (
           <div className="voice-card fade-in" style={{
             background: colors.card, borderRadius: '14px',
@@ -764,7 +717,6 @@ export default function VoiceAssistantPage() {
           </div>
         )}
 
-        {/* ===== ERROR ===== */}
         {(isError || saveError) && (
           <div className="voice-card fade-in" style={{
             background: colors.card, borderRadius: '14px',
@@ -784,7 +736,6 @@ export default function VoiceAssistantPage() {
           </div>
         )}
 
-        {/* ===== RECENT ENTRIES (when idle) ===== */}
         {(isIdle || isContext) && (
           <div style={{ width: '100%', maxWidth: 600 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -834,7 +785,6 @@ export default function VoiceAssistantPage() {
         )}
       </div>
 
-      {/* ===== BOTTOM FLOATING MIC BUTTON (when idle/listening) ===== */}
       {(isIdle || isListening) && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -871,7 +821,6 @@ export default function VoiceAssistantPage() {
         </div>
       )}
 
-      {/* ===== VOICE REVIEW SHEET (bottom sheet) ===== */}
       <VoiceReviewSheet
         key={showReview ? `review-${Date.now()}` : 'review-closed'}
         isOpen={showReview}

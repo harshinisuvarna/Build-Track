@@ -6,15 +6,15 @@ import perfLogger from "../utils/performanceLogger";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button, EmptyState } from "../components/ui";
 import { colors, radius, shadows, typography, gradients } from "../styles/designTokens";
-import { 
-  Search, 
-  Plus, 
-  RefreshCw, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  DollarSign, 
-  Trash2, 
-  Filter, 
+import {
+  Search,
+  Plus,
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
+  DollarSign,
+  Trash2,
+  Filter,
   Calendar,
   Clock,
   Briefcase,
@@ -129,7 +129,6 @@ export default function TransactionLog() {
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em', margin: 0, marginBottom: 6 }}>
@@ -147,7 +146,6 @@ export default function TransactionLog() {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
         {[
           { label: 'Total Income', value: income, color: colors.success, bg: colors.successLight, icon: ArrowUpRight },
@@ -178,11 +176,10 @@ export default function TransactionLog() {
         })}
       </div>
 
-      {/* Search + Filters */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ 
-          display: 'flex', alignItems: 'center', background: colors.card, 
-          border: `1px solid ${colors.border}`, borderRadius: 10, 
+        <div style={{
+          display: 'flex', alignItems: 'center', background: colors.card,
+          border: `1px solid ${colors.border}`, borderRadius: 10,
           padding: '0 14px', height: 42, gap: 10, minWidth: 320,
           transition: 'all 150ms ease',
         }}
@@ -190,9 +187,9 @@ export default function TransactionLog() {
           onBlur={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = 'none'; }}
         >
           <Search size={16} color={colors.textTertiary} />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} 
-            placeholder="Search transactions, projects, items..." 
-            style={{ border: 'none', outline: 'none', fontSize: 14, color: colors.textPrimary, background: 'transparent', width: '100%', fontFamily: typography.fontFamily }} 
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search transactions, projects, items..."
+            style={{ border: 'none', outline: 'none', fontSize: 14, color: colors.textPrimary, background: 'transparent', width: '100%', fontFamily: typography.fontFamily }}
           />
           {search && (
             <X size={14} color={colors.textTertiary} style={{ cursor: 'pointer' }} onClick={() => { setSearch(''); setPage(1); }} />
@@ -215,7 +212,6 @@ export default function TransactionLog() {
         </div>
       </div>
 
-      {/* Content */}
       {error && (
         <div style={{ background: colors.dangerLight, border: `1px solid ${colors.danger}33`, borderRadius: 12, padding: '14px 20px', color: colors.danger, fontSize: 14, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ flex: 1, fontWeight: 500 }}>{error}</span>
@@ -266,8 +262,8 @@ export default function TransactionLog() {
                       <div style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span>{t.title || "Untitled"}</span>
                         {pName && (
-                          <span style={{ 
-                            fontSize: 12, color: colors.textSecondary, fontWeight: 500, 
+                          <span style={{
+                            fontSize: 12, color: colors.textSecondary, fontWeight: 500,
                             background: colors.subtle, padding: '2px 8px', borderRadius: 6,
                             display: 'inline-flex', alignItems: 'center', gap: 4
                           }}>
@@ -281,8 +277,8 @@ export default function TransactionLog() {
                         </Badge>
                         <button onClick={(e) => { e.stopPropagation(); handleDelete(t._id); }}
                           className="tx-delete-btn"
-                          style={{ 
-                            color: colors.textTertiary, cursor: 'pointer', display: 'flex', padding: 6, 
+                          style={{
+                            color: colors.textTertiary, cursor: 'pointer', display: 'flex', padding: 6,
                             background: 'none', border: `1px solid ${colors.border}`, borderRadius: 8,
                           }}
                         >
@@ -308,16 +304,15 @@ export default function TransactionLog() {
             })}
           </div>
 
-          {/* Pagination */}
           {filtered.length > ITEMS_PER_PAGE && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, fontSize: 13, color: colors.textSecondary }}>
               <span style={{ fontWeight: 500 }}>Showing {(page - 1) * ITEMS_PER_PAGE + 1}-{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
                   className="pagination-btn"
-                  style={{ 
-                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, 
-                    background: colors.card, color: page <= 1 ? colors.textTertiary : colors.textPrimary, 
+                  style={{
+                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`,
+                    background: colors.card, color: page <= 1 ? colors.textTertiary : colors.textPrimary,
                     cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: typography.fontFamily,
                   }}
                 >
@@ -332,10 +327,10 @@ export default function TransactionLog() {
                   return typeof p === "number" ? (
                     <button key={p} onClick={() => setPage(p)}
                       className={p !== page ? "pagination-btn" : ""}
-                      style={{ 
-                        padding: '8px 16px', borderRadius: 8, 
-                        background: p === page ? gradients.primaryGradient : colors.card, 
-                        color: p === page ? '#fff' : colors.textPrimary, 
+                      style={{
+                        padding: '8px 16px', borderRadius: 8,
+                        background: p === page ? gradients.primaryGradient : colors.card,
+                        color: p === page ? '#fff' : colors.textPrimary,
                         fontWeight: 700, fontSize: 13, cursor: 'pointer', minWidth: 38, fontFamily: typography.fontFamily,
                         boxShadow: p === page ? '0 2px 8px rgba(23, 62, 234, 0.15)' : 'none',
                         border: p === page ? 'none' : `1px solid ${colors.border}`,
@@ -347,9 +342,9 @@ export default function TransactionLog() {
                 })}
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
                   className="pagination-btn"
-                  style={{ 
-                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, 
-                    background: colors.card, color: page >= totalPages ? colors.textTertiary : colors.textPrimary, 
+                  style={{
+                    padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.border}`,
+                    background: colors.card, color: page >= totalPages ? colors.textTertiary : colors.textPrimary,
                     cursor: page >= totalPages ? 'default' : 'pointer', fontWeight: 700, fontSize: 13, fontFamily: typography.fontFamily,
                   }}
                 >

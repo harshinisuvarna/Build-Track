@@ -46,7 +46,6 @@ export default function DashboardLayout() {
       )}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-        {/* Top bar */}
         <header
           style={{
             height: 46,
@@ -90,7 +89,6 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Page content */}
         <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
           <Outlet />
         </div>

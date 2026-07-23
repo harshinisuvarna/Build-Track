@@ -112,7 +112,7 @@ const useAuthStore = create(
             },
           }));
         } catch {
-          // silent fail — keep cached user
+
         }
       },
 

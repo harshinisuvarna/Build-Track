@@ -118,45 +118,44 @@ function AppRoutes() {
             </RequireRole>
           } />
           <Route path="/inventory"   element={<InventoryPage />} />
-          
+
           <Route path="/reports"     element={
             <RequireRole permission="view_reports" route="/reports">
               <Reports />
             </RequireRole>
           } />
-          
+
           <Route path="/settings"    element={<Settings />} />
           <Route path="/managesite"  element={<ManageSite />} />
-          
+
           <Route path="/approvals"  element={
             <RequireRole permission="approve_payments" route="/approvals">
               <Approvals />
             </RequireRole>
           } />
-          
+
           <Route path="/admin"      element={
             <RequireRole route="/admin">
               <AdminOverview />
             </RequireRole>
           } />
-          
+
           <Route path="/ai-chat"    element={<AiChatReport />} />
-          
+
           <Route path="/assign-role" element={
             <RequireRole permission="assign_roles">
               <AssignRoles />
             </RequireRole>
           } />
-          
+
           <Route path="/assign-task" element={
             <RequireRole>
               <AssignTask />
             </RequireRole>
           } />
-          
+
           <Route path="/notifications" element={<Notifications />} />
-          
-          {/* Unique pages from stashed changes */}
+
           <Route path="/subscription" element={<SubscriptionPage />} />
           <Route path="/audit-logs"   element={
             <RequireRole route="/audit-logs">

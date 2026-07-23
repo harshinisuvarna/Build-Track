@@ -1,22 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-// ---------------------------------------------------------------------------
-// useSpeechRecognition — Port of Flutter VoiceRecordingController
-//
-// Features matching Flutter:
-//   • Pre-initialization: starts STT engine immediately on mount (idle state)
-//   • Continuous recording with auto-restart on silence/end-of-speech
-//   • Accumulated transcript (final + interim concatenated)
-//   • Sound level monitoring via Web Audio API (AnalyserNode)
-//   • Processing timeout (60s)
-//   • Reset engine capability
-//   • Session timer (elapsed seconds)
-// ---------------------------------------------------------------------------
-
 const PROCESSING_TIMEOUT_MS = 60_000;
 
 export default function useSpeechRecognition() {
-  // --- State ---
+
   const [interimTranscript, setInterimTranscript] = useState('');
   const [accumulatedTranscript, setAccumulatedTranscript] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -26,7 +13,6 @@ export default function useSpeechRecognition() {
   const [soundLevel, setSoundLevel] = useState(0.0);
   const [sessionElapsed, setSessionElapsed] = useState(0);
 
-  // --- Refs ---
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -37,7 +23,6 @@ export default function useSpeechRecognition() {
   const isStartingRef = useRef(false);
   const accumulatedRef = useRef('');
 
-  // --- Helpers ---
   const hasSpeechRecognition = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
@@ -45,12 +30,10 @@ export default function useSpeechRecognition() {
     ? (window.SpeechRecognition || window.webkitSpeechRecognition)
     : null;
 
-  // Sync accumulatedRef with state
   useEffect(() => {
     accumulatedRef.current = accumulatedTranscript;
   }, [accumulatedTranscript]);
 
-  // --- Session timer ---
   const startTimer = useCallback(() => {
     if (timerRef.current) return;
     setSessionElapsed(0);
@@ -66,7 +49,6 @@ export default function useSpeechRecognition() {
     }
   }, []);
 
-  // --- Sound level monitoring (Web Audio API) ---
   const startSoundLevelMonitoring = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -91,7 +73,7 @@ export default function useSpeechRecognition() {
       };
       updateLevel();
     } catch {
-      // Microphone access denied or unavailable — degrade gracefully
+
     }
   }, []);
 
@@ -108,7 +90,6 @@ export default function useSpeechRecognition() {
     setSoundLevel(0);
   }, []);
 
-  // --- Pre-init STT engine (idle listening) ---
   const preInitEngine = useCallback(() => {
     if (!SpeechRecognitionCtor) {
       setError('Speech recognition is not supported in this browser.');
@@ -154,7 +135,7 @@ export default function useSpeechRecognition() {
 
     recognition.onerror = (event) => {
       if (event.error === 'no-speech') {
-        // Silently restart — this is normal
+
         return;
       }
       if (event.error === 'aborted') {
@@ -165,29 +146,27 @@ export default function useSpeechRecognition() {
     };
 
     recognition.onend = () => {
-      // Auto-restart if we're still in recording state
+
       if (isRecording && restartCountRef.current < 50) {
         restartCountRef.current += 1;
         try {
           recognition.start();
         } catch {
-          // Already started
+
         }
       }
     };
 
     recognitionRef.current = recognition;
 
-    // Start in idle mode (paused)
     try {
       recognition.start();
       recognition.stop();
     } catch {
-      // Ignore — we just want the engine loaded
+
     }
   }, [SpeechRecognitionCtor, isRecording]);
 
-  // --- Start actual recording ---
   const startRecording = useCallback(() => {
     if (!recognitionRef.current) {
       preInitEngine();
@@ -205,7 +184,7 @@ export default function useSpeechRecognition() {
       startTimer();
       startSoundLevelMonitoring();
     } catch {
-      // May already be started — try stop then start
+
       try {
         recognition.stop();
         setTimeout(() => {
@@ -224,7 +203,6 @@ export default function useSpeechRecognition() {
     }
   }, [preInitEngine, startTimer, startSoundLevelMonitoring]);
 
-  // --- Stop recording ---
   const stopRecording = useCallback(() => {
     setIsRecording(false);
     stopTimer();
@@ -237,14 +215,12 @@ export default function useSpeechRecognition() {
     }
   }, [stopTimer, stopSoundLevelMonitoring]);
 
-  // --- Reset transcript ---
   const resetTranscript = useCallback(() => {
     setAccumulatedTranscript('');
     setInterimTranscript('');
     accumulatedRef.current = '';
   }, []);
 
-  // --- Reset engine (destroy and recreate) ---
   const resetEngine = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -258,7 +234,6 @@ export default function useSpeechRecognition() {
     restartCountRef.current = 0;
   }, [stopSoundLevelMonitoring]);
 
-  // --- Full reset (for new entry cycle) ---
   const resetAll = useCallback(() => {
     resetTranscript();
     resetEngine();
@@ -272,7 +247,6 @@ export default function useSpeechRecognition() {
     }
   }, [resetTranscript, resetEngine]);
 
-  // --- Set processing state with timeout ---
   const setProcessing = useCallback((val) => {
     setIsProcessing(val);
     if (val) {
@@ -288,16 +262,15 @@ export default function useSpeechRecognition() {
     }
   }, []);
 
-  // --- Pre-init on mount ---
   useEffect(() => {
     preInitEngine();
     return () => {
       resetAll();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
-    // State
+
     interimTranscript,
     accumulatedTranscript,
     fullTranscript: accumulatedRef.current || accumulatedTranscript,
@@ -309,7 +282,6 @@ export default function useSpeechRecognition() {
     sessionElapsed,
     hasSpeechRecognition,
 
-    // Actions
     startRecording,
     stopRecording,
     resetTranscript,

@@ -30,7 +30,6 @@ export default function RequireRole({ permission, route, children }) {
     return <AccessDenied />;
   }
 
-  // If a route check is needed (e.g. /admin or /audit-logs only for admin/supervisor)
   if (route) {
     const r = user?.role?.toLowerCase();
     const isAdminOrSupervisor = r === "admin" || r === "supervisor";

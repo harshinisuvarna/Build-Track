@@ -1,48 +1,34 @@
 import { useState, useCallback, useRef } from "react";
 import { PAYMENT_MODES, GST_PERCENTAGES, ACTIVITY_OPTIONS, PHASE_OPTIONS } from "../utils/voiceConstants";
 import { colors, radius, shadows, typography, gradients } from "../styles/designTokens";
-import { 
-  Package, 
-  Users, 
-  Wrench, 
-  Building2, 
-  MapPin, 
-  ClipboardList, 
-  Hammer, 
-  Clock, 
-  Mic, 
-  Coins, 
-  Ruler, 
-  Tag, 
-  Handshake, 
-  CreditCard, 
-  ChevronRight, 
-  X, 
-  AlertTriangle, 
-  Info, 
-  Check, 
-  CornerDownRight, 
-  CheckSquare, 
-  Layers, 
+import {
+  Package,
+  Users,
+  Wrench,
+  Building2,
+  MapPin,
+  ClipboardList,
+  Hammer,
+  Clock,
+  Mic,
+  Coins,
+  Ruler,
+  Tag,
+  Handshake,
+  CreditCard,
+  ChevronRight,
+  X,
+  AlertTriangle,
+  Info,
+  Check,
+  CornerDownRight,
+  CheckSquare,
+  Layers,
   HelpCircle,
   TrendingUp,
   FileText
 } from 'lucide-react';
 import Button from "./ui/Button";
-
-// ---------------------------------------------------------------------------
-// VoiceReviewSheet — Full Flutter voice_confirmation_sheet.dart parity
-//
-// Features:
-//   • Per-step voice input (mic button to speak any field value)
-//   • Dynamic steps based on entry type
-//   • Labour-specific: workerCount, hoursWorked, dailyWage, advanceAmount
-//   • Equipment-specific: operatorName, hoursUsed, fuelCost
-//   • GST percentage selection (not text input)
-//   • "Credit" payment mode
-//   • Amount auto-computation
-//   • Edit form in summary
-// ---------------------------------------------------------------------------
 
 const ENTRY_TYPES = [
   { id: 'material', label: 'Material', icon: Package, desc: 'Cement, sand, steel, bricks...' },
@@ -88,7 +74,6 @@ const stepIconMap = {
   review: CheckSquare,
 };
 
-// --- Per-step mic hook (lightweight Web Speech API) ---
 function useStepVoice() {
   const [listening, setListening] = useState(false);
   const [result, setResult] = useState('');
@@ -122,7 +107,6 @@ function useStepVoice() {
   return { listening, result, start, stop };
 }
 
-// --- Voice Mic Button component ---
 function StepMicButton({ onTranscript }) {
   const { listening, start, stop } = useStepVoice();
 
@@ -164,13 +148,13 @@ function buildInitialData(d = {}) {
     gstPercentage: d.gstPercentage || '',
     paymentMode: d.paymentMode || 'cash',
     notes: d.notes || '',
-    // Labour-specific
+
     labourType: d.labourType || d.items?.[0] || '',
     workerCount: d.workerCount || '',
     hoursWorked: d.hoursWorked || '',
     dailyWage: d.dailyWage || '',
     advanceAmount: d.advanceAmount || '',
-    // Equipment-specific
+
     equipmentName: d.equipmentName || d.items?.[0] || '',
     hoursUsed: d.hoursUsed || '',
     operatorName: d.operatorName || '',
@@ -202,11 +186,9 @@ export default function VoiceReviewSheet({
   const [data, setData] = useState(() => buildInitialData(initialData));
   const [customInput, setCustomInput] = useState('');
 
-  // --- Build steps dynamically based on entry type ---
   const steps = buildSteps(data.entryType);
   const step = steps[currentStep];
 
-  // --- Computation ---
   const computedAmount = computeAmount(data);
   const gstAmount = data.gstApplicable && data.gstPercentage
     ? computedAmount * (Number(data.gstPercentage) / 100)
@@ -252,12 +234,10 @@ export default function VoiceReviewSheet({
         boxShadow: '0 -20px 25px -5px rgba(0, 0, 0, 0.1)',
         animation: 'slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
-        {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
           <div style={{ width: 44, height: 5, borderRadius: 99, background: '#CBD5E1' }} />
         </div>
 
-        {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '8px 24px 16px',
@@ -289,7 +269,6 @@ export default function VoiceReviewSheet({
           </button>
         </div>
 
-        {/* Progress */}
         <div style={{ padding: '0 24px 16px' }}>
           <div style={{ height: 4, background: '#E6EAF2', borderRadius: 99 }}>
             <div style={{
@@ -300,7 +279,6 @@ export default function VoiceReviewSheet({
           </div>
         </div>
 
-        {/* Answered chips */}
         {currentStep > 0 && (
           <div style={{
             display: 'flex', gap: 8, padding: '0 24px 12px',
@@ -328,7 +306,6 @@ export default function VoiceReviewSheet({
           </div>
         )}
 
-        {/* Step content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>
           {renderStep({
             step, data, updateField, goNext, customInput, setCustomInput,
@@ -340,10 +317,6 @@ export default function VoiceReviewSheet({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Step builders
-// ---------------------------------------------------------------------------
 
 function buildSteps(entryType) {
   const base = [
@@ -380,7 +353,6 @@ function buildSteps(entryType) {
     ];
   }
 
-  // material (default)
   return [
     ...base,
     { id: 'itemName', label: 'Item Name', icon: Tag, required: true },
@@ -429,15 +401,11 @@ function computeAmount(data) {
     const rate = Number(data.rate) || 0;
     return hours * rate;
   }
-  // material
+
   const qty = Number(data.quantity) || 0;
   const rate = Number(data.rate) || 0;
   return qty * rate;
 }
-
-// ---------------------------------------------------------------------------
-// Step renderer
-// ---------------------------------------------------------------------------
 
 function renderStep({ step, data, updateField, goNext, customInput, setCustomInput, projects, computedAmount, totalAmount, gstAmount, setCurrentStep, handleSave }) {
   const Icon = stepIconMap[step.id] || Package;
@@ -1029,7 +997,6 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
           <div style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 16 }}>Fill out any optional records</div>
 
           <div style={{ maxHeight: '42vh', overflowY: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Material-specific optionals */}
             {data.entryType === 'material' && (
               <>
                 <label style={labelStyle}>BRAND</label>
@@ -1041,7 +1008,6 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
               </>
             )}
 
-            {/* Labour-specific optionals */}
             {data.entryType === 'labour' && (
               <>
                 <label style={labelStyle}>ADVANCE AMOUNT (₹)</label>
@@ -1050,7 +1016,6 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
               </>
             )}
 
-            {/* Equipment-specific optionals */}
             {data.entryType === 'equipment' && (
               <>
                 <label style={labelStyle}>OPERATOR NAME</label>
@@ -1062,7 +1027,6 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
               </>
             )}
 
-            {/* GST */}
             <label style={labelStyle}>GST APPLICABLE?</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <div onClick={() => updateField('gstApplicable', false)}
@@ -1100,7 +1064,6 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
               </>
             )}
 
-            {/* Payment Mode */}
             <label style={{ ...labelStyle, marginTop: 4 }}>PAYMENT MODE</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {PAYMENT_MODES.map(m => (
@@ -1115,7 +1078,6 @@ function renderStep({ step, data, updateField, goNext, customInput, setCustomInp
               ))}
             </div>
 
-            {/* Notes */}
             <label style={labelStyle}>NOTES</label>
             <textarea value={data.notes} onChange={e => updateField('notes', e.target.value)}
               placeholder="Any additional notes..."

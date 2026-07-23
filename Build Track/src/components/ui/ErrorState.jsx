@@ -48,4 +48,3 @@ export default function ErrorState({ title, message, onRetry }) {
     </div>
   );
 }
-

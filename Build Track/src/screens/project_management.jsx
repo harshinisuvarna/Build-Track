@@ -121,7 +121,6 @@ export default function ProjectsPage() {
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.03em', margin: 0, marginBottom: 4 }}>
@@ -147,7 +146,6 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB', marginBottom: 24, overflowX: 'auto' }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
@@ -165,7 +163,6 @@ export default function ProjectsPage() {
         ))}
       </div>
 
-      {/* Error */}
       {error && (
         <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '12px 16px', color: '#DC2626', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ flex: 1 }}>{error}</span>
@@ -173,7 +170,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {[1,2,3].map(i => (
@@ -186,7 +182,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Project list */}
       {!loading && (
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -212,7 +207,7 @@ export default function ProjectsPage() {
                     }}
                     className="hover-lift-sm"
                     onClick={() => navigate("/managesite", { state: { project: p } })}>
-                    
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 12 }}>
                       <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827', letterSpacing: '-0.02em', flex: 1 }}>{p.projectName}</h3>
                       <span style={{
@@ -285,4 +280,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-

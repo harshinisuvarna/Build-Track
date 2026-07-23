@@ -81,8 +81,7 @@ export default function AdminDashboard() {
       }
       setDashData(dashRes?.data || null);
       setWorkers(workerRes?.data?.workers || workerRes?.data || []);
-      
-      // Fetch approvals
+
       Promise.all([
         approvalAPI.getPending().catch(() => ({ data: [] })),
         approvalAPI.getHistory().catch(() => ({ data: [] }))
@@ -100,7 +99,7 @@ export default function AdminDashboard() {
 
         const pendingArr = extractArray(pendRes);
         const historyArr = extractArray(histRes);
-        
+
         const pendingCount = pendingArr.filter(a => (a.approvalStatus || '').toLowerCase() === 'pending').length;
         setPendingApprovals(pendingCount);
         setApprovalHistory(historyArr);
@@ -122,7 +121,7 @@ export default function AdminDashboard() {
     }).sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt)),
     [transactions, selectedProjectId]
   );
-  
+
   const filteredApprovalHistory = useMemo(() => {
     return projectTransactions.filter(t => {
       const st = (t.approvalStatus || '').toLowerCase();
@@ -134,7 +133,7 @@ export default function AdminDashboard() {
       return true;
     });
   }, [projectTransactions]);
-  
+
   const recentEntries = projectTransactions.slice(0, 5);
   const incomeTransactions = projectTransactions.filter(t => t.type === 'Income').slice(0, 5);
 
@@ -156,8 +155,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32, animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
-      
-      {/* Page Header */}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 36, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.03em', margin: 0, lineHeight: 1.1 }}>
@@ -172,11 +170,10 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
-      {/* Approvals Alert Banner */}
       {pendingApprovals > 0 && (
-        <div style={{ 
-          background: '#FFF3E0', border: '1px solid #FFE0B2', padding: '16px 24px', 
-          borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' 
+        <div style={{
+          background: '#FFF3E0', border: '1px solid #FFE0B2', padding: '16px 24px',
+          borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#E65100' }}>
             <AlertTriangle size={24} />
@@ -191,11 +188,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Speak Update Hero */}
-      <div 
+      <div
         onClick={() => navigate('/voice')}
-        style={{ 
-          background: gradients.primaryGradient, 
+        style={{
+          background: gradients.primaryGradient,
           padding: 24, borderRadius: 16, color: '#fff', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           boxShadow: '0 10px 25px rgba(23,62,234,0.2)', transition: 'transform 200ms ease'
@@ -216,7 +212,6 @@ export default function AdminDashboard() {
         <ChevronRight size={32} opacity={0.8} />
       </div>
 
-      {/* Project Selector + Progress */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 24 }}>
         <Card padding={24}>
           <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
@@ -292,7 +287,6 @@ export default function AdminDashboard() {
               <div style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>Current Milestone</div>
             </div>
           </div>
-          {/* Brand Gradient Progress Bar */}
           <div style={{ height: 8, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 999, marginBottom: 10, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
@@ -311,7 +305,6 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
         {[
           { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#173EEA', alert: budget > 0 && totalCost > budget * 0.9 },
@@ -346,7 +339,6 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      {/* Quick Actions */}
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
           Quick Actions
@@ -394,10 +386,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Bottom Grid: Revenue, Activity, Team History */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 24 }}>
-        
-        {/* Revenue Inflow Timeline */}
+
         <Card padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -427,9 +417,7 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        {/* Activity & Team Audit */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Recent Activity Log */}
       <Card padding={0}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -502,7 +490,6 @@ export default function AdminDashboard() {
         )}
       </Card>
 
-      {/* Team Approval Audit */}
       <Card padding={0}>
         <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -536,10 +523,9 @@ export default function AdminDashboard() {
           )}
         </div>
       </Card>
-      
-        </div> {/* End Activity & Team Audit wrapper */}
-      </div> {/* End Bottom Grid */}
+
+        </div> {}
+      </div> {}
     </div>
   );
 }
-

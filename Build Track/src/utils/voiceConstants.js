@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Voice Entry Constants — ported from Flutter ai_voice_entry_screen.dart
-// ---------------------------------------------------------------------------
-
 export const MATERIAL_KEYWORDS = [
   'cement', 'sand', 'aggregate', 'bricks', 'brick', 'steel', 'saria', 'sariya',
   'pipes', 'pipe', 'pvc', 'cpvc', 'upvc', 'tiles', 'tile', 'marble', 'granite',

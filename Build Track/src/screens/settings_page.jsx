@@ -188,7 +188,6 @@ export default function SettingsPage() {
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      {/* Top Bar */}
       <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Settings</h1>
@@ -199,7 +198,6 @@ export default function SettingsPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-          {/* Profile */}
           <SectionCard title="Profile Settings">
             <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: isMobile ? "wrap" : "nowrap" }}>
               <div style={{ position: "relative", flexShrink: 0 }}>
@@ -233,15 +231,11 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-
-
-          {/* Notifications */}
           <SectionCard title="Notifications">
             <SettingsRow icon={<Bell size={14} />} title="Notifications" subtitle="Receive project updates and alerts" border={false}
               action={<Toggle on={emailNotif} onToggle={() => setEmailNotif(v => !v)} />} />
           </SectionCard>
 
-          {/* Security */}
           <SectionCard title="Security">
             <SettingsRow icon={<Lock size={14} />} title="Account Password" subtitle="Manage your account password"
               action={<Button variant="secondary" size="sm" onClick={() => setShowPwForm(v => !v)}>{showPwForm ? "Cancel" : "Change Password"}</Button>} />
@@ -268,7 +262,6 @@ export default function SettingsPage() {
             {secErr && <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: 13, marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} /> {secErr}</div>}
           </SectionCard>
 
-          {/* Subscription */}
           {subscription && (
             <SectionCard gradient="linear-gradient(135deg, #5B5CEB, #8B5CF6)" title="Subscription">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -291,7 +284,6 @@ export default function SettingsPage() {
             </SectionCard>
           )}
 
-          {/* Team & Access */}
           {isAdmin && (
             <SectionCard title="Team & Access">
               <SettingsRow icon={<Users size={14} />} title="Assign Roles" subtitle="Manage team member permissions and roles" border={false}
@@ -299,7 +291,6 @@ export default function SettingsPage() {
             </SectionCard>
           )}
 
-          {/* Logout */}
           <SectionCard>
             <Button variant="danger" size="md" fullWidth onClick={() => setConfirmDlg({
               message: "Are you sure you want to log out?",
@@ -309,12 +300,9 @@ export default function SettingsPage() {
             </Button>
           </SectionCard>
 
-          {/* Version */}
           <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
             <span style={{ fontSize: 12, color: "#94A3B8" }}>BuildTrack Version 2.4.0 (2024)</span>
           </div>
-
-
 
         </div>
       </div>

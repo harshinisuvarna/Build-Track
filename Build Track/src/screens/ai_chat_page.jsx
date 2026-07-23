@@ -293,7 +293,6 @@ export default function AIChatPage() {
       fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
     }}>
 
-      {/* ── Topbar ── */}
       <div style={{
         height: 64, flexShrink: 0,
         background: "#fff", borderBottom: "1px solid #ebebeb",
@@ -332,7 +331,6 @@ export default function AIChatPage() {
         </div>
       </div>
 
-      {/* ── Chat body ── */}
       <div style={{
         flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden",
         WebkitOverflowScrolling: "touch",
@@ -340,7 +338,6 @@ export default function AIChatPage() {
         display: "flex", flexDirection: "column", gap: 20,
       }}>
 
-        {/* Suggestion chips — only show before first user message */}
         {messages.filter((m) => m.role === "user").length === 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 8 }}>
             {SUGGESTIONS.map((s) => (
@@ -375,10 +372,8 @@ export default function AIChatPage() {
           </div>
         )}
 
-        {/* Messages */}
         {messages.map((msg) => renderMessage(msg))}
 
-        {/* Typing indicator */}
         {loading && (
           <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
             <div style={{
@@ -401,7 +396,6 @@ export default function AIChatPage() {
         <div ref={chatEndRef} />
       </div>
 
-      {/* ── Input bar ── */}
       <div style={{
         flexShrink: 0,
         background: "#fff", borderTop: "1px solid #ebebeb",

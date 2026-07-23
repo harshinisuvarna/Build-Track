@@ -45,7 +45,6 @@ export default function AddEntryPage() {
       width: '100%', minHeight: '100vh',
       fontFamily: typography.fontFamily, background: 'transparent',
     }}>
-      {/* Top Bar */}
       <div style={{
         padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12,
       }}>
@@ -64,9 +63,7 @@ export default function AddEntryPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 100px', maxWidth: 640, margin: '0 auto', width: '100%' }}>
-        {/* Title */}
         <div style={{ marginBottom: 24 }}>
           <h1 style={{
             fontSize: 30, fontWeight: 900, color: colors.textPrimary,
@@ -79,7 +76,6 @@ export default function AddEntryPage() {
           </p>
         </div>
 
-        {/* Entry Type Section */}
         <div style={{
           fontSize: 12, fontWeight: 600, letterSpacing: '0.3px',
           color: colors.textSecondary, marginBottom: 12, textTransform: 'uppercase',
@@ -130,7 +126,6 @@ export default function AddEntryPage() {
           })}
         </div>
 
-        {/* Inline CSV Import Component - self-contained with all features */}
         <CsvImport onComplete={() => {}} />
       </div>
     </div>
