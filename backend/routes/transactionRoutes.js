@@ -731,6 +731,7 @@ router.put("/:id", async (req, res) => {
       materialType,
       paymentStatus: _paymentStatus, paymentMode, paymentDate,
       paidAmount: _paidAmount,
+      paymentHistory,
       paymentReceipt,
       remarks,
       amount: rawAmount,
@@ -781,6 +782,11 @@ router.put("/:id", async (req, res) => {
       (unit !== undefined && unit !== tx.unit) ||
       (quantity !== undefined && Number(quantity) !== tx.quantity);
 
+    const newType = type || tx.type;
+    const newMaterialType = newType === "Materials"
+      ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
+      : "";
+
     if (hasInventoryFieldsChanged) {
 
       if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
@@ -796,11 +802,6 @@ router.put("/:id", async (req, res) => {
           session
         );
       }
-
-      const newType = type || tx.type;
-      const newMaterialType = newType === "Materials"
-        ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
-        : "";
 
       if ((newType === "Materials" || newType === "Wages" || newType === "Expense") && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
         const newDelta = (newType === "Materials" && newMaterialType === "usage") ? -newQty : newQty;
@@ -928,7 +929,42 @@ router.put("/:id", async (req, res) => {
         paymentDate;
     }
 
-    if (_paidAmount !== undefined) {
+    if (paymentHistory !== undefined && Array.isArray(paymentHistory)) {
+      tx.paymentHistory = paymentHistory;
+      
+      let sumPaid = 0;
+      let lastMethod = tx.paymentMode;
+      let lastDate = tx.paymentDate;
+
+      tx.paymentHistory.forEach((p, index) => {
+        const amt = parseAmount(p.amount);
+        sumPaid += amt;
+        p.amount = amt;
+        if (!p.date) p.date = new Date();
+        if (p.method) p.method = normalizePaymentMode(p.method);
+        
+        if (index === tx.paymentHistory.length - 1) {
+           lastMethod = p.method;
+           lastDate = p.date;
+        }
+      });
+      
+      tx.paidAmount = sumPaid;
+      
+      if (sumPaid >= finalAmount && finalAmount > 0) {
+        tx.paymentStatus = "Paid";
+      } else if (sumPaid > 0) {
+        tx.paymentStatus = "Partial";
+      } else {
+        tx.paymentStatus = "Pending";
+      }
+      
+      if (tx.paymentHistory.length > 0) {
+        tx.paymentMode = lastMethod;
+        tx.paymentDate = lastDate;
+      }
+      
+    } else if (_paidAmount !== undefined) {
       const newPaidAmount = parseAmount(_paidAmount);
       const delta = newPaidAmount - tx.paidAmount;
       if (delta > 0) {
@@ -941,6 +977,14 @@ router.put("/:id", async (req, res) => {
         });
       }
       tx.paidAmount = newPaidAmount;
+      
+      if (tx.paidAmount >= finalAmount && finalAmount > 0) {
+        tx.paymentStatus = "Paid";
+      } else if (tx.paidAmount > 0) {
+        tx.paymentStatus = "Partial";
+      } else {
+        tx.paymentStatus = "Pending";
+      }
     }
 
     if (newPaymentReceiptUrl) {
