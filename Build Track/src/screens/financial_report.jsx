@@ -119,7 +119,7 @@ function mapTransactionToEntry(tx) {
     }
   }
   entryProjectId = entryProjectId.trim();
-  if (!entryProjectId) entryProjectId = 'p1';
+  if (!entryProjectId) entryProjectId = '';
 
   let amount = 0;
   const paymentStatus = (tx.paymentStatus || '').toLowerCase().trim();
@@ -782,7 +782,7 @@ export default function FinancialReportPage() {
     try {
       await transactionAPI.approve(entry.rawTx?._id || entry.id);
       setToast({ msg: "Entry approved successfully!", type: "success" });
-      fetchTransactions();
+      loadData();
     } catch (err) {
       setToast({ msg: err.response?.data?.message || "Failed to approve entry", type: "error" });
     }
@@ -792,9 +792,9 @@ export default function FinancialReportPage() {
     const reason = window.prompt("Enter rejection reason:");
     if (reason === null) return;
     try {
-      await transactionAPI.reject(entry.rawTx?._id || entry.id, { rejectionReason: reason });
+      await transactionAPI.reject(entry.rawTx?._id || entry.id, reason);
       setToast({ msg: "Entry rejected", type: "info" });
-      fetchTransactions();
+      loadData();
     } catch (err) {
       setToast({ msg: err.response?.data?.message || "Failed to reject entry", type: "error" });
     }
@@ -872,8 +872,7 @@ export default function FinancialReportPage() {
             display: "flex",
             alignItems: "center",
             gap: 16,
-            transition: "transform 0.15s ease",
-            transform: "translateY(0)"
+            transition: "transform 0.15s ease"
           }}
           className="hover-lift-sm"
         >

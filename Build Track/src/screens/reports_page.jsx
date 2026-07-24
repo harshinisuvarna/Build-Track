@@ -6,7 +6,7 @@ import { MetricCard, CategoryBudgetBar } from "../components/MetricCards";
 import { Badge, Button, Card } from "../components/ui";
 import {
   Search, Download, FileText, ChevronDown, Calendar, Filter, RefreshCw,
-  BarChart3, Layers, DollarSign, TrendingUp, Sparkles,
+  BarChart3, Layers, DollarSign, Users, TrendingUp, Sparkles,
 } from "lucide-react";
 
 const TYPE_COLORS = {
@@ -241,7 +241,7 @@ export default function ReportsPage() {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
           <MetricCard icon={<BarChart3 size={16} />} label="Total Cost" value={stats.total} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budget?.["total"] || projects.find(p => (p._id || p.id) === selectedProject)?.totalBudget || 0} color="#3B82F6" />
           <MetricCard icon={<Layers size={16} />} label="Material" value={stats.material} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetMaterial || 0} color="#5B5CEB" />
-          <MetricCard icon={<Users16 />} label="Labour" value={stats.labour} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetLabour || 0} color="#8B5CF6" />
+          <MetricCard icon={<Users size={16} />} label="Labour" value={stats.labour} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetLabour || 0} color="#8B5CF6" />
           <MetricCard icon={<DollarSign size={16} />} label="Equipment" value={stats.equipment} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetEquipment || 0} color="#06B6D4" />
         </div>
 
@@ -284,7 +284,7 @@ export default function ReportsPage() {
                   const pc = PAYMENT_COLORS[t.paymentStatus] || PAYMENT_COLORS.Pending;
                   return (
                     <tr key={t._id}
-                      onClick={() => navigate(`/entries/${t._id}`)}
+                      onClick={() => navigate('/entry-detail', { state: { entry: t } })}
                       className="hover-bg-subtle"
                       style={{ borderBottom: "1px solid #F1F5F9", cursor: "pointer" }}>
                       <td style={{ padding: "10px 14px", fontSize: 13, color: "#475569", whiteSpace: "nowrap" }}>
@@ -332,10 +332,4 @@ export default function ReportsPage() {
   );
 }
 
-function Users16() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
-    </svg>
-  );
-}
+

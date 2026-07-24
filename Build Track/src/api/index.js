@@ -105,7 +105,7 @@ export const approvalAPI = {
   getPending: (p = {}) => api.get("/approvals/pending", { params: p }),
   getHistory: (p = {}) => api.get("/approvals/history", { params: p }),
   approve: (txId) => api.put(`/transactions/${txId}/approve`),
-  reject: (txId, reason) => api.put(`/transactions/${txId}/reject`, { reason }),
+  reject: (txId, reason) => api.put(`/transactions/${txId}/reject`, { rejectionReason: reason }),
 };
 
 export const dashboardAPI = {
