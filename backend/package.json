@@ -18,6 +18,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "@aws-sdk/client-ses": "^3.1077.0",
+    "@getbrevo/brevo": "^6.0.2",
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
