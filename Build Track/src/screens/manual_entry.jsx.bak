@@ -109,7 +109,6 @@ export default function ManualEntryPage() {
 
   const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [paymentHistory, setPaymentHistory] = useState([]);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [receiptFile, setReceiptFile] = useState(null);
   const receiptInputRef = useRef(null);
@@ -154,7 +153,6 @@ export default function ManualEntryPage() {
       setGstPercentage(tx.gstPercentage || 18);
       setIsPaid(tx.isPaid || false);
       setPaymentMethod(tx.paymentMethod || "Cash");
-      setPaymentHistory(tx.paymentHistory || []);
 
       const nameVal = tx.title || tx.materialName || tx.workerName || tx.equipmentName || "";
       if (eType === "material") {
@@ -374,75 +372,59 @@ export default function ManualEntryPage() {
       const typeMap = { material: "Materials", labour: "Wages", equipment: "Expense" };
       const nameKey = entryType === "material" ? "itemName" : entryType === "labour" ? "workerName" : "equipmentName";
 
-      const activePhase = phases.find(p => p.id === selectedPhaseId);
-      const phaseName = activePhase?.phaseName || "";
-      const activeAct = activePhase?.activities?.find(a => a.name === selectedActivityName);
-      const activityId = activeAct?.id || activeAct?._id || "";
+      const formData = new FormData();
+      formData.append("title", values[nameKey] || `${entryType} entry`);
+      formData.append("amount", grandTotal);
+      formData.append("type", typeMap[entryType]);
+      formData.append("project", selectedProject);
+      formData.append("date", new Date(date).toISOString());
+      formData.append("notes", notes || "");
+      formData.append("quantity", qty);
+      formData.append("rate", rate);
+      formData.append("unit", unit);
+      formData.append("brand", values.brand || "");
+      formData.append("supplier", values.supplier || values.operator || "");
+      formData.append("workerName", values.workerName || "");
+      formData.append("equipmentName", values.equipmentName || "");
+      formData.append("workType", values.workType || "");
+      formData.append("contractor", values.contractor || "");
+      formData.append("model", values.model || "");
+      formData.append("operator", values.operator || "");
+        const activePhase = phases.find(p => p.id === selectedPhaseId);
+        const phaseName = activePhase?.phaseName || "";
+        const activeAct = activePhase?.activities?.find(a => a.name === selectedActivityName);
+        const activityId = activeAct?.id || activeAct?._id || "";
 
-      let payload = {
-        title: values[nameKey] || `${entryType} entry`,
-        amount: grandTotal,
-        type: typeMap[entryType],
-        project: selectedProject,
-        date: new Date(date).toISOString(),
-        notes: notes || "",
-        quantity: qty,
-        rate: rate,
-        unit: unit,
-        brand: values.brand || "",
-        supplier: values.supplier || values.operator || "",
-        workerName: values.workerName || "",
-        equipmentName: values.equipmentName || "",
-        workType: values.workType || "",
-        contractor: values.contractor || "",
-        model: values.model || "",
-        operator: values.operator || "",
-        floor: selectedFloor,
-        floorId: "",
-        phase: phaseName,
-        phaseId: selectedPhaseId,
-        activity: selectedActivityName,
-        activityId: activityId,
-        isWithGst: isWithGst,
-        gstPercentage: gstPercentage,
-        gstAmount: gstAmount,
-        totalAmount: totalAmount,
-        overtime: overtime,
-        overtimeAmount: overtimeAmount,
-        isPaid: isPaid,
-        paymentMethod: paymentMethod,
-        paymentDate: paymentDate,
-        paymentHistory: paymentHistory
-      };
+        formData.append("floor", selectedFloor);
+        formData.append("floorId", "");
+        formData.append("phase", phaseName);
+        formData.append("phaseId", selectedPhaseId);
+        formData.append("activity", selectedActivityName);
+        formData.append("activityId", activityId);
+      formData.append("isWithGst", isWithGst);
+      formData.append("gstPercentage", gstPercentage);
+      formData.append("gstAmount", gstAmount);
+      formData.append("totalAmount", totalAmount);
+      formData.append("overtime", overtime);
+      formData.append("overtimeAmount", overtimeAmount);
+      formData.append("isPaid", isPaid);
+      formData.append("paymentMethod", paymentMethod);
+      formData.append("paymentDate", paymentDate);
 
-      const hasFiles = receiptFile != null || attachments.length > 0;
-      let finalData = payload;
-
-      if (hasFiles) {
-        const formData = new FormData();
-        Object.keys(payload).forEach(key => {
-          if (key === 'paymentHistory') {
-             formData.append(key, JSON.stringify(payload[key]));
-          } else {
-             formData.append(key, payload[key]);
-          }
-        });
-        
-        if (receiptFile) {
-          formData.append("receipt", receiptFile);
-        }
-        attachments.forEach((file, idx) => {
-          formData.append(`attachment_${idx}`, file);
-        });
-        finalData = formData;
+      if (receiptFile) {
+        formData.append("receipt", receiptFile);
       }
 
+      attachments.forEach((file, idx) => {
+        formData.append(`attachment_${idx}`, file);
+      });
+
       if (isEditing) {
-        await transactionAPI.update(editingId, finalData);
+        await transactionAPI.update(editingId, formData);
         setSuccessMsg("Entry updated successfully!");
         setTimeout(() => navigate(-1), 1500);
       } else {
-        await transactionAPI.create(finalData);
+        await transactionAPI.create(formData);
         setSuccessMsg(`${entryType.charAt(0).toUpperCase() + entryType.slice(1)} entry saved successfully!`);
         setValues({});
         setSelectedProject("");
@@ -450,11 +432,10 @@ export default function ManualEntryPage() {
         setUnit(UNIT_OPTIONS[entryType]?.[0] || "");
         setSelectedFloor("");
         setSelectedPhaseId("");
-          setSelectedActivityName("");
-          setIsWithGst(false);
-          setIsPaid(false);
-          setPaymentHistory([]);
-          setReceiptFile(null);
+        setSelectedActivityName("");
+        setIsWithGst(false);
+        setIsPaid(false);
+        setReceiptFile(null);
         setAttachments([]);
         setTimeout(() => setSuccessMsg(""), 3000);
       }
@@ -775,54 +756,23 @@ export default function ManualEntryPage() {
               </svg>
               <span style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>Payment</span>
             </div>
-            {!isEditing && (
-              <button
-                onClick={() => setIsPaid(!isPaid)}
-                style={{
-                  width: 48, height: 26, borderRadius: 13, border: "none", cursor: "pointer",
-                  background: isPaid ? "#10B981" : "#E5E7EB",
-                  position: "relative", transition: "background 0.2s",
-                }}
-              >
-                <div style={{
-                  width: 22, height: 22, borderRadius: "50%", background: "#FFF",
-                  position: "absolute", top: 2, left: isPaid ? 24 : 2,
-                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }} />
-              </button>
-            )}
+            <button
+              onClick={() => setIsPaid(!isPaid)}
+              style={{
+                width: 48, height: 26, borderRadius: 13, border: "none", cursor: "pointer",
+                background: isPaid ? "#10B981" : "#E5E7EB",
+                position: "relative", transition: "background 0.2s",
+              }}
+            >
+              <div style={{
+                width: 22, height: 22, borderRadius: "50%", background: "#FFF",
+                position: "absolute", top: 2, left: isPaid ? 24 : 2,
+                transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }} />
+            </button>
           </div>
 
-          {isEditing ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-              {paymentHistory.map((p, index) => (
-                <div key={index} style={{ background: "#DCFCE7", border: "1px solid #16A34A", borderRadius: radius.sm, padding: "16px 12px", position: "relative", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>AMOUNT</div>
-                    <input type="number" value={p.amount} onChange={e => { const newH = [...paymentHistory]; newH[index].amount = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}} />
-                  </div>
-                  <div>
-                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>METHOD</div>
-                    <select value={p.method} onChange={e => { const newH = [...paymentHistory]; newH[index].method = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}}>
-                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div style={{gridColumn: "span 2"}}>
-                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>DATE</div>
-                    <input type="date" value={p.date ? new Date(p.date).toISOString().split("T")[0] : ""} onChange={e => { const newH = [...paymentHistory]; newH[index].date = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}} />
-                  </div>
-                  <button onClick={(e) => { e.preventDefault(); setPaymentHistory(paymentHistory.filter((_, i) => i !== index)); }} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#DC2626", cursor: "pointer" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                </div>
-              ))}
-              <button onClick={(e) => { e.preventDefault(); setPaymentHistory([...paymentHistory, { amount: "", method: "Cash", date: new Date().toISOString().split("T")[0] }]); }} 
-                      style={{ width: "100%", padding: 12, border: "1px dashed #16A34A", borderRadius: radius.sm, background: "#F0FDF4", color: "#166534", fontWeight: 600, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Payment
-              </button>
-            </div>
-          ) : isPaid && (
+          {isPaid && (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div>
