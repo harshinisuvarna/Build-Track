@@ -1,6 +1,5 @@
 const passport       = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const GitHubStrategy = require("passport-github2").Strategy;
 const User           = require("../models/User");
 const safeUser = (user) => ({
   id:           user._id,
@@ -46,6 +45,4 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 } else {
   if (process.env.NODE_ENV !== "production") console.log("⚠️  Google OAuth skipped — GOOGLE_CLIENT_ID not set in .env");
 }
-passport.serializeUser((user, done)   => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
 module.exports = passport;

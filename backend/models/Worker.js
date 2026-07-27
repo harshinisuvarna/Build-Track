@@ -97,4 +97,6 @@ workerSchema.set("toJSON", {
     return ret;
   },
 });
+workerSchema.index({ createdBy: 1, trade: 1 });
+
 module.exports = mongoose.model("Worker", workerSchema);

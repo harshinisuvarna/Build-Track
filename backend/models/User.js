@@ -107,4 +107,9 @@ userSchema.methods.toJSON = function () {
   return obj;
 };
 
+userSchema.index({ createdBy: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ googleId: 1 }, { sparse: true });
+userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
+
 module.exports = mongoose.model("User", userSchema);

@@ -5,14 +5,17 @@ const ProjectUpdate = require("../models/ProjectUpdate");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 const { protect } = require("../middleware/auth");
+const isDev = process.env.NODE_ENV !== "production";
 
 router.get("/pending", protect, async (req, res) => {
   try {
     const user = req.user;
 
-    console.log(`[Approvals] Request from: ${user.name} | role: ${user.role} | id: ${user._id}`);
-    console.log(`[Approvals] overseesRoles: ${JSON.stringify(user.overseesRoles)}`);
-    console.log(`[Approvals] createdBy: ${user.createdBy}`);
+    if (isDev) {
+      console.log(`[Approvals] Request from: ${user.name} | role: ${user.role} | id: ${user._id}`);
+      console.log(`[Approvals] overseesRoles: ${JSON.stringify(user.overseesRoles)}`);
+      console.log(`[Approvals] createdBy: ${user.createdBy}`);
+    }
 
     let txQuery = { approvalStatus: "Pending" };
     let puQuery = { approvalStatus: "Pending" };
@@ -23,7 +26,7 @@ router.get("/pending", protect, async (req, res) => {
         createdBy: user._id,
       }).select("_id");
 
-      console.log(`[Approvals] Admin - provisioned users found: ${provisionedUsers.length}`);
+      if (isDev) console.log(`[Approvals] Admin - provisioned users found: ${provisionedUsers.length}`);
 
       if (provisionedUsers.length === 0) {
         return res.json({ transactions: [], projectUpdates: [] });
@@ -38,7 +41,7 @@ router.get("/pending", protect, async (req, res) => {
       const supervisorDoc = await User.findById(user._id).select("createdBy overseesRoles");
       const overseesRoles = supervisorDoc?.overseesRoles || [];
 
-      console.log(`[Approvals] Supervisor overseesRoles from DB: ${JSON.stringify(overseesRoles)}`);
+      if (isDev) console.log(`[Approvals] Supervisor overseesRoles from DB: ${JSON.stringify(overseesRoles)}`);
 
       if (overseesRoles.length === 0) {
         console.log(`[Approvals] No overseesRoles set — returning empty`);
@@ -46,10 +49,10 @@ router.get("/pending", protect, async (req, res) => {
       }
 
       const adminId = supervisorDoc?.createdBy;
-      console.log(`[Approvals] Supervisor's admin: ${adminId}`);
+      if (isDev) console.log(`[Approvals] Supervisor's admin: ${adminId}`);
 
       if (!adminId) {
-        console.log(`[Approvals] No createdBy on supervisor — returning empty`);
+        if (isDev) console.log(`[Approvals] No createdBy on supervisor — returning empty`);
         return res.json({ transactions: [], projectUpdates: [] });
       }
 
@@ -57,14 +60,14 @@ router.get("/pending", protect, async (req, res) => {
         createdBy: adminId,
       }).select("_id name role");
 
-      console.log(`[Approvals] All org users: ${JSON.stringify(allOrgUsers.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
+      if (isDev) console.log(`[Approvals] All org users: ${JSON.stringify(allOrgUsers.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
 
       const overseesRolesLower = overseesRoles.map((r) => r.toLowerCase().trim());
       const usersToOversee = allOrgUsers.filter((u) =>
         overseesRolesLower.includes((u.role || "").toLowerCase().trim())
       );
 
-      console.log(`[Approvals] Users to oversee: ${JSON.stringify(usersToOversee.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
+      if (isDev) console.log(`[Approvals] Users to oversee: ${JSON.stringify(usersToOversee.map(u => ({ id: u._id, name: u.name, role: u.role })))}`);
 
       if (usersToOversee.length === 0) {
         return res.json({ transactions: [], projectUpdates: [] });
@@ -75,25 +78,26 @@ router.get("/pending", protect, async (req, res) => {
       puQuery.createdBy = { $in: overseeIds };
     }
 
-    console.log(`[Approvals] Final txQuery: ${JSON.stringify(txQuery)}`);
+    if (isDev) console.log(`[Approvals] Final txQuery: ${JSON.stringify(txQuery)}`);
 
-    const pendingTransactions = await Transaction.find(txQuery)
-      .populate("worker", "name trade")
-      .populate("project", "projectName")
-      .populate("createdBy", "name role")
-      .sort({ createdAt: -1 });
-
-    console.log(`[Approvals] Found ${pendingTransactions.length} pending transactions`);
-
-    let pendingProjectUpdates = [];
-    try {
-      pendingProjectUpdates = await ProjectUpdate.find(puQuery)
+    const [pendingTransactions, pendingProjectUpdates] = await Promise.all([
+      Transaction.find(txQuery)
+        .select("-attachments -paymentHistory -screenshotUrl -paymentReceipt -remarks")
+        .populate("worker", "name trade")
         .populate("project", "projectName")
         .populate("createdBy", "name role")
-        .sort({ createdAt: -1 });
-    } catch (err) {
-      console.log("[Approvals] ProjectUpdate error:", err.message);
-    }
+        .sort({ createdAt: -1 }),
+      ProjectUpdate.find(puQuery)
+        .populate("project", "projectName")
+        .populate("createdBy", "name role")
+        .sort({ createdAt: -1 })
+        .catch((err) => {
+          console.log("[Approvals] ProjectUpdate error:", err.message);
+          return [];
+        }),
+    ]);
+
+    if (isDev) console.log(`[Approvals] Found ${pendingTransactions.length} pending transactions`);
 
     res.json({
       transactions: pendingTransactions,
@@ -127,7 +131,7 @@ router.get("/history", protect, async (req, res) => {
       const overseesRoles = supervisorDoc?.overseesRoles || [];
       const adminId = supervisorDoc?.createdBy;
 
-      console.log(`[History] Supervisor: ${user._id}, overseesRoles: ${JSON.stringify(overseesRoles)}, adminId: ${adminId}`);
+      if (isDev) console.log(`[History] Supervisor: ${user._id}, overseesRoles: ${JSON.stringify(overseesRoles)}, adminId: ${adminId}`);
 
       if (!adminId || overseesRoles.length === 0) {
         return res.json({ transactions: [] });
@@ -144,7 +148,7 @@ router.get("/history", protect, async (req, res) => {
         overseesRolesLower.includes((u.role || "").toLowerCase().trim())
       );
 
-      console.log(`[History] Users to oversee: ${usersToOversee.length}`);
+      if (isDev) console.log(`[History] Users to oversee: ${usersToOversee.length}`);
       userIds = usersToOversee.map((u) => u._id);
 
       if (userIds.length === 0) {
@@ -156,13 +160,14 @@ router.get("/history", protect, async (req, res) => {
       createdBy: { $in: userIds },
       approvalStatus: { $in: ["Approved", "Rejected"] },
     })
+      .select("-attachments -paymentHistory -screenshotUrl -paymentReceipt -remarks")
       .populate("createdBy", "name role")
       .populate("project", "projectName")
       .populate("approvedBy", "name")
       .sort({ approvedAt: -1, updatedAt: -1 })
       .limit(20);
 
-    console.log(`[History] Found ${history.length} historical transactions`);
+    if (isDev) console.log(`[History] Found ${history.length} historical transactions`);
 
     res.json({ transactions: history });
   } catch (err) {

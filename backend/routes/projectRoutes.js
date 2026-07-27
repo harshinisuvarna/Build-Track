@@ -252,7 +252,7 @@ const VIEW_PROJECTS = ["view_projects", "view_assigned_project"];
 
 router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
-    const projects = await Project.find(ownedByCurrentUserFilter(req)).sort({ createdAt: -1 });
+    const projects = await Project.find(ownedByCurrentUserFilter(req)).select("-selectedPhases").sort({ createdAt: -1 });
     const projectIds = projects.map(p => p._id);
     const [spentList, incomeList] = await Promise.all([
       Transaction.aggregate([
@@ -319,7 +319,7 @@ router.get("/", protect, async (req, res) => {
       });
     }
 
-    const projects = await Project.find(query).sort({ createdAt: -1 });
+    const projects = await Project.find(query).select("-selectedPhases").sort({ createdAt: -1 });
 
     const projectIds = projects.map(p => p._id);
     const [spentList, incomeList] = await Promise.all([

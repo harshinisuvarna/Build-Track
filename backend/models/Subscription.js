@@ -24,4 +24,7 @@ const subscriptionSchema = new mongoose.Schema({
   endDate: { type: Date },
 }, { timestamps: true });
 
+subscriptionSchema.index({ userId: 1, status: 1, endDate: -1 });
+subscriptionSchema.index({ airpayOrderId: 1 }, { sparse: true });
+
 module.exports = mongoose.model('Subscription', subscriptionSchema);

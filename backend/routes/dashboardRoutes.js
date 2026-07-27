@@ -11,9 +11,16 @@ router.get("/summary", async (req, res) => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const projectFilter = canAccessProjectFilter(req);
-    const accessibleProjects = await Project.find(projectFilter).select("_id");
+
+    const [accessibleProjects, adminId] = await Promise.all([
+      Project.find(projectFilter).select("_id"),
+      getAdminId(req.user),
+    ]);
     const projectIds = accessibleProjects.map((p) => p._id);
 
     let matchFilter = { date: { $gte: monthStart, $lt: monthEnd } };
@@ -23,22 +30,6 @@ router.get("/summary", async (req, res) => {
       matchFilter.createdBy = userId;
     }
 
-    const statsResult = await Transaction.aggregate([
-      { $match: matchFilter },
-      {
-        $group: {
-          _id: null,
-          totalIncome:   { $sum: { $cond: [{ $eq: ["$type", "Income"] }, "$amount", 0] } },
-          totalExpenses: { $sum: { $cond: [{ $ne: ["$type", "Income"] }, "$amount", 0] } },
-        },
-      },
-    ]);
-    const { totalIncome = 0, totalExpenses = 0 } = statsResult[0] || {};
-    const adminId = await getAdminId(req.user);
-    const activeWorkers = await Worker.countDocuments({ createdBy: adminId, status: "Active" });
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
     let weeklyFilter = { date: { $gte: sevenDaysAgo } };
     if (req.user.role !== "Admin") {
       weeklyFilter.project = { $in: projectIds };
@@ -46,7 +37,31 @@ router.get("/summary", async (req, res) => {
       weeklyFilter.createdBy = userId;
     }
 
-    const weeklyTransactions = await Transaction.find(weeklyFilter).sort({ date: 1 });
+    let activityFilter = {};
+    if (req.user.role !== "Admin") {
+      activityFilter.project = { $in: projectIds };
+    } else {
+      activityFilter.createdBy = userId;
+    }
+
+    const [statsResult, activeWorkers, weeklyTransactions, recentProjects, recentActivity] = await Promise.all([
+      Transaction.aggregate([
+        { $match: matchFilter },
+        {
+          $group: {
+            _id: null,
+            totalIncome:   { $sum: { $cond: [{ $eq: ["$type", "Income"] }, "$amount", 0] } },
+            totalExpenses: { $sum: { $cond: [{ $ne: ["$type", "Income"] }, "$amount", 0] } },
+          },
+        },
+      ]),
+      Worker.countDocuments({ createdBy: adminId, status: "Active" }),
+      Transaction.find(weeklyFilter).select("type amount date").sort({ date: 1 }),
+      Project.find(canAccessProjectFilter(req)).select("projectName status progress createdAt").sort({ createdAt: -1 }).limit(4),
+      Transaction.find(activityFilter).select("type amount date title project").sort({ date: -1 }).limit(5),
+    ]);
+
+    const { totalIncome = 0, totalExpenses = 0 } = statsResult[0] || {};
     const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
     const weeklyChart = [];
     for (let i = 6; i >= 0; i--) {
@@ -66,20 +81,6 @@ router.get("/summary", async (req, res) => {
         }
       }
     });
-    const recentProjects = await Project.find(canAccessProjectFilter(req))
-      .sort({ createdAt: -1 })
-      .limit(4);
-
-    let activityFilter = {};
-    if (req.user.role !== "Admin") {
-      activityFilter.project = { $in: projectIds };
-    } else {
-      activityFilter.createdBy = userId;
-    }
-
-    const recentActivity = await Transaction.find(activityFilter)
-      .sort({ date: -1 })
-      .limit(5);
     res.json({
       stats: {
         totalIncome,

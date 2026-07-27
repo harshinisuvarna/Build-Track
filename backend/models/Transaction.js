@@ -363,6 +363,8 @@ transactionSchema.pre("save", function () {
   }
 });
 
+transactionSchema.index({ createdBy: 1 });
+transactionSchema.index({ approvalStatus: 1, createdBy: 1 });
 transactionSchema.index({ project: 1, createdBy: 1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });

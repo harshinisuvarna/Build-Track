@@ -2,63 +2,6 @@ require("dotenv").config();
 
 console.log('AirPay Merchant ID loaded:', !!process.env.AIRPAY_MERCHANT_ID);
 
-const dns = require("dns");
-dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
-async function resolveMongoSrvUri(uri) {
-  if (!uri || !uri.startsWith("mongodb+srv://")) return uri;
-  try {
-    const url = new URL(uri);
-    const host = url.hostname;
-    const userInfo = url.username
-      ? `${url.username}:${encodeURIComponent(decodeURIComponent(url.password))}@`
-      : "";
-    const dbName = url.pathname || "/";
-
-    const srvRecords = await new Promise((resolve, reject) => {
-      dns.resolveSrv(`_mongodb._tcp.${host}`, (err, records) => {
-        if (err) reject(err);
-        else resolve(records);
-      });
-    });
-
-    let txtOptions = {};
-    try {
-      const txtRecords = await new Promise((resolve, reject) => {
-        dns.resolveTxt(host, (err, records) => {
-          if (err) reject(err);
-          else resolve(records);
-        });
-      });
-      const optStr = txtRecords.flat().join("&");
-      optStr.split("&").forEach((pair) => {
-        const [k, v] = pair.split("=");
-        if (k && v) txtOptions[k] = v;
-      });
-    } catch (_) {
-
-    }
-
-    const hosts = srvRecords
-      .map((r) => `${r.name}:${r.port}`)
-      .join(",");
-
-    const params = new URLSearchParams({
-      tls: "true",
-      authSource: "admin",
-      retryWrites: "true",
-      w: "majority",
-      ...txtOptions,
-      ...Object.fromEntries(url.searchParams),
-    });
-
-    const directUri = `mongodb://${userInfo}${hosts}${dbName}?${params.toString()}`;
-    console.log(`[DNS] SRV resolved → direct URI built for host: ${host}`);
-    return directUri;
-  } catch (err) {
-    console.warn(`[DNS] SRV resolution failed (${err.message}), using original URI`);
-    return uri;
-  }
-}
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
@@ -88,20 +31,11 @@ app.use(helmet({
 }));
 app.disable("x-powered-by");
 app.use(compression());
-const productionOrigins = new Set(
-  [process.env.FRONTEND_URL, process.env.CLIENT_URL].filter(Boolean)
-);
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   credentials: false,
-}));
-
-app.options('/{*path}', cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
 }));
 
 const limiter = rateLimit({
@@ -112,121 +46,49 @@ const limiter = rateLimit({
   message: { message: "Too many requests — please try again later." },
 });
 app.use("/api/", limiter);
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-  console.warn("⚠️  CLOUDINARY env vars not fully set — image uploads will fail!");
-}
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
 
-resolveMongoSrvUri(process.env.MONGO_URI).then((resolvedUri) => {
-  console.log("[MongoDB] Connecting...");
-  return mongoose.connect(resolvedUri, { serverSelectionTimeoutMS: 15000 });
-}).then(async () => {
-    console.log("✅ MongoDB connected");
+app.get("/", (_req, res) =>
+  res.json({ status: "ok", app: "BuildTrack API", env: NODE_ENV })
+);
 
-    setImmediate(async () => {
-      try {
-        console.log("[Cleanup] Starting background database cleanups...");
-        const Project = require("./models/Project");
-        const Transaction = require("./models/Transaction");
+app.get("/healthz", (_req, res) =>
+  res.status(200).json({ status: "ok", uptime: process.uptime() })
+);
 
-        const allProjects = await Project.find({}).sort({ createdAt: -1 });
-        const groups = {};
+app.get("/api/test", (_req, res) => res.json({ ok: true }));
 
-        allProjects.forEach((p) => {
-          if (!p.projectName || !p.createdBy) return;
-          const key = `${p.createdBy.toString()}||${p.projectName.trim().toLowerCase()}`;
-          if (!groups[key]) {
-            groups[key] = [];
-          }
-          groups[key].push(p);
-        });
-
-        let duplicateCount = 0;
-        for (const key of Object.keys(groups)) {
-          const projects = groups[key];
-          if (projects.length > 1) {
-            duplicateCount++;
-            const keptProject = projects[0];
-            const duplicatesToDelete = projects.slice(1);
-
-            console.log(`[Cleanup] Found duplicate projects for name "${keptProject.projectName}". Keeping ${keptProject._id}`);
-
-            for (const dup of duplicatesToDelete) {
-
-              const updateRes = await Transaction.updateMany(
-                { project: dup._id },
-                { $set: { project: keptProject._id } }
-              );
-              if (updateRes.modifiedCount > 0) {
-                console.log(`[Cleanup] Reassigned ${updateRes.modifiedCount} transactions from duplicate ${dup._id} to kept project ${keptProject._id}`);
-              }
-
-              await Project.deleteOne({ _id: dup._id });
-              console.log(`[Cleanup] Deleted duplicate project document: ${dup._id}`);
-            }
-          }
-        }
-
-        if (duplicateCount > 0) {
-          console.log(`[Cleanup] Successfully merged ${duplicateCount} duplicate project groups.`);
-        } else {
-          console.log("[Cleanup] Database is clean. No duplicate projects found.");
-        }
-
-        try {
-          const supervisorUpdateRes = await require('./models/User').updateMany(
-            {
-              role: 'Supervisor',
-              $or: [
-                { overseesRoles: { $exists: false } },
-                { overseesRoles: { $size: 0 } }
-              ]
-            },
-            { $set: { overseesRoles: ['Mason', 'Contractor', 'Labourer'] } }
-          );
-          if (supervisorUpdateRes.modifiedCount > 0) {
-            console.log(`[Cleanup] Set default overseesRoles for ${supervisorUpdateRes.modifiedCount} supervisors`);
-          }
-        } catch (cleanupErr) {
-          console.error('[Cleanup] overseesRoles patch error:', cleanupErr);
-        }
-
-        const invalidUnits = [
-          'kg', 'Kg', 'KG',
-          'bag', 'Bag', 'BAG',
-          'ton', 'Ton', 'TON', 'tons', 'Tons', 'TONS',
-          'mt', 'Mt', 'MT',
-          'truck', 'Truck', 'TRUCK'
-        ];
-
-        const labourUpdateRes = await Transaction.updateMany(
-          { type: 'Wages', unit: { $in: invalidUnits } },
-          { $set: { unit: 'day' } }
-        );
-        if (labourUpdateRes.modifiedCount > 0) {
-          console.log(`[Cleanup] Migrated ${labourUpdateRes.modifiedCount} Labour entries with invalid units (kg/bag etc.) to 'day'`);
-        }
-
-        const equipUpdateRes = await Transaction.updateMany(
-          { type: 'Expense', unit: { $in: invalidUnits } },
-          { $set: { unit: 'day' } }
-        );
-        if (equipUpdateRes.modifiedCount > 0) {
-          console.log(`[Cleanup] Migrated ${equipUpdateRes.modifiedCount} Equipment entries with invalid units (kg/bag etc.) to 'day'`);
-        }
-      } catch (cleanupErr) {
-        console.error("[Cleanup] Error running database cleanup:", cleanupErr);
+async function connectWithRetry(uri, retries = 3, delay = 5000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`[MongoDB] Attempt ${attempt}/${retries}...`);
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 30000,
+        connectTimeoutMS: 30000,
+        maxPoolSize: 10,
+        socketTimeoutMS: 45000,
+        heartbeatFrequencyMS: 10000,
+      });
+      console.log("✅ MongoDB connected");
+      return;
+    } catch (err) {
+      console.error(`[MongoDB] Attempt ${attempt} failed: ${err.message}`);
+      if (attempt < retries) {
+        console.log(`[MongoDB] Retrying in ${delay / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        throw err;
       }
-    });
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err.message);
-  });
+    }
+  }
+}
+
+// ─── Middleware / Routes ─────────────────────────────────────────────────────
 
 const dbCheck = (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
@@ -239,55 +101,175 @@ const dbCheck = (req, res, next) => {
   next();
 };
 
-app.get("/", (_req, res) =>
-  res.json({ status: "ok", app: "BuildTrack API 🏗️", env: NODE_ENV })
-);
-
-app.get("/api/test", (_req, res) => res.json({ ok: true }));
-
 app.use("/api", dbCheck);
 
-app.use("/api/auth", require("./routes/authRoutes"));
-app.use("/api/users", require("./routes/userRoutes"));
-console.log("✅ users routes mounted");
-app.use("/api/workers", require("./routes/workerRoutes"));
-app.use("/api/projects", require("./routes/projectRoutes"));
-app.use("/api/transactions", require("./routes/transactionRoutes"));
-app.use("/api/inventory", require("./routes/inventoryRoutes"));
-app.use("/api/dashboard", require("./routes/dashboardRoutes"));
-app.use("/api/reports", require("./routes/reportRoutes"));
-app.use("/api/reports", require("./routes/aiReportRoutes"));
+app.use("/api/auth",              require("./routes/authRoutes"));
+app.use("/api/users",             require("./routes/userRoutes"));
+app.use("/api/workers",           require("./routes/workerRoutes"));
+app.use("/api/projects",          require("./routes/projectRoutes"));
+app.use("/api/transactions",      require("./routes/transactionRoutes"));
+app.use("/api/inventory",         require("./routes/inventoryRoutes"));
+app.use("/api/dashboard",         require("./routes/dashboardRoutes"));
+app.use("/api/reports",           require("./routes/reportRoutes"));
+app.use("/api/reports",           require("./routes/aiReportRoutes"));
 app.use("/api/reports/dashboard", require("./routes/aiDashboardRoutes"));
-app.use("/api/voice", require("./routes/voiceRoutes"));
-app.use("/api/project-updates", require("./routes/projectUpdateRoutes"));
-app.use("/api/tasks", require("./routes/taskRoutes"));
-app.use("/api/approvals", require("./routes/approvalsRoutes"));
-app.use('/api/subscriptions', subscriptionRoutes);
+app.use("/api/voice",             require("./routes/voiceRoutes"));
+app.use("/api/project-updates",   require("./routes/projectUpdateRoutes"));
+app.use("/api/tasks",             require("./routes/taskRoutes"));
+app.use("/api/approvals",         require("./routes/approvalsRoutes"));
+app.use("/api/subscriptions",     subscriptionRoutes);
 
 app.use((_req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 app.use((err, _req, res, _next) => {
   if (!isProd) console.error(err.stack);
   else console.error(`[ERROR] ${err.message}`);
   if (err.type === "entity.too.large" || err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ success: false, message: "File too large. Maximum size is 50 MB." });
+    return res.status(413).json({ success: false, message: "File too large. Maximum size is 2 MB." });
   }
-  res.status(err.status || 500).json({ success: false, message: err.message || "Internal server error" });
+  const message = isProd ? "Internal server error" : (err.message || "Internal server error");
+  res.status(err.status || 500).json({ success: false, message });
 });
-const server = app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT} [${NODE_ENV}]`)
-);
+
+// ─── Process signal handlers (registered before startup) ─────────────────────
+
+let server;
+
 const shutdown = (signal) => {
   console.log(`\n⏳ ${signal} received — shutting down gracefully…`);
-  server.close(() => {
-    mongoose.connection.close(false).then(() => {
-      console.log("🛑 MongoDB connection closed. Bye!");
-      process.exit(0);
+  if (server) {
+    server.close(() => {
+      if (mongoose.connection.readyState !== 0) {
+        mongoose.connection.close(false)
+          .then(() => { console.log("🛑 MongoDB connection closed. Bye!"); process.exit(0); })
+          .catch(() => process.exit(0));
+      } else {
+        process.exit(0);
+      }
     });
-  });
+  } else {
+    process.exit(0);
+  }
 };
-process.on("SIGINT", () => shutdown("SIGINT"));
+
+process.on("SIGINT",  () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("unhandledRejection", (reason) => {
-  console.error("⚠️  Unhandled Rejection:", reason);
-  shutdown("unhandledRejection");
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("⚠️  Unhandled Promise Rejection");
+  console.error("   Promise:", promise);
+  console.error("   Reason:",  reason);
 });
+
+process.on("uncaughtException", (err) => {
+  console.error("🔥 Uncaught Exception — process will exit:");
+  console.error(err);
+  // Allow stdout/stderr to flush before exiting.
+  setTimeout(() => process.exit(1), 1000);
+});
+
+// ─── Startup ─────────────────────────────────────────────────────────────────
+
+(async () => {
+  try {
+    // 1. Connect to MongoDB (throws if all retries fail)
+    await connectWithRetry(process.env.MONGO_URI);
+
+    // 2. Start HTTP server
+    server = app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT} [${NODE_ENV}]`)
+    );
+
+    // 3. Run background DB migrations/cleanup (non-blocking, errors are caught internally)
+    setImmediate(async () => {
+      try {
+        if (process.env.SKIP_STARTUP_CLEANUP === "true") {
+          console.log("[Cleanup] Skipping startup cleanup (SKIP_STARTUP_CLEANUP=true)");
+          return;
+        }
+        console.log("[Cleanup] Starting background database cleanups...");
+        const Project     = require("./models/Project");
+        const Transaction = require("./models/Transaction");
+
+        const allProjects = await Project.find({}).sort({ createdAt: -1 }).limit(500);
+        const groups = {};
+        allProjects.forEach((p) => {
+          if (!p.projectName || !p.createdBy) return;
+          const key = `${p.createdBy.toString()}||${p.projectName.trim().toLowerCase()}`;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(p);
+        });
+
+        let duplicateCount = 0;
+        for (const key of Object.keys(groups)) {
+          const projects = groups[key];
+          if (projects.length > 1) {
+            duplicateCount++;
+            const keptProject      = projects[0];
+            const duplicatesToDelete = projects.slice(1);
+            console.log(`[Cleanup] Found duplicate projects for name "${keptProject.projectName}". Keeping ${keptProject._id}`);
+            for (const dup of duplicatesToDelete) {
+              const updateRes = await Transaction.updateMany(
+                { project: dup._id },
+                { $set: { project: keptProject._id } }
+              );
+              if (updateRes.modifiedCount > 0)
+                console.log(`[Cleanup] Reassigned ${updateRes.modifiedCount} transactions from ${dup._id} to ${keptProject._id}`);
+              await Project.deleteOne({ _id: dup._id });
+              console.log(`[Cleanup] Deleted duplicate project document: ${dup._id}`);
+            }
+          }
+        }
+        console.log(
+          duplicateCount > 0
+            ? `[Cleanup] Successfully merged ${duplicateCount} duplicate project groups.`
+            : "[Cleanup] Database is clean. No duplicate projects found."
+        );
+
+        try {
+          const supervisorUpdateRes = await require("./models/User").updateMany(
+            {
+              role: "Supervisor",
+              $or: [
+                { overseesRoles: { $exists: false } },
+                { overseesRoles: { $size: 0 } },
+              ],
+            },
+            { $set: { overseesRoles: ["Mason", "Contractor", "Labourer"] } }
+          );
+          if (supervisorUpdateRes.modifiedCount > 0)
+            console.log(`[Cleanup] Set default overseesRoles for ${supervisorUpdateRes.modifiedCount} supervisors`);
+        } catch (cleanupErr) {
+          console.error("[Cleanup] overseesRoles patch error:", cleanupErr);
+        }
+
+        const invalidUnits = [
+          "kg", "Kg", "KG",
+          "bag", "Bag", "BAG",
+          "ton", "Ton", "TON", "tons", "Tons", "TONS",
+          "mt",  "Mt",  "MT",
+          "truck", "Truck", "TRUCK",
+        ];
+        const labourUpdateRes = await Transaction.updateMany(
+          { type: "Wages",   unit: { $in: invalidUnits } },
+          { $set: { unit: "day" } }
+        );
+        if (labourUpdateRes.modifiedCount > 0)
+          console.log(`[Cleanup] Migrated ${labourUpdateRes.modifiedCount} Labour entries with invalid units to 'day'`);
+
+        const equipUpdateRes = await Transaction.updateMany(
+          { type: "Expense", unit: { $in: invalidUnits } },
+          { $set: { unit: "day" } }
+        );
+        if (equipUpdateRes.modifiedCount > 0)
+          console.log(`[Cleanup] Migrated ${equipUpdateRes.modifiedCount} Equipment entries with invalid units to 'day'`);
+
+      } catch (cleanupErr) {
+        console.error("[Cleanup] Error running database cleanup:", cleanupErr);
+      }
+    });
+
+  } catch (err) {
+    console.error("❌ Startup failed:", err);
+    process.exit(1);
+  }
+})();

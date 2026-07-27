@@ -324,6 +324,7 @@ router.get("/", async (req, res) => {
     }
 
     let txQuery = Transaction.find(query)
+      .select("-attachments -paymentHistory")
       .populate("worker", "name trade")
       .populate("project", "projectName status progress")
       .sort({ date: -1, createdAt: -1 });
@@ -676,9 +677,10 @@ router.put("/:id", async (req, res) => {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
 
-  console.log('=== UPDATE TRANSACTION REQUEST ===');
-  console.log('ID:', req.params.id);
-  console.log('Body:', JSON.stringify(req.body, null, 2));
+  if (process.env.NODE_ENV !== "production") {
+    console.log('=== UPDATE TRANSACTION REQUEST ===');
+    console.log('ID:', req.params.id);
+  }
 
   const { paymentStatus, paidAmount } = req.body;
   const session = await mongoose.startSession();
