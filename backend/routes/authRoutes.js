@@ -453,133 +453,56 @@ router.post("/forgot-password", async (req, res) => {
 
     let emailSent = false;
 
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
       try {
-        const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
-        const ses = new SESClient({
-          region: process.env.AWS_REGION || 'us-east-1',
-          credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': process.env.BREVO_API_KEY,
+            'content-type': 'application/json'
           },
+          body: JSON.stringify({
+            sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
+            to: [{ email: user.email, name: user.name || user.email }],
+            subject: "BuildTrack — Password Reset (Via Brevo)",
+            htmlContent: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color: #333;">Password Reset Request</h2>
+                <p style="color: #555; line-height: 1.5;">
+                  We received a request to reset your BuildTrack password.
+                  Click the link below or use the token in the app to set a new password.
+                  This token expires in <strong>30 minutes</strong>.
+                </p>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+                </div>
+                <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+                  <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
+                  <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
+                    ${token}
+                  </p>
+                </div>
+                <p style="color: #888; font-size: 13px;">
+                  If you didn't request this, you can safely ignore this email.
+                </p>
+              </div>
+            `
+          })
         });
-        await ses.send(new SendEmailCommand({
-          Source: process.env.SES_FROM_EMAIL,
-          Destination: { ToAddresses: [user.email] },
-          Message: {
-            Subject: { Data: 'BuildTrack — Password Reset' },
-            Body: {
-              Html: {
-                Data: `
-                  <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-                    <h2 style="color: #333;">Password Reset Request</h2>
-                    <p style="color: #555; line-height: 1.5;">
-                      We received a request to reset your BuildTrack password.
-                      Use the token below in the app to set a new password.
-                      This token expires in <strong>30 minutes</strong>.
-                    </p>
-                    <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-                      <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
-                      <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 1px;">
-                        ${token}
-                      </p>
-                    </div>
-                    <p style="color: #888; font-size: 13px;">
-                      If you didn't request this, you can safely ignore this email.
-                      This token expires in 30 minutes and can only be used once.
-                    </p>
-                  </div>
-                `
-              }
-            }
-          }
-        }));
-        emailSent = true;
-        console.log('[Auth] Reset email sent via SES to:', user.email);
-      } catch (mailErr) {
-        console.error("SES error:", mailErr.message);
+
+        if (response.ok) {
+          emailSent = true;
+          console.log('[Auth] Password reset email sent via Brevo to:', user.email);
+        } else {
+          const errorData = await response.text();
+          console.error("[Auth] Brevo API error:", errorData);
+        }
+      } catch (brevoErr) {
+        console.error("[Auth] Brevo fetch error:", brevoErr.message);
       }
     }
 
-    if (!emailSent && process.env.RESEND_API_KEY) {
-      try {
-        const { Resend } = require('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
-          from: 'BuildTrack <onboarding@resend.dev>',
-          to: user.email,
-          subject: 'BuildTrack — Password Reset',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #333;">Password Reset Request</h2>
-              <p style="color: #555; line-height: 1.5;">
-                We received a request to reset your BuildTrack password.
-                Click the link below or use the token in the app to set a new password.
-                This token expires in <strong>30 minutes</strong>.
-              </p>
-              <div style="margin: 24px 0; text-align: center;">
-                <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
-              </div>
-              <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-                <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
-                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
-                  ${token}
-                </p>
-              </div>
-              <p style="color: #888; font-size: 13px;">
-                If you didn't request this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
-        });
-        emailSent = true;
-        console.log("[Auth] Password reset email sent via Resend.");
-      } catch (resendErr) {
-        console.error("[Auth] Resend failed, falling back to Nodemailer SMTP:", resendErr.message);
-      }
-    }
-
-    if (!emailSent && process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: process.env.SMTP_SECURE === "true",
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || `"BuildTrack" <${process.env.SMTP_USER}>`,
-          to: user.email,
-          subject: "BuildTrack — Password Reset",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #333;">Password Reset Request</h2>
-              <p style="color: #555; line-height: 1.5;">
-                We received a request to reset your BuildTrack password.
-                Click the link below or use the token in the app to set a new password.
-                This token expires in <strong>30 minutes</strong>.
-              </p>
-              <div style="margin: 24px 0; text-align: center;">
-                <a href="${resetUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
-              </div>
-              <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-                <p style="margin: 0 0 8px 0; color: #888; font-size: 13px;">Your reset token</p>
-                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4F46E5; word-break: break-all; letter-spacing: 0.5px;">
-                  ${token}
-                </p>
-              </div>
-              <p style="color: #888; font-size: 13px;">
-                If you didn't request this, you can safely ignore this email.
-              </p>
-            </div>
-          `,
-        });
-        emailSent = true;
-        console.log("[Auth] Password reset email sent via Nodemailer SMTP.");
-      } catch (smtpErr) {
-        console.error("[Auth] Nodemailer SMTP failed:", smtpErr.message);
-      }
-    }
 
     if (!emailSent && process.env.NODE_ENV !== "production") {
       console.log(`[DEV] PASSWORD RESET TOKEN: ${token}`);

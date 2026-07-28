@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 
 const mongoose = require("mongoose");
@@ -19,6 +20,62 @@ const {
   deleteFile,
 } = require("../config/fileHelpers");
 const cloudinary = require("../config/cloudinary");
+
+// --- Public E-Signature Routes ---
+router.get("/esign/:token", async (req, res) => {
+  try {
+    const transaction = await Transaction.findOne({
+      eSignToken: req.params.token,
+      eSignExpires: { $gt: new Date() }
+    }).populate("project", "projectName clientName location mapAddress");
+    
+    if (!transaction) {
+      return res.status(404).json({ message: "Invalid or expired signature link" });
+    }
+    
+    res.json({ transaction });
+  } catch (error) {
+    console.error("GET /esign/:token error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/esign/:token", async (req, res) => {
+  try {
+    const { eSignature } = req.body;
+    if (!eSignature) {
+      return res.status(400).json({ message: "Signature data is required" });
+    }
+
+    const transaction = await Transaction.findOne({
+      eSignToken: req.params.token,
+      eSignExpires: { $gt: new Date() }
+    });
+    
+    if (!transaction) {
+      return res.status(404).json({ message: "Invalid or expired signature link" });
+    }
+    
+    if (transaction.eSignStatus === "Signed") {
+      return res.status(400).json({ message: "Receipt already signed" });
+    }
+
+    transaction.eSignature = eSignature;
+    transaction.eSignStatus = "Signed";
+    transaction.eSignDate = new Date();
+    // clear the token
+    transaction.eSignToken = null;
+    transaction.eSignExpires = null;
+    
+    await transaction.save();
+
+    res.json({ message: "Receipt signed successfully", transaction });
+  } catch (error) {
+    console.error("POST /esign/:token error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+// ----------------------------------
 
 router.use(protect);
 
@@ -631,6 +688,14 @@ if (req.body.paymentReceipt) {
           approvedAt: approvedAt,
         });
 
+    if (req.body.requestEsign === true && req.body.clientEmail && normalizePaymentMode(paymentMode) === "Cash") {
+      const token = crypto.randomBytes(32).toString("hex");
+      transaction.clientEmail = req.body.clientEmail;
+      transaction.eSignToken = token;
+      transaction.eSignStatus = "Requested";
+      transaction.eSignExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+    }
+
     await transaction.save({ session });
 
     if ((type === "Materials" || type === "Wages" || type === "Expense") && qty > 0 && projectId && txApprovalStatus === "Approved") {
@@ -648,6 +713,45 @@ if (req.body.paymentReceipt) {
     }
 
     await session.commitTransaction();
+
+    if (transaction.eSignToken) {
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
+      const signUrl = `${frontendUrl}/sign-receipt?token=${transaction.eSignToken}`;
+
+      if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
+        try {
+          await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'api-key': process.env.BREVO_API_KEY,
+              'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+              sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
+              to: [{ email: transaction.clientEmail }],
+              subject: "Signature Required: BuildTrack Cash Receipt",
+              htmlContent: `
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                  <h2 style="color: #333;">Signature Required</h2>
+                  <p style="color: #555; line-height: 1.5;">
+                    Please review and sign the cash receipt for your transaction on BuildTrack.
+                  </p>
+                  <div style="margin: 24px 0; text-align: center;">
+                    <a href="${signUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review & Sign Receipt</a>
+                  </div>
+                  <p style="color: #888; font-size: 13px;">
+                    This link expires in 7 days.
+                  </p>
+                </div>
+              `
+            })
+          });
+        } catch (e) {
+          console.error("Failed to send automatic e-sign email:", e);
+        }
+      }
+    }
 
     res.status(201).json({
       message: "Transaction saved successfully",
@@ -1304,6 +1408,83 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
     message: "Bulk processing completed",
     results
   });
+});
+router.post("/:id/request-esign", async (req, res) => {
+  try {
+    const transactionId = req.params.id;
+    const { clientEmail } = req.body;
+
+    if (!clientEmail) {
+      return res.status(400).json({ message: "Client email is required" });
+    }
+
+    const transaction = await Transaction.findOne({ _id: transactionId });
+    
+    if (!transaction) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    if (transaction.paymentMode !== "Cash") {
+      return res.status(400).json({ message: "E-Signature is only available for Cash transactions." });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    
+    transaction.clientEmail = clientEmail;
+    transaction.eSignToken = token;
+    transaction.eSignStatus = "Requested";
+    // expire in 7 days
+    transaction.eSignExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+
+    await transaction.save();
+
+    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
+    const signUrl = `${frontendUrl}/sign-receipt?token=${token}`;
+
+    if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': process.env.BREVO_API_KEY,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
+          to: [{ email: clientEmail }],
+          subject: "Signature Required: BuildTrack Cash Receipt",
+          htmlContent: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+              <h2 style="color: #333;">Signature Required</h2>
+              <p style="color: #555; line-height: 1.5;">
+                Please review and sign the cash receipt for your transaction on BuildTrack.
+              </p>
+              <div style="margin: 24px 0; text-align: center;">
+                <a href="${signUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review & Sign Receipt</a>
+              </div>
+              <p style="color: #888; font-size: 13px;">
+                This link expires in 7 days.
+              </p>
+            </div>
+          `
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Brevo API error:", errorData);
+        return res.status(500).json({ message: "Failed to send signature request email via Brevo" });
+      }
+    } else {
+      console.log(`[DEV] E-SIGN LINK: ${signUrl}`);
+    }
+
+    res.json({ message: "Signature request sent successfully", transaction });
+
+  } catch (error) {
+    console.error("POST /:id/request-esign error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 module.exports = router;

@@ -321,6 +321,33 @@ const transactionSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    
+    clientEmail: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    eSignStatus: {
+      type: String,
+      enum: ["Not Requested", "Requested", "Signed"],
+      default: "Not Requested",
+    },
+    eSignToken: {
+      type: String,
+      default: null,
+    },
+    eSignExpires: {
+      type: Date,
+      default: null,
+    },
+    eSignature: {
+      type: String,
+      default: null,
+    },
+    eSignDate: {
+      type: Date,
+      default: null,
+    },
   },
 
   { timestamps: true, optimisticConcurrency: true }
