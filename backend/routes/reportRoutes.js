@@ -202,19 +202,23 @@ router.get("/financial", async (req, res) => {
       }
     });
 
+    const targetCost = projects.reduce((sum, p) => {
+      return sum + Number(p.budget?.total || p.totalBudget || 0);
+    }, 0);
+
     const analytics = {
       material: categoryBreakdown["Materials"] || 0,
       labour: categoryBreakdown["Wages"] || 0,
       equipment: categoryBreakdown["Equipment"] || 0,
       misc: categoryBreakdown["Expense"] || 0,
-      targetCost: 1500,
+      targetCost,
     };
 
     const latestActual =
       analytics.material + analytics.labour + analytics.equipment + analytics.misc;
 
     analytics.latestActual = latestActual;
-    analytics.chartStatus = latestActual > analytics.targetCost ? "OVER_BUDGET" : "ON_TRACK";
+    analytics.chartStatus = targetCost > 0 && latestActual > targetCost ? "OVER_BUDGET" : "ON_TRACK";
 
     const recentTransactions = transactions.slice(0, 10).map((t) => ({
       _id: t._id,
