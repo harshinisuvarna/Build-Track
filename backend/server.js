@@ -85,6 +85,18 @@ const isProd = NODE_ENV === "production";
 app.set("trust proxy", 1);
 app.use(helmet({
   crossOriginResourcePolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
 }));
 app.disable("x-powered-by");
 app.use(compression());
@@ -253,6 +265,7 @@ console.log("✅ users routes mounted");
 app.use("/api/workers", require("./routes/workerRoutes"));
 app.use("/api/projects", require("./routes/projectRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
+app.use("/api/esign", require("./routes/esignRoutes"));
 app.use("/api/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
