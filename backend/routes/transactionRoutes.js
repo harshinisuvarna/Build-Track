@@ -715,8 +715,7 @@ if (req.body.paymentReceipt) {
     await session.commitTransaction();
 
     if (transaction.eSignToken) {
-      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
-      const signUrl = `${frontendUrl}/sign-receipt?token=${transaction.eSignToken}`;
+      const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${transaction.eSignToken}`;
 
       if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
         try {
@@ -1438,8 +1437,7 @@ router.post("/:id/request-esign", async (req, res) => {
 
     await transaction.save();
 
-    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173";
-    const signUrl = `${frontendUrl}/sign-receipt?token=${token}`;
+    const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${token}`;
 
     if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {

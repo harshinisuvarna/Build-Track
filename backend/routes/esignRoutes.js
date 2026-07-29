@@ -38,25 +38,32 @@ router.post("/request", async (req, res) => {
     `;
 
     if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': process.env.BREVO_API_KEY,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
-          to: [{ email: clientEmail }],
-          subject: "Signature Requested for BuildTrack Receipt",
-          htmlContent: emailHtml
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Brevo API error:", errorData);
-        return res.status(500).json({ message: "Failed to send signature request email via Brevo" });
+      try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': process.env.BREVO_API_KEY,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
+            to: [{ email: clientEmail }],
+            subject: "Signature Required: BuildTrack Cash Receipt",
+            htmlContent: emailHtml
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error("Brevo email send failed:", response.status, errText);
+          return res.status(500).json({ message: "Failed to send signature request email via Brevo" });
+        } else {
+          console.log("Brevo email sent successfully to", clientEmail);
+        }
+      } catch (e) {
+        console.error("Fetch to Brevo failed:", e.message);
+        return res.status(500).json({ message: "Internal error while sending email" });
       }
     } else {
       console.warn("Brevo credentials not configured. Email not sent.");
