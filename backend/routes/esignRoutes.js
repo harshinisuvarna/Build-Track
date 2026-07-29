@@ -25,7 +25,7 @@ router.post("/request", async (req, res) => {
     
     await esignReq.save();
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5001';
+    const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
     const signUrl = `${backendUrl}/api/esign/sign/${token}`;
     const emailHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
