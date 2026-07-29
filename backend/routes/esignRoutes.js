@@ -67,6 +67,7 @@ router.post("/request", async (req, res) => {
       }
     } else {
       console.warn("Brevo credentials not configured. Email not sent.");
+      return res.status(500).json({ message: "Server email configuration is missing (BREVO_API_KEY or BREVO_SENDER_EMAIL)" });
     }
 
     res.status(201).json({ 
@@ -235,7 +236,7 @@ router.get("/sign/:token", async (req, res) => {
       else if (!val) formattedVal = 'N/A';
       
       const label = key.replace(/([A-Z])/g, ' $1').trim();
-      return `<div class="row"><span class="label" style="text-transform: capitalize;">${label}</span><span class="value">${formattedVal}</span></div>`;
+      return `<div class="row"><span class="label" style="text-transform: capitalize;" data-key="${key}">${label}</span><span class="value">${formattedVal}</span></div>`;
     }).join('');
 
     const html = `
@@ -263,6 +264,20 @@ router.get("/sign/:token", async (req, res) => {
           box-shadow: 0 4px 12px rgba(0,0,0,0.05);
           padding: 24px;
           box-sizing: border-box;
+        }
+        .lang-selector {
+          text-align: right;
+          margin-bottom: 15px;
+        }
+        .lang-selector select {
+          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid #E2E4F6;
+          background-color: white;
+          font-family: 'Inter', sans-serif;
+          color: #1E1E2E;
+          font-weight: 500;
+          cursor: pointer;
         }
         h2 {
           text-align: center;
@@ -306,13 +321,21 @@ router.get("/sign/:token", async (req, res) => {
           transition: background 0.2s;
         }
         .btn:hover { background-color: #102BB5; }
+        .btn:disabled { background-color: #9CA3AF; cursor: not-allowed; }
         .error { color: #DC2626; font-size: 14px; text-align: center; margin-top: 10px; display: none; }
       </style>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     </head>
     <body>
       <div class="container">
-        <h2>CASH RECEIPT</h2>
+        <div class="lang-selector" data-html2canvas-ignore="true">
+          <select id="lang-select">
+            <option value="en">English</option>
+            <option value="kn">ಕನ್ನಡ</option>
+            <option value="ta">தமிழ்</option>
+          </select>
+        </div>
+        <h2 id="title-text">CASH RECEIPT</h2>
         <div class="divider"></div>
         ${metaRows}
         <div class="divider"></div>
@@ -323,11 +346,84 @@ router.get("/sign/:token", async (req, res) => {
 
       <script>
         const token = "${req.params.token}";
+        
+        const i18n = {
+          en: {
+            title: "CASH RECEIPT",
+            btnAuth: "I Authorize & Sign",
+            btnAuthWait: "Authorizing...",
+            stampTitle: "✅ Authorized and Signed",
+            stampIp: "IP:",
+            stampDate: "Date:",
+            successTitle: "Receipt Authorized",
+            successMsg: "Thank you! Your authorization has been securely recorded.",
+            errNetwork: "Network error. Try again.",
+            keys: {
+              projectName: "Project Name", itemName: "Item Name", type: "Type",
+              totalAmount: "Total Amount", alreadyPaid: "Already Paid", amount: "Amount",
+              paymentMethod: "Payment Method", notes: "Notes", date: "Date"
+            }
+          },
+          kn: {
+            title: "ನಗದು ರಶೀದಿ",
+            btnAuth: "ನಾನು ಅಧಿಕಾರ ನೀಡುತ್ತೇನೆ ಮತ್ತು ಸಹಿ ಮಾಡುತ್ತೇನೆ",
+            btnAuthWait: "ಅಧಿಕೃತಗೊಳಿಸಲಾಗುತ್ತಿದೆ...",
+            stampTitle: "✅ ಅಧಿಕೃತಗೊಳಿಸಲಾಗಿದೆ ಮತ್ತು ಸಹಿ ಮಾಡಲಾಗಿದೆ",
+            stampIp: "ಐಪಿ:",
+            stampDate: "ದಿನಾಂಕ:",
+            successTitle: "ರಶೀದಿ ಅಧಿಕೃತಗೊಳಿಸಲಾಗಿದೆ",
+            successMsg: "ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಅಧಿಕಾರವನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ದಾಖಲಿಸಲಾಗಿದೆ.",
+            errNetwork: "ನೆಟ್‌ವರ್ಕ್ ದೋಷ. ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.",
+            keys: {
+              projectName: "ಯೋಜನೆಯ ಹೆಸರು", itemName: "ಐಟಂ ಹೆಸರು", type: "ಪ್ರಕಾರ",
+              totalAmount: "ಒಟ್ಟು ಮೊತ್ತ", alreadyPaid: "ಈಗಾಗಲೇ ಪಾವತಿಸಿದ ಮೊತ್ತ", amount: "ಮೊತ್ತ",
+              paymentMethod: "ಪಾವತಿ ವಿಧಾನ", notes: "ಟಿಪ್ಪಣಿಗಳು", date: "ದಿನಾಂಕ"
+            }
+          },
+          ta: {
+            title: "பண ரசீது",
+            btnAuth: "நான் அங்கீகரிக்கிறேன் மற்றும் கையொப்பமிடுகிறேன்",
+            btnAuthWait: "அங்கீகரிக்கப்படுகிறது...",
+            stampTitle: "✅ அங்கீகரிக்கப்பட்டு கையொப்பமிடப்பட்டது",
+            stampIp: "ஐபி:",
+            stampDate: "தேதி:",
+            successTitle: "ரசீது அங்கீகரிக்கப்பட்டது",
+            successMsg: "நன்றி! உங்கள் அங்கீகாரம் பாதுகாப்பாக பதிவு செய்யப்பட்டுள்ளது.",
+            errNetwork: "நெட்வொர்க் பிழை. மீண்டும் முயற்சிக்கவும்.",
+            keys: {
+              projectName: "திட்ட பெயர்", itemName: "பொருளின் பெயர்", type: "வகை",
+              totalAmount: "மொத்த தொகை", alreadyPaid: "ஏற்கனவே செலுத்திய தொகை", amount: "தொகை",
+              paymentMethod: "கட்டண முறை", notes: "குறிப்புகள்", date: "தேதி"
+            }
+          }
+        };
+
+        let currentLang = 'en';
+
+        document.getElementById('lang-select').addEventListener('change', (e) => {
+          currentLang = e.target.value;
+          const t = i18n[currentLang];
+          document.getElementById('title-text').innerText = t.title;
+          
+          if (!document.getElementById('submit').disabled) {
+            document.getElementById('submit').innerText = t.btnAuth;
+          } else {
+            document.getElementById('submit').innerText = t.btnAuthWait;
+          }
+          
+          document.querySelectorAll('.label').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t.keys[key]) {
+              el.innerText = t.keys[key];
+            }
+          });
+        });
 
         document.getElementById('submit').addEventListener('click', async () => {
+          const t = i18n[currentLang];
           const errorMsg = document.getElementById('error-msg');
           errorMsg.style.display = 'none';
-          document.getElementById('submit').innerText = "Authorizing...";
+          document.getElementById('submit').innerText = t.btnAuthWait;
           document.getElementById('submit').disabled = true;
 
           // Inject the authorization stamp into the DOM
@@ -338,9 +434,9 @@ router.get("/sign/:token", async (req, res) => {
           stampDiv.style.borderRadius = '8px';
           stampDiv.style.textAlign = 'center';
           stampDiv.innerHTML = \`
-            <h3 style="color: #15803D; margin: 0 0 5px 0;">✅ Authorized and Signed</h3>
-            <p style="color: #6B7280; font-size: 12px; margin: 0;">IP: ${req.ip || "Unknown"}</p>
-            <p style="color: #6B7280; font-size: 12px; margin: 0;">Date: ${new Date().toLocaleString()}</p>
+            <h3 style="color: #15803D; margin: 0 0 5px 0;">\${t.stampTitle}</h3>
+            <p style="color: #6B7280; font-size: 12px; margin: 0;">\${t.stampIp} ${req.ip || "Unknown"}</p>
+            <p style="color: #6B7280; font-size: 12px; margin: 0;">\${t.stampDate} ${new Date().toLocaleString()}</p>
           \`;
           
           const container = document.querySelector('.container');
@@ -368,22 +464,26 @@ router.get("/sign/:token", async (req, res) => {
               document.body.innerHTML = \`
                 <div class="container" style="text-align: center; padding: 40px; margin-top: 40px;">
                   <h2 style="color: #15803D; font-size: 40px; margin-bottom: 10px;">✅</h2>
-                  <h2>Receipt Authorized</h2>
-                  <p style="color: #6B7280; font-weight: 500;">Thank you! Your authorization has been securely recorded.</p>
+                  <h2>\${t.successTitle}</h2>
+                  <p style="color: #6B7280; font-weight: 500;">\${t.successMsg}</p>
                 </div>
               \`;
             } else {
               const data = await res.json();
-              errorMsg.innerText = data.message || "Failed to submit.";
+              errorMsg.innerText = data.message || t.errNetwork;
               errorMsg.style.display = 'block';
-              document.getElementById('submit').innerText = "I Authorize & Sign";
+              document.getElementById('submit').innerText = t.btnAuth;
               document.getElementById('submit').disabled = false;
+              stampDiv.remove();
+              document.getElementById('submit').style.display = 'block';
             }
           } catch (e) {
-            errorMsg.innerText = "Network error. Try again.";
+            errorMsg.innerText = t.errNetwork;
             errorMsg.style.display = 'block';
-            document.getElementById('submit').innerText = "I Authorize & Sign";
+            document.getElementById('submit').innerText = t.btnAuth;
             document.getElementById('submit').disabled = false;
+            stampDiv.remove();
+            document.getElementById('submit').style.display = 'block';
           }
         });
       </script>
