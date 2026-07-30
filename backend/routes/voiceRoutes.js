@@ -1,5 +1,9 @@
 const express = require("express");
 const router  = express.Router();
+// SECURITY: voice/parse calls the Gemini API — must be authenticated to prevent
+// quota exhaustion and AI abuse by unauthenticated callers.
+const { protect } = require("../middleware/auth");
+
 function editDistance(a, b) {
   const m = a.length, n = b.length;
   const dp = Array.from({ length: m + 1 }, (_, i) => {
@@ -234,7 +238,8 @@ try {
 } catch (e) {
   if (isDev) console.warn("⚠️  @google/generative-ai SDK missing:", e.message);
 }
-router.post("/parse", async (req, res) => {
+// SECURITY: protect ensures only authenticated users can call Gemini/local AI
+router.post("/parse", protect, async (req, res) => {
   try {
     const { transcript, workers = [], projects = [] } = req.body;
 

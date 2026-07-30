@@ -2,7 +2,7 @@ const express    = require('express');
 const router     = express.Router();
 const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/auth');
-const { buildPaymentPayload, decryptCallbackData } = require('../utils/airpayservice');
+const { buildPaymentPayload, verifyAndDecryptCallbackData } = require('../utils/airpayservice');
 
 const BACKEND_URL = process.env.BACKEND_URL
   || 'https://build-track.onrender.com';
@@ -75,15 +75,10 @@ router.post('/initiate', protect, async (req, res) => {
 
 router.post('/callback', async (req, res) => {
   try {
-    console.log('AirPay callback raw body:', JSON.stringify(req.body));
-
-    let result = req.body;
-    if (req.body.response) {
-      result = decryptCallbackData(req.body.response);
-      console.log('AirPay callback decrypted:', JSON.stringify(result));
-    }
-
+    // SECURITY: Authenticate & decrypt the callback payload. Rejects plain/unencrypted POST attempts.
+    const result = verifyAndDecryptCallbackData(req.body);
     const dataObj = result.data || result;
+
 
     const orderid       = dataObj.orderid || dataObj.order_id || result.orderid;
     const transactionId = dataObj.ap_transactionid || dataObj.transactionid || dataObj.transaction_id || result.transactionid;

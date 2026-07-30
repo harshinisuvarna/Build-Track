@@ -1,5 +1,26 @@
 const User = require("../models/User");
 
+// ── SECURITY: Field whitelist for user responses ──────────────────────────────
+// Never return raw Mongoose user documents. Internal fields such as
+// resetPasswordToken, resetPasswordExpires, twoFactorSecret, tokenVersion,
+// and __v must never leave the server.
+const safeUser = (user) => ({
+  id:               user._id || user.id,
+  name:             user.name,
+  email:            user.email,
+  role:             user.role   || "Mason",
+  permissions:      Array.isArray(user.permissions) ? user.permissions : [],
+  projectIds:       Array.isArray(user.projectIds)  ? user.projectIds.map(String) : [],
+  projectId:        user.projectId?.toString()       || null,
+  profilePhoto:     user.profilePhoto               || null,
+  provider:         user.provider                   || "local",
+  isActive:         user.isActive,
+  overseesRoles:    Array.isArray(user.overseesRoles) ? user.overseesRoles : [],
+  twoFactorEnabled: !!user.twoFactorEnabled,
+  createdAt:        user.createdAt,
+  updatedAt:        user.updatedAt,
+});
+
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -12,7 +33,7 @@ const updateProfile = async (req, res) => {
     if (email) user.email = email.trim().toLowerCase();
 
     await user.save();
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: safeUser(user) });
   } catch (error) {
     console.error("Update profile error:", error);
     return res.status(500).json({ message: "Server error" });
@@ -23,17 +44,13 @@ const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.status(200).json({ user });
+    res.status(200).json({ user: safeUser(user) });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 const updateProfilePhoto = async (req, res) => {
-  console.log('updateProfilePhoto called');
-  console.log('req.user:', req.user);
-  console.log('body keys:', Object.keys(req.body));
-  console.log('profilePhoto length:', req.body.profilePhoto?.length);
   try {
     const { profilePhoto } = req.body;
     if (profilePhoto === undefined) {
@@ -52,9 +69,9 @@ const updateProfilePhoto = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ user });
+    res.json({ user: safeUser(user) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -114,7 +131,7 @@ const assignOversightRoles = async (req, res) => {
     user.overseesRoles = overseesRoles;
     await user.save();
 
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: safeUser(user) });
   } catch (err) {
     console.error("Assign oversight error:", err);
     return res.status(500).json({ message: "Server error" });

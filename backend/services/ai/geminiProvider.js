@@ -9,9 +9,9 @@ class GeminiProvider extends AIProvider {
     this.modelName = "gemini-2.5-flash";
 
     if (this.apiKey.length >= 12) {
-      console.log(`Loaded GEMINI_API_KEY: ${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}`);
+      console.log(`Loaded GEMINI_API_KEY: [CONFIGURED]`);
     } else {
-      console.log(`Loaded GEMINI_API_KEY: [KEY TOO SHORT OR MISSING]`);
+      console.log(`Loaded GEMINI_API_KEY: [MISSING OR INVALID]`);
     }
   }
 
@@ -21,7 +21,7 @@ class GeminiProvider extends AIProvider {
     }
 
     const modelToUse = modelOverride || this.modelName;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent`;
     const body = {
       contents: [
         {
@@ -38,7 +38,10 @@ class GeminiProvider extends AIProvider {
     while (attempt < maxAttempts) {
       try {
         const response = await axios.post(url, body, {
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": this.apiKey
+          },
           timeout: 30000
         });
 

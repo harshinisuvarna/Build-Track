@@ -120,15 +120,7 @@ async function buildPaymentPayload({
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log('\n── Payment fields (plain, pre-encryption) ──');
-    console.log(JSON.stringify(transactionData, null, 2));
-    console.log('privatekey:', privatekey);
-    console.log('encryptionKey used for encdata:', encryptionKey, '(md5 of username~:~password)');
-    console.log('raw checksum input (sorted values concatenated):', rawChecksumInput);
-    console.log('+ date appended:', rawChecksumInput + dateStr);
-    console.log('checksum:  ', checksum);
-    console.log('encdata (first 30 chars):', encdata.substring(0, 30) + '...');
-    console.log('────────────────────────────────────────────\n');
+    console.log('[AirPay] Payment payload generated for order:', orderId);
   }
 
   return {
@@ -144,10 +136,31 @@ async function buildPaymentPayload({
 }
 
 function decryptCallbackData(encryptedResponse) {
-  const cfg           = getConfig();
+  const cfg = getConfig();
   const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
-  const decrypted     = decrypt(encryptedResponse, encryptionKey);
+  const decrypted = decrypt(encryptedResponse, encryptionKey);
   return JSON.parse(decrypted);
 }
 
-module.exports = { getAccessToken, buildPaymentPayload, decryptCallbackData };
+function verifyAndDecryptCallbackData(reqBody) {
+  // Reject plain/unencrypted callback bodies to prevent payment callback forgery
+  if (!reqBody || !reqBody.response) {
+    throw new Error('Unauthenticated payment callback: missing encrypted response payload');
+  }
+
+  const result = decryptCallbackData(reqBody.response);
+
+  const dataObj = result.data || result;
+  // If checksum is sent back, verify it against generated checksum
+  if (dataObj && dataObj.checksum) {
+    const { checksum: _receivedChecksum, ...payloadToVerify } = dataObj;
+    const computedChecksum = generateChecksum(payloadToVerify);
+    if (dataObj.checksum !== computedChecksum) {
+      throw new Error('Payment callback checksum verification failed');
+    }
+  }
+
+  return result;
+}
+
+module.exports = { getAccessToken, buildPaymentPayload, decryptCallbackData, verifyAndDecryptCallbackData };

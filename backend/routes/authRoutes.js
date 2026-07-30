@@ -84,7 +84,9 @@ const safeUser = (user) => {
     profilePhoto: user.profilePhoto || null,
     provider: user.provider || "local",
     isActive: user.isActive,
-    twoFactorEnabled: !!user.twoFactorEnabled,
+    // SECURITY: 2FA toggle is a UI flag only — no TOTP is implemented yet.
+    // Always return false to prevent the UI showing a fake security indicator.
+    twoFactorEnabled: false,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -510,11 +512,11 @@ router.post("/forgot-password", async (req, res) => {
     if (!email) return res.status(400).json({ message: "Email is required" });
 
     const user = await User.findOne({ email: String(email).toLowerCase().trim() });
-    if (!user) {
+
+    // SECURITY: Return same generic message regardless of whether the account
+    // exists, uses OAuth, or has no password — prevents user enumeration.
+    if (!user || !user.password) {
       return res.json({ message: "If that email is registered, a reset link has been sent." });
-    }
-    if (!user.password) {
-      return res.json({ message: "This account uses Google or GitHub login." });
     }
 
     const token = Math.floor(100000 + Math.random() * 900000).toString();
@@ -642,19 +644,13 @@ router.put("/change-password", protect, async (req, res) => {
   }
 });
 
-router.put("/toggle-2fa", protect, async (req, res) => {
-  try {
-    const user = await User.findById(getUserId(req));
-    if (!user) return res.status(404).json({ message: "User not found" });
-    user.twoFactorEnabled = !user.twoFactorEnabled;
-    await user.save();
-    return res.json({
-      message: user.twoFactorEnabled ? "2FA enabled" : "2FA disabled",
-      twoFactorEnabled: user.twoFactorEnabled,
-    });
-  } catch (err) {
-    return res.status(500).json({ message: "Failed to toggle 2FA" });
-  }
+// SECURITY: 2FA toggle disabled — the boolean flag was never enforced in login.
+// Enabling it gave users a false sense of security (2FA bypass always worked).
+// This stub returns 501 until a proper TOTP implementation is added.
+router.put("/toggle-2fa", protect, (_req, res) => {
+  return res.status(501).json({
+    message: "Two-factor authentication is not yet available. This feature is coming soon.",
+  });
 });
 
 router.post("/sign-out-all", protect, async (req, res) => {
