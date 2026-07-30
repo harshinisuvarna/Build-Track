@@ -72,7 +72,8 @@ app.use(
     origin: (incomingOrigin, callback) => {
       // Allow requests with no Origin header (server-to-server, mobile native HTTP, curl)
       if (!incomingOrigin) return callback(null, true);
-      if (ALLOWED_ORIGINS.includes(incomingOrigin)) {
+      // Allow allowed origins or ANY localhost port (required for Flutter Web development)
+      if (ALLOWED_ORIGINS.includes(incomingOrigin) || incomingOrigin.startsWith("http://localhost:")) {
         return callback(null, true);
       }
       // Reject all other origins
