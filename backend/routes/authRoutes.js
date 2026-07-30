@@ -136,6 +136,11 @@ const ADMIN_PERMISSIONS = [
 
 router.post("/register", async (req, res) => {
   try {
+    // ── SECURITY: Whitelist-only field extraction ──────────────────────────
+    // Only these fields are accepted from the client. Any privilege fields
+    // (role, isAdmin, permissions, accessLevel, superAdmin, owner, createdBy,
+    // overseesRoles, tokenVersion, etc.) sent by the client are silently
+    // ignored — they are never read from req.body and have zero effect.
     const { name, email, password, projectId } = req.body;
     console.log(`[Auth] Register request received for email: ${email}`);
 
@@ -166,17 +171,27 @@ router.post("/register", async (req, res) => {
     const projectIds = toObjectIdArray(projectId);
     const legacyProjectId = toObjectIdOrNull(projectId);
 
+    // ── SECURITY: Role and permissions are ALWAYS assigned server-side ──────
+    // The public /register endpoint creates the account owner (Admin).
+    // role and permissions are never sourced from req.body — they are
+    // hard-coded constants defined in this file, making privilege escalation
+    // via this endpoint impossible regardless of what the client sends.
+    const serverAssignedRole = "Admin";
+    const serverAssignedPermissions = ADMIN_PERMISSIONS;
+
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
       password,
-      role: "Admin",
-      permissions: ADMIN_PERMISSIONS,
+      role: serverAssignedRole,
+      permissions: serverAssignedPermissions,
       projectIds,
       projectId: legacyProjectId,
     });
 
-    console.log(`[Auth] Admin registered successfully: ${user._id}`);
+    console.log(
+      `[Auth] Account owner registered: ${user._id} | server-assigned role=${serverAssignedRole}`
+    );
     return res.status(201).json({
       success: true,
       message: "Account created successfully",
