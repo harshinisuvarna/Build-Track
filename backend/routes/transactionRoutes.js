@@ -98,6 +98,52 @@ const parseAmount = (value) => {
   return isNaN(num) ? 0 : num;
 };
 
+// ── SECURITY: Transaction amount / quantity bounds validation ─────────────────
+// Validates all numeric monetary and quantity fields before they reach the DB.
+// Rejects: negative values, NaN, Infinity, and values above business-logic maxima.
+// This is the primary controller-level guard; the schema adds a secondary guard.
+const MAX_AMOUNT   = 999_999_999; // ₹99 crore — maximum single transaction
+const MAX_QUANTITY = 1_000_000;   // 1 million units
+const MAX_RATE     = 999_999_999; // ₹99 crore per unit
+const MAX_GST      = 100;         // GST is a percentage 0–100
+
+const validateTransactionAmounts = ({
+  amount,
+  quantity,
+  rate,
+  paidAmount,
+  gst,
+  overtime,
+}) => {
+  const checks = [
+    { field: "amount",     value: amount,     min: 0, max: MAX_AMOUNT,   required: true },
+    { field: "quantity",   value: quantity,   min: 0, max: MAX_QUANTITY,  required: false },
+    { field: "rate",       value: rate,       min: 0, max: MAX_RATE,      required: false },
+    { field: "paidAmount", value: paidAmount, min: 0, max: MAX_AMOUNT,    required: false },
+    { field: "gst",        value: gst,        min: 0, max: MAX_GST,       required: false },
+    { field: "overtime",   value: overtime,   min: 0, max: MAX_AMOUNT,    required: false },
+  ];
+
+  for (const { field, value, min, max, required } of checks) {
+    // Skip undefined/null/empty optional fields
+    if (value === undefined || value === null || value === "") {
+      if (required) return `${field} is required`;
+      continue;
+    }
+    const num = Number(value);
+    if (!isFinite(num) || isNaN(num)) {
+      return `${field} must be a valid finite number (received: ${value})`;
+    }
+    if (num < min) {
+      return `${field} cannot be negative (received: ${num})`;
+    }
+    if (num > max) {
+      return `${field} exceeds the maximum allowed value of ${max.toLocaleString()} (received: ${num})`;
+    }
+  }
+  return null; // null = valid
+};
+
 const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   const qty = Number(quantity) || 0;
   const rt = Number(rate) || 0;
@@ -608,16 +654,30 @@ if (req.body.paymentReceipt) {
     const screenshotFile = req.files?.paymentScreenshot?.[0];
     const screenshotUrl = screenshotFile ? getFileUrl(screenshotFile) : null;
 
-    const qty = Number(quantity) || 0;
-    const rt = Number(rate) || 0;
-    const ot = Number(overtime) || 0;
-    const paidAmt = parseAmount(_paidAmount);
+    const qty      = Number(quantity)  || 0;
+    const rt       = Number(rate)      || 0;
+    const ot       = Number(overtime)  || 0;
+    const paidAmt  = parseAmount(_paidAmount);
+    const gstVal   = Number(gst)       || 0;
 
     if (qty < 0 || rt < 0) {
       return res.status(400).json({ message: "Quantity and rate must be positive" });
     }
 
     const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, overtime: ot, rawAmount });
+
+    // ── SECURITY: Validate all numeric fields before touching the database ─────────
+    const amountErr = validateTransactionAmounts({
+      amount:     finalAmount,
+      quantity:   qty,
+      rate:       rt,
+      paidAmount: paidAmt,
+      gst:        gstVal,
+      overtime:   ot,
+    });
+    if (amountErr) {
+      return res.status(400).json({ message: `Invalid transaction data: ${amountErr}` });
+    }
 
       const transaction =
         new Transaction({
@@ -886,16 +946,33 @@ router.put("/:id", async (req, res) => {
       if (!pDoc) projectId = null;
     }
 
-    const newQty = quantity !== undefined ? Number(quantity) : tx.quantity;
-    const newRt = rate !== undefined ? Number(rate) : tx.rate;
-    const newOt = overtime !== undefined ? Number(overtime) : tx.overtime;
+    const newQty      = quantity !== undefined ? Number(quantity) : tx.quantity;
+    const newRt       = rate     !== undefined ? Number(rate)     : tx.rate;
+    const newOt       = overtime !== undefined ? Number(overtime) : tx.overtime;
+    const newPaidAmt  = _paidAmount !== undefined ? parseAmount(_paidAmount) : tx.paidAmount;
+    const newGstVal   = gst      !== undefined ? Number(gst)      : tx.gst;
     const finalAmount = calculateAmount({
-      type: type || tx.type,
-      quantity: newQty,
-      rate: newRt,
-      overtime: newOt,
+      type:      type || tx.type,
+      quantity:  newQty,
+      rate:      newRt,
+      overtime:  newOt,
       rawAmount: rawAmount ?? tx.amount,
     });
+
+    // ── SECURITY: Validate all numeric fields before touching the database ─────────
+    const amountErr = validateTransactionAmounts({
+      amount:     finalAmount,
+      quantity:   newQty,
+      rate:       newRt,
+      paidAmount: newPaidAmt,
+      gst:        newGstVal,
+      overtime:   newOt,
+    });
+    if (amountErr) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: `Invalid transaction data: ${amountErr}` });
+    }
 
     const hasInventoryFieldsChanged =
       (project !== undefined && project !== tx.project?.toString()) ||
@@ -1371,14 +1448,26 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         throw new Error("Valid Project ID or name is required");
       }
 
-      const qty = Number(quantity) || 0;
-      const rt = Number(rate) || 0;
-      const ot = Number(overtime) || 0;
-      const paidAmt = parseAmount(_paidAmount);
+      const qty      = Number(quantity)  || 0;
+      const rt       = Number(rate)      || 0;
+      const ot       = Number(overtime)  || 0;
+      const paidAmt  = parseAmount(_paidAmount);
+      const gstVal   = Number(gst)       || 0;
 
       if (qty < 0 || rt < 0) throw new Error("Quantity and rate must be positive");
 
       const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, overtime: ot, rawAmount });
+
+      // ── SECURITY: Validate all numeric fields before touching the database ─────────
+      const amountErr = validateTransactionAmounts({
+        amount:     finalAmount,
+        quantity:   qty,
+        rate:       rt,
+        paidAmount: paidAmt,
+        gst:        gstVal,
+        overtime:   ot,
+      });
+      if (amountErr) throw new Error(`Invalid transaction data: ${amountErr}`);
 
       const transaction = new Transaction({
         createdBy: req.user._id,

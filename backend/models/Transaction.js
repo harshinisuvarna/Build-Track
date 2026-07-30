@@ -132,6 +132,8 @@ const transactionSchema = new mongoose.Schema(
     sqftArea: {
       type: Number,
       default: 0,
+      min: 0,
+      max: 999999999,
     },
 
     floor: {
@@ -167,6 +169,8 @@ const transactionSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+      min: [0, "Amount cannot be negative"],
+      max: [999999999, "Amount exceeds maximum allowed value"],
     },
 
     type: {
@@ -235,11 +239,15 @@ const transactionSchema = new mongoose.Schema(
     paidAmount: {
       type: Number,
       default: 0,
+      min: 0,
+      max: 999999999,
     },
 
     remainingAmount: {
       type: Number,
       default: 0,
+      min: 0,
+      max: 999999999,
     },
 
     approvalStatus: {
@@ -314,7 +322,7 @@ const transactionSchema = new mongoose.Schema(
         {
           date: { type: Date, default: Date.now },
           method: String,
-          amount: Number,
+          amount: { type: Number, min: 0, max: 999999999 },
           note: String,
           receipt: String,
         }
