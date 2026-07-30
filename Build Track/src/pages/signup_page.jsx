@@ -137,7 +137,7 @@ export default function SignUpPage() {
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
 
             <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
                 <Building size={19} color="#FFF" />
               </div>
               <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 23, fontWeight: "800", letterSpacing: "-0.5px" }}>
@@ -176,15 +176,12 @@ export default function SignUpPage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
           <div
-            className={`animate-fade-up ${shake ? "shake-trigger" : ""}`}
+            className={`glass-card animate-fade-up ${shake ? "shake-trigger" : ""}`}
             style={{
               width: "100%",
               maxWidth: 440,
               padding: "44px 40px",
-              background: "#FFFFFF",
               borderRadius: 24,
-              border: "1px solid #EAEAEF",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.03)",
               animationDelay: "0.15s",
               boxSizing: "border-box",
               position: "relative",
@@ -194,7 +191,7 @@ export default function SignUpPage() {
 
             {!isDesktop && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Building size={16} color="#FFF" />
                 </div>
                 <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
@@ -364,7 +361,7 @@ export default function SignUpPage() {
                   padding: "14px",
                   borderRadius: 12,
                   border: "none",
-                  background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
+                  background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
                   color: "#FFF",
                   fontWeight: "800",
                   fontSize: "13.5px",

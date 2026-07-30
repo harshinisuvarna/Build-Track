@@ -82,7 +82,7 @@ export default function Sidebar() {
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: "0 4px 10px rgba(23, 62, 234, 0.25)",
+            boxShadow: "0 4px 10px rgba(99, 102, 241, 0.25)",
           }}
         >
           <Building2 size={18} color="#fff" />

@@ -3,8 +3,8 @@ export const colors = {
   card: 'var(--glass-bg)',
   subtle: 'var(--bg-subtle)',
   hover: 'var(--bg-hover)',
-  primary: '#173EEA',
-  primaryHover: '#1232B8',
+  primary: '#6366f1',
+  primaryHover: '#4f46e5',
   primaryLight: 'var(--primary-light)',
   primarySubtle: 'var(--primary-subtle)',
   border: 'var(--border)',
@@ -19,7 +19,7 @@ export const colors = {
   dangerLight: 'var(--danger-light)',
   warning: '#F59E0B',
   warningLight: 'var(--warning-light)',
-  info: '#173EEA',
+  info: '#6366f1',
   infoLight: 'var(--info-light)',
 };
 
@@ -52,12 +52,12 @@ export const typography = {
 };
 
 export const gradients = {
-  primaryGradient: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
-  primaryButton: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
-  progressBar: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
-  navActiveItem: 'linear-gradient(90deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
-  authBackground: 'linear-gradient(135deg, #173EEA 0%, #B137FF 50%, #67C8FF 100%)',
-  pageBackground: 'linear-gradient(135deg, #F8FAFC 0%, #E6EAF2 100%)',
+  primaryGradient: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)',
+  primaryButton: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)',
+  progressBar: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)',
+  navActiveItem: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)',
+  authBackground: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+  pageBackground: 'radial-gradient(circle at top right, #e0e7ff, #ffffff)',
 };
 
 export const buttonStyles = {
@@ -81,12 +81,12 @@ colors.textMedium = colors.textSecondary;
 colors.textPrimary = colors.textPrimary;
 colors.inputBorder = colors.border;
 colors.divider = colors.border;
-colors.gradientStart = '#173EEA';
-colors.gradientMid = '#B137FF';
-colors.gradientEnd = '#67C8FF';
-colors.authStart = '#173EEA';
-colors.authMid = '#B137FF';
-colors.authEnd = '#67C8FF';
+colors.gradientStart = '#6366f1';
+colors.gradientMid = '#a855f7';
+colors.gradientEnd = '#a855f7';
+colors.authStart = '#6366f1';
+colors.authMid = '#a855f7';
+colors.authEnd = '#a855f7';
 colors.bgBase1 = colors.bg;
 colors.bgBase2 = colors.subtle;
 colors.bgBase3 = colors.subtle;

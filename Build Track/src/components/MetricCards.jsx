@@ -11,9 +11,8 @@ export function MetricCard({ icon, label, value, budget, color = "#2563eb", tren
   const remaining = budget - value;
 
   return (
-    <div style={{
-      background: "#fff", borderRadius: 14, border: "1px solid #e5e5e5",
-      padding: "18px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.03)",
+    <div className="glass-card" style={{
+      padding: "18px 20px",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div style={{

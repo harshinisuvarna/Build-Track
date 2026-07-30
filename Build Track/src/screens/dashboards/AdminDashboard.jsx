@@ -43,7 +43,7 @@ function relativeTime(dateStr) {
 }
 
 const typeConfig = {
-  Materials: { color: '#173EEA', bg: '#EEF0FF', label: 'Materials' },
+  Materials: { color: '#6366f1', bg: '#EEF0FF', label: 'Materials' },
   Wages: { color: '#22C55E', bg: '#F0FDF4', label: 'Labour' },
   Expense: { color: '#F59E0B', bg: '#FFFBEB', label: 'Equipment' },
   Income: { color: '#B137FF', bg: '#F9F5FF', label: 'Income' },
@@ -173,8 +173,8 @@ export default function AdminDashboard() {
 
       {pendingApprovals > 0 && (
         <div style={{
-          background: '#FFF3E0', border: '1px solid #FFE0B2', padding: '16px 24px',
-          borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          background: 'rgba(255, 243, 224, 0.7)', border: '1px solid rgba(255, 224, 178, 0.5)', padding: '16px 24px',
+          borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backdropFilter: 'blur(8px)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#E65100' }}>
             <AlertTriangle size={24} />
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
           background: gradients.primaryGradient,
           padding: 24, borderRadius: 16, color: '#fff', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          boxShadow: '0 10px 25px rgba(23,62,234,0.2)', transition: 'transform 200ms ease'
+          boxShadow: '0 10px 25px rgba(99,102,241,0.2)', transition: 'transform 200ms ease'
         }}
         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -308,7 +308,7 @@ export default function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
         {[
-          { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#173EEA', alert: budget > 0 && totalCost > budget * 0.9 },
+          { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#6366f1', alert: budget > 0 && totalCost > budget * 0.9 },
           { label: 'Budget', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: DollarSign, color: '#B137FF' },
           { label: lang === 'kn' ? 'Ottu Aadaaya' : lang === 'ta' ? 'Motha Varuvai' : 'Total Revenue', value: formatCurrency(totalRevenue), subtitle: lang === 'kn' ? 'Nagadu O?aharivu' : lang === 'ta' ? 'Pana Varavu' : 'Cash Inflow', icon: ArrowUpRight, color: '#22C55E' },
           { label: 'Net Cash Flow', value: formatCurrency(Math.abs(netCashflow)), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', icon: ArrowDownRight, color: netCashflow >= 0 ? '#22C55E' : '#EF4444', alert: netCashflow < 0 },
@@ -346,10 +346,10 @@ export default function AdminDashboard() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
           {[
-            { label: 'Add Entry', desc: 'Log a transaction', icon: PlusCircle, path: '/add-entry', color: '#173EEA' },
+            { label: 'Add Entry', desc: 'Log a transaction', icon: PlusCircle, path: '/add-entry', color: '#6366f1' },
             { label: 'Voice Entry', desc: 'Record via voice AI', icon: Mic, path: '/voice', color: '#B137FF' },
             { label: 'Manual Entry', desc: 'Enter details manually', icon: FileText, path: '/manualentry', color: '#67C8FF' },
-            { label: 'View Projects', desc: 'Browse all projects', icon: Building2, path: '/projects', color: '#173EEA' },
+            { label: 'View Projects', desc: 'Browse all projects', icon: Building2, path: '/projects', color: '#6366f1' },
           ].map((action) => {
             const Icon = action.icon;
             return (
