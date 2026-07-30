@@ -166,5 +166,5 @@ export default api;
 
 export const esignAPI = {
   requestSignature: (data) => api.post("/esign/request", data),
-  checkStatus: (reqId) => api.get(/esign/status/)
+  checkStatus: (reqId) => api.get(`/esign/status/${reqId}`)
 };
