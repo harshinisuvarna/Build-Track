@@ -56,10 +56,11 @@ const ALLOWED_ORIGINS = [
   // Production frontend (read from env so no code change needed for redeployment)
   process.env.FRONTEND_URL,
   process.env.CLIENT_URL,
-  // Local development
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:5174",
+  "https://build-track.onrender.com",
+  "https://build-track-web.onrender.com",
   // Ngrok tunnels (optional local dev — remove in strict prod if not needed)
   ...(process.env.NGROK_URL ? [process.env.NGROK_URL] : []),
 ]
