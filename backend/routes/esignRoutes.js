@@ -1,5 +1,5 @@
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require('../config/cloudinary');
 const express = require("express");
 const crypto = require("crypto");
 const EsignRequest = require("../models/EsignRequest");
@@ -152,7 +152,7 @@ router.post("/submit", async (req, res) => {
     }
 
     // Send the completed receipt to the client via email
-    if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL && esignReq.clientEmail) {
+    if ((process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) && esignReq.clientEmail) {
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px;">
           <h2 style="color: #15803D; text-align: center;">Receipt Authorized Successfully</h2>
@@ -196,7 +196,7 @@ router.post("/submit", async (req, res) => {
     res.json({ message: "Signature submitted successfully" });
   } catch (error) {
     console.error("Error submitting signature:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: error.message || "Internal server error" });
   }
 });
 
