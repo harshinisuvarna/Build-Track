@@ -1,3 +1,4 @@
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const cloudinary = require('cloudinary').v2;
 const express = require("express");
 const crypto = require("crypto");
@@ -37,38 +38,33 @@ router.post("/request", async (req, res) => {
       </div>
     `;
 
-    if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
       try {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'api-key': process.env.BREVO_API_KEY,
-            'content-type': 'application/json'
-          },
-          body: JSON.stringify({
-            sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
-            to: [{ email: clientEmail }],
-            subject: "Signature Required: BuildTrack Cash Receipt",
-            htmlContent: emailHtml
-          })
+        const sesClient = new SESClient({
+          region: process.env.AWS_REGION || 'us-east-1',
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+          }
         });
-
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error("Brevo email send failed:", response.status, errText);
-          return res.status(500).json({ message: "Failed to send signature request email via Brevo" });
-        } else {
-          console.log("Brevo email sent successfully to", clientEmail);
-        }
+        const command = new SendEmailCommand({
+          Destination: { ToAddresses: [clientEmail] },
+          Message: {
+            Body: { Html: { Data: emailHtml, Charset: "UTF-8" } },
+            Subject: { Data: "Signature Required: BuildTrack Cash Receipt", Charset: "UTF-8" }
+          },
+          Source: process.env.SES_FROM_EMAIL
+        });
+        await sesClient.send(command);
+        console.log("SES email sent successfully to", clientEmail);
       } catch (e) {
-        console.error("Fetch to Brevo failed:", e.message);
+        console.error("Fetch to SES failed:", e.message);
         return res.status(500).json({ message: "Internal error while sending email" });
       }
     } else {
-      console.warn("Brevo credentials not configured. Email not sent.");
-      return res.status(500).json({ message: "Server email configuration is missing (BREVO_API_KEY or BREVO_SENDER_EMAIL)" });
-    }
+      console.warn("SES credentials not configured. Email not sent.");
+      return res.status(500).json({ message: "Server email configuration is missing (AWS_ACCESS_KEY_ID or SES_FROM_EMAIL)" });
+    };
 
     res.status(201).json({ 
       message: "E-Signature request created", 
@@ -174,25 +170,26 @@ router.post("/submit", async (req, res) => {
       `;
 
       try {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'api-key': process.env.BREVO_API_KEY,
-            'content-type': 'application/json'
-          },
-          body: JSON.stringify({
-            sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
-            to: [{ email: esignReq.clientEmail }],
-            subject: "Your Authorized BuildTrack Receipt",
-            htmlContent: emailHtml
-          })
-        });
-        if (!response.ok) {
-          console.error("Failed to send receipt email via Brevo");
+        if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
+          const sesClient = new SESClient({
+            region: process.env.AWS_REGION || 'us-east-1',
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+            }
+          });
+          const command = new SendEmailCommand({
+            Destination: { ToAddresses: [esignReq.clientEmail] },
+            Message: {
+              Body: { Html: { Data: emailHtml, Charset: "UTF-8" } },
+              Subject: { Data: "Your Authorized BuildTrack Receipt", Charset: "UTF-8" }
+            },
+            Source: process.env.SES_FROM_EMAIL
+          });
+          await sesClient.send(command);
         }
       } catch (err) {
-        console.error("Error sending receipt email:", err);
+        console.error("Error sending receipt email via SES:", err);
       }
     }
     
@@ -229,6 +226,24 @@ router.get("/sign/:token", async (req, res) => {
     }
 
     const meta = esignReq.meta || {};
+    
+    // Simple transliteration map for demo
+    function transliterate(text, lang) {
+      if (!text || typeof text !== 'string') return text;
+      if (lang === 'en') return text;
+      
+      const dict = {
+        kn: { 'A': 'ಎ', 'B': 'ಬಿ', 'C': 'ಸಿ', 'D': 'ಡಿ', 'E': 'ಇ', 'Project': 'ಪ್ರಾಜೆಕ್ಟ್', 'Phase': 'ಫೇಸ್', 'Foundation': 'ಫೌಂಡೇಶನ್' },
+        ta: { 'A': 'ஏ', 'B': 'பி', 'C': 'சி', 'D': 'டி', 'E': 'இ', 'Project': 'ப்ராஜெக்ட்', 'Phase': 'ஃபேஸ்', 'Foundation': 'பவுண்டேஷன்' }
+      };
+      
+      let res = text;
+      for (const [eng, loc] of Object.entries(dict[lang] || {})) {
+        res = res.replace(new RegExp(eng, 'gi'), loc);
+      }
+      return res;
+    }
+
     const metaRows = Object.entries(meta).map(([key, val]) => {
       let formattedVal = val;
       if (key === 'amount') formattedVal = '₹' + val;
@@ -359,7 +374,7 @@ router.get("/sign/:token", async (req, res) => {
             successMsg: "Thank you! Your authorization has been securely recorded.",
             errNetwork: "Network error. Try again.",
             keys: {
-              projectName: "Project Name", itemName: "Item Name", type: "Type",
+              projectName: "Project Name", itemName: "Item Name", type: "Type", activityName: "Activity Name", phase: "Phase", activityName: "Activity Name", phase: "Phase",
               totalAmount: "Total Amount", alreadyPaid: "Already Paid", amount: "Amount",
               paymentMethod: "Payment Method", notes: "Notes", date: "Date"
             }
@@ -375,7 +390,7 @@ router.get("/sign/:token", async (req, res) => {
             successMsg: "ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಅಧಿಕಾರವನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ದಾಖಲಿಸಲಾಗಿದೆ.",
             errNetwork: "ನೆಟ್‌ವರ್ಕ್ ದೋಷ. ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.",
             keys: {
-              projectName: "ಯೋಜನೆಯ ಹೆಸರು", itemName: "ಐಟಂ ಹೆಸರು", type: "ಪ್ರಕಾರ",
+              projectName: "ಯೋಜನೆಯ ಹೆಸರು", itemName: "ಐಟಂ ಹೆಸರು", type: "ಪ್ರಕಾರ", activityName: "ಚಟುವಟಿಕೆ", phase: "ಹಂತ", activityName: "ಚಟುವಟಿಕೆ", phase: "ಹಂತ",
               totalAmount: "ಒಟ್ಟು ಮೊತ್ತ", alreadyPaid: "ಈಗಾಗಲೇ ಪಾವತಿಸಿದ ಮೊತ್ತ", amount: "ಮೊತ್ತ",
               paymentMethod: "ಪಾವತಿ ವಿಧಾನ", notes: "ಟಿಪ್ಪಣಿಗಳು", date: "ದಿನಾಂಕ"
             }
@@ -391,7 +406,7 @@ router.get("/sign/:token", async (req, res) => {
             successMsg: "நன்றி! உங்கள் அங்கீகாரம் பாதுகாப்பாக பதிவு செய்யப்பட்டுள்ளது.",
             errNetwork: "நெட்வொர்க் பிழை. மீண்டும் முயற்சிக்கவும்.",
             keys: {
-              projectName: "திட்ட பெயர்", itemName: "பொருளின் பெயர்", type: "வகை",
+              projectName: "திட்ட பெயர்", itemName: "பொருளின் பெயர்", type: "வகை", activityName: "செயல்பாடு", phase: "கட்டம்", activityName: "செயல்பாடு", phase: "கட்டம்",
               totalAmount: "மொத்த தொகை", alreadyPaid: "ஏற்கனவே செலுத்திய தொகை", amount: "தொகை",
               paymentMethod: "கட்டண முறை", notes: "குறிப்புகள்", date: "தேதி"
             }

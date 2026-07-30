@@ -1,3 +1,4 @@
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -444,7 +445,7 @@ router.post("/forgot-password", async (req, res) => {
       return res.json({ message: "This account uses Google or GitHub login." });
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
     user.resetPasswordToken = token;
     user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
     await user.save();
@@ -453,20 +454,17 @@ router.post("/forgot-password", async (req, res) => {
 
     let emailSent = false;
 
-    if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
       try {
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'api-key': process.env.BREVO_API_KEY,
-            'content-type': 'application/json'
-          },
-          body: JSON.stringify({
-            sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
-            to: [{ email: user.email, name: user.name || user.email }],
-            subject: "BuildTrack — Password Reset (Via Brevo)",
-            htmlContent: `
+        const sesClient = new SESClient({
+          region: process.env.AWS_REGION || 'us-east-1',
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+          }
+        });
+
+        const htmlContent = `
               <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
                 <h2 style="color: #333;">Password Reset Request</h2>
                 <p style="color: #555; line-height: 1.5;">
@@ -487,19 +485,21 @@ router.post("/forgot-password", async (req, res) => {
                   If you didn't request this, you can safely ignore this email.
                 </p>
               </div>
-            `
-          })
-        });
+            `;
 
-        if (response.ok) {
-          emailSent = true;
-          console.log('[Auth] Password reset email sent via Brevo to:', user.email);
-        } else {
-          const errorData = await response.text();
-          console.error("[Auth] Brevo API error:", errorData);
-        }
-      } catch (brevoErr) {
-        console.error("[Auth] Brevo fetch error:", brevoErr.message);
+        const command = new SendEmailCommand({
+          Destination: { ToAddresses: [user.email] },
+          Message: {
+            Body: { Html: { Data: htmlContent, Charset: "UTF-8" } },
+            Subject: { Data: "BuildTrack — Password Reset", Charset: "UTF-8" }
+          },
+          Source: process.env.SES_FROM_EMAIL
+        });
+        await sesClient.send(command);
+        emailSent = true;
+        console.log('[Auth] Password reset email sent via SES to:', user.email);
+      } catch (err) {
+        console.error("[Auth] SES send error:", err.message);
       }
     }
 

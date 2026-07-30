@@ -1,3 +1,4 @@
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
@@ -717,35 +718,39 @@ if (req.body.paymentReceipt) {
     if (transaction.eSignToken) {
       const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${transaction.eSignToken}`;
 
-      if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
         try {
-          await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-              'accept': 'application/json',
-              'api-key': process.env.BREVO_API_KEY,
-              'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-              sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
-              to: [{ email: transaction.clientEmail }],
-              subject: "Signature Required: BuildTrack Cash Receipt",
-              htmlContent: `
-                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-                  <h2 style="color: #333;">Signature Required</h2>
-                  <p style="color: #555; line-height: 1.5;">
-                    Please review and sign the cash receipt for your transaction on BuildTrack.
-                  </p>
-                  <div style="margin: 24px 0; text-align: center;">
-                    <a href="${signUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review & Sign Receipt</a>
-                  </div>
-                  <p style="color: #888; font-size: 13px;">
-                    This link expires in 7 days.
-                  </p>
-                </div>
-              `
-            })
+          const sesClient = new SESClient({
+            region: process.env.AWS_REGION || 'us-east-1',
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+            }
           });
+          const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+              <h2 style="color: #333;">Signature Required</h2>
+              <p style="color: #555; line-height: 1.5;">
+                Please review and sign the cash receipt for your transaction on BuildTrack.
+              </p>
+              <div style="margin: 24px 0; text-align: center;">
+                <a href="${signUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review & Sign Receipt</a>
+              </div>
+              <p style="color: #888; font-size: 13px;">
+                This link expires in 7 days.
+              </p>
+            </div>
+          `;
+          const command = new SendEmailCommand({
+            Destination: { ToAddresses: [transaction.clientEmail] },
+            Message: {
+              Body: { Html: { Data: htmlContent, Charset: "UTF-8" } },
+              Subject: { Data: "Signature Required: BuildTrack Cash Receipt", Charset: "UTF-8" }
+            },
+            Source: process.env.SES_FROM_EMAIL
+          });
+          await sesClient.send(command);
+          console.log('[Transaction] Signature email sent via SES');
         } catch (e) {
           console.error("Failed to send automatic e-sign email:", e);
         }
@@ -1437,45 +1442,45 @@ router.post("/:id/request-esign", async (req, res) => {
 
     await transaction.save();
 
-    const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${token}`;
-
-    if (process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL) {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': process.env.BREVO_API_KEY,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: "BuildTrack", email: process.env.BREVO_SENDER_EMAIL },
-          to: [{ email: clientEmail }],
-          subject: "Signature Required: BuildTrack Cash Receipt",
-          htmlContent: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #333;">Signature Required</h2>
-              <p style="color: #555; line-height: 1.5;">
-                Please review and sign the cash receipt for your transaction on BuildTrack.
-              </p>
-              <div style="margin: 24px 0; text-align: center;">
-                <a href="${signUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review & Sign Receipt</a>
-              </div>
-              <p style="color: #888; font-size: 13px;">
-                This link expires in 7 days.
-              </p>
+    const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${token}`;    if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
+      try {
+        const sesClient = new SESClient({
+          region: process.env.AWS_REGION || 'us-east-1',
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+          }
+        });
+        const htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2 style="color: #333;">Signature Required</h2>
+            <p style="color: #555; line-height: 1.5;">
+              Please review and sign the cash receipt for your transaction on BuildTrack.
+            </p>
+            <div style="margin: 24px 0; text-align: center;">
+              <a href="${signUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review & Sign Receipt</a>
             </div>
-          `
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Brevo API error:", errorData);
-        return res.status(500).json({ message: "Failed to send signature request email via Brevo" });
+            <p style="color: #888; font-size: 13px;">
+              This link expires in 7 days.
+            </p>
+          </div>
+        `;
+        const command = new SendEmailCommand({
+          Destination: { ToAddresses: [clientEmail] },
+          Message: {
+            Body: { Html: { Data: htmlContent, Charset: "UTF-8" } },
+            Subject: { Data: "Signature Required: BuildTrack Cash Receipt", Charset: "UTF-8" }
+          },
+          Source: process.env.SES_FROM_EMAIL
+        });
+        await sesClient.send(command);
+      } catch (err) {
+        console.error("SES send error:", err);
+        return res.status(500).json({ message: "Failed to send signature request email via SES" });
       }
     } else {
-      console.log(`[DEV] E-SIGN LINK: ${signUrl}`);
-    }
+      return res.status(500).json({ message: "Server email configuration is missing" });
+    }    console.log(`[DEV] E-SIGN LINK: ${signUrl}`);
 
     res.json({ message: "Signature request sent successfully", transaction });
 
