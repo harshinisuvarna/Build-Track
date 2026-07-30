@@ -346,8 +346,8 @@ router.get("/sign/:token", async (req, res) => {
         <div class="lang-selector" data-html2canvas-ignore="true">
           <select id="lang-select">
             <option value="en">English</option>
-            <option value="kn">ಕನ್ನಡ</option>
-            <option value="ta">தமிழ்</option>
+            <option value="kn">Kannada</option>
+            <option value="ta">Tamil</option>
           </select>
         </div>
         <h2 id="title-text">CASH RECEIPT</h2>
@@ -367,48 +367,48 @@ router.get("/sign/:token", async (req, res) => {
             title: "CASH RECEIPT",
             btnAuth: "I Authorize & Sign",
             btnAuthWait: "Authorizing...",
-            stampTitle: "✅ Authorized and Signed",
+            stampTitle: "Authorized and Signed",
             stampIp: "IP:",
             stampDate: "Date:",
             successTitle: "Receipt Authorized",
             successMsg: "Thank you! Your authorization has been securely recorded.",
             errNetwork: "Network error. Try again.",
             keys: {
-              projectName: "Project Name", itemName: "Item Name", type: "Type", activityName: "Activity Name", phase: "Phase", activityName: "Activity Name", phase: "Phase",
+              projectName: "Project Name", itemName: "Item Name", type: "Type", activityName: "Activity Name", phase: "Phase",
               totalAmount: "Total Amount", alreadyPaid: "Already Paid", amount: "Amount",
               paymentMethod: "Payment Method", notes: "Notes", date: "Date"
             }
           },
           kn: {
-            title: "ನಗದು ರಶೀದಿ",
-            btnAuth: "ನಾನು ಅಧಿಕಾರ ನೀಡುತ್ತೇನೆ ಮತ್ತು ಸಹಿ ಮಾಡುತ್ತೇನೆ",
-            btnAuthWait: "ಅಧಿಕೃತಗೊಳಿಸಲಾಗುತ್ತಿದೆ...",
-            stampTitle: "✅ ಅಧಿಕೃತಗೊಳಿಸಲಾಗಿದೆ ಮತ್ತು ಸಹಿ ಮಾಡಲಾಗಿದೆ",
-            stampIp: "ಐಪಿ:",
-            stampDate: "ದಿನಾಂಕ:",
-            successTitle: "ರಶೀದಿ ಅಧಿಕೃತಗೊಳಿಸಲಾಗಿದೆ",
-            successMsg: "ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಅಧಿಕಾರವನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ದಾಖಲಿಸಲಾಗಿದೆ.",
-            errNetwork: "ನೆಟ್‌ವರ್ಕ್ ದೋಷ. ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.",
+            title: "Nagadu Rasidi",
+            btnAuth: "Naanu Angikarisuthene & Sahimaduthene",
+            btnAuthWait: "Angikarisalaguttide...",
+            stampTitle: "Angikarisalagide mattu sahimadalagide",
+            stampIp: "IP:",
+            stampDate: "Dinaanka:",
+            successTitle: "Rasidi Angikarisalagide",
+            successMsg: "Dhanyavadagalu! Nimmma angikaravannu surakshitavagi dakhale madalagide.",
+            errNetwork: "Network dosha. Matte prayatnisi.",
             keys: {
-              projectName: "ಯೋಜನೆಯ ಹೆಸರು", itemName: "ಐಟಂ ಹೆಸರು", type: "ಪ್ರಕಾರ", activityName: "ಚಟುವಟಿಕೆ", phase: "ಹಂತ", activityName: "ಚಟುವಟಿಕೆ", phase: "ಹಂತ",
-              totalAmount: "ಒಟ್ಟು ಮೊತ್ತ", alreadyPaid: "ಈಗಾಗಲೇ ಪಾವತಿಸಿದ ಮೊತ್ತ", amount: "ಮೊತ್ತ",
-              paymentMethod: "ಪಾವತಿ ವಿಧಾನ", notes: "ಟಿಪ್ಪಣಿಗಳು", date: "ದಿನಾಂಕ"
+              projectName: "Project Hesaru", itemName: "Item Hesaru", type: "Vidhagalu", activityName: "Activity Hesaru", phase: "Hantha",
+              totalAmount: "Ottu Motta", alreadyPaid: "Eegagale Pavatislagide", amount: "Motta",
+              paymentMethod: "Pavathi Vidhana", notes: "Tippanigalu", date: "Dinaanka"
             }
           },
           ta: {
-            title: "பண ரசீது",
-            btnAuth: "நான் அங்கீகரிக்கிறேன் மற்றும் கையொப்பமிடுகிறேன்",
-            btnAuthWait: "அங்கீகரிக்கப்படுகிறது...",
-            stampTitle: "✅ அங்கீகரிக்கப்பட்டு கையொப்பமிடப்பட்டது",
-            stampIp: "ஐபி:",
-            stampDate: "தேதி:",
-            successTitle: "ரசீது அங்கீகரிக்கப்பட்டது",
-            successMsg: "நன்றி! உங்கள் அங்கீகாரம் பாதுகாப்பாக பதிவு செய்யப்பட்டுள்ளது.",
-            errNetwork: "நெட்வொர்க் பிழை. மீண்டும் முயற்சிக்கவும்.",
+            title: "Rokka Rasithu",
+            btnAuth: "Naan Angikarikiren & Kaiyeluthidugiren",
+            btnAuthWait: "Angikarikirathu...",
+            stampTitle: "Angikarikkappattathu mariyum kaiyeluthidappattathu",
+            stampIp: "IP:",
+            stampDate: "Thethi:",
+            successTitle: "Rasithu Angikarikkappattathu",
+            successMsg: "Nandri! Ungal angikaram pathukappaga pathivu seyyappattullathu.",
+            errNetwork: "Network pizhai. Meendum muyarchi seyyavum.",
             keys: {
-              projectName: "திட்ட பெயர்", itemName: "பொருளின் பெயர்", type: "வகை", activityName: "செயல்பாடு", phase: "கட்டம்", activityName: "செயல்பாடு", phase: "கட்டம்",
-              totalAmount: "மொத்த தொகை", alreadyPaid: "ஏற்கனவே செலுத்திய தொகை", amount: "தொகை",
-              paymentMethod: "கட்டண முறை", notes: "குறிப்புகள்", date: "தேதி"
+              projectName: "Project Peyar", itemName: "Item Peyar", type: "Vagai", activityName: "Activity Peyar", phase: "Kattam",
+              totalAmount: "Motha Thogai", alreadyPaid: "Earkanave Seluthappattathu", amount: "Thogai",
+              paymentMethod: "Seluthum Murai", notes: "Kurippugal", date: "Thethi"
             }
           }
         };

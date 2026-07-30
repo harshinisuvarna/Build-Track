@@ -334,11 +334,11 @@ export default function LoginPage() {
                   }}
                 >
                   <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", fontWeight: "700", color: "#1F2937" }}>Reset Password</h4>
-                  <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#6F7C8F", lineHeight: 1.45 }}>Enter your recovery email and we will mail you a reset link.</p>
+                  <p style={{ margin: "0 0 14px", fontSize: "11.5px", color: "#6F7C8F", lineHeight: 1.45 }}>Enter your email to receive a reset link.</p>
 
                   <LightPremiumInput
                     type="email"
-                    label="Recovery Email"
+                    label="Email Address"
                     icon={Mail}
                     value={forgotEmail}
                     onChange={e => {

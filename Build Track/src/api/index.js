@@ -6,15 +6,7 @@ function normalizeOrigin(url) {
   return url.replace(/\/+$/, "");
 }
 
-const rawUrl = import.meta.env.VITE_API_URL;
-if (!rawUrl) {
-  console.warn(
-    "[BuildTrack] VITE_API_URL is not set. " +
-    "Create a .env file with VITE_API_URL=http://localhost:5001"
-  );
-}
-
-const API_ORIGIN = normalizeOrigin(rawUrl) || "http://localhost:5001";
+const API_ORIGIN = "https://build-track.onrender.com";
 const BASE = API_ORIGIN.endsWith("/api") ? API_ORIGIN : `${API_ORIGIN}/api`;
 
 const api = axios.create({ baseURL: BASE });
@@ -171,3 +163,8 @@ export const analyticsAPI = {
 
 export { API_ORIGIN };
 export default api;
+
+export const esignAPI = {
+  requestSignature: (data) => api.post("/esign/request", data),
+  checkStatus: (reqId) => api.get(/esign/status/)
+};

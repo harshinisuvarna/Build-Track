@@ -11,7 +11,7 @@ import {
   Calendar,
   X,
 } from "lucide-react";
-import { transactionAPI } from "../api";
+import { transactionAPI, esignAPI } from "../api";
 
 const primaryBlue = "#173EEA";
 
@@ -48,6 +48,12 @@ export default function RecordPaymentSheet({ open, entry, projects, onClose, onS
   const [receiptFile, setReceiptFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [amountError, setAmountError] = useState(null);
+  const [requestEsign, setRequestEsign] = useState(false);
+  const [clientEmail, setClientEmail] = useState("");
+  const [esignPolling, setEsignPolling] = useState(false);
+  const [esignCompleted, setEsignCompleted] = useState(false);
+  const [esignStatusText, setEsignStatusText] = useState("");
+  const [esignReqId, setEsignReqId] = useState(null);
   const fileInputRef = useRef(null);
   const amountRef = useRef(null);
 
@@ -104,6 +110,77 @@ export default function RecordPaymentSheet({ open, entry, projects, onClose, onS
     setReceiptFile(null);
     setAmountError(null);
   }, [open, entryId]);
+
+  const esignPollingRef = useRef(false);
+  useEffect(() => { esignPollingRef.current = esignPolling; }, [esignPolling]);
+  useEffect(() => { return () => { esignPollingRef.current = false; setEsignPolling(false); } }, []);
+
+  const startEsignFlow = async () => {
+    if (!clientEmail.trim() || !clientEmail.includes('@')) {
+      setAmountError("Please enter a valid email for E-Signature.");
+      return;
+    }
+    const enteredAmt = parseAmount(amount);
+    const amt = enteredAmt !== null ? enteredAmt : (outstanding > 0 ? outstanding : totalAmount);
+    if (amt <= 0) {
+      setAmountError("Please enter a valid amount before requesting E-Signature.");
+      return;
+    }
+
+    setEsignPolling(true);
+    setEsignStatusText("Sending request...");
+    setAmountError(null);
+
+    try {
+      const meta = {
+        amount: amt,
+        projectName: projectName,
+        item: entry?.description || entry?.brand || rawTx?.title || "Entry",
+        paymentMode: selectedMethod
+      };
+      
+      const res = await esignAPI.requestSignature({ clientEmail: clientEmail.trim(), meta });
+      const rId = res.data?.requestId;
+      if (!rId) throw new Error("No request ID returned");
+      setEsignReqId(rId);
+      setEsignStatusText("Waiting for client to sign...");
+
+      const poll = async () => {
+        if (!esignPollingRef.current) return;
+        try {
+          const statusRes = await esignAPI.checkStatus(rId);
+          if (statusRes.data?.status === 'signed') {
+            setEsignPolling(false);
+            setEsignCompleted(true);
+            setEsignStatusText("Signature captured!");
+            
+            const b64 = statusRes.data.signatureData;
+            if (b64) {
+               try {
+                 const resFetch = await fetch(b64);
+                 const blob = await resFetch.blob();
+                 const file = new File([blob], "E-Signature.png", { type: "image/png" });
+                 setReceiptFile(file);
+               } catch (e) { console.error(e); }
+            }
+            return;
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+        if (esignPollingRef.current) {
+           setTimeout(poll, 3000);
+        }
+      };
+      setTimeout(poll, 3000);
+
+    } catch (err) {
+      console.error(err);
+      setEsignPolling(false);
+      setEsignStatusText("Failed to send request");
+      setAmountError(err.response?.data?.message || err.message || "Failed to send request");
+    }
+  };
 
   const computeHelperText = useCallback(() => {
     if (selectedStatus === "paid") {
@@ -488,6 +565,53 @@ export default function RecordPaymentSheet({ open, entry, projects, onClose, onS
             })}
           </div>
 
+          {selectedMethod === "Cash" && (
+            <div style={{ marginBottom: 20, padding: 14, borderRadius: 12, border: "1px solid #E2E4F6", background: "#F8F9FF" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginBottom: requestEsign ? 12 : 0 }}>
+                <input
+                  type="checkbox"
+                  checked={requestEsign}
+                  onChange={(e) => setRequestEsign(e.target.checked)}
+                  disabled={esignPolling || esignCompleted}
+                  style={{ width: 16, height: 16, cursor: "pointer" }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#1E1E2E" }}>Request E-Signature for Cash Receipt</span>
+              </label>
+
+              {requestEsign && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <input
+                    type="email"
+                    placeholder="Client Email Address"
+                    value={clientEmail}
+                    onChange={e => setClientEmail(e.target.value)}
+                    disabled={esignPolling || esignCompleted}
+                    style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #CCCFE8", outline: "none", fontSize: 13, fontFamily: "inherit" }}
+                  />
+                  {!esignCompleted && (
+                    <button
+                      onClick={esignPolling ? () => setEsignPolling(false) : startEsignFlow}
+                      style={{
+                        padding: "10px", borderRadius: 8, border: "none",
+                        background: esignPolling ? "#FEE2E2" : "#173EEA",
+                        color: esignPolling ? "#DC2626" : "#FFF",
+                        fontWeight: 700, fontSize: 12, cursor: "pointer",
+                        fontFamily: "inherit"
+                      }}
+                    >
+                      {esignPolling ? "Cancel Request" : "Send Request"}
+                    </button>
+                  )}
+                  {(esignStatusText || esignCompleted) && (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: esignCompleted ? "#15803D" : "#B45309", display: "flex", alignItems: "center", gap: 6 }}>
+                       {esignCompleted ? <CheckCircle size={14} /> : (esignPolling && <div className="spinner-spin" style={{ width: 10, height: 10, border: "2px solid #B45309", borderTopColor: "transparent", borderRadius: "50%" }}/>)}
+                       {esignStatusText}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <div style={{ fontSize: 10, fontWeight: 800, color: "#6B7280", letterSpacing: 1.1, marginBottom: 8 }}>
             ACTUAL AMOUNT PAID ({"\u20B9"})
           </div>

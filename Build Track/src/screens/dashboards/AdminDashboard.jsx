@@ -61,6 +61,7 @@ export default function AdminDashboard() {
   const { transactions, fetchTransactions } = useTransactionStore();
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [dashData, setDashData] = useState(null);
+  const [lang, setLang] = useState("en");
   const [loading, setLoading] = useState(projects.length === 0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [approvalHistory, setApprovalHistory] = useState([]);
@@ -309,7 +310,7 @@ export default function AdminDashboard() {
         {[
           { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#173EEA', alert: budget > 0 && totalCost > budget * 0.9 },
           { label: 'Budget', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: DollarSign, color: '#B137FF' },
-          { label: 'Total Revenue', value: formatCurrency(totalRevenue), subtitle: 'Cash Inflow', icon: ArrowUpRight, color: '#22C55E' },
+          { label: lang === 'kn' ? 'Ottu Aadaaya' : lang === 'ta' ? 'Motha Varuvai' : 'Total Revenue', value: formatCurrency(totalRevenue), subtitle: lang === 'kn' ? 'Nagadu O?aharivu' : lang === 'ta' ? 'Pana Varavu' : 'Cash Inflow', icon: ArrowUpRight, color: '#22C55E' },
           { label: 'Net Cash Flow', value: formatCurrency(Math.abs(netCashflow)), subtitle: netCashflow >= 0 ? 'Net Profit' : 'Net Loss', icon: ArrowDownRight, color: netCashflow >= 0 ? '#22C55E' : '#EF4444', alert: netCashflow < 0 },
         ].map((kpi) => {
           const Icon = kpi.icon;
