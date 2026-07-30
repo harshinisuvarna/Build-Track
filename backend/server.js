@@ -43,12 +43,42 @@ app.use(helmet({
 }));
 app.disable("x-powered-by");
 app.use(compression());
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
-  credentials: false,
-}));
+// ── SECURITY: Explicit CORS origin allowlist ────────────────────────────────
+// origin:'*' (wildcard) was replaced with an explicit allowlist.
+// Only origins listed here may make cross-origin requests to this API.
+// The Flutter mobile app uses native HTTP and is NOT affected by CORS at all.
+// Add new legitimate origins to ALLOWED_ORIGINS or via the FRONTEND_URL env var.
+const ALLOWED_ORIGINS = [
+  // Production frontend (read from env so no code change needed for redeployment)
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  // Local development
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:5174",
+  // Ngrok tunnels (optional local dev — remove in strict prod if not needed)
+  ...(process.env.NGROK_URL ? [process.env.NGROK_URL] : []),
+]
+  .filter(Boolean)               // remove undefined/empty values
+  .map((o) => o.replace(/\/$/, "")); // strip trailing slashes
+
+app.use(
+  cors({
+    origin: (incomingOrigin, callback) => {
+      // Allow requests with no Origin header (server-to-server, mobile native HTTP, curl)
+      if (!incomingOrigin) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(incomingOrigin)) {
+        return callback(null, true);
+      }
+      // Reject all other origins
+      console.warn(`[CORS] Rejected request from unlisted origin: ${incomingOrigin}`);
+      return callback(new Error(`CORS: Origin '${incomingOrigin}' is not allowed`), false);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
+    credentials: false, // app uses Authorization Bearer header, not cookies
+  })
+);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
