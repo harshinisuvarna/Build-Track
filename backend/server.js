@@ -1,12 +1,16 @@
 require("dotenv").config();
 
 console.log('AirPay Merchant ID loaded:', !!process.env.AIRPAY_MERCHANT_ID);
+console.log('🔍 Startup check — FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
+console.log('🔍 Startup check — NODE_ENV:', process.env.NODE_ENV || '(not set)');
+console.log('🔍 Startup check — PORT:', process.env.PORT || '5001 (default)');
 
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`❌ FATAL: Missing required environment variables: ${missing.join(", ")}`);
   console.error("   Add them to your .env file and restart the server.");
+  console.error("   Present env vars at startup:", Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('KEY') && !k.includes('PASS')).join(", "));
   process.exit(1);
 }
 const express = require("express");
@@ -43,12 +47,42 @@ app.use(helmet({
 }));
 app.disable("x-powered-by");
 app.use(compression());
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
-  credentials: false,
-}));
+// ── SECURITY: Explicit CORS origin allowlist ────────────────────────────────
+// origin:'*' (wildcard) was replaced with an explicit allowlist.
+// Only origins listed here may make cross-origin requests to this API.
+// The Flutter mobile app uses native HTTP and is NOT affected by CORS at all.
+// Add new legitimate origins to ALLOWED_ORIGINS or via the FRONTEND_URL env var.
+const ALLOWED_ORIGINS = [
+  // Production frontend (read from env so no code change needed for redeployment)
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  // Local development
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:5174",
+  // Ngrok tunnels (optional local dev — remove in strict prod if not needed)
+  ...(process.env.NGROK_URL ? [process.env.NGROK_URL] : []),
+]
+  .filter(Boolean)               // remove undefined/empty values
+  .map((o) => o.replace(/\/$/, "")); // strip trailing slashes
+
+app.use(
+  cors({
+    origin: (incomingOrigin, callback) => {
+      // Allow requests with no Origin header (server-to-server, mobile native HTTP, curl)
+      if (!incomingOrigin) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(incomingOrigin)) {
+        return callback(null, true);
+      }
+      // Reject all other origins
+      console.warn(`[CORS] Rejected request from unlisted origin: ${incomingOrigin}`);
+      return callback(new Error(`CORS: Origin '${incomingOrigin}' is not allowed`), false);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
+    credentials: false, // app uses Authorization Bearer header, not cookies
+  })
+);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -61,6 +95,27 @@ const limiter = rateLimit({
   }
 });
 app.use("/api/", limiter);
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 10 : 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { message: "Too many login attempts. Please try again after 15 minutes." },
+});
+app.use("/api/auth/login", loginLimiter);
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isProd ? 5 : 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many attempts. Please try again later." },
+});
+app.use("/api/auth/register", sensitiveLimiter);
+app.use("/api/auth/forgot-password", sensitiveLimiter);
+app.use("/api/auth/reset-password", sensitiveLimiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
@@ -78,18 +133,22 @@ app.get("/healthz", (_req, res) =>
 
 app.get("/api/test", (_req, res) => res.json({ ok: true }));
 
-async function connectWithRetry(uri, retries = 3, delay = 5000) {
+async function connectWithRetry(uri, retries = 5, delay = 8000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`[MongoDB] Attempt ${attempt}/${retries}...`);
+      console.log(`[MongoDB] URI prefix: ${uri ? uri.substring(0, 30) + '...' : 'UNDEFINED'}`);
+      mongoose.set('bufferCommands', true);
       await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 30000,
-        connectTimeoutMS: 30000,
+        serverSelectionTimeoutMS: 45000,
+        connectTimeoutMS: 45000,
         maxPoolSize: 10,
-        socketTimeoutMS: 45000,
-        heartbeatFrequencyMS: 10000,
+        socketTimeoutMS: 60000,
+        heartbeatFrequencyMS: 15000,
       });
       console.log("✅ MongoDB connected");
+      mongoose.connection.on('error', (err) => console.error('[MongoDB] Runtime connection error:', err.message));
+      mongoose.connection.on('disconnected', () => console.warn('[MongoDB] Disconnected from MongoDB'));
       return;
     } catch (err) {
       console.error(`[MongoDB] Attempt ${attempt} failed: ${err.message}`);
@@ -97,6 +156,7 @@ async function connectWithRetry(uri, retries = 3, delay = 5000) {
         console.log(`[MongoDB] Retrying in ${delay / 1000}s...`);
         await new Promise((r) => setTimeout(r, delay));
       } else {
+        console.error('[MongoDB] All connection attempts exhausted. Starting server without DB — health checks will report 503.');
         throw err;
       }
     }
@@ -190,8 +250,14 @@ process.on("uncaughtException", (err) => {
   try {
     // 1. Connect to MongoDB (throws if all retries fail)
     await connectWithRetry(process.env.MONGO_URI);
+  } catch (err) {
+    console.error('[Startup] MongoDB connection failed after all retries.');
+    console.error('[Startup] The server will still start but /healthz will report DB down.');
+    console.error('[Startup] Make sure MONGO_URI is set correctly in Render env vars.');
+  }
 
-    // 2. Start HTTP server
+  try {
+    // 2. Start HTTP server — even if DB failed, we serve the health endpoint
     server = app.listen(PORT, () =>
       console.log(`🚀 Server running on port ${PORT} [${NODE_ENV}]`)
     );

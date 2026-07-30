@@ -13,6 +13,35 @@ const { protect, authorize } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
 const Subscription = require("../models/Subscription");
+const bcrypt = require("bcryptjs");
+
+// ── SECURITY: Per-account brute force tracker (in-memory) ────────────────────
+// Tracks failed login attempts per email address. This closes the gap that
+// IP-only rate limiting misses: a distributed attack (many IPs, one attempt
+// each) can still hammer the same account. This limiter is email-scoped,
+// so it triggers regardless of how many source IPs are involved.
+//
+// Limits: MAX_ATTEMPTS failures in LOCK_WINDOW_MS → account locked for LOCK_DURATION_MS
+// Resets: automatically on successful login, or when lockDuration expires.
+// Memory: entries are cleaned up every 30 minutes by the interval below.
+const loginFailures = new Map(); // key: lowercase email → { count, lockedUntil }
+const MAX_ATTEMPTS    = 5;
+const LOCK_WINDOW_MS  = 15 * 60 * 1000; // 15 min window to accumulate failures
+const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 min lockout after MAX_ATTEMPTS
+
+// Cleanup stale entries every 30 minutes to prevent unbounded memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, rec] of loginFailures) {
+    if (!rec.lockedUntil || rec.lockedUntil < now) {
+      loginFailures.delete(email);
+    }
+  }
+}, 30 * 60 * 1000).unref(); // .unref() so this timer doesn't keep the process alive
+
+// Dummy hash used for constant-time response when email is not found
+// (prevents timing oracle that reveals valid email addresses)
+const DUMMY_HASH = "$2a$12$invalidhashusedfortimingprotectiononly.........";
 
 const SECRET = process.env.JWT_SECRET;
 const FRONTEND =
@@ -311,7 +340,6 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`[Auth] Login request received for email: ${email}`);
 
     if (!email || !password) {
       return res.status(400).json({
@@ -320,44 +348,75 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const user = await User.findOne({
-      email: String(email).toLowerCase().trim(),
-    });
+    const cleanEmail = String(email).toLowerCase().trim();
 
+    // ── SECURITY: Per-account lockout check ──────────────────────────────────
+    // Check BEFORE hitting the database to fail fast and cheaply.
+    const failRec = loginFailures.get(cleanEmail);
+    if (failRec?.lockedUntil && failRec.lockedUntil > Date.now()) {
+      const waitSec = Math.ceil((failRec.lockedUntil - Date.now()) / 1000);
+      const waitMin = Math.ceil(waitSec / 60);
+      console.warn(`[Auth] Brute-force lockout active for ${cleanEmail} — ${waitSec}s remaining`);
+      return res.status(429).json({
+        success: false,
+        message: `Too many failed attempts. Try again in ${waitMin} minute${waitMin !== 1 ? "s" : ""}.`,
+      });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
+
+    // ── SECURITY: Constant-time response (timing oracle protection) ───────────
+    // Always run a bcrypt operation so that user-not-found and wrong-password
+    // return in the same amount of time. Without this, an attacker can
+    // distinguish valid emails from invalid ones by measuring response time.
     if (!user) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid email or password" });
+      await bcrypt.compare(password, DUMMY_HASH); // constant-time dummy compare
+      return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
 
     if (!user.isActive) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Account deactivated. Contact support." });
+      return res.status(403).json({ success: false, message: "Account deactivated. Contact support." });
     }
 
     if (!user.password) {
       return res.status(400).json({
         success: false,
-        message:
-          "This account uses Google or GitHub login. Please use those methods.",
+        message: "This account uses Google or GitHub login. Please use those methods.",
       });
     }
 
     const isMatch = await user.matchPassword(password);
+
     if (!isMatch) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid email or password" });
+      // ── SECURITY: Record failed attempt ────────────────────────────────────
+      const rec = loginFailures.get(cleanEmail) || { count: 0, lockedUntil: null };
+      rec.count += 1;
+
+      if (rec.count >= MAX_ATTEMPTS) {
+        rec.lockedUntil = Date.now() + LOCK_DURATION_MS;
+        loginFailures.set(cleanEmail, rec);
+        console.warn(`[Auth] Account locked after ${MAX_ATTEMPTS} failed attempts: ${cleanEmail}`);
+        return res.status(429).json({
+          success: false,
+          message: "Too many failed attempts. Account locked for 15 minutes.",
+        });
+      }
+
+      loginFailures.set(cleanEmail, rec);
+      const remaining = MAX_ATTEMPTS - rec.count;
+      console.warn(`[Auth] Failed login attempt ${rec.count}/${MAX_ATTEMPTS} for ${cleanEmail}`);
+      return res.status(401).json({
+        success: false,
+        message: `Invalid email or password. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining before lockout.`,
+      });
     }
 
-    const needsHeal =
-      user.role === "Admin" && user.permissions.length === 0;
+    // ── Success: clear any recorded failures for this account ─────────────────
+    loginFailures.delete(cleanEmail);
 
+    const needsHeal = user.role === "Admin" && user.permissions.length === 0;
     if (needsHeal) {
-      console.warn(
-        `[Auth] Healing broken admin permissions for ${email}`
-      );
+      console.warn(`[Auth] Healing broken admin permissions for ${cleanEmail}`);
       user.permissions = ADMIN_PERMISSIONS;
       await user.save();
     }
@@ -373,9 +432,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("[Auth] Login error:", err.message);
-    return res
-      .status(500)
-      .json({ success: false, message: "Server error during login" });
+    return res.status(500).json({ success: false, message: "Server error during login" });
   }
 });
 
