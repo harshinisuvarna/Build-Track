@@ -321,12 +321,18 @@ router.get("/", async (req, res) => {
       const projectFilter = canAccessProjectFilter(req);
       const projects = await Project.find(projectFilter).select("_id");
       const projectIds = projects.map((p) => p._id);
-      query.project = { $in: projectIds };
+      query.$or = [
+        { project: { $in: projectIds } },
+        { project: null, createdBy: req.user._id }
+      ];
     } else {
 
       const adminProjects = await Project.find({ createdBy: req.user._id }).select("_id");
       const adminProjectIds = adminProjects.map((p) => p._id);
-      query.project = { $in: adminProjectIds };
+      query.$or = [
+        { project: { $in: adminProjectIds } },
+        { project: null, createdBy: req.user._id }
+      ];
     }
 
     const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 10000;
@@ -361,6 +367,9 @@ router.get("/", async (req, res) => {
         return res.status(403).json({ message: "Access denied to this project" });
       }
       query.project = project;
+      if (query.$or) {
+        delete query.$or;
+      }
     }
 
     if (startDate || endDate) {
@@ -374,11 +383,17 @@ router.get("/", async (req, res) => {
     }
 
     if (search) {
-      query.$or = [
+      const searchOr = [
         { title: { $regex: search, $options: "i" } },
         { notes: { $regex: search, $options: "i" } },
         { brand: { $regex: search, $options: "i" } },
       ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchOr }];
+        delete query.$or;
+      } else {
+        query.$or = searchOr;
+      }
     }
 
     let txQuery = Transaction.find(query)

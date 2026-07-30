@@ -56,6 +56,9 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests — please try again later." },
+  skip: (req) => {
+    return req.originalUrl.includes('/api/esign/sign') || req.originalUrl.includes('/api/esign/submit');
+  }
 });
 app.use("/api/", limiter);
 app.use(express.json({ limit: "10mb" }));
