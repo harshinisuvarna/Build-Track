@@ -116,8 +116,8 @@ const sensitiveLimiter = rateLimit({
 app.use("/api/auth/register", sensitiveLimiter);
 app.use("/api/auth/forgot-password", sensitiveLimiter);
 app.use("/api/auth/reset-password", sensitiveLimiter);
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
@@ -203,8 +203,8 @@ app.use((err, _req, res, _next) => {
   if (err.type === "entity.too.large" || err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ success: false, message: "File too large. Maximum size is 2 MB." });
   }
-  const message = isProd ? "Internal server error" : (err.message || "Internal server error");
-  res.status(err.status || 500).json({ success: false, message });
+  const message = err.message || "Internal server error";
+  res.status(err.status || 500).json({ success: false, message, stack: !isProd ? err.stack : undefined });
 });
 
 // ─── Process signal handlers (registered before startup) ─────────────────────
