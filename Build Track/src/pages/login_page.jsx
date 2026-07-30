@@ -380,7 +380,20 @@ export default function LoginPage() {
                     {forgotLoading ? "Sending Link..." : "Send Reset Link"}
                   </button>
 
+                  
+                  <div style={{ textAlign: "center", marginTop: 16 }}>
+                    {!showReset && (
+                      <span
+                        onClick={() => setShowReset(true)}
+                        style={{ fontSize: "12.5px", fontWeight: "700", color: "#4F46E5", cursor: "pointer" }}
+                      >
+                        Already have a token?
+                      </span>
+                    )}
+                  </div>
+
                   {showReset && (
+
                     <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 14, padding: "18px", marginBottom: 24, marginTop: 16 }}>
                       <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", fontWeight: "700", color: "#1F2937" }}>Enter Reset Token</h4>
                       <LightPremiumInput type="text" label="Reset Token" icon={Lock} value={resetToken} onChange={e => setResetToken(e.target.value)} />
