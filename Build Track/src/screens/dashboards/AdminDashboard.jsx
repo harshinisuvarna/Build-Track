@@ -51,6 +51,7 @@ const typeConfig = {
 
 import useProjectStore from '../../stores/projectStore';
 import useTransactionStore from '../../stores/transactionStore';
+import AddRevenueModal from '../../components/AddRevenueModal';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(projects.length === 0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [approvalHistory, setApprovalHistory] = useState([]);
+  const [addRevenueModalOpen, setAddRevenueModalOpen] = useState(false);
 
   useEffect(() => {
     perfLogger.endRoute('/');
@@ -390,10 +392,13 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 24 }}>
 
         <Card padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
+          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Revenue Inflow Timeline
             </div>
+            <button onClick={() => setAddRevenueModalOpen(true)} style={{ background: colors.primary, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <PlusCircle size={14} /> Record Revenue
+            </button>
           </div>
           <div style={{ padding: 24, flex: 1 }}>
             {incomeTransactions.length === 0 ? (
@@ -527,6 +532,17 @@ export default function AdminDashboard() {
 
         </div> {}
       </div> {}
+      
+      <AddRevenueModal
+        open={addRevenueModalOpen}
+        projects={projects}
+        onClose={() => setAddRevenueModalOpen(false)}
+        onSaved={() => {
+          if (selectedProjectId) {
+            fetchTransactions({ project: selectedProjectId });
+          }
+        }}
+      />
     </div>
   );
 }
