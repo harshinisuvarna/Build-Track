@@ -42,6 +42,11 @@ export default function LoginPage() {
   const [forgotMsg, setForgotMsg] = useState("");
   const [forgotErr, setForgotErr] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  
+  const [showReset, setShowReset] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const [vw, setVw] = useState(window.innerWidth);
 
@@ -116,6 +121,7 @@ export default function LoginPage() {
     try {
       const { data } = await authAPI.forgotPassword({ email: forgotEmail });
       setForgotMsg(data.message || "A reset link has been sent to your email.");
+      setShowReset(true);
     } catch (err) {
       setForgotErr(err.response?.data?.message || "Failed to send reset email.");
     } finally {
@@ -373,6 +379,30 @@ export default function LoginPage() {
                     {forgotLoading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
                     {forgotLoading ? "Sending Link..." : "Send Reset Link"}
                   </button>
+
+                  {showReset && (
+                    <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 14, padding: "18px", marginBottom: 24, marginTop: 16 }}>
+                      <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", fontWeight: "700", color: "#1F2937" }}>Enter Reset Token</h4>
+                      <LightPremiumInput type="text" label="Reset Token" icon={Lock} value={resetToken} onChange={e => setResetToken(e.target.value)} />
+                      <LightPremiumInput type="password" label="New Password" icon={Lock} value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                      <button type="button" disabled={resetLoading} onClick={async () => {
+                        setResetLoading(true);
+                        setForgotErr("");
+                        try {
+                          const { data } = await authAPI.resetPassword({ token: resetToken, password: newPassword });
+                          setForgotMsg(data.message || "Password reset successful!");
+                          setShowReset(false);
+                          setShowForgot(false);
+                        } catch(err) { 
+                          setForgotErr(err.response?.data?.message || "Reset failed"); 
+                        } finally { 
+                          setResetLoading(false); 
+                        }
+                      }} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)", color: "#FFF", fontWeight: "700", border: "none", cursor: resetLoading ? "not-allowed" : "pointer", opacity: resetLoading ? 0.6 : 1 }}>
+                        {resetLoading ? "Resetting..." : "Reset Password"}
+                      </button>
+                    </div>
+                  )}
 
                   {forgotMsg && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12, color: "#065F46", fontSize: "12px", fontWeight: "700" }}>
