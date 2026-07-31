@@ -33,6 +33,11 @@ app.set("trust proxy", 1);
 app.use(helmet({
   crossOriginResourcePolicy: false,
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -46,6 +51,23 @@ app.use(helmet({
     },
   },
 }));
+
+app.use((req, res, next) => {
+  if (["POST", "PUT", "PATCH"].includes(req.method)) {
+    const contentType = req.headers["content-type"] || "";
+    const isJson = contentType.includes("application/json");
+    const isMultipart = contentType.includes("multipart/form-data");
+    const isForm = contentType.includes("application/x-www-form-urlencoded");
+    const hasNoBody = !req.headers["content-length"] || req.headers["content-length"] === "0";
+    if (!isJson && !isMultipart && !isForm && !hasNoBody) {
+      return res.status(415).json({
+        success: false,
+        message: "Unsupported Media Type — Content-Type must be application/json, multipart/form-data, or application/x-www-form-urlencoded",
+      });
+    }
+  }
+  next();
+});
 
 app.use((_req, res, next) => {
   res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
