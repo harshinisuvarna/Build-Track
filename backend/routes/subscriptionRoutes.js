@@ -4,9 +4,6 @@ const Subscription = require('../models/Subscription');
 const { protect } = require('../middleware/auth');
 const { buildPaymentPayload, verifyAndDecryptCallbackData } = require('../utils/airpayservice');
 
-const BACKEND_URL = process.env.BACKEND_URL
-  || 'https://build-track.onrender.com';
-
 const PLAN_PRICES = {
   starter:    498,
   growth:     999,
@@ -46,6 +43,8 @@ router.post('/initiate', protect, async (req, res) => {
     const user = req.user;
     const nameParts = (user.name || 'BuildTrack User').split(' ');
 
+    const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+
     const { postUrl, formFields } = await buildPaymentPayload({
       orderId,
       amount,
@@ -53,7 +52,7 @@ router.post('/initiate', protect, async (req, res) => {
       buyerPhone:     user.phone     || '9999999999',
       buyerFirstName: nameParts[0]   || 'BuildTrack',
       buyerLastName:  nameParts.slice(1).join(' ') || 'User',
-      returnUrl:      `${BACKEND_URL}/api/subscriptions/callback`,
+      returnUrl:      `${backendUrl}/api/subscriptions/callback`,
     });
 
     res.json({
