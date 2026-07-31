@@ -118,8 +118,8 @@ const sensitiveLimiter = rateLimit({
 app.use("/api/auth/register", sensitiveLimiter);
 app.use("/api/auth/forgot-password", sensitiveLimiter);
 app.use("/api/auth/reset-password", sensitiveLimiter);
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));

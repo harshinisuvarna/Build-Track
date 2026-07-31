@@ -177,6 +177,13 @@ router.put("/:id/status", async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
+    const isAdmin = req.user.role === 'Admin';
+    const isCreator = task.createdBy && task.createdBy.toString() === req.user._id.toString();
+    const isAssignee = task.assignedTo && task.assignedTo.toString() === req.user._id.toString();
+    if (!isAdmin && !isCreator && !isAssignee) {
+      return res.status(403).json({ message: "Access denied to update this task" });
+    }
+
     task.status = status;
     await task.save();
 
@@ -197,6 +204,13 @@ router.put("/:id", async (req, res) => {
     const task = await Task.findById(req.params.id);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
+    }
+
+    const isAdmin = req.user.role === 'Admin';
+    const isCreator = task.createdBy && task.createdBy.toString() === req.user._id.toString();
+    const isAssignee = task.assignedTo && task.assignedTo.toString() === req.user._id.toString();
+    if (!isAdmin && !isCreator && !isAssignee) {
+      return res.status(403).json({ message: "Access denied to update this task" });
     }
 
     if (title) task.title = title;
