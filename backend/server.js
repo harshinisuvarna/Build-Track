@@ -32,6 +32,7 @@ const isProd = NODE_ENV === "production";
 app.set("trust proxy", 1);
 app.use(helmet({
   crossOriginResourcePolicy: false,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -45,6 +46,11 @@ app.use(helmet({
     },
   },
 }));
+
+app.use((_req, res, next) => {
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+  next();
+});
 app.disable("x-powered-by");
 app.use(compression());
 // ── SECURITY: Explicit CORS origin allowlist ────────────────────────────────
