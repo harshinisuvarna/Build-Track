@@ -181,10 +181,10 @@ router.post("/register", async (req, res) => {
         .json({ success: false, message: "All fields required" });
     }
 
-    if (String(password).length < 6) {
+    if (String(password).length < 8) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters",
+        message: "Password must be at least 8 characters",
       });
     }
 
@@ -596,8 +596,8 @@ router.post("/reset-password", async (req, res) => {
     if (!token || !password) {
       return res.status(400).json({ message: "Token and new password are required" });
     }
-    if (String(password).length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    if (String(password).length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters" });
     }
     const user = await User.findOne({
       resetPasswordToken: token,
