@@ -109,7 +109,9 @@ app.use(
       return callback(new Error(`CORS: Origin '${incomingOrigin}' is not allowed`), false);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
+    allowedHeaders: isProd
+      ? ["Content-Type", "Authorization"]
+      : ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
     credentials: false, // app uses Authorization Bearer header, not cookies
   })
 );
@@ -154,7 +156,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
 
 app.get("/", (_req, res) =>
-  res.json({ status: "ok", app: "BuildTrack API", env: NODE_ENV })
+  res.json({ status: "ok", app: "BuildTrack API" })
 );
 
 app.get("/healthz", (_req, res) =>
