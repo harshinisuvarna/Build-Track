@@ -205,8 +205,12 @@ app.use((err, _req, res, _next) => {
   if (err.type === "entity.too.large" || err.code === "LIMIT_FILE_SIZE") {
     return res.status(413).json({ success: false, message: "File too large. Maximum size is 2 MB." });
   }
-  const message = err.message || "Internal server error";
-  res.status(err.status || 500).json({ success: false, message, stack: !isProd ? err.stack : undefined });
+  const status = err.status || 500;
+  let message = err.message || "Internal server error";
+  if (isProd && (status >= 500 || err.name === "MongoServerError" || err.name === "CastError" || err.name === "ValidationError")) {
+    message = "An error occurred while processing your request.";
+  }
+  res.status(status).json({ success: false, message, stack: !isProd ? err.stack : undefined });
 });
 
 // ─── Process signal handlers (registered before startup) ─────────────────────

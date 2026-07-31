@@ -850,7 +850,7 @@ if (req.body.paymentReceipt) {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   try {
     await runTransactionUpdateUpload(
       req,
