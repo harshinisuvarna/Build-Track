@@ -1,13 +1,11 @@
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
-
 require('dotenv').config();
 const fs    = require('fs');
 const path  = require('path');
 const axios = require('axios');
 const { exec } = require('child_process');
 const { buildPaymentPayload } = require('./utils/airpayservice');
-
 function openInBrowser(filePath) {
   const cmd = process.platform === 'win32'
     ? `start "" "${filePath}"`
@@ -18,7 +16,6 @@ function openInBrowser(filePath) {
     if (err) console.log('Open this file manually in your browser:', filePath);
   });
 }
-
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -26,12 +23,10 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
-
 async function testPayment() {
   console.log('--- AirPay Payment Payload Test (official SDK flow) ---');
   try {
     const orderId = `TEST${Date.now()}`;
-
     const { postUrl, formFields } = await buildPaymentPayload({
   orderId,
   amount: '1.00',
@@ -52,14 +47,12 @@ console.log("PRIVATEKEY:", formFields.privatekey);
 console.log("CHECKSUM:", formFields.checksum);
 console.log("DATA:", formFields.data);
 console.log("=======================\n");
-
     console.log('orderId:', orderId);
     console.log('postUrl:', postUrl);
     console.log('mid:', formFields.mid);
     console.log('privatekey (first 10):', formFields.privatekey?.substring(0, 10) + '...');
     console.log('checksum  (first 10):', formFields.checksum?.substring(0, 10) + '...');
     console.log('data      (first 20):', formFields.data?.substring(0, 20) + '...');
-
     const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>AirPay Payment Test</title></head>
@@ -74,18 +67,15 @@ console.log("=======================\n");
   <script>document.getElementById('f').submit();</script>
 </body>
 </html>`;
-
     const outPath = path.join(__dirname, 'test_payment_form.html');
     fs.writeFileSync(outPath, html);
     console.log('\n✅ Wrote', outPath);
-
     console.log('\n── Submitting directly via axios to inspect raw response ──');
     const formBody = new URLSearchParams();
     formBody.append('mid',        formFields.mid);
     formBody.append('data',       formFields.data);
     formBody.append('privatekey', formFields.privatekey);
     formBody.append('checksum',   formFields.checksum);
-
     try {
       const response = await axios.post(postUrl, formBody, {
         headers: {
@@ -97,16 +87,12 @@ console.log("=======================\n");
         maxRedirects: 5,
         validateStatus: () => true,
       });
-
       console.log('HTTP status:', response.status);
       console.log('\n--- FULL RAW RESPONSE BODY ---');
-
 const bodyStr = typeof response.data === 'string'
   ? response.data
   : JSON.stringify(response.data, null, 2);
-
 console.log(bodyStr);
-
       const lowerBody = bodyStr.toLowerCase();
       if (lowerBody.includes('invalid') || lowerBody.includes('error') || lowerBody.includes('failed')) {
         console.log('\n⚠️  Response body contains an error/invalid/failed marker — see text above.');
@@ -120,17 +106,13 @@ console.log(bodyStr);
         console.log('Body:', JSON.stringify(axiosErr.response.data, null, 2).substring(0, 3000));
       }
     }
-
     console.log('\nOpening HTML form in browser too (visual confirmation)...');
     openInBrowser(outPath);
-
   } catch (err) {
     console.log('❌ FAILED:', err.message);
     if (err.response?.data) {
       console.log('AirPay response:', JSON.stringify(err.response.data, null, 2));
     }
   }
-
 }
-
 testPayment();

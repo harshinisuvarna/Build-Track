@@ -5,7 +5,6 @@ const {
   generatePrivateKey,
   generateEncryptionKeyFromCreds,
 } = require('./utils/airpayCrypto');
-
 const cfg = {
   merchantId: (process.env.AIRPAY_MERCHANT_ID || '').trim(),
   clientId:   (process.env.AIRPAY_CLIENT_ID   || '').trim(),
@@ -13,16 +12,13 @@ const cfg = {
   username:   (process.env.AIRPAY_USERNAME    || '').trim(),
   password:   (process.env.AIRPAY_PASSWORD    || '').trim(),
 };
-
 const missing = Object.entries(cfg).filter(([, v]) => !v).map(([k]) => k);
 if (missing.length) {
   console.log('❌ Missing env vars:', missing.join(', '));
   process.exit(1);
 }
-
 const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
 const privatekey    = generatePrivateKey(cfg.secret, cfg.username, cfg.password);
-
 const oauthPayload = {
   client_id:     cfg.clientId,
   client_secret: cfg.secret,
@@ -31,7 +27,6 @@ const oauthPayload = {
 };
 const oauthEncdata  = encrypt(JSON.stringify(oauthPayload), encryptionKey);
 const oauthChecksum = generateChecksum(oauthPayload);
-
 const orderId = `TEST${Date.now()}`;
 const transactionData = {
   orderid:         orderId,
@@ -50,7 +45,6 @@ const transactionData = {
 };
 const paymentEncdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
 const paymentChecksum = generateChecksum(transactionData);
-
 console.log('============================================================');
 console.log('STEP 1 — OAuth2 request  (POST to kraken.airpay.co.in)');
 console.log('URL:  https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/');
@@ -60,7 +54,6 @@ console.log('merchant_id =', cfg.merchantId);
 console.log('encdata     =', oauthEncdata);
 console.log('checksum    =', oauthChecksum);
 console.log('============================================================\n');
-
 console.log('============================================================');
 console.log('STEP 2 — Payment request  (POST to payments.airpay.co.in)');
 console.log('URL:  https://payments.airpay.co.in/pay/v4/?token=<PASTE_ACCESS_TOKEN_FROM_STEP_1_HERE>');
@@ -75,7 +68,6 @@ console.log('orderId used:', orderId);
 console.log('(plain transaction data, for your reference only — NOT sent as-is):');
 console.log(JSON.stringify(transactionData, null, 2));
 console.log('============================================================\n');
-
 console.log('NOTE: encdata/checksum above are time-sensitive (checksum includes');
 console.log('today\'s date) and orderid is unique per run. If you wait until');
 console.log('tomorrow to test, or re-run this script, regenerate fresh values.');

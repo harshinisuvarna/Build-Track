@@ -5,31 +5,17 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const passport = require("passport");
 const mongoose = require("mongoose");
-
 const router = express.Router();
-
 const User = require("../models/User");
 const { protect, authorize } = require("../middleware/auth");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
 const Subscription = require("../models/Subscription");
 const bcrypt = require("bcryptjs");
-
-// ── SECURITY: Per-account brute force tracker (in-memory) ────────────────────
-// Tracks failed login attempts per email address. This closes the gap that
-// IP-only rate limiting misses: a distributed attack (many IPs, one attempt
-// each) can still hammer the same account. This limiter is email-scoped,
-// so it triggers regardless of how many source IPs are involved.
-//
-// Limits: MAX_ATTEMPTS failures in LOCK_WINDOW_MS → account locked for LOCK_DURATION_MS
-// Resets: automatically on successful login, or when lockDuration expires.
-// Memory: entries are cleaned up every 30 minutes by the interval below.
-const loginFailures = new Map(); // key: lowercase email → { count, lockedUntil }
+const loginFailures = new Map();
 const MAX_ATTEMPTS    = 5;
-const LOCK_WINDOW_MS  = 15 * 60 * 1000; // 15 min window to accumulate failures
-const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 min lockout after MAX_ATTEMPTS
-
-// Cleanup stale entries every 30 minutes to prevent unbounded memory growth
+const LOCK_WINDOW_MS  = 15 * 60 * 1000;
+const LOCK_DURATION_MS = 15 * 60 * 1000;
 setInterval(() => {
   const now = Date.now();
   for (const [email, rec] of loginFailures) {
@@ -37,18 +23,13 @@ setInterval(() => {
       loginFailures.delete(email);
     }
   }
-}, 30 * 60 * 1000).unref(); // .unref() so this timer doesn't keep the process alive
-
-// Dummy hash used for constant-time response when email is not found
-// (prevents timing oracle that reveals valid email addresses)
+}, 30 * 60 * 1000).unref();
 const DUMMY_HASH = "$2a$12$invalidhashusedfortimingprotectiononly.........";
-
 const SECRET = process.env.JWT_SECRET;
 const FRONTEND =
   process.env.FRONTEND_URL ||
   process.env.CLIENT_URL ||
   "http://localhost:5173";
-
 const makeToken = (user) =>
   jwt.sign(
     {
@@ -59,44 +40,34 @@ const makeToken = (user) =>
     SECRET,
     { expiresIn: "7d" }
   );
-
 const safeUser = (user) => {
-
   const projectIds = Array.isArray(user.projectIds)
     ? user.projectIds
         .filter(Boolean)
         .map((id) => id.toString())
     : [];
-
   const legacyProjectId =
     user.projectId?.toString() || projectIds[0] || null;
-
   return {
     id: user._id || user.id,
     name: user.name,
     email: user.email,
     role: user.role || "Mason",
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
-
     projectIds,
-
     projectId: legacyProjectId,
     profilePhoto: user.profilePhoto || null,
     provider: user.provider || "local",
     isActive: user.isActive,
-    // SECURITY: 2FA toggle is a UI flag only — no TOTP is implemented yet.
-    // Always return false to prevent the UI showing a fake security indicator.
     twoFactorEnabled: false,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
 };
-
 const normalizePermissions = (permissions) => {
   if (!Array.isArray(permissions)) return [];
   return [...new Set(permissions.map((p) => String(p).trim()).filter(Boolean))];
 };
-
 const toObjectIdArray = (value) => {
   if (!value) return [];
   const arr = Array.isArray(value) ? value : [value];
@@ -104,21 +75,17 @@ const toObjectIdArray = (value) => {
     .filter((v) => v && mongoose.Types.ObjectId.isValid(v))
     .map((v) => new mongoose.Types.ObjectId(v));
 };
-
 const toObjectIdOrNull = (value) => {
   if (!value) return null;
   return mongoose.Types.ObjectId.isValid(value)
     ? new mongoose.Types.ObjectId(value)
     : null;
 };
-
 const normalizeRole = (role, fallback = "Mason") => {
   const clean = String(role || "").trim();
   return clean.length > 0 ? clean : fallback;
 };
-
 const getUserId = (req) => req.user?._id || req.user?.id;
-
 const ADMIN_PERMISSIONS = [
   "create_project",
   "edit_project",
@@ -157,40 +124,29 @@ const ADMIN_PERMISSIONS = [
   "manage_labour_master",
   "manage_equipment_master",
   "view_contractor_performance",
-
   "view_projects",
   "add_entries",
   "mark_paid",
   "view_reports",
   "manage_team",
 ];
-
 router.post("/register", async (req, res) => {
   try {
-    // ── SECURITY: Whitelist-only field extraction ──────────────────────────
-    // Only these fields are accepted from the client. Any privilege fields
-    // (role, isAdmin, permissions, accessLevel, superAdmin, owner, createdBy,
-    // overseesRoles, tokenVersion, etc.) sent by the client are silently
-    // ignored — they are never read from req.body and have zero effect.
     const { name, email, password, projectId } = req.body;
     console.log(`[Auth] Register request received for email: ${email}`);
-
     if (!name || !email || !password) {
       return res
         .status(400)
         .json({ success: false, message: "All fields required" });
     }
-
     if (String(password).length < 8) {
       return res.status(400).json({
         success: false,
         message: "Password must be at least 8 characters",
       });
     }
-
     const cleanEmail = String(email).toLowerCase().trim();
     const cleanName = String(name).trim();
-
     const exists = await User.findOne({ email: cleanEmail });
     if (exists) {
       return res.status(409).json({
@@ -198,18 +154,10 @@ router.post("/register", async (req, res) => {
         message: "An account with this email already exists",
       });
     }
-
     const projectIds = toObjectIdArray(projectId);
     const legacyProjectId = toObjectIdOrNull(projectId);
-
-    // ── SECURITY: Role and permissions are ALWAYS assigned server-side ──────
-    // The public /register endpoint creates the account owner (Admin).
-    // role and permissions are never sourced from req.body — they are
-    // hard-coded constants defined in this file, making privilege escalation
-    // via this endpoint impossible regardless of what the client sends.
     const serverAssignedRole = "Admin";
     const serverAssignedPermissions = ADMIN_PERMISSIONS;
-
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
@@ -219,7 +167,6 @@ router.post("/register", async (req, res) => {
       projectIds,
       projectId: legacyProjectId,
     });
-
     console.log(
       `[Auth] Account owner registered: ${user._id} | server-assigned role=${serverAssignedRole}`
     );
@@ -242,7 +189,6 @@ router.post("/register", async (req, res) => {
       .json({ success: false, message: "Server error during registration" });
   }
 });
-
 router.post("/provision", protect, authorize("Admin"), async (req, res) => {
   try {
     const {
@@ -255,15 +201,12 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       projectIds,
       projectId,
     } = req.body;
-
     const finalPassword = temporaryPassword || password;
-
     const activeSub = await Subscription.findOne({
       userId: req.user._id,
       status: 'active',
       endDate: { $gt: new Date() }
     }).sort({ createdAt: -1 });
-
     let limit = 2;
     if (activeSub) {
       const plan = activeSub.plan || 'free';
@@ -273,46 +216,37 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       else if (plan === 'business') limit = 25;
       else if (plan === 'enterprise') limit = -1;
     }
-
     if (limit !== -1) {
       const count = await User.countDocuments({ $or: [{ _id: req.user._id }, { createdBy: req.user._id }] });
       if (count >= limit) {
         return res.status(403).json({ message: `User limit reached for your current plan (${limit} users). Please upgrade your subscription.` });
       }
     }
-
     if (!name || !email || !finalPassword || !role) {
       return res.status(400).json({ message: "Missing required fields" });
     }
-
     if (String(finalPassword).length < 6) {
       return res
         .status(400)
         .json({ message: "Temporary password must be at least 6 characters" });
     }
-
     const cleanEmail = String(email).toLowerCase().trim();
     const cleanName = String(name).trim();
     const cleanRole = normalizeRole(role, "Mason");
-
     if (cleanRole.toLowerCase() === "admin") {
       return res
         .status(400)
         .json({ message: "Cannot provision another Admin account" });
     }
-
     const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       return res.status(409).json({ message: "User already exists" });
     }
-
     const finalProjectIds = projectIds
       ? toObjectIdArray(projectIds)
       : toObjectIdArray(projectId);
-
     const legacyProjectId =
       finalProjectIds.length > 0 ? finalProjectIds[0] : toObjectIdOrNull(projectId);
-
     const user = await User.create({
       name: cleanName,
       email: cleanEmail,
@@ -323,7 +257,6 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       projectId: legacyProjectId,
       createdBy: req.user._id,
     });
-
     return res.status(201).json({
       message: "Account provisioned successfully",
       user: safeUser(user),
@@ -338,22 +271,16 @@ router.post("/provision", protect, authorize("Admin"), async (req, res) => {
       .json({ message: "Server error during account provisioning" });
   }
 });
-
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
       });
     }
-
     const cleanEmail = String(email).toLowerCase().trim();
-
-    // ── SECURITY: Per-account lockout check ──────────────────────────────────
-    // Check BEFORE hitting the database to fail fast and cheaply.
     const failRec = loginFailures.get(cleanEmail);
     if (failRec?.lockedUntil && failRec.lockedUntil > Date.now()) {
       const waitSec = Math.ceil((failRec.lockedUntil - Date.now()) / 1000);
@@ -364,36 +291,24 @@ router.post("/login", async (req, res) => {
         message: `Too many failed attempts. Try again in ${waitMin} minute${waitMin !== 1 ? "s" : ""}.`,
       });
     }
-
     const user = await User.findOne({ email: cleanEmail });
-
-    // ── SECURITY: Constant-time response (timing oracle protection) ───────────
-    // Always run a bcrypt operation so that user-not-found and wrong-password
-    // return in the same amount of time. Without this, an attacker can
-    // distinguish valid emails from invalid ones by measuring response time.
     if (!user) {
-      await bcrypt.compare(password, DUMMY_HASH); // constant-time dummy compare
+      await bcrypt.compare(password, DUMMY_HASH);
       return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
-
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: "Account deactivated. Contact support." });
     }
-
     if (!user.password) {
       return res.status(400).json({
         success: false,
         message: "This account uses Google or GitHub login. Please use those methods.",
       });
     }
-
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
-      // ── SECURITY: Record failed attempt ────────────────────────────────────
       const rec = loginFailures.get(cleanEmail) || { count: 0, lockedUntil: null };
       rec.count += 1;
-
       if (rec.count >= MAX_ATTEMPTS) {
         rec.lockedUntil = Date.now() + LOCK_DURATION_MS;
         loginFailures.set(cleanEmail, rec);
@@ -403,7 +318,6 @@ router.post("/login", async (req, res) => {
           message: "Too many failed attempts. Account locked for 15 minutes.",
         });
       }
-
       loginFailures.set(cleanEmail, rec);
       const remaining = MAX_ATTEMPTS - rec.count;
       console.warn(`[Auth] Failed login attempt ${rec.count}/${MAX_ATTEMPTS} for ${cleanEmail}`);
@@ -412,20 +326,15 @@ router.post("/login", async (req, res) => {
         message: `Invalid email or password. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining before lockout.`,
       });
     }
-
-    // ── Success: clear any recorded failures for this account ─────────────────
     loginFailures.delete(cleanEmail);
-
     const needsHeal = user.role === "Admin" && user.permissions.length === 0;
     if (needsHeal) {
       console.warn(`[Auth] Healing broken admin permissions for ${cleanEmail}`);
       user.permissions = ADMIN_PERMISSIONS;
       await user.save();
     }
-
     const token = makeToken(user);
     console.log(`[Auth] Login successful for user: ${user._id}`);
-
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -437,23 +346,19 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error during login" });
   }
 });
-
 router.get("/me", protect, (req, res) => {
   return res.json({ user: safeUser(req.user) });
 });
-
 router.put("/profile", protect, async (req, res) => {
   try {
     const { name, email, role } = req.body;
     const user = await User.findById(getUserId(req));
     if (!user) return res.status(404).json({ message: "User not found" });
-
     if (name) user.name = String(name).trim();
     if (email) user.email = String(email).trim().toLowerCase();
     if (role && req.user.role === "Admin") {
       user.role = normalizeRole(role, user.role);
     }
-
     await user.save();
     return res.json({ message: "Profile updated", user: safeUser(user) });
   } catch (err) {
@@ -466,7 +371,6 @@ router.put("/profile", protect, async (req, res) => {
     return res.status(500).json({ message: "Failed to update profile" });
   }
 });
-
 router.put("/photo", protect, upload.single("photo"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No photo uploaded" });
@@ -484,14 +388,12 @@ router.put("/photo", protect, upload.single("photo"), async (req, res) => {
     return res.status(500).json({ message: "Failed to upload photo" });
   }
 });
-
 router.get("/google", (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return res.status(503).json({ message: "Google login is not configured." });
   }
   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
-
 router.get(
   "/google/callback",
   (req, res, next) => {
@@ -505,29 +407,20 @@ router.get(
     return res.redirect(`${FRONTEND}/oauth/callback?token=${token}`);
   }
 );
-
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
-
     const user = await User.findOne({ email: String(email).toLowerCase().trim() });
-
-    // SECURITY: Return same generic message regardless of whether the account
-    // exists, uses OAuth, or has no password — prevents user enumeration.
     if (!user || !user.password) {
       return res.json({ message: "If that email is registered, a reset link has been sent." });
     }
-
     const token = Math.floor(100000 + Math.random() * 900000).toString();
     user.resetPasswordToken = token;
     user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
     await user.save();
-
     const resetUrl = `${FRONTEND}/login?resetToken=${token}`;
-
     let emailSent = false;
-
     if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
       try {
         const sesClient = new SESClient({
@@ -537,7 +430,6 @@ router.post("/forgot-password", async (req, res) => {
             secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
           }
         });
-
         const htmlContent = `
               <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
                 <h2 style="color: #333;">Password Reset Request</h2>
@@ -560,7 +452,6 @@ router.post("/forgot-password", async (req, res) => {
                 </p>
               </div>
             `;
-
         const command = new SendEmailCommand({
           Destination: { ToAddresses: [user.email] },
           Message: {
@@ -576,20 +467,16 @@ router.post("/forgot-password", async (req, res) => {
         console.error("[Auth] SES send error:", err.message);
       }
     }
-
-
     if (!emailSent && process.env.NODE_ENV !== "production") {
       console.log(`[DEV] PASSWORD RESET TOKEN: ${token}`);
       console.log(`PASSWORD RESET LINK: ${resetUrl}`);
     }
-
     return res.json({ message: "If that email is registered, a reset link has been sent." });
   } catch (err) {
     console.error("Forgot password error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
@@ -616,7 +503,6 @@ router.post("/reset-password", async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 router.put("/change-password", protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -643,16 +529,11 @@ router.put("/change-password", protect, async (req, res) => {
     return res.status(500).json({ message: "Failed to change password" });
   }
 });
-
-// SECURITY: 2FA toggle disabled — the boolean flag was never enforced in login.
-// Enabling it gave users a false sense of security (2FA bypass always worked).
-// This stub returns 501 until a proper TOTP implementation is added.
 router.put("/toggle-2fa", protect, (_req, res) => {
   return res.status(501).json({
     message: "Two-factor authentication is not yet available. This feature is coming soon.",
   });
 });
-
 router.post("/sign-out-all", protect, async (req, res) => {
   try {
     const user = await User.findById(getUserId(req));
@@ -664,7 +545,6 @@ router.post("/sign-out-all", protect, async (req, res) => {
     return res.status(500).json({ message: "Failed to sign out all sessions" });
   }
 });
-
 router.delete("/account", protect, async (req, res) => {
   try {
     const user = await User.findById(getUserId(req));
@@ -676,7 +556,6 @@ router.delete("/account", protect, async (req, res) => {
     return res.status(500).json({ message: "Failed to delete account" });
   }
 });
-
 router.get("/users", protect, authorize("Admin"), async (req, res) => {
   try {
     const users = await User.find({
@@ -691,18 +570,14 @@ router.get("/users", protect, authorize("Admin"), async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
   try {
     const { name, email, role, permissions, projectIds, overseesRoles, password } = req.body;
-
     const user = await User.findOne({
       _id: req.params.id,
       createdBy: req.user._id,
     });
-
     if (!user) return res.status(404).json({ message: "User not found or access denied" });
-
     if (name)  user.name  = String(name).trim();
     if (email) user.email = String(email).toLowerCase().trim();
     if (role && String(role).toLowerCase() !== 'admin') {
@@ -721,7 +596,6 @@ router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
     if (password && String(password).length >= 6) {
       user.password = password;
     }
-
     await user.save();
     return res.status(200).json({ message: "User updated", user: safeUser(user) });
   } catch (err) {

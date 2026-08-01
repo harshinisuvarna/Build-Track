@@ -1,11 +1,9 @@
 const Transaction = require("../../models/Transaction");
 const Inventory = require("../../models/Inventory");
 const aiDebugLogger = require("../../utils/aiDebugLogger");
-
 async function processAnalytics(intent, query, scope, reqId) {
   aiDebugLogger.logEnter("Analytics Engine", reqId);
   const startTime = Date.now();
-
   try {
     let results = {
     totalAmount: 0,
@@ -15,7 +13,6 @@ async function processAnalytics(intent, query, scope, reqId) {
     metrics: {},
     projectBreakdown: []
   };
-
   if (intent.intent === "comparison_report") {
     results.comparisonData = { items: [] };
     if (intent.compareItems && Array.isArray(intent.compareItems)) {
@@ -54,24 +51,18 @@ async function processAnalytics(intent, query, scope, reqId) {
     }
     return results;
   }
-
   if (intent.intent === "inventory_status") {
-
     let items = await Inventory.find(query).populate("project", "projectName").lean();
-
     results.rows = items.map(doc => {
        const pct = doc.threshold > 0 ? doc.closingStock / doc.threshold : 1;
        const severity = doc.closingStock <= 0 ? "critical" : pct <= 0.5 ? "critical" : pct < 1.0 ? "low" : "ok";
-
        return {
-
          date: doc.createdAt ? new Date(doc.createdAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
          projectName: doc.project?.projectName || "Unknown",
          item: doc.materialName,
          quantity: String(doc.closingStock),
          unit: doc.unit || "units",
          amount: 0,
-
          name: doc.materialName,
          category: doc.category,
          purchased: doc.purchased,
@@ -81,21 +72,16 @@ async function processAnalytics(intent, query, scope, reqId) {
          severity: severity
        };
     });
-
     if (intent.filters && intent.filters.severity) {
        results.rows = results.rows.filter(r => intent.filters.severity.includes(r.severity));
     }
-
     const order = { critical: 0, low: 1, ok: 2 };
     results.rows.sort((a, b) => order[a.severity] - order[b.severity]);
-
     results.metrics.criticalCount = results.rows.filter(r => r.severity === "critical").length;
     results.metrics.lowCount = results.rows.filter(r => r.severity === "low").length;
     results.rowCount = results.rows.length;
     results.totalAmount = null;
-
     results.rowCount = results.rows.length;
-
     const projectTotals = {};
     items.forEach(doc => {
        const pName = doc.project?.projectName || "Unknown";
@@ -108,18 +94,14 @@ async function processAnalytics(intent, query, scope, reqId) {
        totalItems: projectTotals[name].totalItems,
        totalPurchased: projectTotals[name].totalPurchased
     })).sort((a,b) => b.totalPurchased - a.totalPurchased);
-
   } else {
-
     const txs = await Transaction.find(query)
       .populate("project", "projectName")
       .sort({ date: -1 })
       .limit(100)
       .lean();
-
     results.totalAmount = txs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
     results.rowCount = txs.length;
-
     results.rows = txs.map(t => ({
       date: new Date(t.date).toISOString().slice(0, 10),
       item: t.title || t.category || "-",
@@ -128,7 +110,6 @@ async function processAnalytics(intent, query, scope, reqId) {
       amount: Number(t.amount || 0),
       projectName: t.project?.projectName || "-"
     }));
-
     if (!query.project || query.project === "all" || query.project.$in) {
        const projectTotals = {};
        txs.forEach(t => {
@@ -144,21 +125,17 @@ async function processAnalytics(intent, query, scope, reqId) {
        })).sort((a,b) => b.totalAmount - a.totalAmount);
     }
   }
-
   aiDebugLogger.logSection("ANALYTICS ENGINE", {
     "Rows received (from Mongo)": results.rowCount,
     "Metrics calculated": results.metrics,
     "Rows forwarded (to Summary/UI)": results.rowCount,
     "Charts generated": Object.keys(results.metrics).length > 0 ? Object.keys(results.metrics) : "None"
   }, reqId);
-
   aiDebugLogger.logExit("Analytics Engine", reqId);
   return results;
-
   } catch (error) {
     aiDebugLogger.logError("Analytics Engine", error, reqId, Date.now() - startTime);
     throw error;
   }
 }
-
 module.exports = { processAnalytics };

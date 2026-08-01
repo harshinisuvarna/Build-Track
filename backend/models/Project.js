@@ -1,71 +1,56 @@
 const mongoose = require("mongoose");
-
 const projectSchema = new mongoose.Schema(
   {
-
     projectName: { type: String, required: true, trim: true },
-
     projectCode: {
       type: String,
       required: true,
       unique: true,
     },
-
     clientName: {
       type: String,
       required: true,
       trim: true,
     },
-
     contractorName: {
       type: String,
       trim: true,
     },
-
     siteEngineer: {
       type: String,
       trim: true,
     },
-
     siteEngineerName: {
       type: String,
       trim: true,
     },
-
     contactNumber: {
       type: String,
       trim: true,
     },
-
     mapAddress: {
       type: String,
       trim: true,
     },
-
     location: {
       type: String,
       required: true,
     },
-
     manager: {
       type: String,
       trim: true,
     },
-
     scope: {
       type: String,
       trim: true,
     },
-
     progress: {
       type: Number,
       default: 0,
     },
-
     photo: {
       type: String,
     },
-
     buildingType: {
       mainType: {
         type: String,
@@ -77,7 +62,6 @@ const projectSchema = new mongoose.Schema(
           "Industrial",
           "Business / Commercial",
         ],
-
         required: false,
       },
       subType: {
@@ -85,51 +69,41 @@ const projectSchema = new mongoose.Schema(
         required: false,
       },
     },
-
     floors: {
       type: [String],
       default: [],
     },
-
     landArea: {
       type: String,
       trim: true,
     },
-
     landUnit: {
       type: String,
       default: "Sq ft",
     },
-
     room1BHK: { type: Number, default: null },
     room2BHK: { type: Number, default: null },
     room3BHK: { type: Number, default: null },
     roomCustom: { type: Number, default: null },
-
     bathWestern: { type: Number, default: null },
     bathIndian: { type: Number, default: null },
     bathCommon: { type: Number, default: null },
     bathAttached: { type: Number, default: null },
-
     selectedFeatures: {
       type: [String],
       default: [],
     },
-
     startDate: {
       type: Date,
     },
-
     dates: {
       startDate: { type: Date },
       expectedEndDate: { type: Date },
       actualEndDate: { type: Date },
     },
-
     expectedEndDate: {
       type: Date,
     },
-
     budget: {
       total: { type: Number, default: 0 },
       material: { type: Number, default: 0 },
@@ -137,33 +111,27 @@ const projectSchema = new mongoose.Schema(
       equipment: { type: Number, default: 0 },
       misc: { type: Number, default: 0 },
     },
-
     budgetMaterial: { type: Number, default: 0 },
     budgetLabour: { type: Number, default: 0 },
     budgetEquipment: { type: Number, default: 0 },
     budgetMisc: { type: Number, default: 0 },
     totalBudget: { type: Number, default: 0 },
-
     builtUpArea: { type: Number, default: 0 },
     builtUpAreaUnit: { type: String, enum: ["sqft", "sqm"], default: "sqft" },
     targetCostPerSqft: { type: Number, default: 1500 },
     currentCostPerSqft: { type: Number, default: 0 },
-
     status: {
       type: String,
       enum: ["Active", "Completed", "On Hold", "Review Needed"],
       default: "Active",
     },
-
     projectStatus: {
       type: String,
       trim: true,
     },
-
     selectedPhaseNames: [{ type: String }],
     trackedActivityKeys: [{ type: String }],
     completedActivityKeys: [{ type: String }],
-
     selectedPhases: [
       {
         id: { type: String, required: true },
@@ -195,17 +163,13 @@ const projectSchema = new mongoose.Schema(
         ],
       },
     ],
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
   },
-
   { timestamps: true }
 );
-
 projectSchema.index({ createdBy: 1 });
-
 module.exports = mongoose.model("Project", projectSchema);

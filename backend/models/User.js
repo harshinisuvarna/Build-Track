@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -18,40 +17,33 @@ const userSchema = new mongoose.Schema(
     },
     providerId: { type: String, default: null },
     profilePhoto: { type: String, default: null },
-
     role: {
       type: String,
       default: "Mason",
       trim: true,
     },
-
     permissions: {
       type: [String],
       default: [],
     },
-
     overseesRoles: {
       type: [String],
       default: [],
     },
-
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-
     projectIds: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Project" }],
       default: [],
     },
-
     projectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Project",
       default: null,
     },
-
     password: { type: String, minlength: 6, default: null },
     googleId: { type: String, default: null },
     isActive: { type: Boolean, default: true },
@@ -59,7 +51,6 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: { type: Date, default: null },
     twoFactorEnabled: { type: Boolean, default: false },
     tokenVersion: { type: Number, default: 0 },
-
     subscription: {
       plan: {
         type: String,
@@ -77,7 +68,6 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 userSchema.pre("validate", function () {
   if (this.googleId) {
     this.provider = "google";
@@ -89,17 +79,14 @@ userSchema.pre("validate", function () {
     this.providerId = null;
   }
 });
-
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
-
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.password) return false;
   return bcrypt.compare(enteredPassword, this.password);
 };
-
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
@@ -108,10 +95,8 @@ userSchema.methods.toJSON = function () {
   delete obj.__v;
   return obj;
 };
-
 userSchema.index({ createdBy: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ googleId: 1 }, { sparse: true });
 userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
-
 module.exports = mongoose.model("User", userSchema);

@@ -3,29 +3,21 @@ const cloudinary = require('../config/cloudinary');
 const express = require("express");
 const crypto = require("crypto");
 const EsignRequest = require("../models/EsignRequest");
-
 const router = express.Router();
-
-// 1. Request an E-Signature
 router.post("/request", async (req, res) => {
   try {
     const { clientEmail, meta } = req.body;
-    
     if (!clientEmail) {
       return res.status(400).json({ message: "clientEmail is required" });
     }
-
     const token = crypto.randomBytes(32).toString('hex');
-    
     const esignReq = new EsignRequest({
       clientEmail,
       token,
       status: 'pending',
       meta: meta || {}
     });
-    
     await esignReq.save();
-
     const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
     const signUrl = `${backendUrl}/api/esign/sign/${token}`;
     const emailHtml = `
@@ -37,7 +29,6 @@ router.post("/request", async (req, res) => {
         <p style="margin-top: 24px; font-size: 12px; color: #666;">This link expires in 1 hour.</p>
       </div>
     `;
-
     if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
       try {
         const sesClient = new SESClient({
@@ -65,25 +56,21 @@ router.post("/request", async (req, res) => {
       console.warn("SES credentials not configured. Email not sent.");
       return res.status(500).json({ message: "Server email configuration is missing (AWS_ACCESS_KEY_ID or SES_FROM_EMAIL)" });
     };
-
-    res.status(201).json({ 
-      message: "E-Signature request created", 
-      requestId: esignReq._id 
+    res.status(201).json({
+      message: "E-Signature request created",
+      requestId: esignReq._id
     });
   } catch (error) {
     console.error("Error creating e-sign request:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// 2. Get Details (Called by signature page to display receipt info)
 router.get("/details/:token", async (req, res) => {
   try {
     const esignReq = await EsignRequest.findOne({ token: req.params.token });
     if (!esignReq) {
       return res.status(404).json({ message: "Invalid or expired token" });
     }
-    
     res.json({
       status: esignReq.status,
       meta: esignReq.meta,
@@ -94,15 +81,12 @@ router.get("/details/:token", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// 3. Poll Status
 router.get("/status/:id", async (req, res) => {
   try {
     const esignReq = await EsignRequest.findById(req.params.id);
     if (!esignReq) {
       return res.status(404).json({ message: "Request not found" });
     }
-    
     res.json({
       status: esignReq.status,
       signatureData: esignReq.signatureData,
@@ -113,32 +97,23 @@ router.get("/status/:id", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// 3. Submit Signature (Called by the client on the signature page)
 router.post("/submit", async (req, res) => {
   try {
     const { token, signatureData } = req.body;
-    
     if (!token || !signatureData) {
       return res.status(400).json({ message: "Token and signatureData are required" });
     }
-    
     const esignReq = await EsignRequest.findOne({ token });
     if (!esignReq) {
       return res.status(404).json({ message: "Invalid or expired token" });
     }
-    
     if (esignReq.status === 'signed') {
       return res.status(400).json({ message: "This request has already been signed" });
     }
-    
     esignReq.status = 'signed';
     esignReq.signatureData = signatureData;
     esignReq.signedAt = new Date();
-    
     await esignReq.save();
-
-    // Upload base64 receipt to Cloudinary so it can be viewed in email
     let receiptUrl = signatureData;
     if (process.env.CLOUDINARY_API_KEY) {
       try {
@@ -150,8 +125,6 @@ router.post("/submit", async (req, res) => {
         console.error("Error uploading receipt to Cloudinary:", err);
       }
     }
-
-    // Send the completed receipt to the client via email
     if ((process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) && esignReq.clientEmail) {
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px;">
@@ -168,7 +141,6 @@ router.post("/submit", async (req, res) => {
           </p>
         </div>
       `;
-
       try {
         if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
           const sesClient = new SESClient({
@@ -192,15 +164,12 @@ router.post("/submit", async (req, res) => {
         console.error("Error sending receipt email via SES:", err);
       }
     }
-    
     res.json({ message: "Signature submitted successfully" });
   } catch (error) {
     console.error("Error submitting signature:", error);
     res.status(500).json({ message: error.message || "Internal server error" });
   }
 });
-
-// 5. Serve Standalone HTML Signature Page
 router.get("/sign/:token", async (req, res) => {
   try {
     const esignReq = await EsignRequest.findOne({ token: req.params.token });
@@ -212,7 +181,6 @@ router.get("/sign/:token", async (req, res) => {
         </body></html>
       `);
     }
-
     if (esignReq.status === 'signed') {
       return res.send(`
         <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Receipt Signed</title></head>
@@ -224,36 +192,28 @@ router.get("/sign/:token", async (req, res) => {
         </body></html>
       `);
     }
-
     const meta = esignReq.meta || {};
-    
-    // Simple transliteration map for demo
     function transliterate(text, lang) {
       if (!text || typeof text !== 'string') return text;
       if (lang === 'en') return text;
-      
       const dict = {
         kn: { 'A': 'ಎ', 'B': 'ಬಿ', 'C': 'ಸಿ', 'D': 'ಡಿ', 'E': 'ಇ', 'Project': 'ಪ್ರಾಜೆಕ್ಟ್', 'Phase': 'ಫೇಸ್', 'Foundation': 'ಫೌಂಡೇಶನ್' },
         ta: { 'A': 'ஏ', 'B': 'பி', 'C': 'சி', 'D': 'டி', 'E': 'இ', 'Project': 'ப்ராஜெக்ட்', 'Phase': 'ஃபேஸ்', 'Foundation': 'பவுண்டேஷன்' }
       };
-      
       let res = text;
       for (const [eng, loc] of Object.entries(dict[lang] || {})) {
         res = res.replace(new RegExp(eng, 'gi'), loc);
       }
       return res;
     }
-
     const metaRows = Object.entries(meta).map(([key, val]) => {
       let formattedVal = val;
       if (key === 'amount') formattedVal = '₹' + val;
       else if (key === 'date' && val) formattedVal = new Date(val).toISOString().substring(0, 10);
       else if (!val) formattedVal = 'N/A';
-      
       const label = key.replace(/([A-Z])/g, ' $1').trim();
       return `<div class="row"><span class="label" style="text-transform: capitalize;" data-key="${key}">${label}</span><span class="value">${formattedVal}</span></div>`;
     }).join('');
-
     const html = `
     <!DOCTYPE html>
     <html lang="en">
@@ -354,14 +314,11 @@ router.get("/sign/:token", async (req, res) => {
         <div class="divider"></div>
         ${metaRows}
         <div class="divider"></div>
-        
         <p class="error" id="error-msg"></p>
         <button class="btn" id="submit">I Authorize & Sign</button>
       </div>
-
       <script>
         const token = "${req.params.token}";
-        
         const i18n = {
           en: {
             title: "CASH RECEIPT",
@@ -412,20 +369,16 @@ router.get("/sign/:token", async (req, res) => {
             }
           }
         };
-
         let currentLang = 'en';
-
         document.getElementById('lang-select').addEventListener('change', (e) => {
           currentLang = e.target.value;
           const t = i18n[currentLang];
           document.getElementById('title-text').innerText = t.title;
-          
           if (!document.getElementById('submit').disabled) {
             document.getElementById('submit').innerText = t.btnAuth;
           } else {
             document.getElementById('submit').innerText = t.btnAuthWait;
           }
-          
           document.querySelectorAll('.label').forEach(el => {
             const key = el.getAttribute('data-key');
             if (t.keys[key]) {
@@ -433,14 +386,12 @@ router.get("/sign/:token", async (req, res) => {
             }
           });
         });
-
         document.getElementById('submit').addEventListener('click', async () => {
           const t = i18n[currentLang];
           const errorMsg = document.getElementById('error-msg');
           errorMsg.style.display = 'none';
           document.getElementById('submit').innerText = t.btnAuthWait;
           document.getElementById('submit').disabled = true;
-
           // Inject the authorization stamp into the DOM
           const stampDiv = document.createElement('div');
           stampDiv.style.marginTop = '20px';
@@ -453,22 +404,17 @@ router.get("/sign/:token", async (req, res) => {
             <p style="color: #6B7280; font-size: 12px; margin: 0;">\${t.stampIp} ${req.ip || "Unknown"}</p>
             <p style="color: #6B7280; font-size: 12px; margin: 0;">\${t.stampDate} ${new Date().toLocaleString()}</p>
           \`;
-          
           const container = document.querySelector('.container');
-          
           // Hide button and error before taking screenshot
           document.getElementById('submit').style.display = 'none';
           document.getElementById('error-msg').style.display = 'none';
-          
           container.appendChild(stampDiv);
-
           // Take screenshot of the entire receipt
           const canvas = await html2canvas(container, {
             scale: 2,
             backgroundColor: '#ffffff'
           });
           const signatureData = canvas.toDataURL('image/jpeg', 0.9);
-
           try {
             const res = await fetch('/api/esign/submit', {
               method: 'POST',
@@ -511,5 +457,4 @@ router.get("/sign/:token", async (req, res) => {
     res.status(500).send("Internal server error");
   }
 });
-
 module.exports = router;

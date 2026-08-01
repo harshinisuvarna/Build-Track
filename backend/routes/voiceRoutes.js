@@ -1,9 +1,6 @@
 const express = require("express");
 const router  = express.Router();
-// SECURITY: voice/parse calls the Gemini API — must be authenticated to prevent
-// quota exhaustion and AI abuse by unauthenticated callers.
 const { protect } = require("../middleware/auth");
-
 function editDistance(a, b) {
   const m = a.length, n = b.length;
   const dp = Array.from({ length: m + 1 }, (_, i) => {
@@ -17,7 +14,6 @@ function editDistance(a, b) {
       dp[i][j] = a[i - 1] === b[j - 1]
         ? dp[i - 1][j - 1]
         : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-
     }
   }
   return dp[m][n];
@@ -112,7 +108,6 @@ function bestWorkerMatch(transcript, workers) {
   if (isDev) console.log(`[bestWorkerMatch] result: ${best} (sim: ${bestSim.toFixed(2)})`);
   return best;
 }
-
 function detectCategory(transcript) {
   const t = transcript;
   if (/\b(pay|paid|wage|wages|salary|labour|labor|gave|given|giving|give|ways)\b/i.test(t)) {
@@ -238,11 +233,9 @@ try {
 } catch (e) {
   if (isDev) console.warn("⚠️  @google/generative-ai SDK missing:", e.message);
 }
-// SECURITY: protect ensures only authenticated users can call Gemini/local AI
 router.post("/parse", protect, async (req, res) => {
   try {
     const { transcript, workers = [], projects = [] } = req.body;
-
     if (!transcript || !transcript.trim()) {
       return res.status(400).json({ message: "Transcript is required" });
     }

@@ -4,10 +4,8 @@ const Worker      = require("../models/Worker");
 const { protect, requirePermission, getAdminId } = require("../middleware/auth");
 const upload      = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
-
 router.use(protect);
 router.use(requirePermission(["manage_labour_master", "manage_team"]));
-
 router.get("/", async (req, res) => {
   try {
     const { status, search } = req.query;

@@ -1,10 +1,8 @@
 require("dotenv").config();
-
 console.log('AirPay Merchant ID loaded:', !!process.env.AIRPAY_MERCHANT_ID);
 console.log('🔍 Startup check — FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
 console.log('🔍 Startup check — NODE_ENV:', process.env.NODE_ENV || '(not set)');
 console.log('🔍 Startup check — PORT:', process.env.PORT || '5001 (default)');
-
 const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
@@ -22,7 +20,6 @@ const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const passport = require("./config/passport");
-
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const app = express();
 const PORT = Number(process.env.PORT) || 5001;
@@ -51,7 +48,6 @@ app.use(helmet({
     },
   },
 }));
-
 app.use((req, res, next) => {
   if (["POST", "PUT", "PATCH"].includes(req.method)) {
     const contentType = req.headers["content-type"] || "";
@@ -68,20 +64,13 @@ app.use((req, res, next) => {
   }
   next();
 });
-
 app.use((_req, res, next) => {
   res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
   next();
 });
 app.disable("x-powered-by");
 app.use(compression());
-// ── SECURITY: Explicit CORS origin allowlist ────────────────────────────────
-// origin:'*' (wildcard) was replaced with an explicit allowlist.
-// Only origins listed here may make cross-origin requests to this API.
-// The Flutter mobile app uses native HTTP and is NOT affected by CORS at all.
-// Add new legitimate origins to ALLOWED_ORIGINS or via the FRONTEND_URL env var.
 const ALLOWED_ORIGINS = [
-  // Production frontend (read from env so no code change needed for redeployment)
   process.env.FRONTEND_URL,
   process.env.CLIENT_URL,
   "http://localhost:5173",
@@ -89,22 +78,17 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5174",
   "https://build-track.onrender.com",
   "https://build-track-web.onrender.com",
-  // Ngrok tunnels (optional local dev — remove in strict prod if not needed)
   ...(process.env.NGROK_URL ? [process.env.NGROK_URL] : []),
 ]
-  .filter(Boolean)               // remove undefined/empty values
-  .map((o) => o.replace(/\/$/, "")); // strip trailing slashes
-
+  .filter(Boolean)
+  .map((o) => o.replace(/\/$/, ""));
 app.use(
   cors({
     origin: (incomingOrigin, callback) => {
-      // Allow requests with no Origin header (server-to-server, mobile native HTTP, curl)
       if (!incomingOrigin) return callback(null, true);
-      // Allow allowed origins or ANY localhost port (required for Flutter Web development)
       if (ALLOWED_ORIGINS.includes(incomingOrigin) || incomingOrigin.startsWith("http://localhost:")) {
         return callback(null, true);
       }
-      // Reject all other origins
       console.warn(`[CORS] Rejected request from unlisted origin: ${incomingOrigin}`);
       return callback(new Error(`CORS: Origin '${incomingOrigin}' is not allowed`), false);
     },
@@ -112,10 +96,9 @@ app.use(
     allowedHeaders: isProd
       ? ["Content-Type", "Authorization"]
       : ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
-    credentials: false, // app uses Authorization Bearer header, not cookies
+    credentials: false,
   })
 );
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isProd ? 200 : 10000,
@@ -127,7 +110,6 @@ const limiter = rateLimit({
   }
 });
 app.use("/api/", limiter);
-
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isProd ? 10 : 50,
@@ -137,7 +119,6 @@ const loginLimiter = rateLimit({
   message: { message: "Too many login attempts. Please try again after 15 minutes." },
 });
 app.use("/api/auth/login", loginLimiter);
-
 const sensitiveLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: isProd ? 5 : 20,
@@ -151,20 +132,15 @@ app.use("/api/auth/reset-password", sensitiveLimiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
-
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
-
 app.get("/", (_req, res) =>
   res.json({ status: "ok", app: "BuildTrack API" })
 );
-
 app.get("/healthz", (_req, res) =>
   res.status(200).json({ status: "ok", uptime: process.uptime() })
 );
-
 app.get("/api/test", (_req, res) => res.json({ ok: true }));
-
 async function connectWithRetry(uri, retries = 5, delay = 8000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -194,9 +170,6 @@ async function connectWithRetry(uri, retries = 5, delay = 8000) {
     }
   }
 }
-
-// ─── Middleware / Routes ─────────────────────────────────────────────────────
-
 const dbCheck = (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     console.error(`[DBCheck] Blocked request to ${req.originalUrl}: Database not connected (readyState: ${mongoose.connection.readyState})`);
@@ -207,9 +180,7 @@ const dbCheck = (req, res, next) => {
   }
   next();
 };
-
 app.use("/api", dbCheck);
-
 app.use("/api/auth",              require("./routes/authRoutes"));
 app.use("/api/users",             require("./routes/userRoutes"));
 console.log("✅ users routes mounted");
@@ -227,7 +198,6 @@ app.use("/api/project-updates",   require("./routes/projectUpdateRoutes"));
 app.use("/api/tasks",             require("./routes/taskRoutes"));
 app.use("/api/approvals",         require("./routes/approvalsRoutes"));
 app.use("/api/subscriptions",     subscriptionRoutes);
-
 app.use((_req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 app.use((err, _req, res, _next) => {
   if (!isProd) console.error(err.stack);
@@ -242,11 +212,7 @@ app.use((err, _req, res, _next) => {
   }
   res.status(status).json({ success: false, message, stack: !isProd ? err.stack : undefined });
 });
-
-// ─── Process signal handlers (registered before startup) ─────────────────────
-
 let server;
-
 const shutdown = (signal) => {
   console.log(`\n⏳ ${signal} received — shutting down gracefully…`);
   if (server) {
@@ -263,42 +229,30 @@ const shutdown = (signal) => {
     process.exit(0);
   }
 };
-
 process.on("SIGINT",  () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
-
 process.on("unhandledRejection", (reason, promise) => {
   console.error("⚠️  Unhandled Promise Rejection");
   console.error("   Promise:", promise);
   console.error("   Reason:",  reason);
 });
-
 process.on("uncaughtException", (err) => {
   console.error("🔥 Uncaught Exception — process will exit:");
   console.error(err);
-  // Allow stdout/stderr to flush before exiting.
   setTimeout(() => process.exit(1), 1000);
 });
-
-// ─── Startup ─────────────────────────────────────────────────────────────────
-
 (async () => {
   try {
-    // 1. Connect to MongoDB (throws if all retries fail)
     await connectWithRetry(process.env.MONGO_URI);
   } catch (err) {
     console.error('[Startup] MongoDB connection failed after all retries.');
     console.error('[Startup] The server will still start but /healthz will report DB down.');
     console.error('[Startup] Make sure MONGO_URI is set correctly in Render env vars.');
   }
-
   try {
-    // 2. Start HTTP server — even if DB failed, we serve the health endpoint
     server = app.listen(PORT, () =>
       console.log(`🚀 Server running on port ${PORT} [${NODE_ENV}]`)
     );
-
-    // 3. Run background DB migrations/cleanup (non-blocking, errors are caught internally)
     setImmediate(async () => {
       try {
         if (process.env.SKIP_STARTUP_CLEANUP === "true") {
@@ -308,7 +262,6 @@ process.on("uncaughtException", (err) => {
         console.log("[Cleanup] Starting background database cleanups...");
         const Project     = require("./models/Project");
         const Transaction = require("./models/Transaction");
-
         const allProjects = await Project.find({}).sort({ createdAt: -1 }).limit(500);
         const groups = {};
         allProjects.forEach((p) => {
@@ -317,7 +270,6 @@ process.on("uncaughtException", (err) => {
           if (!groups[key]) groups[key] = [];
           groups[key].push(p);
         });
-
         let duplicateCount = 0;
         for (const key of Object.keys(groups)) {
           const projects = groups[key];
@@ -343,7 +295,6 @@ process.on("uncaughtException", (err) => {
             ? `[Cleanup] Successfully merged ${duplicateCount} duplicate project groups.`
             : "[Cleanup] Database is clean. No duplicate projects found."
         );
-
         try {
           const supervisorUpdateRes = await require("./models/User").updateMany(
             {
@@ -360,7 +311,6 @@ process.on("uncaughtException", (err) => {
         } catch (cleanupErr) {
           console.error("[Cleanup] overseesRoles patch error:", cleanupErr);
         }
-
         const invalidUnits = [
           "kg", "Kg", "KG",
           "bag", "Bag", "BAG",
@@ -374,19 +324,16 @@ process.on("uncaughtException", (err) => {
         );
         if (labourUpdateRes.modifiedCount > 0)
           console.log(`[Cleanup] Migrated ${labourUpdateRes.modifiedCount} Labour entries with invalid units to 'day'`);
-
         const equipUpdateRes = await Transaction.updateMany(
           { type: "Expense", unit: { $in: invalidUnits } },
           { $set: { unit: "day" } }
         );
         if (equipUpdateRes.modifiedCount > 0)
           console.log(`[Cleanup] Migrated ${equipUpdateRes.modifiedCount} Equipment entries with invalid units to 'day'`);
-
       } catch (cleanupErr) {
         console.error("[Cleanup] Error running database cleanup:", cleanupErr);
       }
     });
-
   } catch (err) {
     console.error("❌ Startup failed:", err);
     process.exit(1);

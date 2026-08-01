@@ -1,14 +1,10 @@
 const summaryCache = new Map();
 const aiDebugLogger = require("../../utils/aiDebugLogger");
-
 async function generateSummary(intent, analyticsData, userQuery, aiProvider, reqId) {
   aiDebugLogger.logEnter("Summary Generator", reqId);
   const startTime = Date.now();
-
   try {
-
   const cacheKey = `${intent.intent}_${intent.category}_${analyticsData.rowCount}_${analyticsData.totalAmount}`;
-
   if (summaryCache.has(cacheKey)) {
      const cached = summaryCache.get(cacheKey);
      aiDebugLogger.logSection("SUMMARY GENERATION", {
@@ -19,9 +15,7 @@ async function generateSummary(intent, analyticsData, userQuery, aiProvider, req
      aiDebugLogger.logExit("Summary Generator", reqId);
      return cached;
   }
-
   let deterministicSummary = null;
-
   const fmtINR = (v) => {
       const num = Number(v);
       if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
@@ -29,7 +23,6 @@ async function generateSummary(intent, analyticsData, userQuery, aiProvider, req
       if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
       return `₹${num.toFixed(0)}`;
   };
-
   if (intent.intent === "inventory_status") {
     const { criticalCount, lowCount } = analyticsData.metrics;
     const total = analyticsData.rowCount;
@@ -61,7 +54,6 @@ async function generateSummary(intent, analyticsData, userQuery, aiProvider, req
         deterministicSummary = `Budget health overview across ${analyticsData.rowCount} projects. Total budget: ${fmtINR(analyticsData.totalAmount)}.`;
     }
   }
-
   if (!deterministicSummary && intent.isDeterministic) {
      if (analyticsData.rowCount === 0) {
          deterministicSummary = "No records found for the requested criteria.";
@@ -69,7 +61,6 @@ async function generateSummary(intent, analyticsData, userQuery, aiProvider, req
          deterministicSummary = `Found ${analyticsData.rowCount} records totaling ${fmtINR(analyticsData.totalAmount)}.`;
      }
   }
-
   if (deterministicSummary) {
     if (summaryCache.size < 500) summaryCache.set(cacheKey, deterministicSummary);
     aiDebugLogger.logSection("SUMMARY GENERATION", {
@@ -80,7 +71,6 @@ async function generateSummary(intent, analyticsData, userQuery, aiProvider, req
     aiDebugLogger.logExit("Summary Generator", reqId);
     return deterministicSummary;
   }
-
   const aiSummary = await aiProvider.generateSummary(analyticsData, userQuery, reqId);
   if (summaryCache.size < 500) summaryCache.set(cacheKey, aiSummary);
   aiDebugLogger.logSection("SUMMARY GENERATION", {
@@ -88,14 +78,11 @@ async function generateSummary(intent, analyticsData, userQuery, aiProvider, req
     "Exact prompt": "Dynamically generated prompt with analytics data (see GEMINI INPUT logger)",
     "Exact response": aiSummary
   }, reqId);
-
   aiDebugLogger.logExit("Summary Generator", reqId);
   return aiSummary;
-
   } catch (error) {
     aiDebugLogger.logError("Summary Generator", error, reqId, Date.now() - startTime);
     throw error;
   }
 }
-
 module.exports = { generateSummary };

@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const projectConfigSchema = new mongoose.Schema(
     {
         project: {
@@ -8,28 +7,23 @@ const projectConfigSchema = new mongoose.Schema(
             required: true,
             unique: true
         },
-
         landArea: {
             value: { type: Number, default: 0 },
             unit: { type: String, enum: ["Sq ft", "Sq mt"], default: "Sq ft" }
         },
-
         floorsRequired: [{ type: String }],
-
         roomConfig: {
             oneBhk: { type: Number, default: 0 },
             twoBhk: { type: Number, default: 0 },
             threeBhk: { type: Number, default: 0 },
             customRoom: { type: Number, default: 0 }
         },
-
         bathroomConfig: {
             western: { type: Number, default: 0 },
             indian: { type: Number, default: 0 },
             common: { type: Number, default: 0 },
             attached: { type: Number, default: 0 }
         },
-
         additionalConfig: {
             balcony: { type: Boolean, default: false },
             carParking: { type: Boolean, default: false },
@@ -66,7 +60,6 @@ const projectConfigSchema = new mongoose.Schema(
             aluminiumWork: { type: Boolean, default: false },
             glassWork: { type: Boolean, default: false }
         },
-
         utilityServices: {
             utilityRoomRequired: { type: Boolean, default: false },
             numberOfUtilityRooms: { type: Number, default: 0 },
@@ -79,7 +72,6 @@ const projectConfigSchema = new mongoose.Schema(
             laundrySpace: { type: Boolean, default: false },
             storageUtilityRack: { type: Boolean, default: false }
         },
-
         gasConnection: {
             gasConnectionRequired: { type: Boolean, default: false },
             lpgCylinderSpace: { type: Boolean, default: false },
@@ -88,7 +80,6 @@ const projectConfigSchema = new mongoose.Schema(
             gasLeakDetectorProvision: { type: Boolean, default: false },
             kitchenExhaustProvision: { type: Boolean, default: false }
         },
-
         kitchenRequirements: {
             modularKitchen: { type: Boolean, default: false },
             chimneyProvision: { type: Boolean, default: false },
@@ -100,7 +91,6 @@ const projectConfigSchema = new mongoose.Schema(
             breakfastCounter: { type: Boolean, default: false },
             pantryStorage: { type: Boolean, default: false }
         },
-
         electricalRequirements: {
             acProvision: { type: Boolean, default: false },
             tvPoint: { type: Boolean, default: false },
@@ -111,14 +101,12 @@ const projectConfigSchema = new mongoose.Schema(
             homeAutomationProvision: { type: Boolean, default: false },
             evChargingPoint: { type: Boolean, default: false }
         },
-
         plumbingRequirements: {
             hotWaterLine: { type: Boolean, default: false },
             solarWaterLine: { type: Boolean, default: false },
             pressurePump: { type: Boolean, default: false },
             waterSoftenerProvision: { type: Boolean, default: false }
         },
-
         terraceRequirements: {
             openTerrace: { type: Boolean, default: false },
             seatingArea: { type: Boolean, default: false },
@@ -127,7 +115,6 @@ const projectConfigSchema = new mongoose.Schema(
             barbecueCounter: { type: Boolean, default: false },
             outdoorWashArea: { type: Boolean, default: false }
         },
-
         interiorRequirements: {
             tvUnit: { type: Boolean, default: false },
             crockeryUnit: { type: Boolean, default: false },
@@ -138,5 +125,4 @@ const projectConfigSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
-
 module.exports = mongoose.model("ProjectConfig", projectConfigSchema);

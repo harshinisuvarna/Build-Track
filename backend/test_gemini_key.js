@@ -1,6 +1,5 @@
 require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-
 async function testKey() {
   try {
     console.log("Loading key...");
@@ -11,18 +10,13 @@ async function testKey() {
     }
     console.log(`Loaded Key (first 6): ${key.substring(0, 6)}`);
     console.log(`Loaded Key (last 6): ${key.substring(key.length - 6)}`);
-
     const genAI = new GoogleGenerativeAI(key);
-
     const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
     console.log(`Testing model: ${model.model}`);
     const result = await model.generateContent("Say hello");
     console.log("Response:", result.response.text());
-
   } catch (error) {
     console.error("Error generating content:", error);
   }
 }
-
 testKey();

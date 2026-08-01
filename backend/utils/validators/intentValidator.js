@@ -1,6 +1,5 @@
 const { SchemaType } = require("@google/generative-ai");
 const { sanitizeIntentValues } = require("./aiSanitizer");
-
 const geminiIntentSchema = {
   type: SchemaType.OBJECT,
   properties: {
@@ -50,27 +49,21 @@ const geminiIntentSchema = {
   },
   required: ["intent", "confidenceScore"],
 };
-
 function validateIntentOutput(parsedJson) {
   if (!parsedJson || typeof parsedJson !== "object") {
     return { isValid: false, error: "Output is not an object" };
   }
-
   const sanitizedJson = sanitizeIntentValues(parsedJson);
-
   if (!sanitizedJson.intent) {
     return { isValid: false, error: "Missing intent field" };
   }
   if (sanitizedJson.confidenceScore === undefined || typeof sanitizedJson.confidenceScore !== "number") {
     return { isValid: false, error: "Missing or invalid confidenceScore" };
   }
-
   sanitizedJson.category = sanitizedJson.category || "all";
   sanitizedJson.aggregation = sanitizedJson.aggregation || "summary";
   sanitizedJson.sort = sanitizedJson.sort || "date_desc";
   sanitizedJson.comparison = !!sanitizedJson.comparison;
-
   return { isValid: true, intent: sanitizedJson, sanitizedRaw: sanitizedJson };
 }
-
 module.exports = { geminiIntentSchema, validateIntentOutput };

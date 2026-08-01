@@ -3,14 +3,13 @@ function getFileUrl(file) {
   if (!file) return null;
   return file.path || null;
 }
-
 async function deleteFile(storedValue) {
   if (!storedValue || !storedValue.startsWith("http")) return;
   try {
     const parts = storedValue.split("/upload/");
     if (parts[1]) {
       const publicId = parts[1]
-        .replace(/^v\d+\//, "")
+        .replace(/^v\d+\
         .replace(/\.[^.]+$/, "");
       await cloudinary.uploader.destroy(publicId);
     }

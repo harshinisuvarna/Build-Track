@@ -16,14 +16,10 @@ const {
 const upload = require("../config/multer");
 const { getFileUrl, deleteFile } = require("../config/fileHelpers");
 const Subscription = require("../models/Subscription");
-
 router.use(protect);
-
 const normalizeProjectBudget = (project) => {
   if (!project) return project;
-
   const p = project.toObject ? project.toObject() : { ...project };
-
   if (!p.budget) {
     p.budget = { total: 0, material: 0, labour: 0, equipment: 0, misc: 0 };
   } else {
@@ -32,7 +28,6 @@ const normalizeProjectBudget = (project) => {
     p.budget.equipment = Number(p.budget.equipment || 0);
     p.budget.misc = Number(p.budget.misc || 0);
     p.budget.total = Number(p.budget.total || 0);
-
     if (p.budget.total === 0) {
       p.budget.total =
         p.budget.material +
@@ -41,10 +36,8 @@ const normalizeProjectBudget = (project) => {
         p.budget.misc;
     }
   }
-
   return p;
 };
-
 const getProjectSpentAmount = async (projectId) => {
   try {
     const result = await Transaction.aggregate([
@@ -64,13 +57,11 @@ const getProjectSpentAmount = async (projectId) => {
         },
       },
     ]);
-
     return result[0]?.totalSpent || 0;
   } catch (e) {
     return 0;
   }
 };
-
 const getProjectIncomeAmount = async (projectId) => {
   try {
     const result = await Transaction.aggregate([
@@ -82,32 +73,26 @@ const getProjectIncomeAmount = async (projectId) => {
         },
       },
     ]);
-
     return result[0]?.totalIncome || 0;
   } catch (e) {
     return 0;
   }
 };
-
 const computeActivityBudgetSummaries = async (projectId, activities) => {
   if (!activities || activities.length === 0) return new Map();
-
   const TYPES = {
     MATERIALS: "Materials",
     WAGES: "Wages",
     EQUIPMENT: "Equipment",
     EXPENSE: "Expense"
   };
-
   const summaries = new Map();
   const nowStr = new Date().toISOString();
-
   const makeDefaultBudget = (act) => {
     const matAlloc = Number(act.budgetMaterial || 0);
     const labAlloc = Number(act.budgetLabour || 0);
     const equAlloc = Number(act.budgetEquipment || 0);
     const totAlloc = matAlloc + labAlloc + equAlloc;
-
     return {
       material: { allocated: matAlloc, spent: 0, remaining: matAlloc, utilization: 0, progress: 0 },
       labour: { allocated: labAlloc, spent: 0, remaining: labAlloc, utilization: 0, progress: 0 },
@@ -116,16 +101,13 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
       budgetLastCalculatedAt: nowStr
     };
   };
-
   for (const act of activities) {
     const aid = act.id || act._id?.toString();
     summaries.set(aid, makeDefaultBudget(act));
   }
-
   try {
     const activityIds = activities.map(a => a.id).filter(Boolean);
     if (activityIds.length === 0) return summaries;
-
     const rows = await Transaction.aggregate([
       {
         $match: {
@@ -141,7 +123,6 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
         },
       },
     ]);
-
     const spendMap = new Map();
     for (const row of rows) {
       const aid = row._id.activityId;
@@ -149,27 +130,21 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
       if (!spendMap.has(aid)) spendMap.set(aid, {});
       spendMap.get(aid)[type] = row.spent;
     }
-
     for (const act of activities) {
       const aid = act.id || act._id?.toString();
       const typeSpend = spendMap.get(aid) || {};
-
       const matSpent = typeSpend[TYPES.MATERIALS] || 0;
       const labSpent = typeSpend[TYPES.WAGES] || 0;
       const equSpent = (typeSpend[TYPES.EQUIPMENT] || 0) + (typeSpend[TYPES.EXPENSE] || 0);
       const totSpent = matSpent + labSpent + equSpent;
-
       const matAlloc = Number(act.budgetMaterial || 0);
       const labAlloc = Number(act.budgetLabour || 0);
       const equAlloc = Number(act.budgetEquipment || 0);
       const totAlloc = matAlloc + labAlloc + equAlloc;
-
       const pct = (alloc, spent) =>
         alloc > 0 ? parseFloat(((spent / alloc) * 100).toFixed(2)) : 0;
-
       const prog = (alloc, spent) =>
         alloc > 0 ? parseFloat(Math.min(spent / alloc, 1.0).toFixed(4)) : 0.0;
-
       summaries.set(aid, {
         material: {
           allocated: matAlloc,
@@ -204,12 +179,9 @@ const computeActivityBudgetSummaries = async (projectId, activities) => {
     }
   } catch (err) {
     console.error("[computeActivityBudgetSummaries] error:", err);
-
   }
-
   return summaries;
 };
-
 const runUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.any()(req, res, (err) => {
@@ -218,7 +190,6 @@ const runUpload = (req, res) =>
       else resolve();
     });
   });
-
 const safeParse = (value) => {
   if (value === undefined || value === null) return undefined;
   if (Array.isArray(value)) return value;
@@ -231,7 +202,6 @@ const safeParse = (value) => {
   }
   return value;
 };
-
 const mapUiStatusToBackend = (uiStatus) => {
   if (!uiStatus) return "Active";
   const s = uiStatus.toLowerCase().replace(/\s/g, "");
@@ -242,14 +212,11 @@ const mapUiStatusToBackend = (uiStatus) => {
   if (s === "planning") return "Active";
   return "Active";
 };
-
 const ownedByCurrentUserFilter = (req, projectId = null) => {
   if (projectId) return { _id: projectId, createdBy: req.user.id };
   return { createdBy: req.user.id };
 };
-
 const VIEW_PROJECTS = ["view_projects", "view_assigned_project"];
-
 router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const projects = await Project.find(ownedByCurrentUserFilter(req)).select("-selectedPhases").sort({ createdAt: -1 });
@@ -264,10 +231,8 @@ router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
         { $group: { _id: "$project", totalIncome: { $sum: "$amount" } } }
       ])
     ]);
-
     const spentMap = new Map(spentList.map(s => [s._id.toString(), s.totalSpent]));
     const incomeMap = new Map(incomeList.map(i => [i._id.toString(), i.totalIncome]));
-
     const normalizedProjects = projects.map(p => {
       const normalized = normalizeProjectBudget(p);
       const idStr = p._id.toString();
@@ -275,39 +240,30 @@ router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
       normalized.totalIncome = incomeMap.get(idStr) || 0;
       return normalized;
     });
-
     return res.status(200).json({ projects: normalizedProjects });
   } catch (err) {
     console.error("GET /mine error:", err);
     return res.status(500).json({ message: "Failed to fetch your projects" });
   }
 });
-
 router.get("/", protect, async (req, res) => {
   try {
     const { status, search } = req.query;
     let query = canAccessProjectFilter(req);
-
     const Task = require("../models/Task");
     const userTasks = await Task.find({ assignedTo: req.user._id }).select("project");
     const taskProjectIds = userTasks.map(t => t.project).filter(Boolean);
-
     if (taskProjectIds.length > 0) {
       if (query.__never) {
-
         delete query.__never;
         query._id = { $in: taskProjectIds };
       } else if (query._id && query._id.$in) {
-
         query._id.$in.push(...taskProjectIds);
       }
     } else if (query.__never) {
-
       return res.json({ projects: [] });
     }
-
     if (status && status !== "All") query.status = status;
-
     if (search) {
       query.$and = query.$and || [];
       query.$and.push({
@@ -318,9 +274,7 @@ router.get("/", protect, async (req, res) => {
         ],
       });
     }
-
     const projects = await Project.find(query).select("-selectedPhases").sort({ createdAt: -1 });
-
     const projectIds = projects.map(p => p._id);
     const [spentList, incomeList] = await Promise.all([
       Transaction.aggregate([
@@ -332,10 +286,8 @@ router.get("/", protect, async (req, res) => {
         { $group: { _id: "$project", totalIncome: { $sum: "$amount" } } }
       ])
     ]);
-
     const spentMap = new Map(spentList.map(s => [s._id.toString(), s.totalSpent]));
     const incomeMap = new Map(incomeList.map(i => [i._id.toString(), i.totalIncome]));
-
     const normalizedProjects = projects.map(p => {
       const normalized = normalizeProjectBudget(p);
       const idStr = p._id.toString();
@@ -343,36 +295,29 @@ router.get("/", protect, async (req, res) => {
       normalized.totalIncome = incomeMap.get(idStr) || 0;
       return normalized;
     });
-
     res.json({ projects: normalizedProjects });
   } catch (err) {
     console.error("GET projects error:", err);
     res.status(500).json({ message: "Failed to fetch projects" });
   }
 });
-
 router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
-
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
     normalized.totalIncome = await getProjectIncomeAmount(project._id);
-
     if (normalized.selectedPhases && normalized.selectedPhases.length > 0) {
       const allActivities = normalized.selectedPhases.flatMap(p => p.activities || []);
       const summaries = await computeActivityBudgetSummaries(project._id, allActivities);
-
       for (const phase of normalized.selectedPhases) {
         if (!phase.activities) continue;
         for (const act of phase.activities) {
           const aid = act.id || act._id?.toString();
-
           act.budgetMaterial = Number(act.budgetMaterial || 0);
           act.budgetLabour = Number(act.budgetLabour || 0);
           act.budgetEquipment = Number(act.budgetEquipment || 0);
-
           act.budget = summaries.get(aid) || {
             material: { allocated: act.budgetMaterial, spent: 0, remaining: act.budgetMaterial, utilization: 0, progress: 0 },
             labour: { allocated: act.budgetLabour, spent: 0, remaining: act.budgetLabour, utilization: 0, progress: 0 },
@@ -383,21 +328,17 @@ router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
         }
       }
     }
-
     res.json({ project: normalized });
   } catch (err) {
     console.error("GET /projects/:id error:", err);
     res.status(500).json({ message: "Failed to fetch project" });
   }
 });
-
 router.get("/:id/stats", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
-
     const projectObjectId = new mongoose.Types.ObjectId(req.params.id);
-
     const result = await Transaction.aggregate([
       { $match: { project: projectObjectId } },
       {
@@ -420,12 +361,10 @@ router.get("/:id/stats", requirePermission(VIEW_PROJECTS), async (req, res) => {
         },
       },
     ]);
-
     const { totalSpent = 0, totalIncome = 0 } = result[0] || {};
     const normalized = normalizeProjectBudget(project);
     const totalBudget = normalized.budget.total;
     const remainingBudget = totalBudget - totalSpent;
-
     res.json({
       totalBudget,
       totalSpent,
@@ -437,24 +376,19 @@ router.get("/:id/stats", requirePermission(VIEW_PROJECTS), async (req, res) => {
     res.status(500).json({ message: "Failed to fetch project stats" });
   }
 });
-
 router.get("/:id/budget", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
-
     const projectObjectId = new mongoose.Types.ObjectId(req.params.id);
-
     const actuals = await Transaction.aggregate([
       { $match: { project: projectObjectId } },
       { $group: { _id: "$type", total: { $sum: "$amount" } } },
     ]);
-
     const actualMap = {};
     actuals.forEach((a) => {
       actualMap[a._id] = a.total;
     });
-
     const report = {
       materials: {
         budget: project.budget?.material || 0,
@@ -474,20 +408,17 @@ router.get("/:id/budget", requirePermission(VIEW_PROJECTS), async (req, res) => 
           ((actualMap["Equipment"] || 0) + 0),
       },
     };
-
     res.json(report);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch project budget analysis" });
   }
 });
-
 router.post("/", requirePermission(["create_project", "manage_team"]), async (req, res) => {
   try {
     await runUpload(req, res);
   } catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
-
   try {
     const adminId = await getAdminId(req.user);
     const activeSub = await Subscription.findOne({
@@ -495,7 +426,6 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
       status: 'active',
       endDate: { $gt: new Date() }
     }).sort({ createdAt: -1 });
-
     let limit = 1;
     if (activeSub) {
       const plan = activeSub.plan || 'free';
@@ -505,53 +435,42 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
       else if (plan === 'business') limit = 12;
       else if (plan === 'enterprise') limit = -1;
     }
-
     if (limit !== -1) {
       const count = await Project.countDocuments({ createdBy: adminId });
       if (count >= limit) {
         return res.status(403).json({ message: `Project limit reached for your current plan (${limit} projects). Please upgrade your subscription.` });
       }
     }
-
     const body = req.body;
-
     if (!body.projectName || !body.projectName.trim()) {
       return res.status(400).json({ message: "Project name is required" });
     }
-
     const resolvedMaterial = Number(body.budgetMaterials ?? body.budgetMaterial ?? body.budget?.material ?? 0);
     const resolvedLabour = Number(body.budgetLabour ?? body.budget?.labour ?? 0);
     const resolvedEquipment = Number(body.budgetEquipment ?? body.budget?.equipment ?? 0);
     const resolvedMisc = Number(body.budgetMisc ?? body.budget?.misc ?? body.budgetMiscellaneous ?? 0);
-
     let resolvedTotal = Number(body.totalBudget ?? body.budget?.total ?? 0);
     if (resolvedTotal === 0) {
       resolvedTotal = resolvedMaterial + resolvedLabour + resolvedEquipment + resolvedMisc;
     }
-
     let safeBuildingType = safeParse(body.buildingType) ?? {
       mainType: "Residential",
       subType: "General",
     };
-
     if (typeof safeBuildingType === "string") {
       safeBuildingType = { mainType: safeBuildingType, subType: "General" };
     }
-
     const rawStartDate = body.startDate ?? body.dates?.startDate;
     const rawExpectedEnd = body.expectedEndDate ?? body.dates?.expectedEndDate;
     const parsedStartDate = rawStartDate ? new Date(rawStartDate) : null;
     const parsedExpectedEnd = rawExpectedEnd ? new Date(rawExpectedEnd) : null;
-
     const uiProjectStatus = body.projectStatus ?? body.status ?? "Planning";
     const backendStatus = mapUiStatusToBackend(uiProjectStatus);
     const parsedFloors = safeParse(body.floors);
-
     const toIntOrNull = (v) => {
       const n = parseInt(v, 10);
       return isNaN(n) || n < 0 ? null : n;
     };
-
     const project = await Project.create({
       createdBy: req.user.id,
       projectName: body.projectName.trim(),
@@ -605,19 +524,15 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
       completedActivityKeys: safeParse(body.completedActivityKeys) || [],
       selectedPhases: safeParse(body.selectedPhases) || [],
     });
-
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
-
     res.status(201).json({ message: "Project created", project: normalized });
   } catch (err) {
     console.error("CREATE project error:", err);
-
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
       return res.status(400).json({ message: msg });
     }
-
     res.status(500).json({
       message: "Failed to create project",
       err: err.message || err.toString(),
@@ -625,35 +540,27 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
     });
   }
 });
-
 router.put("/:id", protect, async (req, res) => {
   try {
     await runUpload(req, res);
   } catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
-
   try {
     const body = req.body;
     console.log("PUT /projects/:id body.selectedPhases:", JSON.stringify(body.selectedPhases));
-
     const existing = await Project.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: "Project not found" });
-
     const userPerms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
     const hasEdit = req.user.role === 'Admin' || userPerms.includes("edit_project") || userPerms.includes("manage_team") || userPerms.includes("add_entry");
-
     if (!hasEdit) {
-
       const Task = require("../models/Task");
       const hasTask = await Task.exists({ project: existing._id, assignedTo: req.user._id });
       if (!hasTask) {
         return res.status(403).json({ message: "Access denied" });
       }
     }
-
     const updateData = {};
-
     if (body.projectName !== undefined) updateData.projectName = body.projectName.trim();
     if (body.location !== undefined) updateData.location = body.location;
     if (body.city !== undefined && body.location === undefined) updateData.location = body.city;
@@ -676,13 +583,11 @@ router.put("/:id", protect, async (req, res) => {
     if (body.floors !== undefined) updateData.floors = safeParse(body.floors);
     if (body.landArea !== undefined) updateData.landArea = body.landArea;
     if (body.landUnit !== undefined) updateData.landUnit = body.landUnit;
-
     const toIntOrNull = (v) => {
       if (v === undefined) return undefined;
       const n = parseInt(v, 10);
       return isNaN(n) || n < 0 ? null : n;
     };
-
     const room1 = toIntOrNull(body.room1BHK);
     if (room1 !== undefined) updateData.room1BHK = room1;
     const room2 = toIntOrNull(body.room2BHK);
@@ -699,18 +604,15 @@ router.put("/:id", protect, async (req, res) => {
     if (bathCo !== undefined) updateData.bathCommon = bathCo;
     const bathAt = toIntOrNull(body.bathAttached);
     if (bathAt !== undefined) updateData.bathAttached = bathAt;
-
     if (body.selectedFeatures !== undefined) {
       updateData.selectedFeatures = safeParse(body.selectedFeatures);
     }
-
     const inputMaterial =
       body.budgetMaterials !== undefined ? body.budgetMaterials : body.budgetMaterial;
     const inputLabour = body.budgetLabour;
     const inputEquipment = body.budgetEquipment;
     const inputMisc = body.budgetMisc !== undefined ? body.budgetMisc : body.budget?.misc;
     const inputTotal = body.totalBudget !== undefined ? body.totalBudget : body.budget?.total;
-
     if (
       inputMaterial !== undefined ||
       inputLabour !== undefined ||
@@ -724,9 +626,7 @@ router.put("/:id", protect, async (req, res) => {
       const equipment = inputEquipment !== undefined ? Number(inputEquipment || 0) : Number(eb.equipment || 0);
       const misc = inputMisc !== undefined ? Number(inputMisc || 0) : Number(eb.misc || 0);
       let total = inputTotal !== undefined ? Number(inputTotal || 0) : Number(eb.total || 0);
-
       if (total === 0) total = material + labour + equipment + misc;
-
       updateData.budget = { total, material, labour, equipment, misc };
       updateData.budgetMaterial = material;
       updateData.budgetLabour = labour;
@@ -734,28 +634,23 @@ router.put("/:id", protect, async (req, res) => {
       updateData.budgetMisc = misc;
       updateData.totalBudget = total;
     }
-
     const rawStartDate = body.startDate ?? body.dates?.startDate;
     const rawExpectedEnd = body.expectedEndDate ?? body.dates?.expectedEndDate;
-
     if (rawStartDate !== undefined) {
       const d = rawStartDate ? new Date(rawStartDate) : null;
       updateData.startDate = d;
       updateData["dates.startDate"] = d;
     }
-
     if (rawExpectedEnd !== undefined) {
       const d = rawExpectedEnd ? new Date(rawExpectedEnd) : null;
       updateData.expectedEndDate = d;
       updateData["dates.expectedEndDate"] = d;
     }
-
     if (body.projectStatus !== undefined || body.status !== undefined) {
       const uiStatus = body.projectStatus ?? body.status;
       updateData.projectStatus = uiStatus;
       updateData.status = mapUiStatusToBackend(uiStatus);
     }
-
     if (body.selectedPhaseNames !== undefined) {
       updateData.selectedPhaseNames = safeParse(body.selectedPhaseNames);
     }
@@ -768,7 +663,6 @@ router.put("/:id", protect, async (req, res) => {
     if (body.selectedPhases !== undefined) {
       updateData.selectedPhases = safeParse(body.selectedPhases);
     }
-
     const photoFile = req.files?.find((f) => f.fieldname === "photo");
     if (photoFile) {
       if (existing.photo) await deleteFile(existing.photo);
@@ -777,22 +671,17 @@ router.put("/:id", protect, async (req, res) => {
       if (existing?.photo) await deleteFile(existing.photo);
       updateData.photo = null;
     }
-
     const project = await Project.findOneAndUpdate(
       canManageProjectFilter(req, req.params.id),
       { $set: updateData },
       { new: true, runValidators: true }
     );
-
     if (!project) return res.status(404).json({ message: "Project not found" });
-
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
-
     if (normalized.selectedPhases && normalized.selectedPhases.length > 0) {
       const allActivities = normalized.selectedPhases.flatMap(p => p.activities || []);
       const summaries = await computeActivityBudgetSummaries(project._id, allActivities);
-
       for (const phase of normalized.selectedPhases) {
         if (!phase.activities) continue;
         for (const act of phase.activities) {
@@ -800,7 +689,6 @@ router.put("/:id", protect, async (req, res) => {
           act.budgetMaterial = Number(act.budgetMaterial || 0);
           act.budgetLabour = Number(act.budgetLabour || 0);
           act.budgetEquipment = Number(act.budgetEquipment || 0);
-
           act.budget = summaries.get(aid) || {
             material: { allocated: act.budgetMaterial, spent: 0, remaining: act.budgetMaterial, utilization: 0, progress: 0 },
             labour: { allocated: act.budgetLabour, spent: 0, remaining: act.budgetLabour, utilization: 0, progress: 0 },
@@ -811,52 +699,40 @@ router.put("/:id", protect, async (req, res) => {
         }
       }
     }
-
     res.json({ message: "Project updated", project: normalized });
   } catch (err) {
     console.error("UPDATE project error:", err);
-
     if (err.name === "ValidationError") {
       const msg = Object.values(err.errors).map((e) => e.message).join(", ");
       return res.status(400).json({ message: msg });
     }
-
     res.status(500).json({ message: "Failed to update project" });
   }
 });
-
 router.delete("/:id", requirePermission(["delete_project", "manage_team"]), async (req, res) => {
   try {
     const project = await Project.findOneAndDelete(canManageProjectFilter(req, req.params.id));
     if (!project) return res.status(404).json({ message: "Project not found" });
-
     if (project.photo) await deleteFile(project.photo);
-
     res.json({ message: "Project deleted" });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete project" });
   }
 });
-
 const memoryUpload = multer({ storage: multer.memoryStorage() });
-
 router.post("/import-phases", memoryUpload.single("csvFile"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
-
   const results = [];
   const phasesMap = new Map();
-
   const stream = Readable.from(req.file.buffer);
-
   stream
     .pipe(csv())
     .on("data", (row) => {
       const phaseName = row["Phase"];
       const activityName = row["Particular"];
       if (!phaseName || !activityName) return;
-
       if (!phasesMap.has(phaseName)) {
         phasesMap.set(phaseName, {
           id: new mongoose.Types.ObjectId().toString(),
@@ -865,9 +741,7 @@ router.post("/import-phases", memoryUpload.single("csvFile"), (req, res) => {
           activities: [],
         });
       }
-
       const phase = phasesMap.get(phaseName);
-
       phase.activities.push({
         id: new mongoose.Types.ObjectId().toString(),
         name: activityName,
@@ -896,5 +770,4 @@ router.post("/import-phases", memoryUpload.single("csvFile"), (req, res) => {
       res.status(500).json({ message: "Failed to parse CSV file" });
     });
 });
-
 module.exports = router;

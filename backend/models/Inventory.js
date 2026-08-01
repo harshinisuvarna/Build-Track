@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const inventorySchema = new mongoose.Schema(
   {
     createdBy: {
@@ -46,10 +45,8 @@ const inventorySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 inventorySchema.index(
   { createdBy: 1, project: 1, materialName: 1 },
   { unique: true }
 );
-
 module.exports = mongoose.model("Inventory", inventorySchema);

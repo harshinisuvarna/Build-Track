@@ -4,17 +4,13 @@ const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const ExpenseEntry = require("../models/ExpenseEntry");
 const { protect, canAccessProjectFilter } = require("../middleware/auth");
-
 router.get("/:projectId", protect, async (req, res) => {
     try {
         const { projectId } = req.params;
-
         const project = await Project.findOne(canAccessProjectFilter(req, projectId)).lean();
-
         if (!project) {
             return res.status(404).json({ message: "Project not found" });
         }
-
         const expenseAggregation = await ExpenseEntry.aggregate([
             { $match: { project: new mongoose.Types.ObjectId(projectId) } },
             {
@@ -24,7 +20,6 @@ router.get("/:projectId", protect, async (req, res) => {
                 }
             }
         ]);
-
         const actuals = {
             Material: 0,
             Labour: 0,
@@ -32,14 +27,12 @@ router.get("/:projectId", protect, async (req, res) => {
             Misc: 0,
             Total: 0
         };
-
         expenseAggregation.forEach(item => {
             if (actuals[item._id] !== undefined) {
                 actuals[item._id] = item.totalSpent;
                 actuals.Total += item.totalSpent;
             }
         });
-
         const variance = {
             Material: project.budget.material - actuals.Material,
             Labour: project.budget.labour - actuals.Labour,
@@ -47,11 +40,9 @@ router.get("/:projectId", protect, async (req, res) => {
             Misc: project.budget.misc - actuals.Misc,
             Total: project.budget.total - actuals.Total
         };
-
         const burnRatePercentage = project.budget.total > 0
             ? ((actuals.Total / project.budget.total) * 100).toFixed(2)
             : 0;
-
         res.json({
             projectCode: project.projectCode,
             projectName: project.clientName,
@@ -60,11 +51,9 @@ router.get("/:projectId", protect, async (req, res) => {
             variance,
             burnRatePercentage: Number(burnRatePercentage)
         });
-
     } catch (error) {
         console.error("Analytics Error:", error);
         res.status(500).json({ message: "Failed to generate analytics report" });
     }
 });
-
 module.exports = router;

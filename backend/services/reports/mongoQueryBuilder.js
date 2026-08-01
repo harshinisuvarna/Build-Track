@@ -1,10 +1,8 @@
 const Project = require("../../models/Project");
 const aiDebugLogger = require("../../utils/aiDebugLogger");
-
 function parseDateWindow(periodStr) {
   const now = new Date();
   const year = now.getFullYear();
-
   const default30Days = () => {
     const d = new Date(now);
     d.setDate(d.getDate() - 30);
@@ -12,9 +10,7 @@ function parseDateWindow(periodStr) {
     const end = new Date(new Date().setHours(23,59,59,999));
     return { start, end };
   };
-
   if (!periodStr) return default30Days();
-
   if (periodStr === "today") {
     const start = new Date(now.setHours(0,0,0,0));
     const end = new Date(now.setHours(23,59,59,999));
@@ -47,7 +43,6 @@ function parseDateWindow(periodStr) {
     const end = new Date(now.setHours(23,59,59,999));
     return { start, end };
   }
-
   if (periodStr.includes("_to_")) {
     const parts = periodStr.split("_to_");
     if (parts.length === 2) {
@@ -60,21 +55,16 @@ function parseDateWindow(periodStr) {
       }
     }
   }
-
   return default30Days();
 }
-
 async function validateEntities(intent, baseScope, reqId) {
    let resolvedProjectId = null;
-
    if (intent.project && intent.project !== "all") {
       const projectNames = (Array.isArray(intent.project) ? intent.project : intent.project.split(/,| and /i))
         .map(s => s.trim())
         .filter(Boolean);
-
       const resolvedIds = [];
       const resolvedNames = [];
-
       for (const pName of projectNames) {
          let pQuery = { ...baseScope.projectFilter };
          if (pName.match(/^[0-9a-fA-F]{24}$/)) {
@@ -88,7 +78,6 @@ async function validateEntities(intent, baseScope, reqId) {
             resolvedNames.push(projectDoc.projectName);
          }
       }
-
       if (resolvedIds.length === 0) {
          throw new Error(`Project(s) '${intent.project}' not found or access denied.`);
       } else if (resolvedIds.length === 1) {
@@ -99,7 +88,6 @@ async function validateEntities(intent, baseScope, reqId) {
          intent.resolvedProjectName = resolvedNames.join(", ");
       }
     }
-
    aiDebugLogger.logSection("PROJECT RESOLUTION", {
       "Incoming projectId": intent.project || "N/A",
       "Resolved Mongo ObjectId": resolvedProjectId || "N/A",
@@ -108,42 +96,33 @@ async function validateEntities(intent, baseScope, reqId) {
    }, reqId);
    return resolvedProjectId;
 }
-
 async function buildQuery(intent, baseScope, reqId) {
    aiDebugLogger.logEnter("Mongo Query Builder", reqId);
    const startTime = Date.now();
-
    try {
       const query = { ...baseScope.txScope };
-
    const resolvedProjectId = await validateEntities(intent, baseScope, reqId);
    if (resolvedProjectId) {
       query.project = resolvedProjectId;
    } else if (baseScope.projectScopeIds) {
-
       query.project = { $in: baseScope.projectScopeIds };
    }
-
    const dateWindow = parseDateWindow(intent.period);
    if (dateWindow) {
       query.date = { $gte: dateWindow.start, $lte: dateWindow.end };
    }
-
    const cat = intent.category?.toLowerCase();
    const isInventory =
       intent.intent === "inventory_status" ||
       (intent.intent === "resource_report" && ["labour", "labor", "workers", "wages", "manpower", "equipment", "equipments", "machinery", "machine", "vehicle", "material", "materials", null, undefined, "", "all"].includes(cat));
-
    if (isInventory) {
       intent.intent = "inventory_status";
-
       const invQuery = { project: { $in: baseScope.projectScopeIds } };
       if (resolvedProjectId) {
          invQuery.project = resolvedProjectId;
       } else if (baseScope.projectScopeIds) {
          invQuery.project = { $in: baseScope.projectScopeIds };
       }
-
       if (cat === "labour" || cat === "labor" || cat === "workers" || cat === "wages" || cat === "manpower") {
          invQuery.category = "labour";
       } else if (cat === "equipment" || cat === "equipments" || cat === "machinery" || cat === "machine" || cat === "vehicle") {
@@ -151,14 +130,12 @@ async function buildQuery(intent, baseScope, reqId) {
       } else if (cat === "material" || cat === "materials") {
          invQuery.category = "material";
       }
-
       if (intent.resourceName && typeof intent.resourceName === 'string' && intent.resourceName.trim().length > 0) {
          const lowerRes = intent.resourceName.trim().toLowerCase();
          if (!["null", "undefined", "none", "nil", "n/a"].includes(lowerRes)) {
             invQuery.materialName = { $regex: new RegExp(intent.resourceName.trim(), "i") };
          }
       }
-
       aiDebugLogger.logSection("MONGO QUERY BUILDER", {
          "Final Mongo filter": invQuery,
          Sort: "Default",
@@ -166,11 +143,9 @@ async function buildQuery(intent, baseScope, reqId) {
          "Collection being queried": "inventories",
          "Date field used": "None"
       }, reqId);
-
       aiDebugLogger.logExit("Mongo Query Builder", reqId);
       return invQuery;
    }
-
    aiDebugLogger.logSection("DATE RESOLUTION", {
       "Current server time": new Date().toISOString(),
       "Detected period": intent.period || "None",
@@ -179,7 +154,6 @@ async function buildQuery(intent, baseScope, reqId) {
       Timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       "Utility responsible": "parseDateWindow (mongoQueryBuilder.js)"
    }, reqId);
-
    const typeMap = {
      "material": "Materials",
      "materials": "Materials",
@@ -197,10 +171,8 @@ async function buildQuery(intent, baseScope, reqId) {
      "expense": "Expense",
      "expenses": "Expense",
    };
-
    const mappedType = typeMap[intent.category?.toLowerCase()];
    if (mappedType) query.type = mappedType;
-
    if (intent.resourceName && typeof intent.resourceName === 'string' && intent.resourceName.trim().length > 0) {
       const lowerRes = intent.resourceName.trim().toLowerCase();
       if (!["null", "undefined", "none", "nil", "n/a"].includes(lowerRes)) {
@@ -214,11 +186,9 @@ async function buildQuery(intent, baseScope, reqId) {
          ];
       }
    }
-
    if (intent.intent === "pending_payments") {
       query.paymentStatus = { $in: ["Pending", "Partial"] };
    }
-
    aiDebugLogger.logSection("MONGO QUERY BUILDER", {
       "Final Mongo filter": query,
       Sort: "Default (implicit/latest)",
@@ -226,14 +196,11 @@ async function buildQuery(intent, baseScope, reqId) {
       "Collection being queried": intent.intent === "inventory_status" ? "inventories" : "transactions",
       "Date field used": query.date ? "date" : "None"
    }, reqId);
-
    aiDebugLogger.logExit("Mongo Query Builder", reqId);
    return query;
-
    } catch (error) {
       aiDebugLogger.logError("Mongo Query Builder", error, reqId, Date.now() - startTime);
       throw error;
    }
 }
-
 module.exports = { buildQuery, parseDateWindow };

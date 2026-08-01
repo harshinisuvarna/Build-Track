@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const esignRequestSchema = new mongoose.Schema({
   clientEmail: {
     type: String,
@@ -20,7 +19,7 @@ const esignRequestSchema = new mongoose.Schema({
     default: {}
   },
   signatureData: {
-    type: String, // Base64 data URI of the signature
+    type: String,
     default: null,
   },
   signedAt: {
@@ -30,8 +29,7 @@ const esignRequestSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 3600, // Token expires in 1 hour
+    expires: 3600,
   }
 });
-
 module.exports = mongoose.model('EsignRequest', esignRequestSchema);

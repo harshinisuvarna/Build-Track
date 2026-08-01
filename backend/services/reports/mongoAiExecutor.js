@@ -1,16 +1,13 @@
 const Transaction = require("../../models/Transaction");
 const Inventory = require("../../models/Inventory");
 const mongoose = require("mongoose");
-
 function toObjectId(id) {
   try { return new mongoose.Types.ObjectId(id.toString()); }
   catch { return null; }
 }
-
 function convertObjectIds(obj) {
   if (!obj || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(convertObjectIds);
-
   const result = {};
   for (const [key, val] of Object.entries(obj)) {
     if (key === "project" && typeof val === "string" && mongoose.Types.ObjectId.isValid(val)) {
@@ -29,18 +26,14 @@ function convertObjectIds(obj) {
   }
   return result;
 }
-
 async function executeAiQuery(queryPlan, projectScopeIds) {
   const scopeIds = projectScopeIds.map(toObjectId).filter(Boolean);
-
   let filter = convertObjectIds(
     JSON.parse(JSON.stringify(queryPlan.filter || {}))
   );
-
   if (!filter.project) {
     filter.project = { $in: scopeIds };
   } else if (filter.project && filter.project["$in"]) {
-
     const requested = filter.project["$in"].map(id => id.toString());
     const allowed = scopeIds.map(id => id.toString());
     const valid = requested.filter(id => allowed.includes(id));
@@ -56,12 +49,10 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
       filter.project = { $in: scopeIds };
     }
   }
-
   let rows = [];
   let totalAmount = null;
   let totalPurchased = null;
   let comparisonData = null;
-
   if (queryPlan.aggregateBy === "brand") {
     const pipeline = [
       { $match: filter },
@@ -74,7 +65,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
       }},
       { $sort: { totalAmount: -1 } }
     ];
-
     const aggResult = await Transaction.aggregate(pipeline);
     comparisonData = {
       groupedBy: "brand",
@@ -86,7 +76,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
         count: r.count
       }))
     };
-
     const docs = await Transaction.find(filter)
       .populate("project", "projectName")
       .populate("worker", "name")
@@ -95,9 +84,7 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
       .lean();
     rows = mapTransactionRows(docs);
     totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
-
   } else if (queryPlan.collection === "inventories") {
-
     if (filter.category === "material") {
       delete filter.category;
       filter["$or"] = [
@@ -106,12 +93,10 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
         { category: null }
       ];
     }
-
     const docs = await Inventory.find(filter)
       .populate("project", "projectName")
       .limit(queryPlan.limit || 500)
       .lean();
-
     rows = docs.map(doc => {
       const pct = doc.threshold > 0 ? doc.closingStock / doc.threshold : 1;
       const severity = doc.closingStock <= 0 ? "critical"
@@ -136,24 +121,19 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
         severity
       };
     });
-
     const order = { critical: 0, low: 1, ok: 2 };
     rows.sort((a, b) => (order[a.severity] ?? 2) - (order[b.severity] ?? 2));
     totalPurchased = rows.reduce((s, r) => s + (r.purchased || 0), 0);
-
   } else {
-
     const docs = await Transaction.find(filter)
       .populate("project", "projectName")
       .populate("worker", "name")
       .sort(queryPlan.sort || { date: -1 })
       .limit(queryPlan.limit || 200)
       .lean();
-
     rows = mapTransactionRows(docs);
     totalAmount = rows.reduce((s, r) => s + (r.amount || 0), 0);
   }
-
   const projectMap = {};
   rows.forEach(r => {
     const p = r.projectName || "Unknown";
@@ -166,13 +146,11 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
   const projectBreakdown = Object.entries(projectMap)
     .map(([name, v]) => ({ projectName: name, ...v }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
-
   const metrics = {
     criticalCount: rows.filter(r => r.severity === "critical").length,
     lowCount: rows.filter(r => r.severity === "low").length,
     totalRows: rows.length
   };
-
   return {
     rows,
     rowCount: rows.length,
@@ -185,7 +163,6 @@ async function executeAiQuery(queryPlan, projectScopeIds) {
     explanation: queryPlan.explanation
   };
 }
-
 function mapTransactionRows(docs) {
   return docs.map(t => ({
     date: t.date
@@ -208,5 +185,4 @@ function mapTransactionRows(docs) {
     activity: t.activity || "-"
   }));
 }
-
 module.exports = { executeAiQuery };

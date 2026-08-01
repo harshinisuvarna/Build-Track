@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-
 const projectUpdateSchema = new mongoose.Schema(
   {
     createdBy: {
@@ -57,8 +56,6 @@ const projectUpdateSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 projectUpdateSchema.index({ project: 1, createdAt: -1 });
 projectUpdateSchema.index({ createdBy: 1, approvalStatus: 1 });
-
 module.exports = mongoose.model("ProjectUpdate", projectUpdateSchema);

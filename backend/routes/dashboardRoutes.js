@@ -14,36 +14,30 @@ router.get("/summary", async (req, res) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
-
     const projectFilter = canAccessProjectFilter(req);
-
     const [accessibleProjects, adminId] = await Promise.all([
       Project.find(projectFilter).select("_id"),
       getAdminId(req.user),
     ]);
     const projectIds = accessibleProjects.map((p) => p._id);
-
     let matchFilter = { date: { $gte: monthStart, $lt: monthEnd } };
     if (req.user.role !== "Admin") {
       matchFilter.project = { $in: projectIds };
     } else {
       matchFilter.createdBy = userId;
     }
-
     let weeklyFilter = { date: { $gte: sevenDaysAgo } };
     if (req.user.role !== "Admin") {
       weeklyFilter.project = { $in: projectIds };
     } else {
       weeklyFilter.createdBy = userId;
     }
-
     let activityFilter = {};
     if (req.user.role !== "Admin") {
       activityFilter.project = { $in: projectIds };
     } else {
       activityFilter.createdBy = userId;
     }
-
     const [statsResult, activeWorkers, weeklyTransactions, recentProjects, recentActivity] = await Promise.all([
       Transaction.aggregate([
         { $match: matchFilter },
@@ -60,7 +54,6 @@ router.get("/summary", async (req, res) => {
       Project.find(canAccessProjectFilter(req)).select("projectName status progress createdAt").sort({ createdAt: -1 }).limit(4),
       Transaction.find(activityFilter).select("type amount date title project").sort({ date: -1 }).limit(5),
     ]);
-
     const { totalIncome = 0, totalExpenses = 0 } = statsResult[0] || {};
     const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
     const weeklyChart = [];

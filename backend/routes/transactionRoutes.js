@@ -2,87 +2,66 @@ const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
-
 const mongoose = require("mongoose");
 const multer = require("multer");
-
 const Transaction = require("../models/Transaction");
 const Worker = require("../models/Worker");
 const Project = require("../models/Project");
 const Inventory = require("../models/Inventory");
 const User = require("../models/User");
-
 const { protect, requirePermission, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
-
 const upload = require("../config/multer");
-
 const {
   getFileUrl,
   deleteFile,
 } = require("../config/fileHelpers");
 const cloudinary = require("../config/cloudinary");
-
-// --- Public E-Signature Routes ---
 router.get("/esign/:token", async (req, res) => {
   try {
     const transaction = await Transaction.findOne({
       eSignToken: req.params.token,
       eSignExpires: { $gt: new Date() }
     }).populate("project", "projectName clientName location mapAddress");
-    
     if (!transaction) {
       return res.status(404).json({ message: "Invalid or expired signature link" });
     }
-    
     res.json({ transaction });
   } catch (error) {
     console.error("GET /esign/:token error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
-
 router.post("/esign/:token", async (req, res) => {
   try {
     const { eSignature } = req.body;
     if (!eSignature) {
       return res.status(400).json({ message: "Signature data is required" });
     }
-
     const transaction = await Transaction.findOne({
       eSignToken: req.params.token,
       eSignExpires: { $gt: new Date() }
     });
-    
     if (!transaction) {
       return res.status(404).json({ message: "Invalid or expired signature link" });
     }
-    
     if (transaction.eSignStatus === "Signed") {
       return res.status(400).json({ message: "Receipt already signed" });
     }
-
     transaction.eSignature = eSignature;
     transaction.eSignStatus = "Signed";
     transaction.eSignDate = new Date();
-    // clear the token
     transaction.eSignToken = null;
     transaction.eSignExpires = null;
-    
     await transaction.save();
-
     res.json({ message: "Receipt signed successfully", transaction });
   } catch (error) {
     console.error("POST /esign/:token error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
-// ----------------------------------
-
 router.use(protect);
-
 const parseId = (id) =>
   mongoose.Types.ObjectId.isValid(id) ? id : null;
-
 const normalizeMaterialType = (materialType, subType) => {
   if (materialType === "purchase" || materialType === "usage") {
     return materialType;
@@ -90,23 +69,16 @@ const normalizeMaterialType = (materialType, subType) => {
   if (subType === "Consumption") return "usage";
   return "purchase";
 };
-
 const parseAmount = (value) => {
   if (value === undefined || value === null || value === "") return 0;
   const cleaned = String(value).replace(/[₹,\s]/g, "").trim();
   const num = Number(cleaned);
   return isNaN(num) ? 0 : num;
 };
-
-// ── SECURITY: Transaction amount / quantity bounds validation ─────────────────
-// Validates all numeric monetary and quantity fields before they reach the DB.
-// Rejects: negative values, NaN, Infinity, and values above business-logic maxima.
-// This is the primary controller-level guard; the schema adds a secondary guard.
-const MAX_AMOUNT   = 999_999_999; // ₹99 crore — maximum single transaction
-const MAX_QUANTITY = 1_000_000;   // 1 million units
-const MAX_RATE     = 999_999_999; // ₹99 crore per unit
-const MAX_GST      = 100;         // GST is a percentage 0–100
-
+const MAX_AMOUNT   = 999_999_999;
+const MAX_QUANTITY = 1_000_000;
+const MAX_RATE     = 999_999_999;
+const MAX_GST      = 100;
 const validateTransactionAmounts = ({
   amount,
   quantity,
@@ -123,9 +95,7 @@ const validateTransactionAmounts = ({
     { field: "gst",        value: gst,        min: 0, max: MAX_GST,       required: false },
     { field: "overtime",   value: overtime,   min: 0, max: MAX_AMOUNT,    required: false },
   ];
-
   for (const { field, value, min, max, required } of checks) {
-    // Skip undefined/null/empty optional fields
     if (value === undefined || value === null || value === "") {
       if (required) return `${field} is required`;
       continue;
@@ -141,9 +111,8 @@ const validateTransactionAmounts = ({
       return `${field} exceeds the maximum allowed value of ${max.toLocaleString()} (received: ${num})`;
     }
   }
-  return null; // null = valid
+  return null;
 };
-
 const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   const qty = Number(quantity) || 0;
   const rt = Number(rate) || 0;
@@ -160,7 +129,6 @@ const calculateAmount = ({ type, quantity, rate, overtime, rawAmount }) => {
   if (directAmount !== 0) return directAmount;
   return qty * rt;
 };
-
 const UNIT_MAP = {
   bags: "bag", bag: "bag",
   kg: "kg", kgs: "kg",
@@ -175,18 +143,14 @@ const UNIT_MAP = {
   truck: "truck", trucks: "truck", trips: "truck", load: "truck",
   cft: "sqft", cum: "sqm",
 };
-
 const VALID_UNITS = ["kg", "bag", "sqft", "sqm", "day", "hour", "unit", "ton", "MT", "truck", "ltr", "rft", ""];
-
 const normalizeUnit = (raw) => {
   if (!raw) return "unit";
   const key = String(raw).toLowerCase().trim();
   if (UNIT_MAP[key]) return UNIT_MAP[key];
-
   if (VALID_UNITS.includes(raw)) return raw;
   return "unit";
 };
-
 const PAYMENT_MODE_MAP = {
   cash: "Cash",
   bank: "Bank",
@@ -196,18 +160,14 @@ const PAYMENT_MODE_MAP = {
   neft: "Bank Transfer", rtgs: "Bank Transfer",
   online: "UPI",
 };
-
 const VALID_PAYMENT_MODES = ["Cash", "Bank", "Bank Transfer", "UPI", "Cheque", ""];
-
 const normalizePaymentMode = (raw) => {
   if (!raw) return "Cash";
   const key = String(raw).toLowerCase().trim();
   if (PAYMENT_MODE_MAP[key]) return PAYMENT_MODE_MAP[key];
-
   if (VALID_PAYMENT_MODES.includes(raw)) return raw;
   return "Cash";
 };
-
 const runTransactionCreateUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.fields([
@@ -219,7 +179,6 @@ const runTransactionCreateUpload = (req, res) =>
       resolve();
     });
   });
-
 const runTransactionUpdateUpload = (req, res) =>
   new Promise((resolve, reject) => {
     upload.array("attachments")(req, res, (err) => {
@@ -228,11 +187,9 @@ const runTransactionUpdateUpload = (req, res) =>
       resolve();
     });
   });
-
 async function resolveIds(userId, { worker, project }) {
   let workerId = parseId(worker);
   let projectId = parseId(project);
-
   if (workerId) {
     const wDoc = await Worker.findOne({ _id: workerId, createdBy: userId }).lean();
     if (!wDoc) workerId = null;
@@ -240,7 +197,6 @@ async function resolveIds(userId, { worker, project }) {
     const wDoc = await Worker.findOne({ createdBy: userId, name: String(worker).trim() }).lean();
     workerId = wDoc?._id || null;
   }
-
   if (projectId) {
     const pDoc = await Project.findOne({ _id: projectId, createdBy: userId }).lean();
     if (!pDoc) projectId = null;
@@ -248,10 +204,8 @@ async function resolveIds(userId, { worker, project }) {
     const pDoc = await Project.findOne({ createdBy: userId, projectName: String(project).trim() }).lean();
     projectId = pDoc?._id || null;
   }
-
   return { workerId, projectId };
 }
-
 async function applyInventoryDelta(
   adminId,
   projectId,
@@ -262,9 +216,7 @@ async function applyInventoryDelta(
   session
 ) {
   if (!delta || !category || !projectId) return;
-
   const invCategory = transactionType === "Wages" ? "labour" : transactionType === "Expense" ? "equipment" : "material";
-
   if (delta > 0) {
     await Inventory.updateOne(
       {
@@ -288,10 +240,8 @@ async function applyInventoryDelta(
       }
     );
   }
-
   else if (delta < 0) {
     const absQty = Math.abs(delta);
-
     const inv = await Inventory.findOne(
       {
         createdBy: adminId,
@@ -301,10 +251,8 @@ async function applyInventoryDelta(
       null,
       { session }
     );
-
     if (!inv) {
       if (transactionType !== "Materials") {
-
         return;
       }
       throw Object.assign(
@@ -312,10 +260,8 @@ async function applyInventoryDelta(
         { status: 400 }
       );
     }
-
     if (inv.closingStock < absQty) {
       if (transactionType !== "Materials") {
-
         await Inventory.updateOne(
           { _id: inv._id },
           {
@@ -333,7 +279,6 @@ async function applyInventoryDelta(
         { status: 400 }
       );
     }
-
     await Inventory.updateOne(
       { _id: inv._id },
       {
@@ -346,7 +291,6 @@ async function applyInventoryDelta(
     );
   }
 }
-
 router.get("/", async (req, res) => {
   try {
     const {
@@ -356,14 +300,10 @@ router.get("/", async (req, res) => {
       project,
       startDate,
       endDate,
-
       createdBy: queryCreatedBy,
     } = req.query;
-
     const query = {};
-
     if (req.user.role !== "Admin") {
-
       const projectFilter = canAccessProjectFilter(req);
       const projects = await Project.find(projectFilter).select("_id");
       const projectIds = projects.map((p) => p._id);
@@ -372,7 +312,6 @@ router.get("/", async (req, res) => {
         { project: null, createdBy: req.user._id }
       ];
     } else {
-
       const adminProjects = await Project.find({ createdBy: req.user._id }).select("_id");
       const adminProjectIds = adminProjects.map((p) => p._id);
       query.$or = [
@@ -380,33 +319,26 @@ router.get("/", async (req, res) => {
         { project: null, createdBy: req.user._id }
       ];
     }
-
     const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 10000;
     const filterByViewAccess = req.query.filterByViewAccess;
-
     if (filterByViewAccess === 'true') {
       if (req.user.role !== "Admin") {
         const supervisorDoc = await User.findById(req.user._id).select("createdBy overseesRoles");
         const overseesRoles = supervisorDoc?.overseesRoles || [];
-
         let viewableUserIds = [req.user._id];
-
         if (overseesRoles.length > 0 && supervisorDoc?.createdBy) {
           const allOrgUsers = await User.find({ createdBy: supervisorDoc.createdBy }).select("_id role");
           const overseesRolesLower = overseesRoles.map(r => r.toLowerCase().trim());
           const usersToOversee = allOrgUsers.filter(u => overseesRolesLower.includes((u.role || "").toLowerCase().trim()));
           viewableUserIds.push(...usersToOversee.map(u => u._id));
         }
-
         query.createdBy = { $in: viewableUserIds };
       }
     } else if (queryCreatedBy && mongoose.Types.ObjectId.isValid(queryCreatedBy)) {
       query.createdBy = new mongoose.Types.ObjectId(queryCreatedBy);
     }
-
     if (type && type !== "All") query.type = type;
     if (category) query.category = category;
-
     if (project) {
       const pDoc = await Project.findOne(canAccessProjectFilter(req, project));
       if (!pDoc) {
@@ -417,7 +349,6 @@ router.get("/", async (req, res) => {
         delete query.$or;
       }
     }
-
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
@@ -427,7 +358,6 @@ router.get("/", async (req, res) => {
         query.date.$lte = end;
       }
     }
-
     if (search) {
       const searchOr = [
         { title: { $regex: search, $options: "i" } },
@@ -441,48 +371,38 @@ router.get("/", async (req, res) => {
         query.$or = searchOr;
       }
     }
-
     let txQuery = Transaction.find(query)
       .select("-attachments -paymentHistory")
       .populate("worker", "name trade")
       .populate("project", "projectName status progress")
       .sort({ date: -1, createdAt: -1 });
-
     if (limitParam > 0) txQuery = txQuery.limit(limitParam);
-
     const transactions = await txQuery;
-
     res.json({ transactions });
   } catch (err) {
     console.error("Get transactions error:", err);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
-
 router.get("/my", async (req, res) => {
   try {
     const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 10;
-
     const transactions = await Transaction.find({ createdBy: req.user._id })
       .populate("project", "projectName")
       .sort({ date: -1, createdAt: -1 })
       .limit(limitParam);
-
     res.json({ transactions });
   } catch (err) {
     console.error("Get my transactions error:", err);
     res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
-
 router.get("/:id", async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.id)
       .populate("worker", "name trade")
       .populate("project", "projectName status progress createdBy");
-
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
     if (req.user.role !== "Admin") {
       const assignedIds = Array.isArray(req.user.projectIds)
         ? req.user.projectIds.filter(Boolean).map((id) => id.toString())
@@ -491,7 +411,6 @@ router.get("/:id", async (req, res) => {
       const allAssigned = legacyId && !assignedIds.includes(legacyId)
         ? [...assignedIds, legacyId]
         : assignedIds;
-
       if (!tx.project || !allAssigned.includes(tx.project._id.toString())) {
         return res.status(403).json({ message: "Access denied to this transaction" });
       }
@@ -502,14 +421,12 @@ router.get("/:id", async (req, res) => {
         }
       }
     }
-
     res.json({ transaction: tx });
   } catch (err) {
     console.error("Get transaction error:", err);
     res.status(500).json({ message: "Failed to fetch transaction" });
   }
 });
-
 router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   try {
     await runTransactionCreateUpload(
@@ -519,23 +436,19 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
   } catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
-
   const { paymentStatus, paidAmount } = req.body;
   const userPermissions = req.user.permissions || [];
   const canMarkPaid =
     req.user.role === "Admin" ||
     userPermissions.includes("approve_payments") ||
     userPermissions.includes("mark_paid");
-
   if ((paymentStatus === "Paid" || Number(paidAmount) > 0) && !canMarkPaid) {
     return res.status(403).json({
       message: "Insufficient permissions to record payments or mark as Paid",
     });
   }
-
   const session = await mongoose.startSession();
   session.startTransaction();
-
   try {
     const {
       title, type, worker, project, date, notes,
@@ -556,29 +469,22 @@ router.post("/", requirePermission(["manage_expenses", "add_entries"]), async (r
       isWithGst,
       overtime,
     } = req.body;
-
     const txApprovalStatus = req.user.role === "Admin" ? "Approved" : "Pending";
 console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, approvalStatus: ${txApprovalStatus}, createdBy: ${req.user._id}`);
     const approvedBy = req.user.role === "Admin" ? req.user._id : null;
     const approvedAt = req.user.role === "Admin" ? new Date() : null;
-
     if (!title || !title.trim()) {
       return res.status(400).json({ message: "Title is required" });
     }
     if (!type) {
       return res.status(400).json({ message: "Transaction type is required" });
     }
-
     const resolvedCategory = category !== undefined ? category : "";
-
     const normalizedMaterialType =
       type === "Materials" ? normalizeMaterialType(materialType, subType) : "";
-
     const adminId = await getAdminId(req.user);
-
     let workerId = parseId(worker);
     let projectId = parseId(project);
-
     if (workerId) {
       const wDoc = await Worker.findOne({ _id: workerId, createdBy: adminId }).lean();
       if (!wDoc) workerId = null;
@@ -586,15 +492,11 @@ console.log(`[Transaction] Creating transaction - user role: ${req.user.role}, a
       const wDoc = await Worker.findOne({ createdBy: adminId, name: String(worker).trim() }).lean();
       workerId = wDoc?._id || null;
     }
-
     if (projectId) {
-
       const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
       if (!pDoc) projectId = null;
     }
-
     const attachmentFiles = (req.files?.attachments || []).map(getFileUrl);
-
 if (req.body.attachments) {
   let bodyAttachments = req.body.attachments;
   if (typeof bodyAttachments === "string") {
@@ -617,13 +519,11 @@ if (req.body.attachments) {
           console.error("Cloudinary attachment upload error:", uploadErr);
         }
       } else {
-
         attachmentFiles.push(att);
       }
     }
   }
 }
-
 if (req.body.receiptImage) {
   try {
     const uploadResult = await cloudinary.uploader.upload(req.body.receiptImage, {
@@ -634,7 +534,6 @@ if (req.body.receiptImage) {
     console.error("Cloudinary receiptImage upload error:", uploadErr);
   }
 }
-
 let paymentReceiptUrl = null;
 if (req.body.paymentReceipt) {
   if (typeof req.body.paymentReceipt === "string" && req.body.paymentReceipt.startsWith("data:")) {
@@ -650,23 +549,17 @@ if (req.body.paymentReceipt) {
     paymentReceiptUrl = req.body.paymentReceipt;
   }
 }
-
     const screenshotFile = req.files?.paymentScreenshot?.[0];
     const screenshotUrl = screenshotFile ? getFileUrl(screenshotFile) : null;
-
     const qty      = Number(quantity)  || 0;
     const rt       = Number(rate)      || 0;
     const ot       = Number(overtime)  || 0;
     const paidAmt  = parseAmount(_paidAmount);
     const gstVal   = Number(gst)       || 0;
-
     if (qty < 0 || rt < 0) {
       return res.status(400).json({ message: "Quantity and rate must be positive" });
     }
-
     const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, overtime: ot, rawAmount });
-
-    // ── SECURITY: Validate all numeric fields before touching the database ─────────
     const amountErr = validateTransactionAmounts({
       amount:     finalAmount,
       quantity:   qty,
@@ -678,79 +571,51 @@ if (req.body.paymentReceipt) {
     if (amountErr) {
       return res.status(400).json({ message: `Invalid transaction data: ${amountErr}` });
     }
-
       const transaction =
         new Transaction({
           createdBy: req.user._id,
-
           title: title.trim(),
-
           type,
-
           worker:
             workerId || null,
-
           project:
             projectId || null,
-
           date:
             date || new Date(),
-
           notes,
-
           category:
             resolvedCategory,
-
           brand,
-
           supplier,
-
           gst,
           isWithGst,
-
           subType,
-
           materialType:
             normalizedMaterialType,
-
           unit:
             normalizeUnit(unit),
-
           quantity: qty,
-
           rate: rt,
-
           overtime: ot,
-
           amount: finalAmount,
-
           floor,
           floorId,
           phase,
           phaseId,
           activity,
           activityId,
-
           paymentStatus:
             paymentStatus ||
             "Pending",
-
           paymentMode:
             normalizePaymentMode(paymentMode),
-
           paymentDate,
-
           paidAmount: paidAmt,
-
           remarks,
-
           attachments:
             attachmentFiles,
-
           screenshotUrl,
-
           paymentReceipt: paymentReceiptUrl,
-
           paymentHistory: paidAmt > 0 ? [{
             date: paymentDate || date || new Date(),
             method: normalizePaymentMode(paymentMode),
@@ -758,25 +623,20 @@ if (req.body.paymentReceipt) {
             note: notes || "Initial payment on creation",
             receipt: paymentReceiptUrl || undefined,
           }] : [],
-
           approvalStatus: txApprovalStatus,
           approvedBy: approvedBy,
           approvedAt: approvedAt,
         });
-
     if (req.body.requestEsign === true && req.body.clientEmail && normalizePaymentMode(paymentMode) === "Cash") {
       const token = crypto.randomBytes(32).toString("hex");
       transaction.clientEmail = req.body.clientEmail;
       transaction.eSignToken = token;
       transaction.eSignStatus = "Requested";
-      transaction.eSignExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+      transaction.eSignExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
-
     await transaction.save({ session });
-
     if ((type === "Materials" || type === "Wages" || type === "Expense") && qty > 0 && projectId && txApprovalStatus === "Approved") {
       const inventoryDelta = (type === "Materials" && normalizedMaterialType === "usage") ? -qty : qty;
-
       await applyInventoryDelta(
         adminId,
         projectId,
@@ -787,12 +647,9 @@ if (req.body.paymentReceipt) {
         session
       );
     }
-
     await session.commitTransaction();
-
     if (transaction.eSignToken) {
       const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${transaction.eSignToken}`;
-
       if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
         try {
           const sesClient = new SESClient({
@@ -831,7 +688,6 @@ if (req.body.paymentReceipt) {
         }
       }
     }
-
     res.status(201).json({
       message: "Transaction saved successfully",
       transaction,
@@ -849,7 +705,6 @@ if (req.body.paymentReceipt) {
     session.endSession();
   }
 });
-
 router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   try {
     await runTransactionUpdateUpload(
@@ -859,20 +714,16 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
   } catch (uploadErr) {
     return res.status(400).json({ message: uploadErr.message || "File upload error" });
   }
-
   if (process.env.NODE_ENV !== "production") {
     console.log('=== UPDATE TRANSACTION REQUEST ===');
     console.log('ID:', req.params.id);
   }
-
   const { paymentStatus, paidAmount } = req.body;
   const session = await mongoose.startSession();
   session.startTransaction();
-
   try {
     const tx = await Transaction.findById(req.params.id).session(session);
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
     if (req.user.role !== "Admin") {
       const assignedIds = Array.isArray(req.user.projectIds)
         ? req.user.projectIds.filter(Boolean).map((id) => id.toString())
@@ -881,7 +732,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       const allAssigned = legacyId && !assignedIds.includes(legacyId)
         ? [...assignedIds, legacyId]
         : assignedIds;
-
       if (!tx.project || !allAssigned.includes(tx.project.toString())) {
         return res.status(403).json({ message: "Access denied to this transaction" });
       }
@@ -895,13 +745,11 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
         }
       }
     }
-
     const userPermissions = req.user.permissions || [];
     const canMarkPaid =
       req.user.role === "Admin" ||
       userPermissions.includes("approve_payments") ||
       userPermissions.includes("mark_paid");
-
     if ((paymentStatus === "Paid" || paidAmount !== undefined) && !canMarkPaid) {
       if (paymentStatus === "Paid" || (paidAmount !== undefined && Number(paidAmount) !== tx.paidAmount)) {
         return res.status(403).json({
@@ -909,7 +757,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
         });
       }
     }
-
     const {
       title, type, worker, project, date, notes,
       category, brand, subType, unit, quantity, rate,
@@ -931,12 +778,9 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       isWithGst,
       overtime,
     } = req.body;
-
     const adminId = await getAdminId(req.user);
-
     let workerId = parseId(worker ?? tx.worker);
     let projectId = parseId(project ?? tx.project);
-
     if (workerId) {
       const wDoc = await Worker.findOne({ _id: workerId, createdBy: adminId }).lean();
       if (!wDoc) workerId = null;
@@ -945,7 +789,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
       if (!pDoc) projectId = null;
     }
-
     const newQty      = quantity !== undefined ? Number(quantity) : tx.quantity;
     const newRt       = rate     !== undefined ? Number(rate)     : tx.rate;
     const newOt       = overtime !== undefined ? Number(overtime) : tx.overtime;
@@ -958,8 +801,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       overtime:  newOt,
       rawAmount: rawAmount ?? tx.amount,
     });
-
-    // ── SECURITY: Validate all numeric fields before touching the database ─────────
     const amountErr = validateTransactionAmounts({
       amount:     finalAmount,
       quantity:   newQty,
@@ -973,7 +814,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       session.endSession();
       return res.status(400).json({ message: `Invalid transaction data: ${amountErr}` });
     }
-
     const hasInventoryFieldsChanged =
       (project !== undefined && project !== tx.project?.toString()) ||
       (type !== undefined && type !== tx.type) ||
@@ -983,14 +823,11 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       (title !== undefined && title !== tx.title) ||
       (unit !== undefined && unit !== tx.unit) ||
       (quantity !== undefined && Number(quantity) !== tx.quantity);
-
     const newType = type || tx.type;
     const newMaterialType = newType === "Materials"
       ? normalizeMaterialType(materialType || tx.materialType, subType || tx.subType)
       : "";
-
     if (hasInventoryFieldsChanged) {
-
       if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
         const oldType = normalizeMaterialType(tx.materialType, tx.subType);
         const reverseDelta = (tx.type === "Materials" && oldType === "usage") ? tx.quantity : -tx.quantity;
@@ -1004,7 +841,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
           session
         );
       }
-
       if ((newType === "Materials" || newType === "Wages" || newType === "Expense") && newQty > 0 && projectId && tx.approvalStatus === "Approved") {
         const newDelta = (newType === "Materials" && newMaterialType === "usage") ? -newQty : newQty;
         await applyInventoryDelta(
@@ -1018,7 +854,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
         );
       }
     }
-
     let updatedAttachments = req.body.attachments !== undefined ? req.body.attachments : (tx.attachments || []);
     if (req.files && req.files.length > 0) {
       const newFiles = req.files.map((f) => getFileUrl(f));
@@ -1034,7 +869,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
         console.error("Cloudinary receiptImage update error:", uploadErr);
       }
     }
-
     let newPaymentReceiptUrl = null;
     if (paymentReceipt) {
       if (typeof paymentReceipt === "string" && paymentReceipt.startsWith("data:")) {
@@ -1047,59 +881,41 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
           console.error("Cloudinary paymentReceipt upload error:", uploadErr);
         }
       } else {
-
         newPaymentReceiptUrl = paymentReceipt;
       }
     }
-
     if (title !== undefined)
       tx.title = title.trim();
-
     if (type !== undefined)
       tx.type = type;
-
     if (worker !== undefined)
       tx.worker = workerId;
-
     if (project !== undefined)
       tx.project = projectId;
-
     if (date !== undefined)
       tx.date = date;
-
     if (notes !== undefined)
       tx.notes = notes;
-
     if (category !== undefined)
       tx.category = category;
-
     if (brand !== undefined)
       tx.brand = brand;
-
     if (supplier !== undefined)
       tx.supplier = supplier;
-
     if (gst !== undefined)
       tx.gst = gst;
-
     if (isWithGst !== undefined)
       tx.isWithGst = isWithGst;
-
     if (subType !== undefined)
       tx.subType = subType;
-
     if (unit !== undefined)
       tx.unit = unit;
-
     if (quantity !== undefined)
       tx.quantity = newQty;
-
     if (rate !== undefined)
       tx.rate = newRt;
-
     if (overtime !== undefined)
       tx.overtime = newOt;
-
     if (
       materialType !==
       undefined ||
@@ -1108,7 +924,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       tx.materialType =
         newMaterialType;
     }
-
     if (
       paymentStatus !==
       undefined
@@ -1116,43 +931,35 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       tx.paymentStatus =
         paymentStatus;
     }
-
     if (
       paymentMode !== undefined
     ) {
       tx.paymentMode =
         normalizePaymentMode(paymentMode);
     }
-
     if (
       paymentDate !== undefined
     ) {
       tx.paymentDate =
         paymentDate;
     }
-
     if (paymentHistory !== undefined && Array.isArray(paymentHistory)) {
       tx.paymentHistory = paymentHistory;
-      
       let sumPaid = 0;
       let lastMethod = tx.paymentMode;
       let lastDate = tx.paymentDate;
-
       tx.paymentHistory.forEach((p, index) => {
         const amt = parseAmount(p.amount);
         sumPaid += amt;
         p.amount = amt;
         if (!p.date) p.date = new Date();
         if (p.method) p.method = normalizePaymentMode(p.method);
-        
         if (index === tx.paymentHistory.length - 1) {
            lastMethod = p.method;
            lastDate = p.date;
         }
       });
-      
       tx.paidAmount = sumPaid;
-      
       if (sumPaid >= finalAmount && finalAmount > 0) {
         tx.paymentStatus = "Paid";
       } else if (sumPaid > 0) {
@@ -1160,12 +967,10 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       } else {
         tx.paymentStatus = "Pending";
       }
-      
       if (tx.paymentHistory.length > 0) {
         tx.paymentMode = lastMethod;
         tx.paymentDate = lastDate;
       }
-      
     } else if (_paidAmount !== undefined) {
       const newPaidAmount = parseAmount(_paidAmount);
       const delta = newPaidAmount - tx.paidAmount;
@@ -1179,7 +984,6 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
         });
       }
       tx.paidAmount = newPaidAmount;
-      
       if (tx.paidAmount >= finalAmount && finalAmount > 0) {
         tx.paymentStatus = "Paid";
       } else if (tx.paidAmount > 0) {
@@ -1188,11 +992,9 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
         tx.paymentStatus = "Pending";
       }
     }
-
     if (newPaymentReceiptUrl) {
       tx.paymentReceipt = newPaymentReceiptUrl;
     }
-
     if (remarks !== undefined)  tx.remarks     = remarks;
     if (floor !== undefined)    tx.floor       = floor;
     if (floorId !== undefined)  tx.floorId     = floorId;
@@ -1202,10 +1004,8 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
     if (activityId !== undefined) tx.activityId = activityId;
     tx.attachments = updatedAttachments;
     tx.amount = finalAmount;
-
     await tx.save({ session });
     await session.commitTransaction();
-
     res.json({ message: "Transaction updated successfully", transaction: tx });
   } catch (err) {
     await session.abortTransaction();
@@ -1218,15 +1018,12 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
     session.endSession();
   }
 });
-
 router.delete("/:id", async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
   try {
     const tx = await Transaction.findById(req.params.id).session(session);
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
     if (req.user.role !== "Admin") {
       const assignedIds = Array.isArray(req.user.projectIds)
         ? req.user.projectIds.filter(Boolean).map((id) => id.toString())
@@ -1235,7 +1032,6 @@ router.delete("/:id", async (req, res) => {
       const allAssigned = legacyId && !assignedIds.includes(legacyId)
         ? [...assignedIds, legacyId]
         : assignedIds;
-
       if (!tx.project || !allAssigned.includes(tx.project.toString())) {
         return res.status(403).json({ message: "Access denied to this transaction" });
       }
@@ -1249,14 +1045,11 @@ router.delete("/:id", async (req, res) => {
         }
       }
     }
-
     await Transaction.deleteOne({ _id: tx._id }).session(session);
-
     if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.approvalStatus === "Approved") {
       const adminId = await getAdminId(req.user);
       const txMaterialType = normalizeMaterialType(tx.materialType, tx.subType);
       const reverseDelta = (tx.type === "Materials" && txMaterialType === "usage") ? tx.quantity : -tx.quantity;
-
       await applyInventoryDelta(
         adminId,
         tx.project,
@@ -1267,15 +1060,12 @@ router.delete("/:id", async (req, res) => {
         session
       );
     }
-
     await session.commitTransaction();
-
     if (Array.isArray(tx.attachments)) {
       for (const url of tx.attachments) {
         await deleteFile(url).catch(() => {});
       }
     }
-
     res.json({ message: "Transaction deleted successfully" });
   } catch (err) {
     await session.abortTransaction();
@@ -1285,29 +1075,22 @@ router.delete("/:id", async (req, res) => {
     session.endSession();
   }
 });
-
 router.put("/:id/approve", requirePermission(["approve_payments", "add_entries", "approve_updates"]), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
   try {
     const tx = await Transaction.findById(req.params.id).session(session);
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
     if (tx.approvalStatus === "Approved") {
       return res.status(400).json({ message: "Transaction is already approved" });
     }
-
     tx.approvalStatus = "Approved";
     tx.approvedBy = req.user._id;
     tx.approvedAt = new Date();
-
     const adminId = await getAdminId(req.user);
-
     if ((tx.type === "Materials" || tx.type === "Wages" || tx.type === "Expense") && tx.quantity > 0 && tx.project) {
       const materialType = normalizeMaterialType(tx.materialType, tx.subType);
       const inventoryDelta = (tx.type === "Materials" && materialType === "usage") ? -tx.quantity : tx.quantity;
-
       await applyInventoryDelta(
         adminId,
         tx.project,
@@ -1318,10 +1101,8 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries",
         session
       );
     }
-
     await tx.save({ session });
     await session.commitTransaction();
-
     res.json({ message: "Transaction approved successfully", transaction: tx });
   } catch (err) {
     await session.abortTransaction();
@@ -1331,37 +1112,30 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries",
     session.endSession();
   }
 });
-
 router.put("/:id/reject", requirePermission(["approve_payments", "add_entries", "approve_updates"]), async (req, res) => {
   try {
     const { rejectionReason } = req.body;
     const tx = await Transaction.findById(req.params.id);
     if (!tx) return res.status(404).json({ message: "Transaction not found" });
-
     if (tx.approvalStatus === "Approved") {
       return res.status(400).json({ message: "Cannot reject an already approved transaction" });
     }
-
     tx.approvalStatus = "Rejected";
     tx.approvedBy = req.user._id;
     tx.approvedAt = new Date();
     tx.rejectionReason = rejectionReason || "";
     await tx.save();
-
     res.json({ message: "Transaction rejected", transaction: tx });
   } catch (err) {
     console.error("Reject transaction error:", err);
     res.status(500).json({ message: "Failed to reject transaction" });
   }
 });
-
 async function updateProjectPhaseBudget(projectId, phaseId, activityId, type, amount, session) {
   if (!projectId || !phaseId || !activityId || !amount) return;
-
   const incPayload = {
     "selectedPhases.$[phase].activities.$[activity].totalAmount": amount
   };
-
   if (type === "Materials") {
     incPayload["selectedPhases.$[phase].activities.$[activity].materialAmount"] = amount;
   } else if (type === "Wages") {
@@ -1369,7 +1143,6 @@ async function updateProjectPhaseBudget(projectId, phaseId, activityId, type, am
   } else if (type === "Expense") {
     incPayload["selectedPhases.$[phase].activities.$[activity].equipmentAmount"] = amount;
   }
-
   await Project.updateOne(
     { _id: projectId },
     { $inc: incPayload },
@@ -1382,30 +1155,24 @@ async function updateProjectPhaseBudget(projectId, phaseId, activityId, type, am
     }
   );
 }
-
 router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), async (req, res) => {
   const { transactions } = req.body;
-
   if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
     return res.status(400).json({ message: "No transactions provided for bulk upload" });
   }
-
   const results = {
     total: transactions.length,
     successCount: 0,
     failedCount: 0,
     failures: []
   };
-
   const adminId = await getAdminId(req.user);
   const txApprovalStatus = req.user.role === "Admin" ? "Approved" : "Pending";
   const approvedBy = req.user.role === "Admin" ? req.user._id : null;
   const approvedAt = req.user.role === "Admin" ? new Date() : null;
-
   for (let i = 0; i < transactions.length; i++) {
     const session = await mongoose.startSession();
     session.startTransaction();
-
     try {
       const payload = transactions[i];
       const {
@@ -1415,16 +1182,12 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         remarks, amount: rawAmount, floor, floorId, phase, phaseId, activity, activityId,
         supplier, gst, isWithGst, overtime
       } = payload;
-
       if (!title || !title.trim()) throw new Error("Title is required");
       if (!type) throw new Error("Transaction type is required");
-
       const resolvedCategory = category !== undefined ? category : "";
       const normalizedMaterialType = type === "Materials" ? normalizeMaterialType(materialType, subType) : "";
-
       let workerId = parseId(worker);
       let projectId = parseId(project);
-
       if (workerId) {
         const wDoc = await Worker.findOne({ _id: workerId, createdBy: adminId }).lean();
         if (!wDoc) workerId = null;
@@ -1432,12 +1195,10 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         const wDoc = await Worker.findOne({ createdBy: adminId, name: String(worker).trim() }).lean();
         workerId = wDoc?._id || null;
       }
-
       if (projectId) {
         const pDoc = await Project.findOne(canAccessProjectFilter(req, projectId));
         if (!pDoc) throw new Error(`Access denied or Project not found for project: ${project}`);
       } else if (project) {
-
         const pDoc = await Project.findOne({ createdBy: adminId, projectName: String(project).trim() }).lean();
         if (pDoc) {
           projectId = pDoc._id;
@@ -1447,18 +1208,13 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
       } else {
         throw new Error("Valid Project ID or name is required");
       }
-
       const qty      = Number(quantity)  || 0;
       const rt       = Number(rate)      || 0;
       const ot       = Number(overtime)  || 0;
       const paidAmt  = parseAmount(_paidAmount);
       const gstVal   = Number(gst)       || 0;
-
       if (qty < 0 || rt < 0) throw new Error("Quantity and rate must be positive");
-
       const finalAmount = calculateAmount({ type, quantity: qty, rate: rt, overtime: ot, rawAmount });
-
-      // ── SECURITY: Validate all numeric fields before touching the database ─────────
       const amountErr = validateTransactionAmounts({
         amount:     finalAmount,
         quantity:   qty,
@@ -1468,7 +1224,6 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         overtime:   ot,
       });
       if (amountErr) throw new Error(`Invalid transaction data: ${amountErr}`);
-
       const transaction = new Transaction({
         createdBy: req.user._id,
         title: title.trim(),
@@ -1485,18 +1240,14 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         }] : [],
         approvalStatus: txApprovalStatus, approvedBy, approvedAt
       });
-
       await transaction.save({ session });
-
       if ((type === "Materials" || type === "Wages" || type === "Expense") && qty > 0 && projectId && txApprovalStatus === "Approved") {
         const inventoryDelta = (type === "Materials" && normalizedMaterialType === "usage") ? -qty : qty;
         await applyInventoryDelta(adminId, projectId, resolvedCategory || title, unit, inventoryDelta, type, session);
       }
-
       if (projectId && phaseId && activityId && txApprovalStatus === "Approved") {
         await updateProjectPhaseBudget(projectId, phaseId, activityId, type, finalAmount, session);
       }
-
       await session.commitTransaction();
       results.successCount++;
     } catch (err) {
@@ -1511,7 +1262,6 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
       session.endSession();
     }
   }
-
   res.status(207).json({
     message: "Bulk processing completed",
     results
@@ -1521,31 +1271,22 @@ router.post("/:id/request-esign", async (req, res) => {
   try {
     const transactionId = req.params.id;
     const { clientEmail } = req.body;
-
     if (!clientEmail) {
       return res.status(400).json({ message: "Client email is required" });
     }
-
     const transaction = await Transaction.findOne({ _id: transactionId });
-    
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
-
     if (transaction.paymentMode !== "Cash") {
       return res.status(400).json({ message: "E-Signature is only available for Cash transactions." });
     }
-
     const token = crypto.randomBytes(32).toString("hex");
-    
     transaction.clientEmail = clientEmail;
     transaction.eSignToken = token;
     transaction.eSignStatus = "Requested";
-    // expire in 7 days
-    transaction.eSignExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
-
+    transaction.eSignExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await transaction.save();
-
     const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${token}`;    if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
       try {
         const sesClient = new SESClient({
@@ -1585,13 +1326,10 @@ router.post("/:id/request-esign", async (req, res) => {
     } else {
       return res.status(500).json({ message: "Server email configuration is missing" });
     }    console.log(`[DEV] E-SIGN LINK: ${signUrl}`);
-
     res.json({ message: "Signature request sent successfully", transaction });
-
   } catch (error) {
     console.error("POST /:id/request-esign error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
-
 module.exports = router;

@@ -2,28 +2,23 @@ const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const User = require("../models/User");
 require("dotenv").config();
-
 try {
   require("dns").setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
 } catch (dnsErr) {
   console.warn("⚠️ Failed to set public DNS servers:", dnsErr.message);
 }
-
 async function runOwnershipMigration() {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Connected to DB...");
-
     const firstAdmin = await User.findOne({ role: "Admin" });
     if (!firstAdmin) {
       console.error("❌ No Admin user found in the database. Please create an Admin user first.");
       process.exit(1);
     }
     console.log(`Using fallback Admin user: ${firstAdmin.email} (${firstAdmin._id})`);
-
     const projects = await Project.find({});
     console.log(`Found ${projects.length} total projects. Auditing ownership...`);
-
     let patchedCount = 0;
     for (const project of projects) {
       if (!project.createdBy) {
@@ -32,7 +27,6 @@ async function runOwnershipMigration() {
         await project.save();
         patchedCount++;
       } else {
-
         const ownerExists = await User.findById(project.createdBy);
         if (!ownerExists) {
           console.log(`⚠️ Project "${project.projectName}" (${project._id}) has orphan owner ID "${project.createdBy}". Re-assigning to Admin.`);
@@ -42,14 +36,11 @@ async function runOwnershipMigration() {
         }
       }
     }
-
     console.log(`✅ Ownership audit complete. Patched ${patchedCount} legacy projects.`);
     process.exit(0);
-
   } catch (error) {
     console.error("❌ Ownership migration failed:", error);
     process.exit(1);
   }
 }
-
 runOwnershipMigration();

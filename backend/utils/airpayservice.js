@@ -6,7 +6,6 @@ const {
   generatePrivateKey,
   generateEncryptionKeyFromCreds,
 } = require('./airpayCrypto');
-
 function getConfig() {
   const cfg = {
     merchantId: (process.env.AIRPAY_MERCHANT_ID || '').trim(),
@@ -25,58 +24,45 @@ function getConfig() {
   }
   return cfg;
 }
-
 const AIRPAY_OAUTH_URL        = 'https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/';
 const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/';
-
 let cachedToken    = null;
 let tokenExpiresAt = 0;
-
 async function getAccessToken() {
   const now = Date.now();
   if (cachedToken && now < tokenExpiresAt) return cachedToken;
-
   const cfg           = getConfig();
   const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
-
   const payload = {
     client_id:     cfg.clientId,
     client_secret: cfg.secret,
     grant_type:    'client_credentials',
     merchant_id:   cfg.merchantId,
   };
-
   const encdata  = encrypt(JSON.stringify(payload), encryptionKey);
   const checksum = generateChecksum(payload);
-
   const formBody = new URLSearchParams();
   formBody.append('merchant_id', cfg.merchantId);
   formBody.append('encdata',     encdata);
   formBody.append('checksum',    checksum);
-
   const response = await axios.post(AIRPAY_OAUTH_URL, formBody, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
-
   if (!response.data.response) {
     throw new Error('AirPay OAuth2: no "response" field in reply');
   }
-
   const decrypted = decrypt(response.data.response, encryptionKey);
   const result    = JSON.parse(decrypted);
-
   if (result.status !== 'success' || !result.data?.access_token) {
     throw new Error(
       `AirPay OAuth2 failed: ${result.message || 'unknown'} ` +
       `(code: ${result.response_code || result.error_code})`
     );
   }
-
   cachedToken    = result.data.access_token;
   tokenExpiresAt = now + (result.data.expires_in || 300) * 1000 - 20000;
   return cachedToken;
 }
-
 async function buildPaymentPayload({
   orderId,
   amount,
@@ -85,15 +71,12 @@ async function buildPaymentPayload({
   buyerFirstName,
   buyerLastName,
   returnUrl,
-
 }) {
   const cfg             = getConfig();
   const encryptionKey   = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
   const accessToken     = await getAccessToken();
   const amountFormatted = Number(amount).toFixed(2);
-
   const privatekey = generatePrivateKey(process.env.AIRPAY_API_KEY || cfg.secret, cfg.username, cfg.password);
-
   const transactionData = {
     orderid:         orderId,
     amount:           amountFormatted,
@@ -110,22 +93,17 @@ async function buildPaymentPayload({
     buyer_pincode:   '000000',
     merchant_id:     cfg.merchantId,
   };
-
   const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
   const checksum = generateChecksum(transactionData);
-
   const sortedKeys = Object.keys(transactionData).sort();
   const rawChecksumInput = sortedKeys.map(k => transactionData[k]).join('');
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
   if (process.env.NODE_ENV !== 'production') {
     console.log('[AirPay] Payment payload generated for order:', orderId);
   }
-
   return {
     postUrl: `${AIRPAY_PAYMENT_BASE_URL}?token=${accessToken}`,
-
     formFields: {
       privatekey,
       merchant_id: cfg.merchantId,
@@ -134,24 +112,18 @@ async function buildPaymentPayload({
     },
   };
 }
-
 function decryptCallbackData(encryptedResponse) {
   const cfg = getConfig();
   const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
   const decrypted = decrypt(encryptedResponse, encryptionKey);
   return JSON.parse(decrypted);
 }
-
 function verifyAndDecryptCallbackData(reqBody) {
-  // Reject plain/unencrypted callback bodies to prevent payment callback forgery
   if (!reqBody || !reqBody.response) {
     throw new Error('Unauthenticated payment callback: missing encrypted response payload');
   }
-
   const result = decryptCallbackData(reqBody.response);
-
   const dataObj = result.data || result;
-  // If checksum is sent back, verify it against generated checksum
   if (dataObj && dataObj.checksum) {
     const { checksum: _receivedChecksum, ...payloadToVerify } = dataObj;
     const computedChecksum = generateChecksum(payloadToVerify);
@@ -159,8 +131,6 @@ function verifyAndDecryptCallbackData(reqBody) {
       throw new Error('Payment callback checksum verification failed');
     }
   }
-
   return result;
 }
-
 module.exports = { getAccessToken, buildPaymentPayload, decryptCallbackData, verifyAndDecryptCallbackData };

@@ -1,9 +1,4 @@
 const User = require("../models/User");
-
-// ── SECURITY: Field whitelist for user responses ──────────────────────────────
-// Never return raw Mongoose user documents. Internal fields such as
-// resetPasswordToken, resetPasswordExpires, twoFactorSecret, tokenVersion,
-// and __v must never leave the server.
 const safeUser = (user) => ({
   id:               user._id || user.id,
   name:             user.name,
@@ -20,18 +15,14 @@ const safeUser = (user) => ({
   createdAt:        user.createdAt,
   updatedAt:        user.updatedAt,
 });
-
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const { name, email } = req.body;
-
     const user = await User.findById(userId).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-
     if (name) user.name = name.trim();
     if (email) user.email = email.trim().toLowerCase();
-
     await user.save();
     return res.status(200).json({ user: safeUser(user) });
   } catch (error) {
@@ -39,7 +30,6 @@ const updateProfile = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -49,52 +39,42 @@ const getProfile = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 const updateProfilePhoto = async (req, res) => {
   try {
     const { profilePhoto } = req.body;
     if (profilePhoto === undefined) {
       return res.status(400).json({ message: "No photo provided" });
     }
-
     const updatePhoto = (profilePhoto === null || profilePhoto === "") ? null : profilePhoto;
-
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { profilePhoto: updatePhoto },
       { new: true, runValidators: false }
     ).select("-password");
-
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
     res.json({ user: safeUser(user) });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 const updateSubscription = async (req, res) => {
   try {
     const userId = req.user.id;
     const { plan, status, renewalDate, purchaseToken } = req.body;
-
     const validPlans = ['free', 'starter', 'growth', 'pro', 'business', 'enterprise'];
     if (!validPlans.includes(plan)) {
       return res.status(400).json({ message: "Invalid plan" });
     }
-
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
-
     user.subscription = {
       plan:          plan          ?? user.subscription?.plan ?? 'free',
       status:        status        ?? 'active',
       renewalDate:   renewalDate   ? new Date(renewalDate) : null,
       purchaseToken: purchaseToken ?? null,
     };
-
     await user.save();
     return res.status(200).json({ subscription: user.subscription });
   } catch (error) {
@@ -102,7 +82,6 @@ const updateSubscription = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 const getSubscription = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('subscription');
@@ -113,29 +92,23 @@ const getSubscription = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 const assignOversightRoles = async (req, res) => {
   try {
     const { id } = req.params;
     const { overseesRoles } = req.body;
-
     if (!Array.isArray(overseesRoles)) {
       return res.status(400).json({ message: "overseesRoles must be an array" });
     }
-
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
     user.overseesRoles = overseesRoles;
     await user.save();
-
     return res.status(200).json({ user: safeUser(user) });
   } catch (err) {
     console.error("Assign oversight error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles };
