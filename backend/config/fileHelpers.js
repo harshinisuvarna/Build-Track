@@ -9,7 +9,7 @@ async function deleteFile(storedValue) {
     const parts = storedValue.split("/upload/");
     if (parts[1]) {
       const publicId = parts[1]
-        .replace(/^v\d+\
+        .replace(/^v\d+\//, "")
         .replace(/\.[^.]+$/, "");
       await cloudinary.uploader.destroy(publicId);
     }
