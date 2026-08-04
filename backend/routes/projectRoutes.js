@@ -219,7 +219,7 @@ const ownedByCurrentUserFilter = (req, projectId = null) => {
 const VIEW_PROJECTS = ["view_projects", "view_assigned_project"];
 router.get("/mine", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
-    const projects = await Project.find(ownedByCurrentUserFilter(req)).select("-selectedPhases").sort({ createdAt: -1 });
+    const projects = await Project.find(ownedByCurrentUserFilter(req)).sort({ createdAt: -1 });
     const projectIds = projects.map(p => p._id);
     const [spentList, incomeList] = await Promise.all([
       Transaction.aggregate([
@@ -274,7 +274,7 @@ router.get("/", protect, async (req, res) => {
         ],
       });
     }
-    const projects = await Project.find(query).select("-selectedPhases").sort({ createdAt: -1 });
+    const projects = await Project.find(query).sort({ createdAt: -1 });
     const projectIds = projects.map(p => p._id);
     const [spentList, incomeList] = await Promise.all([
       Transaction.aggregate([
@@ -441,7 +441,7 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
         return res.status(403).json({ message: `Project limit reached for your current plan (${limit} projects). Please upgrade your subscription.` });
       }
     }
-    const body = req.body;
+    const body = req.body; console.log('PUT BODY keys:', Object.keys(body), 'selectedPhases exists:', body.selectedPhases !== undefined);
     if (!body.projectName || !body.projectName.trim()) {
       return res.status(400).json({ message: "Project name is required" });
     }
