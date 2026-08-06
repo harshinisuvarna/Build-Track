@@ -372,7 +372,7 @@ router.get("/", async (req, res) => {
       }
     }
     let txQuery = Transaction.find(query)
-      .select("-attachments -paymentHistory")
+      .select("-attachments")
       .populate("worker", "name trade")
       .populate("project", "projectName status progress")
       .sort({ date: -1, createdAt: -1 });
