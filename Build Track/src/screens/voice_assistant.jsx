@@ -197,6 +197,32 @@ export default function VoiceAssistantPage() {
     }, 800);
   }, [executionContext, projects, setSpeechProcessing]);
 
+  const resetAll = useCallback(() => {
+    if (autoResetTimerRef.current) {
+      clearTimeout(autoResetTimerRef.current);
+      autoResetTimerRef.current = null;
+    }
+    resetSpeech();
+    setParsedData(null);
+    setTranscript('');
+    setSaveError('');
+    setSavedEntryId(null);
+    setShowReview(false);
+    setProcessingStage(0);
+    setStatus(STATUS.idle);
+  }, [resetSpeech]);
+
+  const fetchRecentEntries = useCallback(() => {
+    setRecentLoading(true);
+    transactionAPI.getAll()
+      .then(({ data }) => {
+        const all = data.transactions || [];
+        setRecentEntries(all.slice(0, 5));
+      })
+      .catch(() => setRecentEntries([]))
+      .finally(() => setRecentLoading(false));
+  }, []);
+
   const handleReviewSave = useCallback(async (reviewData) => {
     setShowReview(false);
     setStatus(STATUS.saving);
@@ -258,33 +284,7 @@ export default function VoiceAssistantPage() {
       setStatus(STATUS.summary);
       setShowReview(true);
     }
-  }, [transcript, executionContext]);
-
-  const fetchRecentEntries = useCallback(() => {
-    setRecentLoading(true);
-    transactionAPI.getAll()
-      .then(({ data }) => {
-        const all = data.transactions || [];
-        setRecentEntries(all.slice(0, 5));
-      })
-      .catch(() => setRecentEntries([]))
-      .finally(() => setRecentLoading(false));
-  }, []);
-
-  const resetAll = useCallback(() => {
-    if (autoResetTimerRef.current) {
-      clearTimeout(autoResetTimerRef.current);
-      autoResetTimerRef.current = null;
-    }
-    resetSpeech();
-    setParsedData(null);
-    setTranscript('');
-    setSaveError('');
-    setSavedEntryId(null);
-    setShowReview(false);
-    setProcessingStage(0);
-    setStatus(STATUS.idle);
-  }, [resetSpeech]);
+  }, [transcript, executionContext, fetchRecentEntries, resetAll]);
 
   const viewEntries = useCallback(() => {
     navigate('/transaction');
@@ -476,10 +476,11 @@ export default function VoiceAssistantPage() {
                           height: `${Math.max(4, soundLevel * 36)}px`,
                           background: gradients.primaryGradient,
                           animationDelay: `${i * 0.04}s`,
-                          animationDuration: `${0.5 + Math.random() * 0.4}s`,
+                          animationDuration: `${0.5 + (i % 5) * 0.1}s`,
                         }} />
                     ))}
                   </div>
+
                   <div style={{
                     background: 'rgba(23, 62, 234, 0.03)',
                     borderRadius: '12px', border: `1px solid ${colors.border}`,
@@ -822,7 +823,7 @@ export default function VoiceAssistantPage() {
       )}
 
       <VoiceReviewSheet
-        key={showReview ? `review-${Date.now()}` : 'review-closed'}
+        key={showReview ? 'review-open' : 'review-closed'}
         isOpen={showReview}
         onClose={() => { setShowReview(false); setStatus(STATUS.summary); }}
         initialData={parsedData || {}}
