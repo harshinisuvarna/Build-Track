@@ -25,7 +25,7 @@ function getConfig() {
   return cfg;
 }
 const AIRPAY_OAUTH_URL        = 'https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/';
-const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/';
+const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/index.php';
 let cachedToken    = null;
 let tokenExpiresAt = 0;
 async function getAccessToken() {
@@ -111,8 +111,8 @@ async function buildPaymentPayload({
     postUrl: `${AIRPAY_PAYMENT_BASE_URL}?token=${accessToken}`,
     formFields: {
       privatekey,
-      mid: cfg.merchantId,
-      data: encdata,
+      merchant_id: cfg.merchantId,
+      encdata,
       checksum,
     },
   };

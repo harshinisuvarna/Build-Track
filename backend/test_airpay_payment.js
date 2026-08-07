@@ -42,25 +42,25 @@ async function testPayment() {
 });
     console.log("\n=== PAYMENT REQUEST ===");
 console.log("POST URL:", postUrl);
-console.log("MID:", formFields.mid);
+console.log("MID:", formFields.merchant_id);
 console.log("PRIVATEKEY:", formFields.privatekey);
 console.log("CHECKSUM:", formFields.checksum);
-console.log("DATA:", formFields.data);
+console.log("DATA:", formFields.encdata);
 console.log("=======================\n");
     console.log('orderId:', orderId);
     console.log('postUrl:', postUrl);
-    console.log('mid:', formFields.mid);
+    console.log('merchant_id:', formFields.merchant_id);
     console.log('privatekey (first 10):', formFields.privatekey?.substring(0, 10) + '...');
     console.log('checksum  (first 10):', formFields.checksum?.substring(0, 10) + '...');
-    console.log('data      (first 20):', formFields.data?.substring(0, 20) + '...');
+    console.log('encdata      (first 20):', formFields.encdata?.substring(0, 20) + '...');
     const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>AirPay Payment Test</title></head>
 <body>
   <p>Submitting to AirPay sandbox — do not close this tab...</p>
   <form id="f" action="${escapeHtml(postUrl)}" method="POST">
-    <input type="hidden" name="mid"        value="${escapeHtml(formFields.mid)}" />
-    <input type="hidden" name="data"       value="${escapeHtml(formFields.data)}" />
+    <input type="hidden" name="merchant_id"        value="${escapeHtml(formFields.merchant_id)}" />
+    <input type="hidden" name="encdata"       value="${escapeHtml(formFields.encdata)}" />
     <input type="hidden" name="privatekey" value="${escapeHtml(formFields.privatekey)}" />
     <input type="hidden" name="checksum"   value="${escapeHtml(formFields.checksum)}" />
   </form>
@@ -72,8 +72,8 @@ console.log("=======================\n");
     console.log('\n✅ Wrote', outPath);
     console.log('\n── Submitting directly via axios to inspect raw response ──');
     const formBody = new URLSearchParams();
-    formBody.append('mid',        formFields.mid);
-    formBody.append('data',       formFields.data);
+    formBody.append('merchant_id',        formFields.merchant_id);
+    formBody.append('encdata',       formFields.encdata);
     formBody.append('privatekey', formFields.privatekey);
     formBody.append('checksum',   formFields.checksum);
     try {
