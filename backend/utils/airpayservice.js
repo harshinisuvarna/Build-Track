@@ -26,11 +26,7 @@ function getConfig() {
 }
 const AIRPAY_OAUTH_URL        = 'https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/';
 const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/index.php';
-let cachedToken    = null;
-let tokenExpiresAt = 0;
 async function getAccessToken() {
-  const now = Date.now();
-  if (cachedToken && now < tokenExpiresAt) return cachedToken;
   const cfg           = getConfig();
   const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
   const payload = {
@@ -59,9 +55,7 @@ async function getAccessToken() {
       `(code: ${result.response_code || result.error_code})`
     );
   }
-  cachedToken    = result.data.access_token;
-  tokenExpiresAt = now + (result.data.expires_in || 300) * 1000 - 20000;
-  return cachedToken;
+  return result.data.access_token;
 }
 async function buildPaymentPayload({
   orderId,
@@ -97,6 +91,7 @@ async function buildPaymentPayload({
     buyer_country:   buyerCountry || 'India',
     buyer_pincode:   buyerPinCode || '400001',
     merchant_id:     cfg.merchantId,
+    custom_var:      returnUrl || '',
   };
   const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
   const checksum = generateChecksum(transactionData);
@@ -114,6 +109,7 @@ async function buildPaymentPayload({
       merchant_id: cfg.merchantId,
       encdata,
       checksum,
+      chmod: '',
     },
   };
 }
