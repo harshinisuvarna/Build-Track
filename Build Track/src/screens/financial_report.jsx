@@ -79,13 +79,23 @@ function formatDateLong(dt) {
   return `${day} ${month} ${year} ${hour}:${minute} ${ampm}`;
 }
 
-function getPaymentStatusLabel(status) {
+function getPaymentStatusLabel(status, tx = null) {
+  if (tx && typeof tx === 'object') {
+    const rawAmt = tx.amount || 0;
+    const rawPaid = tx.paidAmount || 0;
+    if (rawAmt > 0) {
+      if (rawPaid >= rawAmt) return 'Fully Paid';
+      if (rawPaid > 0) return 'Partial';
+    }
+  }
   switch ((status || '').toLowerCase().trim()) {
     case 'paid':
     case 'fully paid':
     case 'fullypaid':
       return 'Fully Paid';
     case 'partial':
+    case 'partially paid':
+    case 'partially':
       return 'Partial';
     case 'pending':
     case 'not paid':
@@ -1602,8 +1612,10 @@ export default function FinancialReportPage() {
                 { label: "Project", val: getProjectName(detailsEntry.projectId) },
                 { label: "Type", val: detailsEntry.type.toUpperCase() },
                 { label: "Date", val: formatDateLong(detailsEntry.date) },
-                { label: "Amount", val: formatINR(detailsEntry.amount), bold: true },
-                { label: "Status", val: getPaymentStatusLabel(detailsEntry.paymentStatus) },
+                { label: "Total Amount", val: formatINR(detailsEntry.rawTx?.amount || detailsEntry.amount), bold: true },
+                { label: "Paid Amount", val: formatINR(detailsEntry.rawTx?.paidAmount || 0), bold: true, textColor: "#166534" },
+                { label: "Balance", val: formatINR(detailsEntry.rawTx?.remainingAmount ?? ((detailsEntry.rawTx?.amount || detailsEntry.amount) - (detailsEntry.rawTx?.paidAmount || 0))), bold: true, textColor: "#dc2626" },
+                { label: "Status", val: getPaymentStatusLabel(detailsEntry.paymentStatus, detailsEntry.rawTx) },
                 { label: "Description", val: detailsEntry.description || "—" },
                 { label: "Brand", val: detailsEntry.brand || "—" },
                 { label: "Floor", val: detailsEntry.floor || "—" },
@@ -1611,11 +1623,11 @@ export default function FinancialReportPage() {
                 { label: "Unit", val: detailsEntry.unit || "—" },
                 { label: "Rejection Reason", val: detailsEntry.rejectionReason, isWarning: true }
               ].map((row) => {
-                if (!row.val) return null;
+                if (!row.val && row.val !== 0 && row.val !== "₹0") return null;
                 return (
                   <div key={row.label} style={{ display: "flex", fontSize: 12.5 }}>
                     <span style={{ width: 110, fontWeight: "600", color: colors.textSecondary }}>{row.label}</span>
-                    <span style={{ flex: 1, fontWeight: row.bold ? "800" : "700", color: row.isWarning ? "#dc2626" : colors.textPrimary }}>{row.val}</span>
+                    <span style={{ flex: 1, fontWeight: row.bold ? "800" : "700", color: row.textColor ? row.textColor : (row.isWarning ? "#dc2626" : colors.textPrimary) }}>{row.val}</span>
                   </div>
                 );
               })}
@@ -1638,20 +1650,34 @@ export default function FinancialReportPage() {
                         borderRadius: 8,
                         background: colors.bgBase4,
                         border: `1px solid ${colors.cardBorder}`,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontSize: 12.5, fontWeight: 700, color: colors.textPrimary }}>
                           {formatINR(ph.amount)}
                         </span>
-                        <span style={{ fontSize: 11, color: colors.textLight }}>
-                          {ph.method || "—"}
-                        </span>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, padding: "2px 6px", background: "#e0e7ff", color: "#3730a3", borderRadius: 4, fontWeight: 600 }}>
+                            {ph.method || "—"}
+                          </span>
+                          {ph.receipt && (
+                            <a href={ph.receipt} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#4F46E5", fontWeight: 600, textDecoration: "none" }}>
+                              Receipt ↗
+                            </a>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10.5, color: colors.textLight, marginTop: 2 }}>
-                        {formatDateShort(ph.date)}
-                        {ph.note ? ` — ${ph.note}` : ""}
+                      <div style={{ fontSize: 10, color: colors.textLight }}>
+                        {formatDateLong(ph.date)}
                       </div>
+                      {ph.note && (
+                        <div style={{ fontSize: 11, color: colors.textSecondary, fontStyle: "italic", marginTop: 2 }}>
+                          Note: {ph.note}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
