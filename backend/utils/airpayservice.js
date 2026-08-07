@@ -91,7 +91,6 @@ async function buildPaymentPayload({
     buyer_country:   buyerCountry || 'India',
     buyer_pincode:   buyerPinCode || '400001',
     merchant_id:     cfg.merchantId,
-    custom_var:      returnUrl || '',
   };
   const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
   const checksum = generateChecksum(transactionData);

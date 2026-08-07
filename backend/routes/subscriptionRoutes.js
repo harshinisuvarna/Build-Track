@@ -24,7 +24,7 @@ router.post('/initiate', protect, async (req, res) => {
     if (!PLAN_PRICES[plan]) {
       return res.status(400).json({ message: 'Invalid plan' });
     }
-    const orderId = `BT${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const orderId = `BT${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 99)}`;
     const amount  = PLAN_PRICES[plan];
     await Subscription.create({
       userId,
@@ -40,9 +40,9 @@ router.post('/initiate', protect, async (req, res) => {
       orderId,
       amount,
       buyerEmail:     user.email     || 'test@buildtrack.com',
-      buyerPhone:     user.phone     || '9999999999',
-      buyerFirstName: nameParts[0]   || 'BuildTrack',
-      buyerLastName:  nameParts.slice(1).join(' ') || 'User',
+      buyerPhone:     (user.phone || '9999999999').replace(/\D/g, '').slice(-10) || '9999999999',
+      buyerFirstName: (nameParts[0] || 'BuildTrack').replace(/[^a-zA-Z]/g, '') || 'BuildTrack',
+      buyerLastName:  (nameParts.slice(1).join('') || 'User').replace(/[^a-zA-Z]/g, '') || 'User',
       buyerAddress:   'Not Available',
       buyerCity:      'Not Available',
       buyerState:     'Not Available',
