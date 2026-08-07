@@ -43,6 +43,11 @@ router.post('/initiate', protect, async (req, res) => {
       buyerPhone:     user.phone     || '9999999999',
       buyerFirstName: nameParts[0]   || 'BuildTrack',
       buyerLastName:  nameParts.slice(1).join(' ') || 'User',
+      buyerAddress:   'Not Available',
+      buyerCity:      'Not Available',
+      buyerState:     'Not Available',
+      buyerCountry:   'India',
+      buyerPinCode:   '400001',
       returnUrl:      `${backendUrl}/api/subscriptions/callback`,
     });
     res.json({

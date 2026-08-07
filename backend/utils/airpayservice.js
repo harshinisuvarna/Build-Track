@@ -70,6 +70,11 @@ async function buildPaymentPayload({
   buyerPhone,
   buyerFirstName,
   buyerLastName,
+  buyerAddress,
+  buyerCity,
+  buyerState,
+  buyerCountry,
+  buyerPinCode,
   returnUrl,
 }) {
   const cfg             = getConfig();
@@ -86,11 +91,11 @@ async function buildPaymentPayload({
     buyer_phone:     buyerPhone,
     buyer_firstname: buyerFirstName,
     buyer_lastname:  buyerLastName,
-    buyer_address:   'NA',
-    buyer_city:      'NA',
-    buyer_state:     'NA',
-    buyer_country:   'India',
-    buyer_pincode:   '000000',
+    buyer_address:   buyerAddress || 'Not Available',
+    buyer_city:      buyerCity || 'Not Available',
+    buyer_state:     buyerState || 'Not Available',
+    buyer_country:   buyerCountry || 'India',
+    buyer_pincode:   buyerPinCode || '400001',
     merchant_id:     cfg.merchantId,
   };
   const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
@@ -106,8 +111,8 @@ async function buildPaymentPayload({
     postUrl: `${AIRPAY_PAYMENT_BASE_URL}?token=${accessToken}`,
     formFields: {
       privatekey,
-      merchant_id: cfg.merchantId,
-      encdata,
+      mid: cfg.merchantId,
+      data: encdata,
       checksum,
     },
   };
