@@ -13,6 +13,7 @@ import {
   Bot,
   Bell,
   ScrollText,
+  CreditCard,
 } from 'lucide-react';
 
 export const navItems = [
@@ -23,6 +24,7 @@ export const navItems = [
   { label: "Projects", path: "/projects", icon: Building2 },
   { label: "Inventory", path: "/inventory", icon: Package },
   { label: "Reports", path: "/reports", icon: BarChart3 },
+  { label: "Subscription", path: "/subscription", icon: CreditCard },
   { label: "Settings", path: "/settings", icon: Settings },
 ];
 
