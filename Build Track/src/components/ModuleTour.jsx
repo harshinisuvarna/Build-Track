@@ -1,5 +1,5 @@
 import React from 'react';
-import Joyride, { STATUS } from 'react-joyride';
+import { Joyride, STATUS } from 'react-joyride';
 import { useAuth } from '../contexts/AuthContext';
 import { userAPI } from '../api';
 
