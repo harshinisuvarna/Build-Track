@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import Joyride, { STATUS } from 'react-joyride';
+import { Joyride, STATUS } from 'react-joyride';
 import { useAuth } from '../contexts/AuthContext';
-import { API_URL } from '../config';
+import { API_ORIGIN } from '../api';
 
 const AppTour = () => {
   const { user, updateUser } = useAuth();
@@ -54,8 +54,8 @@ const AppTour = () => {
     if (finishedStatuses.includes(status) || action === 'close') {
       setRun(false);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/api/users/onboarding/skip`, {
+        const token = localStorage.getItem('bt_token') || localStorage.getItem('token');
+        const res = await fetch(`${API_ORIGIN}/api/users/onboarding/skip`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
