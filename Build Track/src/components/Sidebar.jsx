@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { LogOut, Building2 } from "lucide-react";
+import { LogOut, Building2, HelpCircle } from "lucide-react";
 import { colors, gradients, radius, typography } from "../styles/designTokens";
 import { useAuth } from "../contexts/AuthContext";
 import { preloadRoute } from "../App";
@@ -101,7 +101,7 @@ export default function Sidebar() {
             key={item.label}
             to={item.path}
             end={item.path === "/"}
-            className="sidebar-link"
+            className={`sidebar-link ${item.label === 'Add Entry' ? 'tour-add-entry' : ''} ${item.label === 'Reports' ? 'tour-reports' : ''}`}
             onMouseEnter={() => preloadRoute(item.path)}
             onPointerDown={() => preloadRoute(item.path)}
             onClick={() => perfLogger.startRoute(item.path)}
@@ -210,6 +210,29 @@ export default function Sidebar() {
         >
           <LogOut size={14} />
           Sign Out
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new Event('replay-app-tour'))}
+          className="sidebar-help-btn"
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            marginTop: 8,
+            borderRadius: "10px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: colors.textSecondary,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            cursor: "pointer",
+            border: `1px solid ${colors.border}`,
+            background: "transparent",
+          }}
+        >
+          <HelpCircle size={14} />
+          App Tour
         </button>
       </div>
     </aside>

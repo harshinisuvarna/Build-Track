@@ -12,6 +12,7 @@ const safeUser = (user) => ({
   isActive:         user.isActive,
   overseesRoles:    Array.isArray(user.overseesRoles) ? user.overseesRoles : [],
   twoFactorEnabled: !!user.twoFactorEnabled,
+  onboarding:       user.onboarding || { hasSkippedTour: false, hasCreatedProject: false, hasAddedEntry: false },
   createdAt:        user.createdAt,
   updatedAt:        user.updatedAt,
 });
@@ -111,4 +112,23 @@ const assignOversightRoles = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles };
+
+const skipOnboarding = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    if (!user.onboarding) {
+      user.onboarding = { hasSkippedTour: false, hasCreatedProject: false, hasAddedEntry: false };
+    }
+    user.onboarding.hasSkippedTour = true;
+    await user.save();
+    
+    return res.status(200).json({ user: safeUser(user) });
+  } catch (error) {
+    console.error("Skip onboarding error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding };

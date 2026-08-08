@@ -126,7 +126,9 @@ export default function AddEntryPage() {
           })}
         </div>
 
-        <CsvImport onComplete={() => {}} />
+        <div className="tour-bulk-csv">
+          <CsvImport onComplete={() => {}} />
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import AppTour from "../components/AppTour";
 import { Bell, Settings } from "lucide-react";
 import { colors } from "../styles/designTokens";
 
@@ -21,6 +22,7 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: colors.bg }}>
+      <AppTour />
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}

@@ -139,9 +139,11 @@ export default function ProjectsPage() {
             <RefreshCw size={14} color="#64748B" />
           </button>
           {canCreate && (
-            <Button variant="primary" size="md" icon={<Plus size={16} />} onClick={() => navigate("/newproject")}>
-              New Project
-            </Button>
+            <div className="tour-create-project">
+              <Button variant="primary" size="md" icon={<Plus size={16} />} onClick={() => navigate("/newproject")}>
+                New Project
+              </Button>
+            </div>
           )}
         </div>
       </div>

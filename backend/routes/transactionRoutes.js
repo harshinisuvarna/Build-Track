@@ -688,6 +688,10 @@ if (req.body.paymentReceipt) {
         }
       }
     }
+    
+    // Update onboarding status
+    await User.findByIdAndUpdate(req.user.id, { "onboarding.hasAddedEntry": true });
+
     res.status(201).json({
       message: "Transaction saved successfully",
       transaction,
