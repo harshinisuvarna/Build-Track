@@ -138,6 +138,7 @@ export const userAPI = {
   updateProfileAlt:      (data) => api.put("/users/profile", data),
   updatePhotoAlt:        (fd)   => api.put("/users/profile/photo", fd),
   assignSupervisorOversight: (id, data) => api.put(`/users/${id}/oversight`, data),
+  visitModule:           (data) => api.post("/users/onboarding/visit-module", data),
 };
 
 export const voiceAPI = {

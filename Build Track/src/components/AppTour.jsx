@@ -10,15 +10,15 @@ const AppTour = () => {
   const [dynamicSteps, setDynamicSteps] = useState([]);
 
   useEffect(() => {
-    if (!user || !user.onboarding) return;
+    if (!user) return;
     
-    const { 
-      hasSkippedTour, 
-      hasCreatedProject, 
-      hasAddedEntry, 
-      hasViewedReports, 
-      hasUsedBulkCSV 
-    } = user.onboarding;
+    // Default values if user doesn't have the onboarding object yet
+    const onboarding = user.onboarding || {};
+    const hasSkippedTour = !!onboarding.hasSkippedTour;
+    const hasCreatedProject = !!onboarding.hasCreatedProject;
+    const hasAddedEntry = !!onboarding.hasAddedEntry;
+    const hasViewedReports = !!onboarding.hasViewedReports;
+    const hasUsedBulkCSV = !!onboarding.hasUsedBulkCSV;
 
     const buildSteps = (isReplay = false) => {
       const steps = [

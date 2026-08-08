@@ -7,7 +7,8 @@ import perfLogger from "../utils/performanceLogger";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { Card, Badge, Button, SkeletonLine } from "../components/ui";
-import { Search, Plus, Building2, ArrowRight, Edit3, Trash2, RefreshCw, FolderOpen } from "lucide-react";
+import { Search, Plus, Building2, ArrowRight, Edit3, Trash2, RefreshCw, FolderOpen, HelpCircle } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 const STATUS_STYLE = {
   planning:   { bg: "#FFF8E1", text: "#F57F17", border: "#FFC107", label: "Planning" },
@@ -42,6 +43,25 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState({ msg: "", type: "info" });
   const [confirmDlg, setConfirmDlg] = useState(null);
+
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('ProjectManagement')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'Here you can view and manage all your projects.', disableBeacon: true },
+    { target: '.tour-search', content: 'Use this to search for specific projects by name, location, or manager.' },
+    { target: '.tour-create-project', content: 'Click here to create a new project.' },
+    { target: '.tour-tabs', content: 'Filter projects by their current status.' },
+    { target: '.tour-project-list', content: 'This is your project list. Click any project to manage it.' }
+  ];
 
   const isAdmin = user?.role?.toLowerCase() === "admin";
   const canCreate = isAdmin || can("create_project") || can("manage_team");
@@ -118,10 +138,11 @@ export default function ProjectsPage() {
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="ProjectManagement" />
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+      <div className="tour-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.03em', margin: 0, marginBottom: 4 }}>
             Projects
@@ -131,7 +152,10 @@ export default function ProjectsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '0 12px', height: 36, gap: 8 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color="#64748B" />
+          </button>
+          <div className="tour-search" style={{ display: 'flex', alignItems: 'center', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '0 12px', height: 36, gap: 8 }}>
             <Search size={14} color="#94A3B8" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search projects..." style={{ border: 'none', outline: 'none', fontSize: 13, color: '#111827', background: 'transparent', width: isMobile ? 120 : 180, fontFamily: 'inherit' }} />
           </div>
@@ -148,7 +172,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB', marginBottom: 24, overflowX: 'auto' }}>
+      <div className="tour-tabs" style={{ display: 'flex', gap: 4, borderBottom: '1px solid #E5E7EB', marginBottom: 24, overflowX: 'auto' }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
             style={{
@@ -192,7 +216,7 @@ export default function ProjectsPage() {
           </div>
 
           {filtered.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
+            <div className="tour-project-list" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
               {filtered.map(p => {
                 const sk = statusKey(p.status);
                 const st = STATUS_STYLE[sk] || STATUS_STYLE.inprogress;

@@ -6,8 +6,10 @@ import { MetricCard, CategoryBudgetBar } from "../components/MetricCards";
 import { Badge, Button, Card } from "../components/ui";
 import {
   Search, Download, FileText, ChevronDown, Calendar, Filter, RefreshCw,
-  BarChart3, Layers, DollarSign, Users, TrendingUp, Sparkles,
+  BarChart3, Layers, DollarSign, Users, TrendingUp, Sparkles, HelpCircle
 } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
+import { useAuth } from "../contexts/AuthContext";
 
 const TYPE_COLORS = {
   Materials: { bg: "#EEF0FF", color: "#5B5CEB" },
@@ -61,6 +63,25 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('ReportDashboard')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'View analytics and export reports for your projects.', disableBeacon: true },
+    { target: '.tour-filters', content: 'Filter reports by project, date range, or transaction type.' },
+    { target: '.tour-metrics', content: 'Quick summary of total costs, material, labour, and equipment.' },
+    { target: '.tour-charts', content: 'Visual breakdown of spending versus budget.' },
+    { target: '.tour-log', content: 'Detailed list of transactions that you can export to CSV or PDF.' }
+  ];
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -175,14 +196,20 @@ export default function ReportsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
-      <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0, flexWrap: "wrap" }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="ReportDashboard" />
+      <div className="tour-header" style={{ padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Reports & Analytics</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>{filtered.length} entries found</p>
         </div>
-        <Button variant="primary" size="md" onClick={() => navigate("/ai-chat")} style={{ background: "linear-gradient(135deg, #8B5CF6, #A855F7)", border: "none" }}>
-          <Sparkles size={14} /> Ask AI
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color="#64748B" />
+          </button>
+          <Button variant="primary" size="md" onClick={() => navigate("/ai-chat")} style={{ background: "linear-gradient(135deg, #8B5CF6, #A855F7)", border: "none" }}>
+            <Sparkles size={14} /> Ask AI
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -193,8 +220,9 @@ export default function ReportsPage() {
       )}
 
       <div style={{ flex: 1, padding: "20px 24px", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
-        <Card padding="16px 20px" style={{ marginBottom: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: 14, alignItems: "end" }}>
+        <div className="tour-filters">
+          <Card padding="16px 20px" style={{ marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: 14, alignItems: "end" }}>
             <div>
               <label style={hoursStyle}>PROJECT</label>
               <div style={{ position: "relative" }}>
@@ -237,15 +265,16 @@ export default function ReportsPage() {
             ))}
           </div>
         </Card>
+        </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
+        <div className="tour-metrics" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
           <MetricCard icon={<BarChart3 size={16} />} label="Total Cost" value={stats.total} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budget?.["total"] || projects.find(p => (p._id || p.id) === selectedProject)?.totalBudget || 0} color="#3B82F6" />
           <MetricCard icon={<Layers size={16} />} label="Material" value={stats.material} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetMaterial || 0} color="#5B5CEB" />
           <MetricCard icon={<Users size={16} />} label="Labour" value={stats.labour} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetLabour || 0} color="#8B5CF6" />
           <MetricCard icon={<DollarSign size={16} />} label="Equipment" value={stats.equipment} budget={projects.find(p => (p._id || p.id) === selectedProject)?.budgetEquipment || 0} color="#06B6D4" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: 14, marginBottom: 16 }}>
+        <div className="tour-charts" style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: 14, marginBottom: 16 }}>
           <Card padding="20px">
             <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Spend vs Budget</div>
             <SpendVsBudgetChart data={chartData} />
@@ -258,8 +287,9 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        <Card>
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div className="tour-log">
+          <Card>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Transaction Log ({filtered.length})</span>
             <div style={{ display: "flex", gap: 6 }}>
               <Button variant="secondary" size="sm" icon={<Download size={12} />} onClick={exportCsv}>CSV</Button>
@@ -324,9 +354,10 @@ export default function ReportsPage() {
                 <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages}
                   style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #E5E7EB", background: "#fff", fontSize: 12, cursor: currentPage >= totalPages ? "default" : "pointer", opacity: currentPage >= totalPages ? 0.5 : 1, fontWeight: 600, fontFamily: "inherit" }}>Next</button>
               </div>
-            </div>
-          )}
-        </Card>
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </div>
   );

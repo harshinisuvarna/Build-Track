@@ -1,11 +1,12 @@
 const express = require("express");
 const router  = express.Router();
-const { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding } = require("../controllers/userController");
+const { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding, visitModule } = require("../controllers/userController");
 const { protect, authorize } = require("../middleware/auth");
 router.get("/profile",       protect, getProfile);
 router.put("/profile/photo", protect, updateProfilePhoto);
 router.put("/profile",       protect, updateProfile);
 router.put("/onboarding/skip", protect, skipOnboarding);
+router.post("/onboarding/visit-module", protect, visitModule);
 router.get("/subscription", protect, getSubscription);
 router.put("/subscription", protect, updateSubscription);
 router.put("/:id/oversight", protect, authorize("Admin"), assignOversightRoles);

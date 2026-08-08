@@ -131,4 +131,31 @@ const skipOnboarding = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding };
+const visitModule = async (req, res) => {
+  try {
+    const { moduleName } = req.body;
+    if (!moduleName) return res.status(400).json({ message: "Module name is required" });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    
+    if (!user.onboarding) {
+      user.onboarding = {};
+    }
+    if (!user.onboarding.visitedModules) {
+      user.onboarding.visitedModules = [];
+    }
+
+    if (!user.onboarding.visitedModules.includes(moduleName)) {
+      user.onboarding.visitedModules.push(moduleName);
+      await user.save();
+    }
+    
+    return res.status(200).json({ user: safeUser(user) });
+  } catch (error) {
+    console.error("Visit module error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding, visitModule };
