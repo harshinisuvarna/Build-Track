@@ -7,45 +7,79 @@ const AppTour = () => {
   const { user, updateUser } = useAuth();
   const [run, setRun] = useState(false);
 
+  const [dynamicSteps, setDynamicSteps] = useState([]);
+
   useEffect(() => {
-    // Only auto-start if onboarding state matches
-    if (user && user.onboarding) {
-      const { hasSkippedTour, hasCreatedProject, hasAddedEntry } = user.onboarding;
-      if (!hasSkippedTour && !hasCreatedProject && !hasAddedEntry) {
+    if (!user || !user.onboarding) return;
+    
+    const { 
+      hasSkippedTour, 
+      hasCreatedProject, 
+      hasAddedEntry, 
+      hasViewedReports, 
+      hasUsedBulkCSV 
+    } = user.onboarding;
+
+    const buildSteps = (isReplay = false) => {
+      const steps = [
+        {
+          target: 'body',
+          content: 'Welcome to BuildTrack! Let us show you around so you can get started quickly.',
+          placement: 'center',
+          disableBeacon: true,
+        }
+      ];
+
+      if (isReplay || !hasCreatedProject) {
+        steps.push({
+          target: '.tour-create-project',
+          content: 'Click here to create your first project. Projects help you track everything in one place.',
+        });
+      }
+
+      if (isReplay || !hasAddedEntry) {
+        steps.push({
+          target: '.tour-add-entry',
+          content: 'Once you have a project, you can add an entry like material usage or expense here.',
+        });
+      }
+
+      if (isReplay || !hasViewedReports) {
+        steps.push({
+          target: '.tour-reports',
+          content: 'Check out the reports section to see financial summaries and project stats.',
+        });
+      }
+
+      if (isReplay || !hasUsedBulkCSV) {
+        steps.push({
+          target: '.tour-bulk-csv',
+          content: 'If you have a lot of data, you can bulk upload entries using a CSV file from the manual entry page.',
+        });
+      }
+
+      return steps;
+    };
+
+    // Auto-start logic
+    if (!hasSkippedTour) {
+      const stepsForUser = buildSteps(false);
+      // Only auto-start if there's at least one actual feature to show (more than just the welcome body step)
+      if (stepsForUser.length > 1) {
+        setDynamicSteps(stepsForUser);
         setRun(true);
       }
     }
     
     // Listen for manual trigger from sidebar
-    const handleReplay = () => setRun(true);
+    const handleReplay = () => {
+      setDynamicSteps(buildSteps(true));
+      setRun(true);
+    };
+    
     window.addEventListener('replay-app-tour', handleReplay);
     return () => window.removeEventListener('replay-app-tour', handleReplay);
   }, [user]);
-
-  const steps = [
-    {
-      target: 'body',
-      content: 'Welcome to BuildTrack! Let us show you around so you can get started quickly.',
-      placement: 'center',
-      disableBeacon: true,
-    },
-    {
-      target: '.tour-create-project',
-      content: 'Click here to create your first project. Projects help you track everything in one place.',
-    },
-    {
-      target: '.tour-add-entry',
-      content: 'Once you have a project, you can add an entry like material usage or expense here.',
-    },
-    {
-      target: '.tour-reports',
-      content: 'Check out the reports section to see financial summaries and project stats.',
-    },
-    {
-      target: '.tour-bulk-csv',
-      content: 'If you have a lot of data, you can bulk upload entries using a CSV file from the manual entry page.',
-    }
-  ];
 
   const handleJoyrideCallback = async (data) => {
     const { status, action } = data;
@@ -83,7 +117,7 @@ const AppTour = () => {
       scrollToFirstStep
       showProgress
       showSkipButton
-      steps={steps}
+      steps={dynamicSteps}
       styles={{
         options: {
           zIndex: 10000,

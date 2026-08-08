@@ -68,7 +68,9 @@ const userSchema = new mongoose.Schema(
     onboarding: {
       hasSkippedTour: { type: Boolean, default: false },
       hasCreatedProject: { type: Boolean, default: false },
-      hasAddedEntry: { type: Boolean, default: false }
+      hasAddedEntry: { type: Boolean, default: false },
+      hasUsedBulkCSV: { type: Boolean, default: false },
+      hasViewedReports: { type: Boolean, default: false },
     },
   },
   { timestamps: true }

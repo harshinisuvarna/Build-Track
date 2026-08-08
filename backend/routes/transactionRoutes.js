@@ -1266,6 +1266,14 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
       session.endSession();
     }
   }
+
+  // Update onboarding if they used bulk CSV successfully
+  if (results.successes.length > 0) {
+    await User.findByIdAndUpdate(req.user._id, {
+      $set: { "onboarding.hasUsedBulkCSV": true }
+    });
+  }
+
   res.status(207).json({
     message: "Bulk processing completed",
     results
