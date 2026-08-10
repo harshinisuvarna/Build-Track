@@ -89,7 +89,11 @@ export default function ManualEntryPage() {
     { target: '.tour-header', content: 'Here you can manually log materials, labour, or equipment.', disableBeacon: true },
     { target: '.tour-entry-types', content: 'Choose the type of entry you want to record.' },
     { target: '.tour-project-context', content: 'Select the project, phase, and activity for this entry.' },
-    { target: '.tour-amount-calc', content: 'The total amount is calculated automatically.' }
+    { target: '.tour-field-item', content: 'Fill in the details for the specific item, rate, and quantity.' },
+    { target: '.tour-amount-calc', content: 'The total amount is calculated automatically.' },
+    { target: '.tour-payment', content: 'Mark if the entry is already paid and specify the payment method.' },
+    { target: '.tour-attachments', content: 'Upload bills, receipts, or site photos for this entry.' },
+    { target: '.tour-save-btn', content: 'Click here to save the manual entry.' }
   ];
 
   const [selectedFloor, setSelectedFloor] = useState("");
@@ -661,8 +665,8 @@ export default function ManualEntryPage() {
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
           </div>
 
-          {currentFields.map(f => (
-            <div key={f.key} style={{ marginBottom: 16, position: "relative" }}>
+          {currentFields.map((f, idx) => (
+            <div key={f.key} className={idx === 0 ? "tour-field-item" : ""} style={{ marginBottom: 16, position: "relative" }}>
               <div style={labelStyle}>
                 {f.label.toUpperCase()} {f.required && <span style={{ color: colors.error }}>*</span>}
               </div>
@@ -885,7 +889,7 @@ export default function ManualEntryPage() {
           )}
         </div>
 
-        <div style={cardStyle}>
+        <div className="tour-attachments" style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.textSecondary} strokeWidth="2">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -975,7 +979,7 @@ export default function ManualEntryPage() {
             {successMsg}
           </div>
         )}
-        <button onClick={handleSave} disabled={saving}
+        <button className="tour-save-btn" onClick={handleSave} disabled={saving}
           style={{
             width: "100%", padding: "16px 0", borderRadius: radius.md, border: "none",
             background: gradients.primaryButton, color: "#FFF", fontWeight: 700, fontSize: 16,

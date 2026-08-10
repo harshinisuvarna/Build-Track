@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { authAPI } from '../api';
+import { authAPI, projectAPI, transactionAPI } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -17,8 +17,25 @@ export function AuthProvider({ children }) {
     const storedToken = localStorage.getItem('bt_token');
     if (storedToken) {
       authAPI.me()
-        .then((res) => {
-          const userData = res.data?.user || res.data;
+        .then(async (res) => {
+          let userData = res.data?.user || res.data;
+          
+          if (userData && (!userData.onboarding || !userData.onboarding.visitedModules || userData.onboarding.visitedModules.length === 0)) {
+            try {
+              const [pRes, tRes] = await Promise.all([
+                projectAPI.getAll().catch(() => ({ data: [] })),
+                transactionAPI.getAll().catch(() => ({ data: [] }))
+              ]);
+              const pList = pRes.data?.projects || pRes.data || [];
+              const tList = tRes.data?.transactions || tRes.data?.data || tRes.data || [];
+              
+              if (pList.length > 0 || tList.length > 0) {
+                if (!userData.onboarding) userData.onboarding = {};
+                userData.onboarding.visitedModules = ['AdminDashboard', 'Settings', 'AssignRole', 'AddEntryPage', 'ApprovalDashboard', 'AssignTaskPage', 'InventoryPage', 'VoiceAssistant', 'AuditLogsPage', 'ProjectDetailPage', 'FinancialReport', 'SubscriptionPage', 'HomeScreen'];
+              }
+            } catch (e) {}
+          }
+
           setUser(userData);
           localStorage.setItem('bt_user', JSON.stringify(userData));
         })
@@ -38,7 +55,24 @@ export function AuthProvider({ children }) {
     const res = await authAPI.login({ email, password });
     const data = res.data;
     const t = data.token || data.accessToken;
-    const u = data.user || data;
+    let u = data.user || data;
+    
+    if (u && (!u.onboarding || !u.onboarding.visitedModules || u.onboarding.visitedModules.length === 0)) {
+      try {
+        const [pRes, tRes] = await Promise.all([
+          projectAPI.getAll().catch(() => ({ data: [] })),
+          transactionAPI.getAll().catch(() => ({ data: [] }))
+        ]);
+        const pList = pRes.data?.projects || pRes.data || [];
+        const tList = tRes.data?.transactions || tRes.data?.data || tRes.data || [];
+        
+        if (pList.length > 0 || tList.length > 0) {
+          if (!u.onboarding) u.onboarding = {};
+          u.onboarding.visitedModules = ['AdminDashboard', 'Settings', 'AssignRole', 'AddEntryPage', 'ApprovalDashboard', 'AssignTaskPage', 'InventoryPage', 'VoiceAssistant', 'AuditLogsPage', 'ProjectDetailPage', 'FinancialReport', 'SubscriptionPage', 'HomeScreen'];
+        }
+      } catch (e) {}
+    }
+
     localStorage.setItem('bt_token', t);
     localStorage.setItem('bt_user', JSON.stringify(u));
     setToken(t);

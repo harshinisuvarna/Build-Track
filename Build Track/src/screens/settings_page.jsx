@@ -8,8 +8,9 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   User, Mail, Shield, Bell, Globe, ChevronDown, Camera, Pencil, Lock,
   LogOut, Trash2, Users, FileText, KeyRound, Eye, EyeOff, ArrowLeft,
-  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle,
+  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle, HelpCircle
 } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 import perfLogger from "../utils/performanceLogger";
 
@@ -78,7 +79,21 @@ export default function SettingsPage() {
   const [toast, setToast] = useState({ msg: "", type: "info" });
   const [confirmDlg, setConfirmDlg] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [runTour, setRunTour] = useState(false);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  const tourSteps = [
+    { target: '.tour-profile', content: 'Update your personal information and profile picture here.', disableBeacon: true },
+    { target: '.tour-notifications', content: 'Toggle email and push notifications on or off.' },
+    { target: '.tour-security', content: 'Change your password and manage account security.' },
+    { target: '.tour-logout', content: 'Log out securely when you are done.' }
+  ];
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
 
   useEffect(() => {
     subscriptionAPI.getStatus()
@@ -179,26 +194,31 @@ export default function SettingsPage() {
         catch (err) { setSecErr(err.response?.data?.message || "Failed to delete account."); }
       },
     });
-  };
-
   const baseInput = { width: "100%", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
-      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
-      {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
-
-      <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Settings</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>Manage your account preferences and security</p>
+      <div style={{ padding: "24px 28px", maxWidth: 900, margin: "0 auto", paddingBottom: 100 }}>
+        <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="Settings" />
+        <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+        {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
+        
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {isMobile && (
+              <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 12, cursor: "pointer", color: "#64748B", flexShrink: 0 }}>
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#111827", margin: 0 }}>Settings</h1>
+          </div>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color={'#94A3B8'} />
+          </button>
         </div>
-      </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
-
-          <SectionCard title="Profile Settings">
+          <SectionCard title="Profile Settings" style={{}} className="tour-profile">
             <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: isMobile ? "wrap" : "nowrap" }}>
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <input ref={profileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
@@ -231,12 +251,12 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Notifications">
+          <SectionCard title="Notifications" className="tour-notifications">
             <SettingsRow icon={<Bell size={14} />} title="Notifications" subtitle="Receive project updates and alerts" border={false}
               action={<Toggle on={emailNotif} onToggle={() => setEmailNotif(v => !v)} />} />
           </SectionCard>
 
-          <SectionCard title="Security">
+          <SectionCard title="Security" className="tour-security">
             <SettingsRow icon={<Lock size={14} />} title="Account Password" subtitle="Manage your account password"
               action={<Button variant="secondary" size="sm" onClick={() => setShowPwForm(v => !v)}>{showPwForm ? "Cancel" : "Change Password"}</Button>} />
 
@@ -291,7 +311,7 @@ export default function SettingsPage() {
             </SectionCard>
           )}
 
-          <SectionCard>
+          <SectionCard className="tour-logout">
             <Button variant="danger" size="md" fullWidth onClick={() => setConfirmDlg({
               message: "Are you sure you want to log out?",
               onConfirm: () => { setConfirmDlg(null); logout(); navigate("/login"); },
@@ -306,6 +326,5 @@ export default function SettingsPage() {
 
         </div>
       </div>
-    </div>
   );
 }

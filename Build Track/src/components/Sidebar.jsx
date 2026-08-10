@@ -212,7 +212,7 @@ export default function Sidebar() {
           Sign Out
         </button>
         <button
-          onClick={() => window.dispatchEvent(new Event('replay-app-tour'))}
+          onClick={() => window.dispatchEvent(new Event('trigger-dashboard-tour'))}
           className="sidebar-help-btn"
           style={{
             width: "100%",

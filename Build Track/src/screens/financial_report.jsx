@@ -42,8 +42,10 @@ import {
   User,
   Package,
   Wrench,
-  IndianRupee
+  IndianRupee,
+  HelpCircle
 } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 const primaryBlue = "#173EEA";
 const primaryPurple = "#8B5CF6";
@@ -272,6 +274,23 @@ export default function FinancialReportPage() {
 
   const { projects: projStore, fetchProjects: storeFetchProjects } = useProjectStore();
   const { transactions: txStore, fetchTransactions: storeFetchTransactions } = useTransactionStore();
+
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('FinancialReportPage')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-project-filter', content: 'Filter reports by Project, Floor, Phase, Activity, and Date.', disableBeacon: true },
+    { target: '.tour-report-tabs', content: 'Switch between All, Materials, Labour, and Equipment categories.' },
+    { target: '.tour-export-btns', content: 'Customize columns and export the report to CSV.' }
+  ];
 
   useEffect(() => {
     perfLogger.endRoute('/reports');
@@ -812,6 +831,7 @@ export default function FinancialReportPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="FinancialReportPage" />
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
       <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
@@ -819,7 +839,10 @@ export default function FinancialReportPage() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Reports</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>Financial analytics &amp; transaction log audit</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="tour-export-btns" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: `1.5px solid ${colors.cardBorder}`, borderRadius: radius.md, cursor: 'pointer', flexShrink: 0, boxShadow: shadows.card }}>
+            <HelpCircle size={16} color={colors.textLight} />
+          </button>
           <button
             onClick={() => openCustomizeModal()}
             style={{
@@ -896,7 +919,7 @@ export default function FinancialReportPage() {
           <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
         </div>
 
-        <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
+        <div className="tour-project-filter" style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 34, height: 34, background: "rgba(23, 62, 234, 0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: primaryBlue, flexShrink: 0 }}>
@@ -1092,7 +1115,7 @@ export default function FinancialReportPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", background: colors.cardBg, borderRadius: radius.md, border: `1.2px solid ${colors.cardBorder}`, padding: 4, marginBottom: 20, boxShadow: shadows.card }}>
+        <div className="tour-report-tabs" style={{ display: "flex", background: colors.cardBg, borderRadius: radius.md, border: `1.2px solid ${colors.cardBorder}`, padding: 4, marginBottom: 20, boxShadow: shadows.card }}>
           {["All", "Materials", "Labour", "Equipment"].map(tab => {
             const active = activeTab === tab;
             return (

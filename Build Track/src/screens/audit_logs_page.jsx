@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { transactionAPI, projectAPI, authAPI } from "../api";
 import { useAuth } from "../contexts/AuthContext";
 import { Lock, Search, ClipboardList, AlertTriangle } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -136,6 +137,20 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [runTour, setRunTour] = useState(false);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'View detailed system activity across projects, transactions, and users.', disableBeacon: true },
+    { target: '.tour-kpis', content: 'Quick summary of recent action counts.' },
+    { target: '.tour-filters', content: 'Filter logs by action type or search for specific keywords.' },
+    { target: '.tour-log-list', content: 'The chronological list of all audit events.' }
+  ];
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
@@ -305,8 +320,9 @@ export default function AuditLogsPage() {
         minHeight: 0,
       }}
     >
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="AuditLogs" />
       {/* ── Top Bar ── */}
-      <div
+      <div className="tour-header"
         style={{
           flexShrink: 0,
           background: "#fff",
@@ -396,7 +412,7 @@ export default function AuditLogsPage() {
         )}
 
         {/* Summary Cards */}
-        <div
+        <div className="tour-kpis"
           style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
@@ -458,7 +474,7 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Filter + Search Row */}
-        <div
+        <div className="tour-filters"
           style={{
             display: "flex",
             alignItems: "center",
@@ -518,7 +534,7 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Log List Card */}
-        <div
+        <div className="tour-log-list"
           style={{
             background: "#fff",
             borderRadius: 16,

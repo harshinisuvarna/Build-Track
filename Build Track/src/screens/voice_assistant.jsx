@@ -85,6 +85,12 @@ export default function VoiceAssistantPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
+
   const tourSteps = [
     { target: '.tour-header', content: 'Use the Voice Assistant to quickly record entries by speaking.', disableBeacon: true },
     { target: '.tour-entry-types', content: 'Select the type of entry before speaking.' },

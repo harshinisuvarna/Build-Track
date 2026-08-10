@@ -158,6 +158,12 @@ export default function InventoryPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
+
   const tourSteps = [
     { target: '.tour-header', content: 'Track your materials, labour, and equipment inventory.', disableBeacon: true },
     { target: '.tour-project-context', content: 'Select which project\'s inventory to view.' },

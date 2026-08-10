@@ -4,10 +4,33 @@ import { Card, Button, Badge } from '../components/ui';
 import { projectAPI, workerAPI, taskAPI } from '../api';
 import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { colors, gradients } from '../styles/designTokens';
+import ModuleTour from '../components/ModuleTour';
+import { useAuth } from '../contexts/AuthContext';
+import { HelpCircle } from 'lucide-react';
 
 export default function AssignTaskPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('AssignTaskPage')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-project', content: 'Select the project this task belongs to.' },
+    { target: '.tour-phase-activity', content: 'Optionally specify the phase and activity.' },
+    { target: '.tour-title', content: 'Enter a clear title for the task.' },
+    { target: '.tour-desc', content: 'Provide any additional details or instructions.' },
+    { target: '.tour-assignee', content: 'Select the team member who will complete this task.' },
+    { target: '.tour-submit', content: 'Click here to assign the task.' },
+  ];
 
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
@@ -56,6 +79,7 @@ export default function AssignTaskPage() {
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 800, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="AssignTaskPage" />
       <button
         onClick={() => navigate(-1)}
         style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: colors.textSecondary, cursor: 'pointer', marginBottom: 24, fontSize: 15, fontWeight: 600 }}
@@ -63,15 +87,20 @@ export default function AssignTaskPage() {
         <ArrowLeft size={18} /> Back
       </button>
 
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: colors.textPrimary, margin: '0 0 8px' }}>Assign Task</h1>
-        <p style={{ color: colors.textSecondary, margin: 0, fontSize: 15 }}>Create a new daily task and assign it to a team member.</p>
+      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: colors.textPrimary, margin: '0 0 8px' }}>Assign Task</h1>
+          <p style={{ color: colors.textSecondary, margin: 0, fontSize: 15 }}>Create a new daily task and assign it to a team member.</p>
+        </div>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+          <HelpCircle size={16} color={colors.textLight || '#94A3B8'} />
+        </button>
       </div>
 
       <Card padding={32}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          <div>
+          <div className="tour-project">
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Project *</label>
             <select
               name="project"
@@ -86,7 +115,7 @@ export default function AssignTaskPage() {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="tour-phase-activity" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Phase</label>
               <input
@@ -103,7 +132,7 @@ export default function AssignTaskPage() {
             </div>
           </div>
 
-          <div>
+          <div className="tour-title">
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Task Title *</label>
             <input
               name="title" value={formData.title} onChange={handleChange} placeholder="What needs to be done?"
@@ -111,7 +140,7 @@ export default function AssignTaskPage() {
             />
           </div>
 
-          <div>
+          <div className="tour-desc">
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Description</label>
             <textarea
               name="description" value={formData.description} onChange={handleChange} placeholder="Any additional details..." rows={3}
@@ -119,7 +148,7 @@ export default function AssignTaskPage() {
             />
           </div>
 
-          <div>
+          <div className="tour-assignee">
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Assign To *</label>
             <select
               name="assignedTo"
@@ -134,7 +163,7 @@ export default function AssignTaskPage() {
             </select>
           </div>
 
-          <div style={{ paddingTop: 16 }}>
+          <div className="tour-submit" style={{ paddingTop: 16 }}>
             <Button variant="primary" size="lg" style={{ width: '100%' }} type="submit" disabled={loading}>
               {loading ? 'Assigning...' : 'Assign Task'}
             </Button>

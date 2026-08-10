@@ -1,12 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, typography } from '../styles/designTokens';
 import Card from '../components/ui/Card';
 import CsvImport from '../components/CsvImport';
+import ModuleTour from '../components/ModuleTour';
+import { useAuth } from '../contexts/AuthContext';
+import { HelpCircle } from 'lucide-react';
 
 export default function AddEntryPage() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(null);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('AddEntryPage')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-entry-selection', content: 'Select whether you are logging materials, labour, or equipment.', disableBeacon: true },
+    { target: '.tour-bulk-csv', content: 'You can also bulk import entries by uploading a CSV file.' }
+  ];
 
   const entryTypes = [
     {
@@ -45,6 +65,7 @@ export default function AddEntryPage() {
       width: '100%', minHeight: '100vh',
       fontFamily: typography.fontFamily, background: 'transparent',
     }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="AddEntryPage" />
       <div style={{
         padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12,
       }}>
@@ -61,6 +82,9 @@ export default function AddEntryPage() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Add Entry</h1>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: colors.textLight }}>Record materials, labour, or equipment</p>
         </div>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer', marginLeft: 'auto' }}>
+          <HelpCircle size={16} color={colors.textLight} />
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 100px', maxWidth: 640, margin: '0 auto', width: '100%' }}>
@@ -83,7 +107,7 @@ export default function AddEntryPage() {
           Entry Type
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+        <div className="tour-entry-selection" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
           {entryTypes.map((type) => {
             const isSelected = selectedId === type.id;
             return (

@@ -82,7 +82,13 @@ export default function AssignRolesPage() {
     }
   }, [currentUser]);
 
-  const tourSteps = [
+  const tourSteps = showForm ? [
+    { target: '.tour-user-details', content: 'Enter the full name, email, and a temporary password for the new team member.', disableBeacon: true },
+    { target: '.tour-role-select', content: 'Select their role: Supervisors can oversee projects and approve entries. Labour/Masons can submit daily progress and expenses. Custom Role lets you build from scratch.' },
+    { target: '.tour-oversees-roles', content: 'Specify which roles this user is allowed to oversee or approve.' },
+    { target: '.tour-permissions', content: 'Fine-tune the exact features and actions they can access.' },
+    { target: '.tour-project-access', content: 'Restrict their access to specific projects, or leave blank for all.' }
+  ] : [
     { target: '.tour-header', content: 'Manage team access and roles.', disableBeacon: true },
     { target: '.tour-add-btn', content: 'Click here to add a new team member and assign their role.' },
     { target: '.tour-admin-alert', content: 'See your current plan limits and info.' },
@@ -366,11 +372,13 @@ export default function AssignRolesPage() {
 
       {showForm ? (
         <Card style={{ marginBottom: 24, padding: 20 }}>
-          <Input label="Full Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter full name" />
-          <Input label="Email Address" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Enter email address" />
-          <Input label={isEditMode ? "New Password (optional)" : "Temporary Password"} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter password" />
+          <div className="tour-user-details">
+            <Input label="Full Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter full name" />
+            <Input label="Email Address" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Enter email address" />
+            <Input label={isEditMode ? "New Password (optional)" : "Temporary Password"} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter password" />
+          </div>
 
-          <div style={{ marginBottom: 16 }}>
+          <div className="tour-role-select" style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, marginBottom: 6, display: 'block', textTransform: 'uppercase' }}>Role</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {roleOptions.map((r) => (
@@ -383,13 +391,13 @@ export default function AssignRolesPage() {
           </div>
 
           {isCustomRole && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="tour-custom-role" style={{ marginBottom: 16 }}>
               <Input label="Custom Role Name" value={customRoleName} onChange={e => setCustomRoleName(e.target.value)} placeholder="Type new role name" />
             </div>
           )}
 
           {(selectedRole === 'Supervisor' || isCustomRole) && (
-            <div style={{ marginBottom: 20 }}>
+            <div className="tour-oversees-roles" style={{ marginBottom: 20 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, marginBottom: 6, display: 'block', textTransform: 'uppercase' }}>Roles to Oversee</label>
               <div style={{ fontSize: 11, color: colors.textLight, marginBottom: 10 }}>Select the roles this user can approve entries for.</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
@@ -412,13 +420,13 @@ export default function AssignRolesPage() {
             </div>
           )}
 
-          <div style={{ marginBottom: 20 }}>
+          <div className="tour-permissions" style={{ marginBottom: 20 }}>
             <label style={{ fontSize: 14, fontWeight: 700, color: colors.textDark, display: 'block' }}>Permissions</label>
             <div style={{ fontSize: 12, color: colors.textLight, marginBottom: 12 }}>Configure what this user can see and do.</div>
             {renderPermissionsTable()}
           </div>
 
-          <div style={{ marginBottom: 24 }}>
+          <div className="tour-project-access" style={{ marginBottom: 24 }}>
             <label style={{ fontSize: 14, fontWeight: 700, color: colors.textDark, display: 'block' }}>Project Access <span style={{fontSize: 12, fontWeight: 400, color: colors.textLight}}>(Optional)</span></label>
             <div style={{ fontSize: 12, color: colors.textLight, marginBottom: 10 }}>Select one or more projects. Leave all unchecked for org-wide access.</div>
             {projects.length === 0 ? (
