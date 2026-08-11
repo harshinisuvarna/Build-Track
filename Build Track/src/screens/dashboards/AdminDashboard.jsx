@@ -71,15 +71,24 @@ export default function AdminDashboard() {
   const [addRevenueModalOpen, setAddRevenueModalOpen] = useState(false);
   const [runTour, setRunTour] = useState(false);
 
-  const tourSteps = [
-    { target: '.tour-project-selector', content: 'Select your active project here to see its specific metrics.', disableBeacon: true },
-    { target: '.tour-voice-update', content: 'Quickly log updates using our Voice AI assistant.' },
-    { target: '.tour-kpis', content: 'Here are your key metrics: Cost, Budget, Revenue, and Cash Flow.' },
-    { target: '.tour-quick-actions', content: 'Use these shortcuts to quickly log transactions or manage projects.' },
-    { target: '.tour-revenue-timeline', content: 'Track your revenue inflows over time.' },
-    { target: '.tour-recent-activity', content: 'See all recent expenses and payments logged by your team.' },
-    { target: '.tour-approvals-history', content: 'Keep track of approvals or rejections of expenses.' },
-  ];
+  const tourSteps = projects.length === 0 
+    ? [
+        { target: '.tour-new-project', content: 'Welcome to BuildTrack! You have no projects yet. Click here to create your first project.', disableBeacon: true },
+        { target: '.tour-voice-update', content: 'Quickly log updates using our Voice AI assistant.' },
+        { target: '.tour-kpis', content: 'Here are your key metrics: Cost, Budget, Revenue, and Cash Flow.' },
+        { target: '.tour-quick-actions', content: 'Use these shortcuts to quickly log transactions or manage projects.' },
+        { target: '.tour-revenue-timeline', content: 'Track your revenue inflows over time.' },
+        { target: '.tour-recent-activity', content: 'See all recent expenses and payments logged by your team.' },
+      ]
+    : [
+        { target: '.tour-project-selector', content: 'Select your active project here to see its specific metrics.', disableBeacon: true },
+        { target: '.tour-voice-update', content: 'Quickly log updates using our Voice AI assistant.' },
+        { target: '.tour-kpis', content: 'Here are your key metrics: Cost, Budget, Revenue, and Cash Flow.' },
+        { target: '.tour-quick-actions', content: 'Use these shortcuts to quickly log transactions or manage projects.' },
+        { target: '.tour-revenue-timeline', content: 'Track your revenue inflows over time.' },
+        { target: '.tour-recent-activity', content: 'See all recent expenses and payments logged by your team.' },
+        { target: '.tour-approvals-history', content: 'Keep track of approvals or rejections of expenses.' },
+      ];
 
   useEffect(() => {
     const handleTour = () => setRunTour(true);
@@ -188,9 +197,14 @@ export default function AdminDashboard() {
             Welcome back, <span style={{ fontWeight: 600, color: colors.textPrimary }}>{user?.name || 'Admin'}</span>
           </p>
         </div>
-        <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
-          Add Entry
-        </Button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button className="tour-help-btn" onClick={() => setRunTour(true)} title="App Tour & Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: '50%', background: 'rgba(91, 92, 235, 0.1)', color: '#5B5CEB', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
+            <HelpCircle size={20} />
+          </button>
+          <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
+            Add Entry
+          </Button>
+        </div>
       </div>
 
       {pendingApprovals > 0 && (
@@ -372,12 +386,15 @@ export default function AdminDashboard() {
             { label: 'Add Entry', desc: 'Log a transaction', icon: PlusCircle, path: '/add-entry', color: '#6366f1' },
             { label: 'Voice Entry', desc: 'Record via voice AI', icon: Mic, path: '/voice', color: '#B137FF' },
             { label: 'Manual Entry', desc: 'Enter details manually', icon: FileText, path: '/manualentry', color: '#67C8FF' },
-            { label: 'View Projects', desc: 'Browse all projects', icon: Building2, path: '/projects', color: '#6366f1' },
+            projects.length === 0 
+              ? { label: 'New Project', desc: 'Create first project', icon: Building2, path: '/add-project', color: '#22C55E' }
+              : { label: 'View Projects', desc: 'Browse all projects', icon: Building2, path: '/projects', color: '#6366f1' },
           ].map((action) => {
             const Icon = action.icon;
             return (
               <Card
                 key={action.label}
+                className={action.label === 'New Project' ? 'tour-new-project' : ''}
                 onClick={() => navigate(action.path)}
                 hoverable
                 padding={20}

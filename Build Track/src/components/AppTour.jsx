@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
 import { useAuth } from '../contexts/AuthContext';
+import useProjectStore from '../stores/projectStore';
 import { API_ORIGIN } from '../api';
 
 const AppTour = () => {
   const { user, updateUser } = useAuth();
+  const { projects, projectsLoaded } = useProjectStore();
   const [run, setRun] = useState(false);
 
   const [dynamicSteps, setDynamicSteps] = useState([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !projectsLoaded) return;
     
     // Default values if user doesn't have the onboarding object yet
     const onboarding = user.onboarding || {};
     const hasSkippedTour = !!onboarding.hasSkippedTour;
-    const hasCreatedProject = !!onboarding.hasCreatedProject;
-    const hasAddedEntry = !!onboarding.hasAddedEntry;
-    const hasViewedReports = !!onboarding.hasViewedReports;
-    const hasUsedBulkCSV = !!onboarding.hasUsedBulkCSV;
 
     const buildSteps = (isReplay = false) => {
       const steps = [
@@ -30,41 +28,47 @@ const AppTour = () => {
         }
       ];
 
-      if (isReplay || !hasCreatedProject) {
-        steps.push({
-          target: '.tour-create-project',
-          content: 'Click here to create your first project. Projects help you track everything in one place.',
-        });
-      }
+      steps.push({
+        target: '.tour-projects',
+        content: 'Click here to view or create projects. Projects help you track everything in one place.',
+      });
 
-      if (isReplay || !hasAddedEntry) {
-        steps.push({
-          target: '.tour-add-entry',
-          content: 'Once you have a project, you can add an entry like material usage or expense here.',
-        });
-      }
+      steps.push({
+        target: '.tour-add-entry',
+        content: 'Once you have a project, you can add an entry like material usage or expense here.',
+      });
 
-      if (isReplay || !hasViewedReports) {
-        steps.push({
-          target: '.tour-reports',
-          content: 'Check out the reports section to see financial summaries and project stats.',
-        });
-      }
+      steps.push({
+        target: '.tour-voice',
+        content: 'Use Voice AI to quickly log updates without typing.',
+      });
 
-      if (isReplay || !hasUsedBulkCSV) {
-        steps.push({
-          target: '.tour-bulk-csv',
-          content: 'If you have a lot of data, you can bulk upload entries using a CSV file from the manual entry page.',
-        });
-      }
+      steps.push({
+        target: '.tour-log',
+        content: 'Check your transaction logs here.',
+      });
+
+      steps.push({
+        target: '.tour-inventory',
+        content: 'Manage your material inventory efficiently here.',
+      });
+
+      steps.push({
+        target: '.tour-reports',
+        content: 'Check out the reports section to see financial summaries and project stats.',
+      });
+
+      steps.push({
+        target: '.tour-subscription',
+        content: 'Manage your plan and billing details here.',
+      });
 
       return steps;
     };
 
-    // Auto-start logic
-    if (!hasSkippedTour) {
+    // Auto-start logic ONLY for brand new users with 0 projects
+    if (!hasSkippedTour && projects.length === 0) {
       const stepsForUser = buildSteps(false);
-      // Only auto-start if there's at least one actual feature to show (more than just the welcome body step)
       if (stepsForUser.length > 1) {
         setDynamicSteps(stepsForUser);
         setRun(true);
@@ -79,7 +83,7 @@ const AppTour = () => {
     
     window.addEventListener('replay-app-tour', handleReplay);
     return () => window.removeEventListener('replay-app-tour', handleReplay);
-  }, [user]);
+  }, [user, projects.length, projectsLoaded]);
 
   const handleJoyrideCallback = async (data) => {
     const { status, action } = data;
@@ -110,6 +114,7 @@ const AppTour = () => {
 
   return (
     <Joyride
+      key={run ? 'running' : 'stopped'}
       callback={handleJoyrideCallback}
       continuous
       hideCloseButton

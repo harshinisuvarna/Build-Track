@@ -101,7 +101,7 @@ export default function Sidebar() {
             key={item.label}
             to={item.path}
             end={item.path === "/"}
-            className={`sidebar-link ${item.label === 'Add Entry' ? 'tour-add-entry' : ''} ${item.label === 'Reports' ? 'tour-reports' : ''}`}
+            className={`sidebar-link ${item.label === 'Projects' ? 'tour-projects' : ''} ${item.label === 'Add Entry' ? 'tour-add-entry' : ''} ${item.label === 'Voice' ? 'tour-voice' : ''} ${item.label === 'Log' ? 'tour-log' : ''} ${item.label === 'Inventory' ? 'tour-inventory' : ''} ${item.label === 'Reports' ? 'tour-reports' : ''}`}
             onMouseEnter={() => preloadRoute(item.path)}
             onPointerDown={() => preloadRoute(item.path)}
             onClick={() => perfLogger.startRoute(item.path)}
@@ -131,7 +131,7 @@ export default function Sidebar() {
               <NavLink
                 key={item.label}
                 to={item.path}
-                className="sidebar-link"
+                className={`sidebar-link ${item.label === 'Subscription' ? 'tour-subscription' : ''}`}
                 onMouseEnter={() => preloadRoute(item.path)}
                 onPointerDown={() => preloadRoute(item.path)}
                 onClick={() => perfLogger.startRoute(item.path)}
@@ -212,7 +212,7 @@ export default function Sidebar() {
           Sign Out
         </button>
         <button
-          onClick={() => window.dispatchEvent(new Event('trigger-dashboard-tour'))}
+          onClick={() => window.dispatchEvent(new Event('replay-app-tour'))}
           className="sidebar-help-btn"
           style={{
             width: "100%",
