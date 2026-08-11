@@ -72,11 +72,10 @@ export default function AdminDashboard() {
   const [runTour, setRunTour] = useState(false);
 
   const tourSteps = [
-    { target: '.tour-project-selector', content: 'Select your active project here to see its specific metrics.', disableBeacon: true },
-    { target: '.tour-voice-update', content: 'Quickly log updates using our Voice AI assistant.' },
-    { target: '.tour-kpis', content: 'Here are your key metrics: Cost, Budget, Revenue, and Cash Flow.' },
-    { target: '.tour-quick-actions', content: 'Use these shortcuts to quickly log transactions or manage projects.' },
-    { target: '.tour-revenue-timeline', content: 'Track your revenue inflows over time.' },
+    { target: '.tour-new-project', content: 'You have no projects yet. Click here to create one.' },
+    { target: '.tour-voice-update', content: 'Use the AI Foreman to quickly log updates using your voice.' },
+    { target: '.tour-project-selector', content: 'Switch between your active projects here.' },
+    { target: '.tour-quick-actions', content: 'Quickly access main features like Reports, Team, and Settings.' },
     { target: '.tour-recent-activity', content: 'See all recent expenses and payments logged by your team.' },
     { target: '.tour-approvals-history', content: 'Keep track of approvals or rejections of expenses.' },
   ];
@@ -86,6 +85,8 @@ export default function AdminDashboard() {
     window.addEventListener('trigger-dashboard-tour', handleTour);
     return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
   }, []);
+
+
 
   useEffect(() => {
     perfLogger.endRoute('/');
@@ -188,9 +189,14 @@ export default function AdminDashboard() {
             Welcome back, <span style={{ fontWeight: 600, color: colors.textPrimary }}>{user?.name || 'Admin'}</span>
           </p>
         </div>
-        <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
-          Add Entry
-        </Button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, background: '#fff', border: `1px solid ${colors.border}`, borderRadius: 12, cursor: 'pointer' }}>
+            <HelpCircle size={18} color={colors.textSecondary} />
+          </button>
+          <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
+            Add Entry
+          </Button>
+        </div>
       </div>
 
       {pendingApprovals > 0 && (
@@ -238,8 +244,15 @@ export default function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 24 }}>
         <Card padding={24} className="tour-project-selector">
-          <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
-            Active Project
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Active Project
+            </div>
+            {projects.length === 0 && (
+              <Button size="sm" variant="outline" className="tour-new-project" icon={<PlusCircle size={14} />} onClick={() => navigate('/projects/new')}>
+                New Project
+              </Button>
+            )}
           </div>
           <select
             value={selectedProjectId || ''}
@@ -306,7 +319,7 @@ export default function AdminDashboard() {
             </span>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>
-                {selectedProject?.projectName || selectedProject?.name || 'House Construction'}
+                {selectedProject ? (selectedProject.projectName || selectedProject.name || 'Project Name') : 'No Active Project'}
               </div>
               <div style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>Current Milestone</div>
             </div>

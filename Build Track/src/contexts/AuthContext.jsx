@@ -57,6 +57,9 @@ export function AuthProvider({ children }) {
     const t = data.token || data.accessToken;
     let u = data.user || data;
     
+    // Set token immediately so subsequent API calls use the new token
+    localStorage.setItem('bt_token', t);
+
     if (u && (!u.onboarding || !u.onboarding.visitedModules || u.onboarding.visitedModules.length === 0)) {
       try {
         const [pRes, tRes] = await Promise.all([
@@ -73,7 +76,6 @@ export function AuthProvider({ children }) {
       } catch (e) {}
     }
 
-    localStorage.setItem('bt_token', t);
     localStorage.setItem('bt_user', JSON.stringify(u));
     setToken(t);
     setUser(u);
@@ -83,6 +85,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (name, email, password) => {
+    localStorage.clear(); // Clear any stale data from previous accounts
     const res = await authAPI.register({ name, email, password });
     const data = res.data;
     const t = data.token || data.accessToken;
@@ -97,11 +100,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('bt_token');
-    localStorage.removeItem('bt_user');
-    setToken(null);
-    setUser(null);
-    window.dispatchEvent(new Event('userUpdated'));
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = '/login';
   }, []);
 
   const updateUser = useCallback((updates) => {

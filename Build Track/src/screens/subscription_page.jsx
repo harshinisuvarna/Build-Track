@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { subscriptionAPI } from "../api";
-import { Bell, Star, ClipboardList, AlertTriangle, Lock, Building2, CreditCard } from "lucide-react";
+import { Bell, Star, ClipboardList, AlertTriangle, Lock, Building2, CreditCard, HelpCircle } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
 
 const PLANS = [
@@ -255,7 +255,9 @@ export default function SubscriptionPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Bell size={16} /></div>
-          <div style={{ width: 36, height: 36, background: "#f5f5f5", border: "2px solid #e5e5e5", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#888", cursor: "pointer" }}>?</div>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color={'#94A3B8'} />
+          </button>
         </div>
       </div>
 

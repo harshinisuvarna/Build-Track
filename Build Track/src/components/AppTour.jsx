@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
 import { useAuth } from '../contexts/AuthContext';
-import { API_ORIGIN } from '../api';
+import { API_ORIGIN, projectAPI, transactionAPI } from '../api';
 
 const AppTour = () => {
   const { user, updateUser } = useAuth();
@@ -30,6 +30,11 @@ const AppTour = () => {
         }
       ];
 
+      steps.push({
+        target: '.tour-dashboard',
+        content: 'This is your Dashboard. Get a quick overview of your projects and recent activity here.',
+      });
+
       if (isReplay || !hasCreatedProject) {
         steps.push({
           target: '.tour-create-project',
@@ -44,6 +49,21 @@ const AppTour = () => {
         });
       }
 
+      steps.push({
+        target: '.tour-voice',
+        content: 'Use the AI Foreman to quickly log updates using your voice.',
+      });
+      
+      steps.push({
+        target: '.tour-log',
+        content: 'View all your recent entries and transactions here.',
+      });
+      
+      steps.push({
+        target: '.tour-inventory',
+        content: 'Manage your materials and stock levels efficiently.',
+      });
+
       if (isReplay || !hasViewedReports) {
         steps.push({
           target: '.tour-reports',
@@ -51,24 +71,36 @@ const AppTour = () => {
         });
       }
 
-      if (isReplay || !hasUsedBulkCSV) {
-        steps.push({
-          target: '.tour-bulk-csv',
-          content: 'If you have a lot of data, you can bulk upload entries using a CSV file from the manual entry page.',
-        });
-      }
+      steps.push({
+        target: '.tour-subscription',
+        content: 'Manage your plan, team size, and billing from the Subscription page.',
+      });
+      
+      steps.push({
+        target: '.tour-settings',
+        content: 'Configure your profile and app preferences here.',
+      });
 
       return steps;
     };
 
     // Auto-start logic
     if (!hasSkippedTour) {
-      const stepsForUser = buildSteps(false);
-      // Only auto-start if there's at least one actual feature to show (more than just the welcome body step)
-      if (stepsForUser.length > 1) {
-        setDynamicSteps(stepsForUser);
-        setRun(true);
-      }
+      Promise.all([
+        projectAPI.getAll().catch(() => ({ data: [] })),
+        transactionAPI.getAll().catch(() => ({ data: [] }))
+      ]).then(([projRes, transRes]) => {
+        const projects = Array.isArray(projRes.data) ? projRes.data : projRes.data?.data || [];
+        const transactions = Array.isArray(transRes.data) ? transRes.data : transRes.data?.transactions || transRes.data?.data || [];
+        
+        if (projects.length === 0 && transactions.length === 0) {
+          const stepsForUser = buildSteps(false);
+          if (stepsForUser.length > 0) {
+            setDynamicSteps(stepsForUser);
+            setRun(true);
+          }
+        }
+      });
     }
     
     // Listen for manual trigger from sidebar

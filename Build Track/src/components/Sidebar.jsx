@@ -96,12 +96,24 @@ export default function Sidebar() {
         <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: "0.08em", padding: "12px 8px 6px", textTransform: "uppercase" }}>
           Main
         </div>
-        {navItems.map((item) => (
+        {navItems.map((item) => {
+          const tourClassMap = {
+            'Dashboard': 'tour-dashboard',
+            'Projects': 'tour-create-project',
+            'Add Entry': 'tour-add-entry',
+            'Voice': 'tour-voice',
+            'Log': 'tour-log',
+            'Inventory': 'tour-inventory',
+            'Reports': 'tour-reports',
+            'Subscription': 'tour-subscription',
+            'Settings': 'tour-settings'
+          };
+          return (
           <NavLink
             key={item.label}
             to={item.path}
             end={item.path === "/"}
-            className={`sidebar-link ${item.label === 'Add Entry' ? 'tour-add-entry' : ''} ${item.label === 'Reports' ? 'tour-reports' : ''}`}
+            className={`sidebar-link ${tourClassMap[item.label] || ''}`}
             onMouseEnter={() => preloadRoute(item.path)}
             onPointerDown={() => preloadRoute(item.path)}
             onClick={() => perfLogger.startRoute(item.path)}
@@ -120,7 +132,7 @@ export default function Sidebar() {
               </>
             )}
           </NavLink>
-        ))}
+        )})}
 
         {isAdminOrSupervisor && (
           <>
@@ -131,7 +143,7 @@ export default function Sidebar() {
               <NavLink
                 key={item.label}
                 to={item.path}
-                className="sidebar-link"
+                className={`sidebar-link ${item.label === 'Subscription & Billing' ? 'tour-subscription' : ''}`}
                 onMouseEnter={() => preloadRoute(item.path)}
                 onPointerDown={() => preloadRoute(item.path)}
                 onClick={() => perfLogger.startRoute(item.path)}

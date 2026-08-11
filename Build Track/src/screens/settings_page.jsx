@@ -23,9 +23,9 @@ function Toggle({ on, onToggle }) {
   );
 }
 
-function SectionCard({ title, children, style, gradient }) {
+function SectionCard({ title, children, style, gradient, className }) {
   return (
-    <Card style={{ background: gradient, padding: "24px 28px", marginBottom: 16, border: gradient ? "none" : undefined, ...style }}>
+    <Card className={className} style={{ background: gradient, padding: "24px 28px", marginBottom: 16, border: gradient ? "none" : undefined, ...style }}>
       {title && <h3 style={{ fontSize: 16, fontWeight: 700, color: gradient ? "#fff" : "#111827", margin: "0 0 20px", letterSpacing: "-0.02em" }}>{title}</h3>}
       {children}
     </Card>
@@ -194,6 +194,7 @@ export default function SettingsPage() {
         catch (err) { setSecErr(err.response?.data?.message || "Failed to delete account."); }
       },
     });
+  };
   const baseInput = { width: "100%", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
@@ -326,5 +327,6 @@ export default function SettingsPage() {
 
         </div>
       </div>
+    </div>
   );
 }
