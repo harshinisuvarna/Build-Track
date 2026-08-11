@@ -31,7 +31,6 @@ export default function ModuleTour({ steps, run, setRun, moduleName }) {
 
   return (
     <Joyride
-      key={run ? 'running' : 'stopped'}
       steps={steps}
       run={run}
       continuous

@@ -1,22 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import useProjectStore from '../stores/projectStore';
 import { Modal, Button } from './ui';
 import { HelpCircle } from 'lucide-react';
 
 export default function WelcomeModal() {
-  const { user, updateUser, loading } = useAuth();
-  const { projects, projectsLoaded } = useProjectStore();
+  const { user, updateUser } = useAuth();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && user && user.onboarding && projectsLoaded) {
-      const isNewUser = projects.length === 0;
-      if (isNewUser && user.onboarding.visitedModules && user.onboarding.visitedModules.length === 0) {
-        setOpen(true);
-      }
+    if (user && user.onboarding && user.onboarding.visitedModules && user.onboarding.visitedModules.length === 0) {
+      setOpen(true);
     }
-  }, [user, loading, projects.length]);
+  }, [user]);
 
   const handleClose = () => {
     setOpen(false);

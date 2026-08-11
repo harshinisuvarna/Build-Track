@@ -8,7 +8,6 @@ const useProjectStore = create(
       projects: [],
       selectedProject: null,
       loading: false,
-      projectsLoaded: false,
       error: null,
       stats: {},
 
@@ -17,9 +16,8 @@ const useProjectStore = create(
         if (state.projects.length > 0 && !force) {
           projectAPI.getAll(params).then(({ data }) => {
             const list = Array.isArray(data) ? data : data.projects || [];
-            set({ projects: list, projectsLoaded: true });
+            set({ projects: list });
           }).catch(() => {});
-          set({ projectsLoaded: true });
           return state.projects;
         }
 
@@ -27,10 +25,10 @@ const useProjectStore = create(
         try {
           const { data } = await projectAPI.getAll(params);
           const list = Array.isArray(data) ? data : data.projects || [];
-          set({ projects: list, loading: false, projectsLoaded: true });
+          set({ projects: list, loading: false });
           return list;
         } catch (err) {
-          set({ error: err.message || "Failed to load projects", loading: false, projectsLoaded: true });
+          set({ error: err.message || "Failed to load projects", loading: false });
           return state.projects || [];
         }
       },

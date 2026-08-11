@@ -194,8 +194,6 @@ export default function SettingsPage() {
         catch (err) { setSecErr(err.response?.data?.message || "Failed to delete account."); }
       },
     });
-  };
-
   const baseInput = { width: "100%", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
@@ -328,6 +326,5 @@ export default function SettingsPage() {
 
         </div>
       </div>
-    </div>
   );
 }
