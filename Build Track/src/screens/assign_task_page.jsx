@@ -6,7 +6,6 @@ import { ArrowLeft, CheckCircle, HelpCircle } from 'lucide-react';
 import { colors, gradients } from '../styles/designTokens';
 import ModuleTour from '../components/ModuleTour';
 import { useAuth } from '../contexts/AuthContext';
-import { HelpCircle } from 'lucide-react';
 
 export default function AssignTaskPage() {
   const navigate = useNavigate();
