@@ -7,10 +7,10 @@ export default function ModuleTour({ steps, run, setRun, moduleName }) {
   const { user, updateUser } = useAuth();
 
   const handleJoyrideCallback = async (data) => {
-    const { status } = data;
+    const { status, action } = data;
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
 
-    if (finishedStatuses.includes(status)) {
+    if (finishedStatuses.includes(status) || action === 'close' || action === 'skip') {
       setRun(false);
       try {
         await userAPI.visitModule({ moduleName });
@@ -33,9 +33,10 @@ export default function ModuleTour({ steps, run, setRun, moduleName }) {
     <Joyride
       steps={steps}
       run={run}
-      continuous
-      showProgress
-      showSkipButton
+      continuous={true}
+      showProgress={true}
+      showSkipButton={true}
+      locale={{ skip: 'Skip', next: 'Next', back: 'Back', last: 'Finish' }}
       callback={handleJoyrideCallback}
       styles={{
         options: {

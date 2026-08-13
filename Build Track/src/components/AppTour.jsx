@@ -116,24 +116,22 @@ const AppTour = () => {
   const handleJoyrideCallback = async (data) => {
     const { status, action } = data;
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
-    
-    if (finishedStatuses.includes(status) || action === 'close') {
+
+    if (finishedStatuses.includes(status) || action === 'close' || action === 'skip') {
       setRun(false);
       try {
-        const token = localStorage.getItem('bt_token') || localStorage.getItem('token');
-        const res = await fetch(`${API_ORIGIN}/api/users/onboarding/skip`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const json = await res.json();
-        if (json.user && updateUser) {
-          updateUser(json.user);
+        await userAPI.visitModule({ moduleName: 'GlobalTour' });
+        const visitedModules = user?.onboarding?.visitedModules || [];
+        if (!visitedModules.includes('GlobalTour')) {
+          updateUser({
+            onboarding: {
+              ...user?.onboarding,
+              visitedModules: [...visitedModules, 'GlobalTour'],
+            },
+          });
         }
       } catch (err) {
-        console.error('Failed to skip onboarding', err);
+        console.error('Failed to update onboarding progress', err);
       }
     }
   };
@@ -143,12 +141,13 @@ const AppTour = () => {
   return (
     <Joyride
       callback={handleJoyrideCallback}
-      continuous
-      hideCloseButton
+      continuous={true}
+      hideCloseButton={false}
       run={run}
-      scrollToFirstStep
-      showProgress
-      showSkipButton
+      scrollToFirstStep={true}
+      showProgress={true}
+      showSkipButton={true}
+      locale={{ skip: 'Skip', next: 'Next', back: 'Back', last: 'Finish' }}
       steps={dynamicSteps}
       styles={{
         options: {

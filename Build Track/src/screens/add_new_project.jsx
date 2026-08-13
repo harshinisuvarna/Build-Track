@@ -10,7 +10,7 @@ import {
   ChevronDown, Plus, X, Check, Camera, MapPin, Calendar, User, Phone,
   Building2, Home, Layers, Bed, Bath, Settings, Zap, Flame, ChefHat, Sun,
   CalendarDays, DollarSign, HardHat, FileText, Hash, ArrowLeft, Upload,
-  ClipboardList, Users, Wrench,
+  ClipboardList, Users, Wrench, HelpCircle
 } from "lucide-react";
 
 const TOPBAR_H = 65;

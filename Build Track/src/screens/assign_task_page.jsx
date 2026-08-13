@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '../components/ui';
 import { projectAPI, workerAPI, taskAPI } from '../api';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, HelpCircle } from 'lucide-react';
 import { colors, gradients } from '../styles/designTokens';
 import ModuleTour from '../components/ModuleTour';
 import { useAuth } from '../contexts/AuthContext';
