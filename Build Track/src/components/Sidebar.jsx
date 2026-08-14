@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { LogOut, Building2 } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { colors, gradients, radius, typography } from "../styles/designTokens";
 import { useAuth } from "../contexts/AuthContext";
 import { preloadRoute } from "../App";
@@ -72,21 +72,17 @@ export default function Sidebar() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 20px" }}>
-        <div
+        <img
+          src="/buildtrack-logo.png"
+          alt="BuildTrack"
           style={{
             width: 36,
             height: 36,
             borderRadius: "10px",
-            background: gradients.primaryGradient,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            objectFit: "contain",
             flexShrink: 0,
-            boxShadow: "0 4px 10px rgba(99, 102, 241, 0.25)",
           }}
-        >
-          <Building2 size={18} color="#fff" />
-        </div>
+        />
         <span style={{ fontSize: 19, fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.03em", fontFamily: typography.fontFamily }}>
           BuildTrack
         </span>
