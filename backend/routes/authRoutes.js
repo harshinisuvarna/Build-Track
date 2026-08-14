@@ -13,6 +13,9 @@ const { getFileUrl } = require("../config/fileHelpers");
 const Subscription = require("../models/Subscription");
 const bcrypt = require("bcryptjs");
 const loginFailures = new Map();
+const registrationOTPs = new Map();
+const verifiedEmails = new Map();
+
 const MAX_ATTEMPTS    = 5;
 const LOCK_WINDOW_MS  = 15 * 60 * 1000;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -23,7 +26,17 @@ setInterval(() => {
       loginFailures.delete(email);
     }
   }
-}, 30 * 60 * 1000).unref();
+  for (const [email, rec] of registrationOTPs) {
+    if (rec.expiresAt < now) {
+      registrationOTPs.delete(email);
+    }
+  }
+  for (const [email, timestamp] of verifiedEmails) {
+    if (timestamp < now - 60 * 60 * 1000) {
+      verifiedEmails.delete(email);
+    }
+  }
+}, 5 * 60 * 1000).unref();
 const DUMMY_HASH = "$2a$12$invalidhashusedfortimingprotectiononly.........";
 const SECRET = process.env.JWT_SECRET;
 const FRONTEND =
@@ -130,6 +143,83 @@ const ADMIN_PERMISSIONS = [
   "view_reports",
   "manage_team",
 ];
+router.post("/send-registration-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+    
+    const cleanEmail = String(email).toLowerCase().trim();
+    const exists = await User.findOne({ email: cleanEmail });
+    if (exists) {
+      return res.status(409).json({ success: false, message: "An account with this email already exists" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    registrationOTPs.set(cleanEmail, { otp, expiresAt: Date.now() + 2 * 60 * 1000 });
+
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
+      const sesClient = new SESClient({
+        region: process.env.AWS_REGION || 'us-east-1',
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+        }
+      });
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+          <h2 style="color: #333;">Verify Your Email</h2>
+          <p style="color: #555; line-height: 1.5;">
+            Please use the verification code below to complete your BuildTrack registration.
+            This code will expire in <strong>2 minutes</strong>.
+          </p>
+          <div style="background: #f0eeff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #4F46E5; letter-spacing: 2px;">
+              ${otp}
+            </p>
+          </div>
+        </div>
+      `;
+      const command = new SendEmailCommand({
+        Destination: { ToAddresses: [cleanEmail] },
+        Message: {
+          Body: { Html: { Data: htmlContent, Charset: "UTF-8" } },
+          Subject: { Data: "BuildTrack — Email Verification Code", Charset: "UTF-8" }
+        },
+        Source: process.env.SES_FROM_EMAIL
+      });
+      await sesClient.send(command);
+    } else {
+      console.log(`[DEV] REGISTRATION OTP for ${cleanEmail}: ${otp}`);
+    }
+
+    return res.status(200).json({ success: true, message: "OTP sent successfully" });
+  } catch (err) {
+    console.error("[Auth] Send OTP error:", err);
+    return res.status(500).json({ success: false, message: "Failed to send OTP" });
+  }
+});
+
+router.post("/verify-registration-otp", (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ success: false, message: "Email and OTP are required" });
+
+  const cleanEmail = String(email).toLowerCase().trim();
+  const record = registrationOTPs.get(cleanEmail);
+
+  if (!record || record.expiresAt < Date.now()) {
+    return res.status(400).json({ success: false, message: "OTP expired or invalid" });
+  }
+
+  if (record.otp !== String(otp).trim()) {
+    return res.status(400).json({ success: false, message: "Incorrect OTP" });
+  }
+
+  registrationOTPs.delete(cleanEmail);
+  verifiedEmails.set(cleanEmail, Date.now());
+
+  return res.status(200).json({ success: true, message: "Email verified successfully" });
+});
+
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, projectId } = req.body;
@@ -146,6 +236,9 @@ router.post("/register", async (req, res) => {
       });
     }
     const cleanEmail = String(email).toLowerCase().trim();
+    if (!verifiedEmails.has(cleanEmail)) {
+      return res.status(400).json({ success: false, message: "Email not verified. Please verify your email first." });
+    }
     const cleanName = String(name).trim();
     const exists = await User.findOne({ email: cleanEmail });
     if (exists) {
@@ -170,6 +263,9 @@ router.post("/register", async (req, res) => {
     console.log(
       `[Auth] Account owner registered: ${user._id} | server-assigned role=${serverAssignedRole}`
     );
+    
+    verifiedEmails.delete(cleanEmail);
+
     return res.status(201).json({
       success: true,
       message: "Account created successfully",

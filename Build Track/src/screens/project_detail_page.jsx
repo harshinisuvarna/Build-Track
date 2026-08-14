@@ -7,10 +7,12 @@ import { Card, Badge, Button } from "../components/ui";
 import ProjectMemberModal from "../components/ProjectMemberModal";
 import DocumentGallery from "../components/DocumentGallery";
 import CsvImportExportCard from "../components/CsvImportExportCard";
+import ModuleTour from "../components/ModuleTour";
+import { useAuth } from "../contexts/AuthContext";
 import {
   ChevronDown, ArrowLeft, Building2, MapPin, Calendar, User, Phone,
   DollarSign, Target, ClipboardCheck, Package, TrendingUp, PieChart,
-  Check, X, Plus, Settings, BarChart3, CreditCard, Hash, Layers, Users, FileText
+  Check, X, Plus, Settings, BarChart3, CreditCard, Hash, Layers, Users, FileText, HelpCircle
 } from "lucide-react";
 
 const TABS = ["Overview", "Financial", "Construction Progress", "Project Members", "Documents", "Inventory"];
@@ -42,6 +44,24 @@ export default function ProjectDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('ProjectDetailPage')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-project-header', content: 'View the current project status and name.', disableBeacon: true },
+    { target: '.tour-full-dashboard-btn', content: 'Navigate to the full site dashboard for this project.' },
+    { target: '.tour-tabs-nav', content: 'Switch between different project views like Overview, Financials, Progress, and Members.' }
+  ];
 
   const fetchProject = useCallback(async () => {
     try {
@@ -419,11 +439,12 @@ export default function ProjectDetailPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: "#F8FAFC", fontFamily: "Inter, 'Segoe UI', sans-serif" }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="ProjectDetailPage" />
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {deleteConfirm && <ConfirmDialog message={deleteConfirm.message} danger={deleteConfirm.danger} confirmLabel={deleteConfirm.confirmLabel} onConfirm={deleteConfirm.onConfirm} onCancel={() => setDeleteConfirm(null)} />}
       <ProjectMemberModal isOpen={isMemberModalOpen} onClose={() => setIsMemberModalOpen(false)} project={project} onUpdateMembers={handleUpdateMembers} />
 
-      <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
+      <div className="tour-project-header" style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={() => navigate(-1)} style={{ border: "none", background: "#F1F5F9", cursor: "pointer", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
             <ArrowLeft size={14} />
@@ -433,9 +454,16 @@ export default function ProjectDetailPage() {
             <Badge variant={status === "Completed" ? "success" : status === "On Hold" ? "warning" : "info"} size="sm">{status}</Badge>
           </div>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => navigate("/managesite", { state: { project: p } })}>
-          <BarChart3 size={14} /> Full Dashboard
-        </Button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
+            <HelpCircle size={14} color="#475569" />
+          </button>
+          <div className="tour-full-dashboard-btn">
+            <Button variant="secondary" size="sm" onClick={() => navigate("/managesite", { state: { project: p } })}>
+              <BarChart3 size={14} /> Full Dashboard
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "14px 24px" }}>
@@ -448,7 +476,7 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 6, padding: "14px 24px", borderBottom: "1px solid #F1F5F9", background: "#fff", flexWrap: "wrap" }}>
+      <div className="tour-tabs-nav" style={{ display: "flex", gap: 6, padding: "14px 24px", borderBottom: "1px solid #F1F5F9", background: "#fff", flexWrap: "wrap" }}>
         {TABS.map(renderTab)}
       </div>
 

@@ -8,6 +8,7 @@ import RequireRole from "./components/RequireRole";
 import LoginPage       from "./pages/login_page";
 import SignUpPage      from "./pages/signup_page";
 import OAuthCallback   from "./pages/oauth_callback";
+import WelcomeModal    from "./components/WelcomeModal";
 
 const Dashboard        = lazy(() => import("./screens/dashboard_page"));
 const VoiceAssistant   = lazy(() => import("./screens/voice_assistant"));
@@ -174,6 +175,7 @@ export default function App() {
   return (
     <AppProviders>
       <AppRoutes />
+      <WelcomeModal />
     </AppProviders>
   );
 }

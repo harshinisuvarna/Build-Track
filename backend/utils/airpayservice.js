@@ -25,12 +25,8 @@ function getConfig() {
   return cfg;
 }
 const AIRPAY_OAUTH_URL        = 'https://kraken.airpay.co.in/airpay/pay/v4/api/oauth2/';
-const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/';
-let cachedToken    = null;
-let tokenExpiresAt = 0;
+const AIRPAY_PAYMENT_BASE_URL = 'https://payments.airpay.co.in/pay/v4/index.php';
 async function getAccessToken() {
-  const now = Date.now();
-  if (cachedToken && now < tokenExpiresAt) return cachedToken;
   const cfg           = getConfig();
   const encryptionKey = generateEncryptionKeyFromCreds(cfg.username, cfg.password);
   const payload = {
@@ -59,9 +55,7 @@ async function getAccessToken() {
       `(code: ${result.response_code || result.error_code})`
     );
   }
-  cachedToken    = result.data.access_token;
-  tokenExpiresAt = now + (result.data.expires_in || 300) * 1000 - 20000;
-  return cachedToken;
+  return result.data.access_token;
 }
 async function buildPaymentPayload({
   orderId,
@@ -70,6 +64,11 @@ async function buildPaymentPayload({
   buyerPhone,
   buyerFirstName,
   buyerLastName,
+  buyerAddress,
+  buyerCity,
+  buyerState,
+  buyerCountry,
+  buyerPinCode,
   returnUrl,
 }) {
   const cfg             = getConfig();
@@ -86,11 +85,11 @@ async function buildPaymentPayload({
     buyer_phone:     buyerPhone,
     buyer_firstname: buyerFirstName,
     buyer_lastname:  buyerLastName,
-    buyer_address:   'NA',
-    buyer_city:      'NA',
-    buyer_state:     'NA',
-    buyer_country:   'India',
-    buyer_pincode:   '000000',
+    buyer_address:   buyerAddress || 'Not Available',
+    buyer_city:      buyerCity || 'Not Available',
+    buyer_state:     buyerState || 'Not Available',
+    buyer_country:   buyerCountry || 'India',
+    buyer_pincode:   buyerPinCode || '400001',
     merchant_id:     cfg.merchantId,
   };
   const encdata  = encrypt(JSON.stringify(transactionData), encryptionKey);
@@ -109,6 +108,7 @@ async function buildPaymentPayload({
       merchant_id: cfg.merchantId,
       encdata,
       checksum,
+      chmod: '',
     },
   };
 }

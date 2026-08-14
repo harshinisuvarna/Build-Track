@@ -688,6 +688,10 @@ if (req.body.paymentReceipt) {
         }
       }
     }
+    
+    // Update onboarding status
+    await User.findByIdAndUpdate(req.user.id, { "onboarding.hasAddedEntry": true });
+
     res.status(201).json({
       message: "Transaction saved successfully",
       transaction,
@@ -1262,6 +1266,14 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
       session.endSession();
     }
   }
+
+  // Update onboarding if they used bulk CSV successfully
+  if (results.successes.length > 0) {
+    await User.findByIdAndUpdate(req.user._id, {
+      $set: { "onboarding.hasUsedBulkCSV": true }
+    });
+  }
+
   res.status(207).json({
     message: "Bulk processing completed",
     results

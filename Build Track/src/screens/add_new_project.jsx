@@ -4,11 +4,13 @@ import { projectAPI, workerAPI, subscriptionAPI } from "../api";
 import { resolveImageUrl } from "../utils/imageUrl";
 import { buildDefaultPhases, addCustomPhase, addActivityToPhase } from "../utils/constructionPhases";
 import { Badge, Button } from "../components/ui";
+import ModuleTour from "../components/ModuleTour";
+import { useAuth } from "../contexts/AuthContext";
 import {
   ChevronDown, Plus, X, Check, Camera, MapPin, Calendar, User, Phone,
   Building2, Home, Layers, Bed, Bath, Settings, Zap, Flame, ChefHat, Sun,
   CalendarDays, DollarSign, HardHat, FileText, Hash, ArrowLeft, Upload,
-  ClipboardList, Users, Wrench,
+  ClipboardList, Users, Wrench, HelpCircle
 } from "lucide-react";
 
 const TOPBAR_H = 65;
@@ -138,6 +140,31 @@ export default function NewProjectPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fileInputRef = useRef(null);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('AddNewProject')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-project-name', content: 'Enter the title of the project here.' },
+    { target: '.tour-city', content: 'Specify the city or primary location of the site.' },
+    { target: '.tour-client', content: 'Provide the client name and contact details.' },
+    { target: '.tour-manager', content: 'Assign a manager or site engineer for this project.' },
+    { target: '.tour-budget-config', content: 'Use these tools to download a budget template or upload a filled CSV to quickly populate project phases and estimated costs.' },
+    { target: '.tour-budget-inputs', content: 'Or manually enter the estimated budget for materials, labour, equipment, and miscellaneous costs.' },
+    { target: '.tour-building-type', content: 'Select the primary construction type and sub-category.' },
+    { target: '.tour-floors', content: 'Select all the floors that will be built as part of this project.' },
+    { target: '.tour-site-photos', content: 'Upload an initial site photo or project thumbnail.' },
+    { target: '.tour-save-btn', content: 'Once all details and budgets are configured, click here to save the project.' }
+  ];
 
   const editProject = location.state?.editProject || location.state?.project || null;
   const isEditMode = Boolean(editProject);
@@ -634,17 +661,23 @@ export default function NewProjectPage() {
       <input ref={csvFileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handlePhaseCsvUpload} />
 
       <div style={{ height: TOPBAR_H, flexShrink: 0, background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="AddNewProject" />
         <div style={{ minWidth: 0 }}>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#111827", letterSpacing: "-0.03em" }}>{isEditMode ? "Edit Project" : "New Project"}</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>{isEditMode ? "Edit project configuration" : "Create a new construction project"}</p>
         </div>
-        <button onClick={() => navigate("/projects")} style={{ padding: "8px 16px", background: "#fff", color: "#475569", border: "1px solid #E5E7EB", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, fontFamily: "inherit" }}>
-          <ArrowLeft size={14} /> Back
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>
+            <HelpCircle size={16} color="#64748B" />
+          </button>
+          <button onClick={() => navigate("/projects")} style={{ padding: "8px 16px", background: "#fff", color: "#475569", border: "1px solid #E5E7EB", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, fontFamily: "inherit" }}>
+            <ArrowLeft size={14} /> Back
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "20px 24px 60px", boxSizing: "border-box" }}>
-        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", maxWidth: 800, margin: "0 auto 16px" }}>
+        <div className="tour-budget-config" style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", maxWidth: 800, margin: "0 auto 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "#10B9811A", display: "flex", alignItems: "center", justifyContent: "center", color: "#10B981" }}>
               <FileText size={20} />
@@ -697,11 +730,11 @@ export default function NewProjectPage() {
 
           <Accordion title="Project Setup" icon={<ClipboardList size={16} />} defaultOpen>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 12 }}>
-              <div>
+              <div className="tour-project-name">
                 <label style={labelStyle}>Project Name *</label>
                 <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="e.g. Skyline Towers" style={baseInput} />
               </div>
-              <div>
+              <div className="tour-city">
                 <label style={labelStyle}>City</label>
                 <div style={{ position: "relative" }}>
                   <MapPin size={14} color="#94A3B8" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
@@ -728,7 +761,7 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 14 }}>
+            <div className="tour-client" style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <User size={14} color="#5B5CEB" />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Client Details</span>
@@ -739,7 +772,7 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            <div>
+            <div className="tour-manager">
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <HardHat size={14} color="#5B5CEB" />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Site Team</span>
@@ -751,8 +784,9 @@ export default function NewProjectPage() {
             </div>
           </Accordion>
 
-          <Accordion title="Building Type" icon={<Building2 size={16} />} defaultOpen>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+          <div className="tour-building-type">
+            <Accordion title="Building Type" icon={<Building2 size={16} />} defaultOpen>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <div>
                 <label style={labelStyle}>Main Type</label>
                 <div style={{ position: "relative" }}>
@@ -779,7 +813,8 @@ export default function NewProjectPage() {
                 <input value={customSubType} onChange={e => setCustomSubType(e.target.value)} placeholder="Enter custom sub type" style={baseInput} />
               </div>
             )}
-          </Accordion>
+            </Accordion>
+          </div>
 
           <Accordion title="Land & Floors" icon={<Layers size={16} />} defaultOpen>
             <div style={{ marginBottom: 14 }}>
@@ -795,7 +830,7 @@ export default function NewProjectPage() {
                 </div>
               </div>
             </div>
-            <div>
+            <div className="tour-floors">
               <label style={labelStyle}>Floors Included</label>
               <ChipSelect options={floorOptions} selected={selectedFloors} onChange={setSelectedFloors} multi />
             </div>
@@ -863,7 +898,7 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 14 }}>
+            <div className="tour-budget-inputs" style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.05em", marginBottom: 6, textTransform: "uppercase" }}>Budget Breakdown</div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
                 <div>
@@ -972,7 +1007,8 @@ export default function NewProjectPage() {
           </Accordion>
 
           <Accordion title="Site Photo" icon={<Camera size={16} />}>
-            <input ref={fileInputRef} type="file" accept="image/png, image/jpeg, image/gif, image/webp" style={{ display: "none" }} onChange={e => handlePhotoFile(e.target.files[0])} />
+            <div className="tour-site-photos">
+              <input ref={fileInputRef} type="file" accept="image/png, image/jpeg, image/gif, image/webp" style={{ display: "none" }} onChange={e => handlePhotoFile(e.target.files[0])} />
             <div onClick={() => fileInputRef.current.click()} style={{ border: `2px dashed ${photoPreview ? "#5B5CEB" : "#E5E7EB"}`, borderRadius: 8, padding: photoPreview ? 0 : "24px 20px", background: photoPreview ? "transparent" : "#F8FAFC", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, cursor: "pointer", transition: "all 0.2s", overflow: "hidden", minHeight: 100, justifyContent: "center" }}>
               {photoPreview ? (
                 <div style={{ position: "relative", width: "100%" }}>
@@ -992,6 +1028,7 @@ export default function NewProjectPage() {
                   </div>
                 </>
               )}
+            </div>
             </div>
           </Accordion>
 
@@ -1028,7 +1065,7 @@ export default function NewProjectPage() {
           </Accordion>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 6 }}>
-            <button onClick={handleSubmit} disabled={saving}
+            <button className="tour-save-btn" onClick={handleSubmit} disabled={saving}
               style={{ minHeight: 46, padding: "12px 0", background: "#5B5CEB", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: saving ? 0.6 : 1, transition: "background 0.2s", fontFamily: 'inherit' }}>
               {saving ? <><SpinnerIcon /> Saving\u2026</> : isEditMode ? <><Check size={16} /> Update Project</> : <><Plus size={16} /> Create Project</>}
             </button>

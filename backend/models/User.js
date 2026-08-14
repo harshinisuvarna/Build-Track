@@ -65,6 +65,14 @@ const userSchema = new mongoose.Schema(
       renewalDate: { type: Date, default: null },
       purchaseToken: { type: String, default: null },
     },
+    onboarding: {
+      hasSkippedTour: { type: Boolean, default: false },
+      hasCreatedProject: { type: Boolean, default: false },
+      hasAddedEntry: { type: Boolean, default: false },
+      hasUsedBulkCSV: { type: Boolean, default: false },
+      hasViewedReports: { type: Boolean, default: false },
+      visitedModules: { type: [String], default: [] },
+    },
   },
   { timestamps: true }
 );

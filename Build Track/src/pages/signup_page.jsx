@@ -32,6 +32,12 @@ export default function SignUpPage() {
   const [confirm, setConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
 
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -49,6 +55,47 @@ export default function SignUpPage() {
 
   const isDesktop = vw >= 1024;
   const isMobile = vw < 640;
+
+  const handleSendOtp = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrors(p => ({...p, email: "Enter a valid company email."}));
+      setShake(true); setTimeout(() => setShake(false), 420);
+      return;
+    }
+    setOtpLoading(true);
+    setServerErr("");
+    try {
+      const { data } = await authAPI.sendRegistrationOtp({ email: email.trim() });
+      setOtpSent(true);
+    } catch (err) {
+      const msg = err.friendlyMessage || err.response?.data?.message || "Failed to send OTP.";
+      setServerErr(msg);
+      setShake(true); setTimeout(() => setShake(false), 420);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length < 5) {
+      setErrors(p => ({...p, otp: "Enter a valid OTP."}));
+      setShake(true); setTimeout(() => setShake(false), 420);
+      return;
+    }
+    setVerifyLoading(true);
+    setServerErr("");
+    try {
+      const { data } = await authAPI.verifyRegistrationOtp({ email: email.trim(), otp: otp.trim() });
+      setIsEmailVerified(true);
+      setErrors(p => ({...p, otp: ""}));
+    } catch (err) {
+      const msg = err.friendlyMessage || err.response?.data?.message || "Invalid OTP.";
+      setServerErr(msg);
+      setShake(true); setTimeout(() => setShake(false), 420);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
 
   const validate = () => {
     const e = {};
@@ -240,145 +287,234 @@ export default function SignUpPage() {
                 autoComplete="name"
               />
 
-              <LightPremiumInput
-                type="email"
-                label="Company Email"
-                icon={Mail}
-                value={email}
-                onChange={e => {
-                  setEmail(e.target.value);
-                  setErrors(p => ({...p, email: ""}));
-                  setServerErr("");
-                }}
-                error={errors.email}
-                autoComplete="email"
-              />
-
-              <div style={{ position: "relative" }}>
-                <LightPremiumInput
-                  type={showPass ? "text" : "password"}
-                  label="Password"
-                  icon={Lock}
-                  value={password}
-                  onChange={e => {
-                    setPassword(e.target.value);
-                    setErrors(p => ({...p, password: ""}));
-                    setServerErr("");
-                  }}
-                  error={errors.password}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: 17,
-                    background: "none",
-                    border: "none",
-                    color: "#8E9AA8",
-                    cursor: "pointer",
-                    padding: 4,
-                    zIndex: 30
-                  }}
-                >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-
-              <div style={{ position: "relative" }}>
-                <LightPremiumInput
-                  type={showConfirm ? "text" : "password"}
-                  label="Confirm Password"
-                  icon={Shield}
-                  value={confirm}
-                  onChange={e => {
-                    setConfirm(e.target.value);
-                    setErrors(p => ({...p, confirm: ""}));
-                    setServerErr("");
-                  }}
-                  error={errors.confirm}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: 17,
-                    background: "none",
-                    border: "none",
-                    color: "#8E9AA8",
-                    cursor: "pointer",
-                    padding: 4,
-                    zIndex: 30
-                  }}
-                >
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-
-              <div style={{ marginBottom: 24, marginTop: 10 }}>
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                  <div
-                    onClick={() => { setAgreed(v => !v); setErrors(p => ({...p, agreed: ""})); }}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <LightPremiumInput
+                    type="email"
+                    label="Company Email"
+                    icon={Mail}
+                    value={email}
+                    onChange={e => {
+                      if (isEmailVerified) return;
+                      setEmail(e.target.value);
+                      setErrors(p => ({...p, email: ""}));
+                      setServerErr("");
+                      setOtpSent(false);
+                    }}
+                    error={errors.email}
+                    autoComplete="email"
+                  />
+                </div>
+                {!isEmailVerified && !otpSent && (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={otpLoading || !email.trim()}
                     style={{
-                      width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
-                      border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#6366F1" : "#d0d0d0"}`,
-                      background: agreed ? "#6366F1" : "#fff",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "all 0.15s", cursor: "pointer",
-                    }}>
-                    {agreed && (
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M1.5 5l2.5 2.5 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  <span style={{ fontSize: "13px", color: "#71717A", lineHeight: 1.6, fontWeight: "500" }}>
-                    By creating an account, you agree to our{" "}
-                    <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Terms</span>
-                    {" "}and{" "}
-                    <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Privacy Policy</span>.
-                  </span>
-                </label>
-                {errors.agreed && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#dc2626", fontSize: "11px", fontWeight: "700" }}>
-                    <AlertTriangle size={11} />
-                    <span>{errors.agreed}</span>
+                      background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "0 16px",
+                      height: 48,
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: (otpLoading || !email.trim()) ? "not-allowed" : "pointer",
+                      opacity: (otpLoading || !email.trim()) ? 0.6 : 1,
+                      boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)"
+                    }}
+                  >
+                    {otpLoading ? "SENDING..." : "VERIFY"}
+                  </button>
+                )}
+                {isEmailVerified && (
+                  <div style={{
+                    height: 48,
+                    color: "#10B981",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: "12px",
+                    fontWeight: "800",
+                  }}>
+                    <CheckCircle size={16} /> VERIFIED
                   </div>
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="login-submit-btn"
-                style={{
-                  width: "100%",
-                  padding: "14px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
-                  color: "#FFF",
-                  fontWeight: "800",
-                  fontSize: "13.5px",
-                  letterSpacing: "0.05em",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.75 : 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
-                }}
-              >
-                {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
-                {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
-                {!loading && <ArrowRight size={14} />}
-              </button>
+              {!isEmailVerified && otpSent && (
+                <div>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <LightPremiumInput
+                        type="text"
+                        label="Verification Code (OTP)"
+                        icon={Shield}
+                        value={otp}
+                        onChange={e => {
+                          setOtp(e.target.value);
+                          setErrors(p => ({...p, otp: ""}));
+                          setServerErr("");
+                        }}
+                        error={errors.otp}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={verifyLoading || otp.length < 5}
+                      style={{
+                        background: "#10B981",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "0 16px",
+                        height: 48,
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: (verifyLoading || otp.length < 5) ? "not-allowed" : "pointer",
+                        opacity: (verifyLoading || otp.length < 5) ? 0.6 : 1,
+                        boxShadow: "0 4px 14px rgba(16, 185, 129, 0.18)"
+                      }}
+                    >
+                      {verifyLoading ? "VERIFYING..." : "CONFIRM"}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: -14, marginBottom: 14 }}>
+                    <button type="button" onClick={handleSendOtp} style={{ background: 'none', border: 'none', color: '#6366F1', fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Resend Code</button>
+                  </div>
+                </div>
+              )}
+
+              {isEmailVerified && (
+                <>
+                  <div style={{ position: "relative" }}>
+                    <LightPremiumInput
+                      type={showPass ? "text" : "password"}
+                      label="Password"
+                      icon={Lock}
+                      value={password}
+                      onChange={e => {
+                        setPassword(e.target.value);
+                        setErrors(p => ({...p, password: ""}));
+                        setServerErr("");
+                      }}
+                      error={errors.password}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      style={{
+                        position: "absolute",
+                        right: 14,
+                        top: 17,
+                        background: "none",
+                        border: "none",
+                        color: "#8E9AA8",
+                        cursor: "pointer",
+                        padding: 4,
+                        zIndex: 30
+                      }}
+                    >
+                      {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  <div style={{ position: "relative" }}>
+                    <LightPremiumInput
+                      type={showConfirm ? "text" : "password"}
+                      label="Confirm Password"
+                      icon={Shield}
+                      value={confirm}
+                      onChange={e => {
+                        setConfirm(e.target.value);
+                        setErrors(p => ({...p, confirm: ""}));
+                        setServerErr("");
+                      }}
+                      error={errors.confirm}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      style={{
+                        position: "absolute",
+                        right: 14,
+                        top: 17,
+                        background: "none",
+                        border: "none",
+                        color: "#8E9AA8",
+                        cursor: "pointer",
+                        padding: 4,
+                        zIndex: 30
+                      }}
+                    >
+                      {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  <div style={{ marginBottom: 24, marginTop: 10 }}>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                      <div
+                        onClick={() => { setAgreed(v => !v); setErrors(p => ({...p, agreed: ""})); }}
+                        style={{
+                          width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
+                          border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#6366F1" : "#d0d0d0"}`,
+                          background: agreed ? "#6366F1" : "#fff",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "all 0.15s", cursor: "pointer",
+                        }}>
+                        {agreed && (
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M1.5 5l2.5 2.5 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span style={{ fontSize: "13px", color: "#71717A", lineHeight: 1.6, fontWeight: "500" }}>
+                        By creating an account, you agree to our{" "}
+                        <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Terms</span>
+                        {" "}and{" "}
+                        <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Privacy Policy</span>.
+                      </span>
+                    </label>
+                    {errors.agreed && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, color: "#dc2626", fontSize: "11px", fontWeight: "700" }}>
+                        <AlertTriangle size={11} />
+                        <span>{errors.agreed}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="login-submit-btn"
+                    style={{
+                      width: "100%",
+                      padding: "14px",
+                      borderRadius: 12,
+                      border: "none",
+                      background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
+                      color: "#FFF",
+                      fontWeight: "800",
+                      fontSize: "13.5px",
+                      letterSpacing: "0.05em",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      opacity: loading ? 0.75 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
+                    }}
+                  >
+                    {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
+                    {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
+                    {!loading && <ArrowRight size={14} />}
+                  </button>
+                </>
+              )}
 
             </form>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { subscriptionAPI } from "../api";
-import { Bell, Star, ClipboardList, AlertTriangle, Lock, Building2, CreditCard } from "lucide-react";
+import { Bell, Star, ClipboardList, AlertTriangle, Lock, Building2, CreditCard, HelpCircle } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 const PLANS = [
   {
@@ -124,6 +125,19 @@ export default function SubscriptionPage() {
   const [processing, setProcessing] = useState(null);
   const [error, setError] = useState("");
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 768);
+  const [runTour, setRunTour] = useState(false);
+
+  const tourSteps = [
+    { target: '.tour-current-plan', content: 'Here is your current active subscription and its status.', disableBeacon: true },
+    { target: '.tour-plans', content: 'Explore our available plans. Upgrade to unlock more projects and users.' },
+    { target: '.tour-restore-purchases', content: 'If you have upgraded on another device, use this to sync your purchases.' }
+  ];
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth < 768);
@@ -226,6 +240,7 @@ export default function SubscriptionPage() {
       fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
       background: "#f7f7f8",
     }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="Subscription" />
 
       <div style={{
         height: TOPBAR_H, flexShrink: 0,
@@ -240,7 +255,9 @@ export default function SubscriptionPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ width: 36, height: 36, background: "#f5f5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Bell size={16} /></div>
-          <div style={{ width: 36, height: 36, background: "#f5f5f5", border: "2px solid #e5e5e5", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#888", cursor: "pointer" }}>?</div>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color={'#94A3B8'} />
+          </button>
         </div>
       </div>
 
@@ -298,7 +315,7 @@ export default function SubscriptionPage() {
         </div>
 
         {subStatus && (
-          <div style={{
+          <div className="tour-current-plan" style={{
             background: "#fff",
             borderRadius: 14,
             border: "1px solid #ebebeb",
@@ -354,7 +371,7 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        <div style={{
+        <div className="tour-plans" style={{
           display: "grid",
           gridTemplateColumns: isNarrow
             ? "1fr"
@@ -571,7 +588,7 @@ export default function SubscriptionPage() {
               background: "#fff5f0", border: "1px solid #fde8d8",
               transition: "background 0.15s",
             }}
-            className="hover-bg-subtle"
+            className="hover-bg-subtle tour-restore-purchases"
             onClick={async () => {
               try {
                 await subscriptionAPI.getStatus();

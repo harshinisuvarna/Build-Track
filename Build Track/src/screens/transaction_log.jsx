@@ -5,6 +5,8 @@ import useTransactionStore from "../stores/transactionStore";
 import perfLogger from "../utils/performanceLogger";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button, EmptyState } from "../components/ui";
+import ModuleTour from "../components/ModuleTour";
+import { useAuth } from "../contexts/AuthContext";
 import { colors, radius, shadows, typography, gradients } from "../styles/designTokens";
 import {
   Search,
@@ -23,7 +25,8 @@ import {
   Package,
   TrendingUp,
   X,
-  Users
+  Users,
+  HelpCircle
 } from "lucide-react";
 
 const ITEMS_PER_PAGE = 10;
@@ -77,6 +80,25 @@ export default function TransactionLog() {
   const [confirmDlg, setConfirmDlg] = useState(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('TransactionLog')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'View a detailed log of all project transactions.', disableBeacon: true },
+    { target: '.tour-stats', content: 'See a quick summary of income, expenses, and net balance.' },
+    { target: '.tour-filters', content: 'Search and filter transactions by type.' },
+    { target: '.tour-list', content: 'Click on any transaction to see full details.' }
+  ];
+
   useEffect(() => {
     perfLogger.endRoute('/transaction');
     perfLogger.logMount('TransactionLog');
@@ -126,14 +148,20 @@ export default function TransactionLog() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1200, margin: '0 auto', fontFamily: typography.fontFamily, animation: 'fadeUp 300ms ease' }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="TransactionLog" />
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
       {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
+      <div className="tour-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em', margin: 0, marginBottom: 6 }}>
-            Transaction Log
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.02em', margin: 0 }}>
+              Transaction Log
+            </h1>
+            <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+              <HelpCircle size={16} color={colors.textLight} />
+            </button>
+          </div>
           <p style={{ fontSize: 14, color: colors.textSecondary, margin: 0 }}>View and manage all transactions across construction projects</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -146,7 +174,7 @@ export default function TransactionLog() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
+      <div className="tour-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
         {[
           { label: 'Total Income', value: income, color: colors.success, bg: colors.successLight, icon: ArrowUpRight },
           { label: 'Total Expenses', value: expenses, color: colors.danger, bg: colors.dangerLight, icon: ArrowDownRight },
@@ -176,7 +204,7 @@ export default function TransactionLog() {
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+      <div className="tour-filters" style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div style={{
           display: 'flex', alignItems: 'center', background: colors.card,
           border: `1px solid ${colors.border}`, borderRadius: 10,
@@ -233,7 +261,7 @@ export default function TransactionLog() {
           onAction={() => navigate("/manualentry")}
         />
       ) : (
-        <>
+        <div className="tour-list">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {paginated.map((t, i) => {
               const st = TYPE_STYLES[t.type] || TYPE_STYLES.Expense;
@@ -353,7 +381,7 @@ export default function TransactionLog() {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

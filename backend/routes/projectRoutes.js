@@ -526,6 +526,10 @@ router.post("/", requirePermission(["create_project", "manage_team"]), async (re
     });
     const normalized = normalizeProjectBudget(project);
     normalized.spentAmount = await getProjectSpentAmount(project._id);
+
+    const User = require("../models/User");
+    await User.findByIdAndUpdate(req.user.id, { "onboarding.hasCreatedProject": true });
+
     res.status(201).json({ message: "Project created", project: normalized });
   } catch (err) {
     console.error("CREATE project error:", err);

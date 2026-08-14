@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, transactionAPI } from "../api";
 import { Toast } from "../components/Toast";
 import { colors, radius, shadows, gradients, typography } from "../styles/designTokens";
-import { Building, ChevronDown } from "lucide-react";
+import { Building, ChevronDown, HelpCircle } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
+import { useAuth } from "../contexts/AuthContext";
 
 const ENTRY_TYPES = [
   { key: "material", label: "Material", color: colors.primaryBlue },
@@ -70,6 +72,29 @@ export default function ManualEntryPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('ManualEntry')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'Here you can manually log materials, labour, or equipment.', disableBeacon: true },
+    { target: '.tour-entry-types', content: 'Choose the type of entry you want to record.' },
+    { target: '.tour-project-context', content: 'Select the project, phase, and activity for this entry.' },
+    { target: '.tour-field-item', content: 'Fill in the details for the specific item, rate, and quantity.' },
+    { target: '.tour-amount-calc', content: 'The total amount is calculated automatically.' },
+    { target: '.tour-payment', content: 'Mark if the entry is already paid and specify the payment method.' },
+    { target: '.tour-attachments', content: 'Upload bills, receipts, or site photos for this entry.' },
+    { target: '.tour-save-btn', content: 'Click here to save the manual entry.' }
+  ];
 
   const [selectedFloor, setSelectedFloor] = useState("");
   const [selectedPhaseId, setSelectedPhaseId] = useState("");
@@ -485,21 +510,25 @@ export default function ManualEntryPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="ManualEntry" />
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
-      <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+      <div className="tour-header" style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         <button onClick={() => navigate(-1)}
           style={{ background: colors.bgBase4, border: "none", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, color: colors.textPrimary }}>
           &larr;
         </button>
-        <div>
+        <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>{isEditing ? "Edit Entry" : "New Entry"}</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>{isEditing ? "Modify this transaction" : "Record a material, labour, or equipment entry"}</p>
         </div>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+          <HelpCircle size={16} color={colors.textLight} />
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 100px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <div className="tour-entry-types" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           {ENTRY_TYPES.map(t => (
             <button key={t.key} onClick={() => !isEditing && setEntryType(t.key)}
               style={{
@@ -516,7 +545,7 @@ export default function ManualEntryPage() {
           ))}
         </div>
 
-        <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
+        <div className="tour-project-context" style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 34, height: 34, background: "rgba(23, 62, 234, 0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: colors.primaryBlue, flexShrink: 0 }}>
@@ -636,8 +665,8 @@ export default function ManualEntryPage() {
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
           </div>
 
-          {currentFields.map(f => (
-            <div key={f.key} style={{ marginBottom: 16, position: "relative" }}>
+          {currentFields.map((f, idx) => (
+            <div key={f.key} className={idx === 0 ? "tour-field-item" : ""} style={{ marginBottom: 16, position: "relative" }}>
               <div style={labelStyle}>
                 {f.label.toUpperCase()} {f.required && <span style={{ color: colors.error }}>*</span>}
               </div>
@@ -687,7 +716,7 @@ export default function ManualEntryPage() {
             </select>
           </div>
 
-          <div style={{ background: "#F0F2FF", borderRadius: radius.sm, padding: "14px 16px", marginBottom: 16 }}>
+          <div className="tour-amount-calc" style={{ background: "#F0F2FF", borderRadius: radius.sm, padding: "14px 16px", marginBottom: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: colors.primaryBlue, letterSpacing: "0.08em", marginBottom: 4 }}>AMOUNT (₹)</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: colors.primaryBlue }}>
               ₹{computedAmount.toLocaleString("en-IN")}
@@ -860,7 +889,7 @@ export default function ManualEntryPage() {
           )}
         </div>
 
-        <div style={cardStyle}>
+        <div className="tour-attachments" style={cardStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.textSecondary} strokeWidth="2">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -950,7 +979,7 @@ export default function ManualEntryPage() {
             {successMsg}
           </div>
         )}
-        <button onClick={handleSave} disabled={saving}
+        <button className="tour-save-btn" onClick={handleSave} disabled={saving}
           style={{
             width: "100%", padding: "16px 0", borderRadius: radius.md, border: "none",
             background: gradients.primaryButton, color: "#FFF", fontWeight: 700, fontSize: 16,

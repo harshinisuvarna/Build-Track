@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { colors, radius, typography } from '../styles/designTokens';
 import { Card, Badge, Button, Spinner, EmptyState, ErrorState, Toast, ConfirmDialog } from '../components/ui';
 import { approvalAPI, transactionAPI } from '../api';
-import { CheckCircle, ClipboardCheck, User, Building2, Package } from 'lucide-react';
+import { CheckCircle, ClipboardCheck, User, Building2, Package, HelpCircle } from 'lucide-react';
+import ModuleTour from '../components/ModuleTour';
+import { useAuth } from '../contexts/AuthContext';
 
 function formatCurrency(amount) {
   return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -33,6 +35,24 @@ export default function ApprovalsPage() {
   const [rejecting, setRejecting] = useState(null);
   const [toast, setToast] = useState({ message: '', type: 'info', key: 0 });
   const [confirmDlg, setConfirmDlg] = useState(null);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('ApprovalDashboard')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'Review and approve project entries submitted by your team.', disableBeacon: true },
+    { target: '.tour-tabs', content: 'Toggle between pending approvals and your history.' },
+    { target: '.tour-list', content: 'Approve or reject entries from this list.' }
+  ];
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -85,6 +105,7 @@ export default function ApprovalsPage() {
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 900, margin: '0 auto' }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="ApprovalDashboard" />
       <Toast
         key={toast.key}
         message={toast.message}
@@ -100,13 +121,16 @@ export default function ApprovalsPage() {
         confirmLabel={confirmDlg?.confirmLabel}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="tour-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>
           Approvals
         </h2>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+          <HelpCircle size={16} color={colors.textLight} />
+        </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div className="tour-tabs" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['pending', 'history'].map((t) => (
           <button
             key={t}
@@ -141,7 +165,7 @@ export default function ApprovalsPage() {
             : 'No approval history found.'}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="tour-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {entries.map((entry) => {
             const id = entry._id || entry.id;
             const type = typeStyles[entry.type] || typeStyles.Materials;

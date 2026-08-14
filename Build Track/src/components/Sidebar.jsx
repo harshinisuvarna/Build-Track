@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { navItems, adminNavItems } from "../navItems";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { LogOut } from "lucide-react";
+import { LogOut, HelpCircle } from "lucide-react";
 import { colors, gradients, radius, typography } from "../styles/designTokens";
 import { useAuth } from "../contexts/AuthContext";
 import { preloadRoute } from "../App";
@@ -92,12 +92,24 @@ export default function Sidebar() {
         <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: "0.08em", padding: "12px 8px 6px", textTransform: "uppercase" }}>
           Main
         </div>
-        {navItems.map((item) => (
+        {navItems.map((item) => {
+          const tourClassMap = {
+            'Dashboard': 'tour-dashboard',
+            'Projects': 'tour-create-project',
+            'Add Entry': 'tour-add-entry',
+            'Voice': 'tour-voice',
+            'Log': 'tour-log',
+            'Inventory': 'tour-inventory',
+            'Reports': 'tour-reports',
+            'Subscription': 'tour-subscription',
+            'Settings': 'tour-settings'
+          };
+          return (
           <NavLink
             key={item.label}
             to={item.path}
             end={item.path === "/"}
-            className="sidebar-link"
+            className={`sidebar-link ${tourClassMap[item.label] || ''}`}
             onMouseEnter={() => preloadRoute(item.path)}
             onPointerDown={() => preloadRoute(item.path)}
             onClick={() => perfLogger.startRoute(item.path)}
@@ -116,7 +128,7 @@ export default function Sidebar() {
               </>
             )}
           </NavLink>
-        ))}
+        )})}
 
         {isAdminOrSupervisor && (
           <>
@@ -127,7 +139,7 @@ export default function Sidebar() {
               <NavLink
                 key={item.label}
                 to={item.path}
-                className="sidebar-link"
+                className={`sidebar-link ${item.label === 'Subscription & Billing' ? 'tour-subscription' : ''}`}
                 onMouseEnter={() => preloadRoute(item.path)}
                 onPointerDown={() => preloadRoute(item.path)}
                 onClick={() => perfLogger.startRoute(item.path)}
@@ -206,6 +218,29 @@ export default function Sidebar() {
         >
           <LogOut size={14} />
           Sign Out
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new Event('trigger-dashboard-tour'))}
+          className="sidebar-help-btn"
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            marginTop: 8,
+            borderRadius: "10px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: colors.textSecondary,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            cursor: "pointer",
+            border: `1px solid ${colors.border}`,
+            background: "transparent",
+          }}
+        >
+          <HelpCircle size={14} />
+          App Tour
         </button>
       </div>
     </aside>
