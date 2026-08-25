@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const User = require("../models/User");
 const { protect, authorize } = require("../middleware/auth");
+const { updateProfile, safeUser: controllerSafeUser } = require("../controllers/userController");
 const upload = require("../config/multer");
 const { getFileUrl } = require("../config/fileHelpers");
 const Subscription = require("../models/Subscription");
@@ -71,8 +72,10 @@ const safeUser = (user) => {
     projectId: legacyProjectId,
     profilePhoto: user.profilePhoto || null,
     provider: user.provider || "local",
-    isActive: user.isActive,
-    twoFactorEnabled: false,
+    isActive: user.isActive !== undefined ? user.isActive : true,
+    twoFactorEnabled: !!user.twoFactorEnabled,
+    overseesRoles: Array.isArray(user.overseesRoles) ? user.overseesRoles : [],
+    onboarding: user.onboarding || { hasSkippedTour: false, hasCreatedProject: false, hasAddedEntry: false },
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -445,28 +448,7 @@ router.post("/login", async (req, res) => {
 router.get("/me", protect, (req, res) => {
   return res.json({ user: safeUser(req.user) });
 });
-router.put("/profile", protect, async (req, res) => {
-  try {
-    const { name, email, role } = req.body;
-    const user = await User.findById(getUserId(req));
-    if (!user) return res.status(404).json({ message: "User not found" });
-    if (name) user.name = String(name).trim();
-    if (email) user.email = String(email).trim().toLowerCase();
-    if (role && req.user.role === "Admin") {
-      user.role = normalizeRole(role, user.role);
-    }
-    await user.save();
-    return res.json({ message: "Profile updated", user: safeUser(user) });
-  } catch (err) {
-    console.error("Profile update error:", err);
-    if (err.code === 11000) {
-      return res
-        .status(409)
-        .json({ message: "Email already in use by another account" });
-    }
-    return res.status(500).json({ message: "Failed to update profile" });
-  }
-});
+router.put("/profile", protect, updateProfile);
 router.put("/photo", protect, upload.single("photo"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No photo uploaded" });

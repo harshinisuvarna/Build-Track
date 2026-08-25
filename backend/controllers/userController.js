@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const safeUser = (user) => ({
   id:               user._id || user.id,
+  _id:              user._id || user.id,
   name:             user.name,
   email:            user.email,
   role:             user.role   || "Mason",
@@ -9,7 +10,7 @@ const safeUser = (user) => ({
   projectId:        user.projectId?.toString()       || null,
   profilePhoto:     user.profilePhoto               || null,
   provider:         user.provider                   || "local",
-  isActive:         user.isActive,
+  isActive:         user.isActive !== undefined ? user.isActive : true,
   overseesRoles:    Array.isArray(user.overseesRoles) ? user.overseesRoles : [],
   twoFactorEnabled: !!user.twoFactorEnabled,
   onboarding:       user.onboarding || { hasSkippedTour: false, hasCreatedProject: false, hasAddedEntry: false },
@@ -18,17 +19,75 @@ const safeUser = (user) => ({
 });
 const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { name, email } = req.body;
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const { name, email, profilePhoto, role } = req.body;
     const user = await User.findById(userId).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (name) user.name = name.trim();
-    if (email) user.email = email.trim().toLowerCase();
+
+    if (name !== undefined) {
+      const trimmedName = String(name).trim();
+      if (!trimmedName) {
+        return res.status(400).json({ message: "Name cannot be empty" });
+      }
+      user.name = trimmedName;
+    }
+
+    if (email !== undefined) {
+      const trimmedEmail = String(email).trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+        return res.status(400).json({ message: "Please provide a valid email address" });
+      }
+      if (trimmedEmail !== user.email) {
+        const existing = await User.findOne({ email: trimmedEmail, _id: { $ne: user._id } });
+        if (existing) {
+          return res.status(409).json({ message: "Email already in use by another account" });
+        }
+        user.email = trimmedEmail;
+      }
+    }
+
+    if (profilePhoto !== undefined) {
+      user.profilePhoto = (profilePhoto === "" || profilePhoto === null) ? null : String(profilePhoto);
+    }
+
+    if (role !== undefined) {
+      const cleanRole = String(role).trim();
+      if (!cleanRole) {
+        return res.status(400).json({ message: "Role cannot be empty" });
+      }
+      
+      const currentRole = (user.role || "").trim();
+      const isRoleChanging = cleanRole.toLowerCase() !== currentRole.toLowerCase();
+
+      if (isRoleChanging) {
+        const isAuthorized =
+          req.user.role === "Admin" ||
+          req.user.role === "admin" ||
+          (Array.isArray(req.user.permissions) &&
+            (req.user.permissions.includes("assign_roles") || req.user.permissions.includes("manage_users")));
+
+        if (!isAuthorized) {
+          return res.status(403).json({ message: "Not authorized to modify user role" });
+        }
+
+        user.role = cleanRole;
+      }
+    }
+
     await user.save();
-    return res.status(200).json({ user: safeUser(user) });
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: safeUser(user)
+    });
   } catch (error) {
     console.error("Update profile error:", error);
-    return res.status(500).json({ message: "Server error" });
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "Email already in use by another account" });
+    }
+    return res.status(500).json({ message: "Failed to update profile" });
   }
 };
 const getProfile = async (req, res) => {
@@ -158,4 +217,4 @@ const visitModule = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding, visitModule };
+module.exports = { safeUser, updateProfile, updateSubscription, getSubscription, getProfile, updateProfilePhoto, assignOversightRoles, skipOnboarding, visitModule };
