@@ -6,7 +6,7 @@ export default function Tilt3DCard({
   style = {},
   maxTilt = 8, // max degree tilt
   scale = 1.02,
-  perspective = 1000,
+  perspective = 1000,      
   glare = true,
   onClick,
   ...props
