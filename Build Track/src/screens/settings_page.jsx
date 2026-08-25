@@ -8,7 +8,8 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   User, Mail, Shield, Bell, Globe, ChevronDown, Camera, Pencil, Lock,
   LogOut, Trash2, Users, FileText, KeyRound, Eye, EyeOff, ArrowLeft,
-  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle, HelpCircle
+  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle, HelpCircle,
+  Save, Check
 } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
 
@@ -82,6 +83,14 @@ export default function SettingsPage() {
   const [runTour, setRunTour] = useState(false);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
+  const isDirty = Boolean(
+    user && (
+      fullName !== (user.name || "") ||
+      email !== (user.email || "") ||
+      role !== (user.role || "Site Supervisor")
+    )
+  );
+
   const tourSteps = [
     { target: '.tour-profile', content: 'Update your personal information and profile picture here.', disableBeacon: true },
     { target: '.tour-notifications', content: 'Toggle email and push notifications on or off.' },
@@ -108,6 +117,7 @@ export default function SettingsPage() {
       setRole(user.role || "Site Supervisor");
       if (user.twoFactorEnabled !== undefined) setTwoFA(user.twoFactorEnabled);
       if (user.profilePhoto) setProfileImage(resolveImageUrl(user.profilePhoto));
+      else setProfileImage(null);
     }
   }, [user]);
 
@@ -125,25 +135,53 @@ export default function SettingsPage() {
       const fd = new FormData();
       fd.append("photo", file);
       const { data } = await userAPI.updatePhoto(fd);
-      updateUser({ profilePhoto: data.profilePhoto });
+      const updatedUser = data.user || { ...user, profilePhoto: data.profilePhoto };
+      updateUser(updatedUser);
+      if (data.profilePhoto || updatedUser.profilePhoto) {
+        setProfileImage(resolveImageUrl(data.profilePhoto || updatedUser.profilePhoto));
+      }
+      setToast({ msg: "Profile photo updated successfully!", type: "success" });
       window.dispatchEvent(new Event("userUpdated"));
-    } catch {
-      setToast({ msg: "Failed to upload photo.", type: "error" });
+    } catch (err) {
+      setToast({ msg: err.response?.data?.message || "Failed to upload photo.", type: "error" });
     }
   };
 
   const handleSaveProfile = async () => {
-    if (!fullName.trim() || !email.trim()) { setToast({ msg: "Name and email cannot be empty.", type: "error" }); return; }
+    if (saving) return;
+    if (!fullName.trim() || !email.trim()) {
+      setToast({ msg: "Name and email cannot be empty.", type: "error" });
+      return;
+    }
     try {
       setSaving(true);
-      const { data } = await userAPI.updateProfile({ name: fullName, email, role });
-      updateUser(data.user);
+      const { data } = await userAPI.updateProfile({
+        name: fullName.trim(),
+        email: email.trim(),
+        role
+      });
+      const updatedUser = data.user || {
+        ...user,
+        name: fullName.trim(),
+        email: email.trim(),
+        role
+      };
+      updateUser(updatedUser);
+      setFullName(updatedUser.name || "");
+      setEmail(updatedUser.email || "");
+      setRole(updatedUser.role || "Site Supervisor");
+      if (updatedUser.profilePhoto) {
+        setProfileImage(resolveImageUrl(updatedUser.profilePhoto));
+      }
       window.dispatchEvent(new Event("userUpdated"));
+      setToast({ msg: "Profile details saved successfully!", type: "success" });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       setToast({ msg: err.response?.data?.message || "Failed to save profile.", type: "error" });
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -245,8 +283,26 @@ export default function SettingsPage() {
                   <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 4 }}>ROLE</label>
                   <input value={role} onChange={e => setRole(e.target.value)} style={{ ...baseInput, maxWidth: isMobile ? "100%" : "50%" }} />
                 </div>
-                <Button variant={saved ? "success" : "primary"} size="md" onClick={handleSaveProfile} disabled={saving}>
-                  {saving ? "Saving\u2026" : saved ? "\u2713 Profile Saved!" : "Edit Profile Details"}
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleSaveProfile}
+                  disabled={saving || (!isDirty && !saved)}
+                  style={saved ? { background: "#10B981", color: "#fff", boxShadow: "0 4px 10px rgba(16, 185, 129, 0.25)" } : undefined}
+                >
+                  {saving ? (
+                    <>
+                      <Save size={16} /> Saving…
+                    </>
+                  ) : saved ? (
+                    <>
+                      <Check size={16} /> ✓ Saved!
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} /> Save Changes
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
