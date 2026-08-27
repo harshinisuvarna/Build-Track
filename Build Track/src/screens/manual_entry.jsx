@@ -665,56 +665,64 @@ export default function ManualEntryPage() {
             <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
           </div>
 
-          {currentFields.map((f, idx) => (
-            <div key={f.key} className={idx === 0 ? "tour-field-item" : ""} style={{ marginBottom: 16, position: "relative" }}>
-              <div style={labelStyle}>
-                {f.label.toUpperCase()} {f.required && <span style={{ color: colors.error }}>*</span>}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: colors.bgBase4, borderRadius: radius.sm, border: `1px solid ${colors.cardBorder}`, padding: "0 14px" }}>
-                {f.prefix && <span style={{ fontSize: 14, fontWeight: 600, color: colors.textLight }}>{f.prefix}</span>}
-                <input
-                  type={f.type}
-                  value={values[f.key] || ""}
-                  onChange={e => handleAutocompleteInput(f.key, e.target.value)}
-                  onFocus={() => {
-                    const suggestions = AUTOCOMPLETE_FIELDS[entryType]?.[f.key] || [];
-                    if (values[f.key] && suggestions.length > 0) {
-                      const filtered = suggestions.filter(s => s.toLowerCase().includes(values[f.key].toLowerCase()));
-                      if (filtered.length > 0) {
-                        setAutocompleteState({ field: f.key, suggestions: filtered });
-                        setShowAutocomplete(true);
-                      }
-                    }
-                  }}
-                  onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                  placeholder={f.placeholder}
-                  min={f.min}
-                  style={{ flex: 1, padding: "12px 0", border: "none", background: "transparent", outline: "none", fontSize: 14, color: colors.textPrimary }}
-                />
-              </div>
-              {showAutocomplete && autocompleteState.field === f.key && (
-                <div style={{
-                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
-                  background: colors.cardBg, border: `1px solid ${colors.cardBorder}`,
-                  borderRadius: radius.sm, boxShadow: shadows.card, maxHeight: 150, overflowY: "auto",
-                }}>
-                  {autocompleteState.suggestions.map(s => (
-                    <div key={s} onClick={() => handleAutocompleteSelect(f.key, s)}
-                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: colors.textPrimary }}>
-                      {s}
-                    </div>
-                  ))}
+          {currentFields.map((f, idx) => {
+            const fieldNode = (
+              <div key={f.key} className={idx === 0 ? "tour-field-item" : ""} style={{ marginBottom: 16, position: "relative", zIndex: showAutocomplete && autocompleteState.field === f.key ? 50 : 1 }}>
+                <div style={labelStyle}>
+                  {f.label.toUpperCase()} {f.required && <span style={{ color: colors.error }}>*</span>}
                 </div>
-              )}
-            </div>
-          ))}
-
-          <div style={{ marginBottom: 16 }}>
-            <div style={labelStyle}>UNIT <span style={{ color: colors.error }}>*</span></div>
-            <select value={unit} onChange={e => setUnit(e.target.value)} style={inputStyle}>
-              {units.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-          </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: colors.bgBase4, borderRadius: radius.sm, border: `1px solid ${colors.cardBorder}`, padding: "0 14px" }}>
+                  {f.prefix && <span style={{ fontSize: 14, fontWeight: 600, color: colors.textLight }}>{f.prefix}</span>}
+                  <input
+                    type={f.type}
+                    value={values[f.key] || ""}
+                    onChange={e => handleAutocompleteInput(f.key, e.target.value)}
+                    onFocus={() => {
+                      const suggestions = AUTOCOMPLETE_FIELDS[entryType]?.[f.key] || [];
+                      if (values[f.key] && suggestions.length > 0) {
+                        const filtered = suggestions.filter(s => s.toLowerCase().includes(values[f.key].toLowerCase()));
+                        if (filtered.length > 0) {
+                          setAutocompleteState({ field: f.key, suggestions: filtered });
+                          setShowAutocomplete(true);
+                        }
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                    placeholder={f.placeholder}
+                    min={f.min}
+                    style={{ flex: 1, padding: "12px 0", border: "none", background: "transparent", outline: "none", fontSize: 14, color: colors.textPrimary }}
+                  />
+                </div>
+                {showAutocomplete && autocompleteState.field === f.key && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
+                    background: "#FFFFFF", border: `1px solid ${colors.cardBorder}`,
+                    borderRadius: radius.sm, boxShadow: shadows.card, maxHeight: 150, overflowY: "auto",
+                  }}>
+                    {autocompleteState.suggestions.map(s => (
+                      <div key={s} onClick={() => handleAutocompleteSelect(f.key, s)}
+                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: colors.textPrimary }}>
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+            
+            if (f.key === 'quantity') {
+              return [
+                fieldNode,
+                <div key="unit-field" style={{ marginBottom: 16 }}>
+                  <div style={labelStyle}>UNIT <span style={{ color: colors.error }}>*</span></div>
+                  <select value={unit} onChange={e => setUnit(e.target.value)} style={inputStyle}>
+                    {units.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              ];
+            }
+            return fieldNode;
+          })}
 
           <div className="tour-amount-calc" style={{ background: "#F0F2FF", borderRadius: radius.sm, padding: "14px 16px", marginBottom: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: colors.primaryBlue, letterSpacing: "0.08em", marginBottom: 4 }}>AMOUNT (₹)</div>
