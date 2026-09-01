@@ -26,7 +26,10 @@ api.interceptors.response.use(
       localStorage.removeItem("bt_user");
       window.location.assign("/login");
     }
-    if (!err.response) {
+    if (status === 429) {
+      err.friendlyMessage =
+        "Too many requests to the server. Please wait a few seconds and try again.";
+    } else if (!err.response) {
       err.friendlyMessage =
         "Cannot reach the server. Check your internet connection or try again later.";
     }

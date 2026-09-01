@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { projectAPI, workerAPI, subscriptionAPI } from "../api";
 import { resolveImageUrl } from "../utils/imageUrl";
-import { buildDefaultPhases, addCustomPhase, addActivityToPhase } from "../utils/constructionPhases";
+import useProjectStore from "../stores/projectStore";
+import { buildDefaultPhases, addCustomPhase, addActivityToPhase, mergePhasesWithDefaults } from "../utils/constructionPhases";
 import { Badge, Button } from "../components/ui";
 import {
   ChevronDown, Plus, X, Check, Camera, MapPin, Calendar, User, Phone,
@@ -218,13 +219,13 @@ export default function NewProjectPage() {
 
   useEffect(() => {
     if (isEditMode && editProject) {
-      setProjectName(editProject.projectName || "");
+      setProjectName(editProject.projectName || editProject.name || editProject.title || "");
       setCity(editProject.city || editProject.location || "");
       setMapAddress(editProject.mapAddress || "");
       setClientName(editProject.clientName || "");
       setContactNumber(editProject.contactNumber || "");
-      setSiteEngineer(editProject.siteEngineer || "");
-      setContractorName(editProject.contractorName || "");
+      setSiteEngineer(editProject.siteEngineer || editProject.siteEngineerName || "");
+      setContractorName(editProject.contractorName || editProject.contractor || "");
       setManager(editProject.manager || "");
       setMainType(editProject.mainType || "Residential");
       setSubType(editProject.subType || "Select Sub Type");
@@ -246,18 +247,19 @@ export default function NewProjectPage() {
       setKitchen(editProject.kitchen || []);
       setElectrical(editProject.electrical || []);
       setTerrace(editProject.terrace || []);
-      setBudgetMaterial(editProject.budgetMaterial || "");
-      setBudgetLabour(editProject.budgetLabour || "");
-      setBudgetEquipment(editProject.budgetEquipment || "");
-      setBudgetMisc(editProject.budgetMisc || "");
+      setBudgetMaterial(editProject.budgetMaterial ?? editProject.budget?.material ?? "");
+      setBudgetLabour(editProject.budgetLabour ?? editProject.budget?.labour ?? "");
+      setBudgetEquipment(editProject.budgetEquipment ?? editProject.budget?.equipment ?? "");
+      setBudgetMisc(editProject.budgetMisc ?? editProject.budget?.misc ?? "");
       setStartDate(editProject.startDate ? new Date(editProject.startDate).toISOString().split("T")[0] : "");
       setExpectedEndDate(editProject.expectedEndDate ? new Date(editProject.expectedEndDate).toISOString().split("T")[0] : "");
-      setStatus(editProject.status || "Planning");
+      setStatus(editProject.status || editProject.projectStatus || "Planning");
       setProgress(editProject.progress || 0);
       if (editProject.selectedPhases && editProject.selectedPhases.length > 0) {
-        setPhases(editProject.selectedPhases);
+        const mergedPhases = mergePhasesWithDefaults(editProject.selectedPhases);
+        setPhases(mergedPhases);
         const ids = new Set();
-        editProject.selectedPhases.forEach(p => p.activities.forEach(a => ids.add(a.id)));
+        editProject.selectedPhases.forEach(p => (p.activities || []).forEach(a => ids.add(a.id)));
         setSelectedActivityIds(ids);
       } else {
         setPhases(buildDefaultPhases());
@@ -320,13 +322,56 @@ export default function NewProjectPage() {
   const handleAddCustomPhase = () => {
     const name = prompt("Enter custom phase name:");
     if (!name || !name.trim()) return;
-    setPhases(prev => addCustomPhase(prev, name.trim()));
+    const phaseName = name.trim();
+    const phaseId = `custom_phase_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const actId = `custom_act_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const newPhase = {
+      id: phaseId,
+      phaseName,
+      isCustom: true,
+      activities: [
+        {
+          id: actId,
+          name: phaseName,
+          isCustom: true,
+          completed: false,
+          completedAt: null,
+          budgetMaterial: 0,
+          budgetLabour: 0,
+          budgetEquipment: 0,
+          photos: [],
+          notes: "",
+        }
+      ],
+    };
+    setPhases(prev => [...prev, newPhase]);
+    setSelectedActivityIds(prev => new Set(prev).add(actId));
+    setPhasesExpanded(prev => ({ ...prev, [phaseId]: true }));
   };
 
   const handleAddCustomActivity = (phaseId) => {
     const name = prompt("Enter custom activity name:");
     if (!name || !name.trim()) return;
-    setPhases(prev => addActivityToPhase(prev, phaseId, name.trim()));
+    const actName = name.trim();
+    const actId = `${phaseId}::custom_act_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const newAct = {
+      id: actId,
+      name: actName,
+      isCustom: true,
+      completed: false,
+      completedAt: null,
+      budgetMaterial: 0,
+      budgetLabour: 0,
+      budgetEquipment: 0,
+      photos: [],
+      notes: "",
+    };
+    setPhases(prev => prev.map(p => {
+      if (p.id !== phaseId) return p;
+      return { ...p, activities: [...(p.activities || []), newAct] };
+    }));
+    setSelectedActivityIds(prev => new Set(prev).add(actId));
+    setPhasesExpanded(prev => ({ ...prev, [phaseId]: true }));
   };
 
   const handlePhotoFile = (file) => {
@@ -426,8 +471,11 @@ export default function NewProjectPage() {
     });
 
     const filteredPhases = phases
-      .map(p => ({ ...p, activities: p.activities.filter(a => selectedActivityIds.has(a.id)) }))
-      .filter(p => p.activities.length > 0);
+      .map(p => ({
+        ...p,
+        activities: (p.activities || []).filter(a => a.isCustom || selectedActivityIds.has(a.id))
+      }))
+      .filter(p => p.isCustom || (p.activities && p.activities.length > 0));
     fd.append("selectedPhases", JSON.stringify(filteredPhases));
 
     try {
@@ -435,13 +483,34 @@ export default function NewProjectPage() {
       if (isEditMode) {
         const projectId = editProject?._id || editProject?.id;
         if (!projectId) { setErrMsg("Project ID missing."); setSaving(false); return; }
-        await projectAPI.update(projectId, fd);
+        const res = await projectAPI.update(projectId, fd);
+        const updatedProj = res.data?.project || res.data;
+        if (updatedProj) {
+          // Directly update store state without making another API call
+          const store = useProjectStore.getState();
+          store.setSelectedProject(updatedProj);
+          useProjectStore.setState((state) => ({
+            projects: state.projects.map((p) =>
+              (p._id || p.id) === projectId ? updatedProj : p
+            ),
+          }));
+        }
       } else {
-        await projectAPI.create(fd);
+        const res = await projectAPI.create(fd);
+        const newProj = res.data?.project || res.data;
+        if (newProj) {
+          // Directly update store state without making another API call
+          useProjectStore.setState((state) => ({
+            projects: [newProj, ...state.projects],
+          }));
+        }
       }
+      // Background refresh to sync with server
+      useProjectStore.getState().fetchProjects({}, true).catch(() => {});
       setSuccessMsg(isEditMode ? "Project updated successfully!" : "Project created successfully!");
       setTimeout(() => navigate("/projects", { replace: true }), 600);
     } catch (err) {
+      console.error("Save project error:", err);
       setErrMsg(err.response?.data?.message || "Failed to save project.");
     } finally {
       setSaving(false);
@@ -897,7 +966,7 @@ export default function NewProjectPage() {
               </div>
               {totalBudget > 0 && (
                 <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: "#111827", textAlign: "right" }}>
-                  Total: \u20B9{totalBudget.toLocaleString("en-IN")}
+                  Total: ₹{totalBudget.toLocaleString("en-IN")}
                 </div>
               )}
             </div>
@@ -1026,8 +1095,18 @@ export default function NewProjectPage() {
               rows={4}
               style={{ ...baseInput, resize: "vertical", lineHeight: 1.6, width: "100%", fontFamily: 'inherit' }} />
           </Accordion>
+          {errMsg && (
+            <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 8, color: "#991B1B", fontSize: 13, fontWeight: 600, marginTop: 12 }}>
+              ⚠️ {errMsg}
+            </div>
+          )}
+          {successMsg && (
+            <div style={{ padding: "10px 14px", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, color: "#166534", fontSize: 13, fontWeight: 600, marginTop: 12 }}>
+              ✓ {successMsg}
+            </div>
+          )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
             <button onClick={handleSubmit} disabled={saving}
               style={{ minHeight: 46, padding: "12px 0", background: "#5B5CEB", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: saving ? 0.6 : 1, transition: "background 0.2s", fontFamily: 'inherit' }}>
               {saving ? <><SpinnerIcon /> Saving\u2026</> : isEditMode ? <><Check size={16} /> Update Project</> : <><Plus size={16} /> Create Project</>}

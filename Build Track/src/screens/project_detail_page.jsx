@@ -474,7 +474,7 @@ export default function ProjectDetailPage() {
                     <div style={{ fontSize: 11, color: "#94A3B8" }}>{t.date ? new Date(t.date).toLocaleDateString("en-IN") : ""}</div>
                   </div>
                   <span style={{ fontSize: 14, fontWeight: 700, color: t.type === "Income" ? "#22C55E" : "#111827" }}>
-                    {t.type === "Income" ? "+" : "-"}\u20B9{(t.amount || 0).toLocaleString("en-IN")}
+                    {t.type === "Income" ? "+" : "-"}₹{(t.amount || 0).toLocaleString("en-IN")}
                   </span>
                 </div>
               );

@@ -332,6 +332,7 @@ transactionSchema.pre("save", function () {
 transactionSchema.index({ createdBy: 1 });
 transactionSchema.index({ approvalStatus: 1, createdBy: 1 });
 transactionSchema.index({ project: 1, createdBy: 1 });
+transactionSchema.index({ project: 1, date: -1 });
 transactionSchema.index({ date: -1 });
 transactionSchema.index({ project: 1, type: 1 });
 transactionSchema.index({ project: 1, activityId: 1, approvalStatus: 1, type: 1 });
