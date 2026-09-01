@@ -518,6 +518,7 @@ export default function NewProjectPage() {
       }))
       .filter(p => p.isCustom || (p.activities && p.activities.length > 0));
     fd.append("selectedPhases", JSON.stringify(filteredPhases));
+    fd.append("selectedPhaseNames", JSON.stringify(filteredPhases.map(p => p.phaseName)));
 
     try {
       setSaving(true);

@@ -301,6 +301,34 @@ router.get("/", protect, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch projects" });
   }
 });
+router.get("/context", requirePermission(VIEW_PROJECTS), async (req, res) => {
+  try {
+    let query = canAccessProjectFilter(req);
+    const Task = require("../models/Task");
+    const userTasks = await Task.find({ assignedTo: req.user._id }).select("project");
+    const taskProjectIds = userTasks.map(t => t.project).filter(Boolean);
+    if (taskProjectIds.length > 0) {
+      if (query.__never) {
+        delete query.__never;
+        query._id = { $in: taskProjectIds };
+      } else if (query._id && query._id.$in) {
+        query._id.$in.push(...taskProjectIds);
+      }
+    } else if (query.__never) {
+      return res.json({ projects: [] });
+    }
+    const projects = await Project.find(query)
+      .select(
+        "projectName location status floors selectedPhases.id selectedPhases.phaseName selectedPhases.isCustom selectedPhases.activities.id selectedPhases.activities.name selectedPhases.activities.isCustom"
+      )
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ projects });
+  } catch (err) {
+    console.error("GET /projects/context error:", err);
+    res.status(500).json({ message: "Failed to fetch project context" });
+  }
+});
 router.get("/:id", requirePermission(VIEW_PROJECTS), async (req, res) => {
   try {
     const project = await Project.findOne(canAccessProjectFilter(req, req.params.id));
@@ -665,7 +693,13 @@ router.put("/:id", protect, async (req, res) => {
       updateData.completedActivityKeys = safeParse(body.completedActivityKeys);
     }
     if (body.selectedPhases !== undefined) {
-      updateData.selectedPhases = safeParse(body.selectedPhases);
+      const parsedPhases = safeParse(body.selectedPhases);
+      updateData.selectedPhases = parsedPhases;
+      if (body.selectedPhaseNames === undefined && Array.isArray(parsedPhases)) {
+        updateData.selectedPhaseNames = parsedPhases
+          .map((p) => p?.phaseName)
+          .filter((n) => n);
+      }
     }
     const photoFile = req.files?.find((f) => f.fieldname === "photo");
     if (photoFile) {

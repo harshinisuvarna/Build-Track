@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { projectAPI } from "../api";
+import useProjectStore from "../stores/projectStore";
 
 const selectStyle = {
   width: "100%", padding: "10px 14px", background: "#f9f9f9",
@@ -21,8 +21,8 @@ export default function ExecutionContextSelector({ value, onChange, compact }) {
 
   useEffect(() => {
     let cancel = false;
-    projectAPI.getAll()
-      .then(({ data }) => { if (!cancel) setProjects(data.projects || []); })
+    useProjectStore.getState().fetchContext()
+      .then((list) => { if (!cancel) setProjects(list || []); })
       .catch(() => { if (!cancel) setProjects([]); })
       .finally(() => { if (!cancel) setLoading(false); });
     return () => { cancel = true; };

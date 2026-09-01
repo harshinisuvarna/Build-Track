@@ -69,6 +69,7 @@ export const workerAPI = {
 
 export const projectAPI = {
   getAll:       (p = {}) => api.get("/projects", { params: p }),
+  getContext:   (p = {}) => api.get("/projects/context", { params: p }),
   getMine:      (p = {}) => api.get("/projects/mine", { params: p }),
   getById:      (id)     => api.get(`/projects/${id}`),
   getStats:     (id)     => api.get(`/projects/${id}/stats`),
