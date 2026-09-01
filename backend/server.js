@@ -99,29 +99,19 @@ app.use(
     credentials: false,
   })
 );
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: isProd ? 200 : 10000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many requests — please try again later." },
-  skip: (req) => {
-    return req.originalUrl.includes('/api/esign/sign') || req.originalUrl.includes('/api/esign/submit');
-  }
-});
-app.use("/api/", limiter);
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProd ? 10 : 50,
+  max: isProd ? 300 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   message: { message: "Too many login attempts. Please try again after 15 minutes." },
 });
 app.use("/api/auth/login", loginLimiter);
+
 const sensitiveLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: isProd ? 5 : 20,
+  max: isProd ? 30 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many attempts. Please try again later." },
@@ -129,6 +119,22 @@ const sensitiveLimiter = rateLimit({
 app.use("/api/auth/register", sensitiveLimiter);
 app.use("/api/auth/forgot-password", sensitiveLimiter);
 app.use("/api/auth/reset-password", sensitiveLimiter);
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 3000 : 10000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests — please try again later." },
+  skip: (req) => {
+    return (
+      req.originalUrl.includes('/api/auth/login') ||
+      req.originalUrl.includes('/api/esign/sign') ||
+      req.originalUrl.includes('/api/esign/submit')
+    );
+  }
+});
+app.use("/api/", limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));

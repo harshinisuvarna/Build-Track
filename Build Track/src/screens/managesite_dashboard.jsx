@@ -7,8 +7,9 @@ import { calcProgress, getPhaseProgress, toggleActivity } from "../utils/constru
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button } from "../components/ui";
 import CsvImportExportCard from "../components/CsvImportExportCard";
+import useTransactionStore from "../stores/transactionStore";
 import {
-  ChevronDown, Plus, FileDown, FileUp, Pencil, X, Check, ArrowRight,
+  ChevronDown, ChevronRight, Plus, FileDown, FileUp, Pencil, X, Check, ArrowRight,
   Building2, MapPin, Calendar, User, Hash, Phone, Code, Wrench,
   Home, Layers, Bed, Bath, Settings, Zap, Flame, ChefHat, Sun,
   Clock, DollarSign, CreditCard, PiggyBank, Target, ClipboardCheck,
@@ -53,7 +54,7 @@ const _months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", 
 const _fmtDate = (d) => d ? `${d.getDate()} ${_months[d.getMonth()]} ${d.getFullYear()}` : "\u2014";
 const fmtINR = (n) => n ? `\u20B9${Number(n).toLocaleString("en-IN")}` : "\u2014";
 
-function CollapsibleCard({ title, icon, defaultOpen = true, count, subtitle, children }) {
+function CollapsibleCard({ title, icon, defaultOpen = true, count, subtitle, headerAction, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", overflow: "hidden" }}>
@@ -67,6 +68,7 @@ function CollapsibleCard({ title, icon, defaultOpen = true, count, subtitle, chi
             </span>
           )}
         </div>
+        {headerAction && <div onClick={e => e.stopPropagation()}>{headerAction}</div>}
         <ChevronDown size={16} color="#94A3B8" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
       </div>
       {open && <div style={{ padding: "0 18px 14px" }}>{children}</div>}
@@ -117,10 +119,30 @@ export default function ManageSitePage() {
 
   useEffect(() => {
     if (!projectId) return;
-    setLoadingT(true);
-    transactionAPI.getAll({ project: projectId })
-      .then(({ data }) => setTransactions(data.transactions || []))
-      .catch(() => setTransactions([]))
+
+    // Instantly populate from store cache if available
+    const cachedStoreTxs = useTransactionStore.getState().transactions;
+    if (cachedStoreTxs && cachedStoreTxs.length > 0) {
+      const match = cachedStoreTxs.filter(
+        (t) => String(t.project?._id || t.project || t.projectId) === String(projectId)
+      );
+      if (match.length > 0) {
+        setTransactions(match);
+        setLoadingT(false);
+      } else {
+        setLoadingT(true);
+      }
+    } else {
+      setLoadingT(true);
+    }
+
+    // Fetch fresh transactions with limit=100 for fast response
+    transactionAPI.getAll({ project: projectId, limit: 100 })
+      .then(({ data }) => {
+        const fresh = data.transactions || [];
+        setTransactions(fresh);
+      })
+      .catch(() => {})
       .finally(() => setLoadingT(false));
   }, [projectId]);
 
@@ -616,45 +638,161 @@ export default function ManageSitePage() {
     );
   };
 
-  const renderRecentEntries = () => (
-    <CollapsibleCard title={SECTIONS.entries} icon={<List size={16} />} defaultOpen>
-      {loadingT ? (
-        <div style={{ color: "#94A3B8", fontSize: 13, padding: 16, textAlign: "center" }}>Loading activity\u2026</div>
-      ) : transactions.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8" }}>
-          <List size={32} color="#CBD5E1" style={{ marginBottom: 8 }} />
-          <div style={{ fontSize: 13, fontWeight: 600 }}>No entries logged yet.</div>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {transactions.map((t, i) => {
-            const typeStyles = {
-              Income: { icon: <PiggyBank size={14} />, bg: "#F0FDF4", color: "#22C55E" },
-              Wages: { icon: <User size={14} />, bg: "#EFF6FF", color: "#3B82F6" },
-              Expense: { icon: <PackageIcon />, bg: "#FFFBEB", color: "#F59E0B" },
-              Materials: { icon: <BoxIcon />, bg: "#F3E8FF", color: "#8B5CF6" },
-            };
-            const ts = typeStyles[t.type] || { icon: <FileText size={14} />, bg: "#F1F5F9", color: "#64748B" };
-            return (
-              <div key={t._id || i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "#F8FAFC", border: "1px solid #F1F5F9" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: ts.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: ts.color }}>{ts.icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{t.title || (t.type === "Wages" ? "Labour" : t.type === "Expense" ? "Equipment" : t.type)}</div>
-                  <div style={{ fontSize: 12, color: "#64748B", marginTop: 1 }}>
-                    {t.type === "Income" ? "+" : "\u2212"}\u20B9{t.amount?.toLocaleString("en-IN")}
-                    {t.worker ? ` \u00B7 ${typeof t.worker === "string" ? t.worker : t.worker.name || ""}` : ""}
+  const renderRecentEntries = () => {
+    const typeConfig = {
+      Materials: { color: '#8B5CF6', bg: '#F3E8FF', label: 'Materials' },
+      Wages: { color: '#22C55E', bg: '#F0FDF4', label: 'Labour' },
+      Labour: { color: '#22C55E', bg: '#F0FDF4', label: 'Labour' },
+      Expense: { color: '#F59E0B', bg: '#FFFBEB', label: 'Equipment' },
+      Equipment: { color: '#F59E0B', bg: '#FFFBEB', label: 'Equipment' },
+      Income: { color: '#3B82F6', bg: '#EFF6FF', label: 'Income' },
+    };
+
+    const projectName = p?.projectName || p?.name || "Site Project";
+
+    return (
+      <CollapsibleCard
+        title={SECTIONS.entries}
+        icon={<List size={16} />}
+        defaultOpen
+        headerAction={
+          <button
+            onClick={() => navigate('/transaction', { state: { projectId: p?._id || p?.id } })}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#5B5CEB',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            View All <ChevronRight size={14} />
+          </button>
+        }
+      >
+        {loadingT ? (
+          <div style={{ color: "#94A3B8", fontSize: 13, padding: 16, textAlign: "center" }}>Loading activity…</div>
+        ) : transactions.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "#94A3B8" }}>
+            <List size={32} color="#CBD5E1" style={{ marginBottom: 8 }} />
+            <div style={{ fontSize: 13, fontWeight: 600 }}>No entries logged yet.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {transactions.map((t, i) => {
+              const tc = typeConfig[t.type] || { color: '#64748B', bg: '#F1F5F9', label: t.type || 'Entry' };
+              const amt = Number(t.amount || t.totalAmount || 0);
+
+              return (
+                <div
+                  key={t._id || t.id || i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    background: "#F8FAFC",
+                    border: "1px solid #F1F5F9",
+                    cursor: "pointer",
+                    transition: "background 0.15s ease",
+                  }}
+                  onClick={() => navigate('/entry-detail', { state: { entry: t } })}
+                >
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      background: tc.bg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <DollarSign size={18} color={tc.color} />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 4 }}>
+                      {t.title || (t.type === "Wages" || t.type === "Labour" ? "Labour" : t.type === "Expense" || t.type === "Equipment" ? "Equipment" : t.type)}
+                    </div>
+
+                    <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#64748B", alignItems: "center", flexWrap: "wrap" }}>
+                      <Badge variant={t.type === 'Wages' || t.type === 'Labour' ? 'success' : t.type === 'Expense' || t.type === 'Equipment' ? 'warning' : 'info'} size="sm">
+                        {tc.label}
+                      </Badge>
+
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <Building2 size={13} color="#94A3B8" />
+                        {projectName}
+                      </span>
+
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <Clock size={13} color="#94A3B8" />
+                        {t.date ? new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    ₹{amt.toLocaleString("en-IN")}
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: "#94A3B8", whiteSpace: "nowrap", flexShrink: 0 }}>
-                  {t.date ? new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
-                </div>
+              );
+            })}
+
+            {/* Team Approval History Section */}
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #E5E7EB" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+                Team Approval History
               </div>
-            );
-          })}
-        </div>
-      )}
-    </CollapsibleCard>
-  );
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {transactions.slice(0, 5).map((t, i) => {
+                  const submitter = typeof t.worker === "string" ? t.worker : t.worker?.name || t.createdBy?.name || "Worker";
+                  const actionedBy = t.approvedBy?.name || t.reviewedBy?.name || "Admin";
+                  const status = (t.approvalStatus || t.status || "Approved").toLowerCase();
+                  const isApproved = status === "approved";
+
+                  return (
+                    <div
+                      key={`approval-${t._id || i}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        background: "#FFFFFF",
+                        border: "1px solid #E5E7EB",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: "#111827" }}>
+                          {t.title || (t.type === "Wages" ? "Labour" : t.type)}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
+                          Submitted by {submitter} • {isApproved ? "Approved" : "Pending"} by {actionedBy}
+                        </div>
+                      </div>
+                      <Badge variant={isApproved ? "success" : status === "pending" ? "warning" : "danger"} size="sm">
+                        {isApproved ? "Approved" : status === "pending" ? "Pending" : "Rejected"}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </CollapsibleCard>
+    );
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: "#F8FAFC", fontFamily: "Inter, 'Segoe UI', sans-serif" }}>

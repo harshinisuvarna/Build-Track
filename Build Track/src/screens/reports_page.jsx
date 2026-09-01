@@ -329,7 +329,7 @@ export default function ReportsPage() {
                         </Badge>
                       </td>
                       <td style={{ padding: "10px 14px", fontSize: 14, fontWeight: 600, color: t.type === "Income" ? "#22C55E" : "#DC2626", textAlign: "right" }}>
-                        {t.type === "Income" ? "+" : "-"}\u20B9{(t.amount || 0).toLocaleString("en-IN")}
+                        {t.type === "Income" ? "+" : "-"}₹{(t.amount || 0).toLocaleString("en-IN")}
                       </td>
                       <td style={{ padding: "10px 14px" }}>
                         <Badge variant={t.paymentStatus === "Paid" ? "success" : t.paymentStatus === "Partial" ? "warning" : "info"} size="sm">
@@ -347,7 +347,7 @@ export default function ReportsPage() {
           </div>
           {sorted.length > rowsPerPage && (
             <div style={{ padding: "10px 20px", borderTop: "1px solid #F1F5F9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: "#64748B" }}>Showing {(currentPage - 1) * rowsPerPage + 1}\u2013{Math.min(currentPage * rowsPerPage, sorted.length)} of {sorted.length}</span>
+              <span style={{ fontSize: 12, color: "#64748B" }}>Showing {(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, sorted.length)} of {sorted.length}</span>
               <div style={{ display: "flex", gap: 4 }}>
                 <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
                   style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #E5E7EB", background: "#fff", fontSize: 12, cursor: currentPage === 1 ? "default" : "pointer", opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 600, fontFamily: "inherit" }}>Prev</button>

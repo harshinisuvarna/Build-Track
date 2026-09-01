@@ -172,6 +172,50 @@ export function buildDefaultPhases() {
   ];
 }
 
+export function mergePhasesWithDefaults(savedPhases = []) {
+  const defaults = buildDefaultPhases();
+  if (!savedPhases || savedPhases.length === 0) return defaults;
+
+  const result = [];
+  const processedSavedIds = new Set();
+
+  defaults.forEach(defPhase => {
+    const saved = savedPhases.find(
+      sp => sp.id === defPhase.id || sp.phaseName.trim().toLowerCase() === defPhase.phaseName.trim().toLowerCase()
+    );
+    if (saved) {
+      processedSavedIds.add(saved.id);
+      const mergedActs = [...defPhase.activities];
+      (saved.activities || []).forEach(sAct => {
+        const existingIdx = mergedActs.findIndex(
+          ma => ma.id === sAct.id || ma.name.trim().toLowerCase() === sAct.name.trim().toLowerCase()
+        );
+        if (existingIdx !== -1) {
+          mergedActs[existingIdx] = { ...mergedActs[existingIdx], ...sAct };
+        } else {
+          mergedActs.push(sAct);
+        }
+      });
+      result.push({ ...defPhase, ...saved, activities: mergedActs });
+    } else {
+      result.push(defPhase);
+    }
+  });
+
+  savedPhases.forEach(sp => {
+    if (!processedSavedIds.has(sp.id)) {
+      const isAlreadyInResult = result.some(
+        r => r.id === sp.id || r.phaseName.trim().toLowerCase() === sp.phaseName.trim().toLowerCase()
+      );
+      if (!isAlreadyInResult) {
+        result.push(sp);
+      }
+    }
+  });
+
+  return result;
+}
+
 export function addCustomPhase(phases, phaseName) {
   return [...phases, {
     id: uid(), phaseName, isCustom: true, activities: [],
