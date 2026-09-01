@@ -19,6 +19,7 @@ import {
   Briefcase,
   Layers,
   AlertTriangle,
+  HelpCircle,
 } from 'lucide-react';
 import { colors, gradients, typography } from '../../styles/designTokens';
 
@@ -52,6 +53,7 @@ const typeConfig = {
 import useProjectStore from '../../stores/projectStore';
 import useTransactionStore from '../../stores/transactionStore';
 import AddRevenueModal from '../../components/AddRevenueModal';
+import ModuleTour from '../../components/ModuleTour';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -67,6 +69,24 @@ export default function AdminDashboard() {
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [addRevenueModalOpen, setAddRevenueModalOpen] = useState(false);
+  const [runTour, setRunTour] = useState(false);
+
+  const tourSteps = [
+    { target: '.tour-new-project', content: 'You have no projects yet. Click here to create one.' },
+    { target: '.tour-voice-update', content: 'Use the AI Foreman to quickly log updates using your voice.' },
+    { target: '.tour-project-selector', content: 'Switch between your active projects here.' },
+    { target: '.tour-quick-actions', content: 'Quickly access main features like Reports, Team, and Settings.' },
+    { target: '.tour-recent-activity', content: 'See all recent expenses and payments logged by your team.' },
+    { target: '.tour-approvals-history', content: 'Keep track of approvals or rejections of expenses.' },
+  ];
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
+
+
 
   useEffect(() => {
     perfLogger.endRoute('/');
@@ -158,6 +178,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32, animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="admin_dashboard" />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -168,9 +189,14 @@ export default function AdminDashboard() {
             Welcome back, <span style={{ fontWeight: 600, color: colors.textPrimary }}>{user?.name || 'Admin'}</span>
           </p>
         </div>
-        <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
-          Add Entry
-        </Button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, background: '#fff', border: `1px solid ${colors.border}`, borderRadius: 12, cursor: 'pointer' }}>
+            <HelpCircle size={18} color={colors.textSecondary} />
+          </button>
+          <Button variant="primary" size="md" icon={<PlusCircle size={16} />} onClick={() => navigate('/add-entry')}>
+            Add Entry
+          </Button>
+        </div>
       </div>
 
       {pendingApprovals > 0 && (
@@ -193,6 +219,7 @@ export default function AdminDashboard() {
 
       <div
         onClick={() => navigate('/voice')}
+        className="tour-voice-update"
         style={{
           background: gradients.primaryGradient,
           padding: 24, borderRadius: 16, color: '#fff', cursor: 'pointer',
@@ -216,9 +243,16 @@ export default function AdminDashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 24 }}>
-        <Card padding={24}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
-            Active Project
+        <Card padding={24} className="tour-project-selector">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Active Project
+            </div>
+            {projects.length === 0 && (
+              <Button size="sm" variant="outline" className="tour-new-project" icon={<PlusCircle size={14} />} onClick={() => navigate('/projects/new')}>
+                New Project
+              </Button>
+            )}
           </div>
           <select
             value={selectedProjectId || ''}
@@ -285,7 +319,7 @@ export default function AdminDashboard() {
             </span>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>
-                {selectedProject?.projectName || selectedProject?.name || 'House Construction'}
+                {selectedProject ? (selectedProject.projectName || selectedProject.name || 'Project Name') : 'No Active Project'}
               </div>
               <div style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>Current Milestone</div>
             </div>
@@ -308,7 +342,7 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
+      <div className="tour-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
         {[
           { label: 'Total Cost', value: formatCurrency(totalCost), subtitle: budget > 0 ? `${((totalCost / budget) * 100).toFixed(0)}% Used` : '—', icon: Wallet, color: '#6366f1', alert: budget > 0 && totalCost > budget * 0.9 },
           { label: 'Budget', value: formatCurrency(budget), subtitle: `Remaining: ${formatCurrency(Math.max(budget - totalCost, 0))}`, icon: DollarSign, color: '#B137FF' },
@@ -342,7 +376,7 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      <div>
+      <div className="tour-quick-actions">
         <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
           Quick Actions
         </div>
@@ -391,7 +425,7 @@ export default function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 24 }}>
 
-        <Card padding={0} style={{ display: 'flex', flexDirection: 'column' }}>
+        <Card padding={0} style={{ display: 'flex', flexDirection: 'column' }} className="tour-revenue-timeline">
           <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               Revenue Inflow Timeline
@@ -424,7 +458,7 @@ export default function AdminDashboard() {
         </Card>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <Card padding={0}>
+      <Card padding={0} className="tour-recent-activity">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Recent Activity Log
@@ -496,7 +530,7 @@ export default function AdminDashboard() {
         )}
       </Card>
 
-      <Card padding={0}>
+      <Card padding={0} className="tour-approvals-history">
         <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.border}` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: colors.textTertiary, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Team Approval History

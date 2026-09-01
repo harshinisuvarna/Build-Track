@@ -7,7 +7,9 @@ import useProjectStore from "../stores/projectStore";
 import perfLogger from "../utils/performanceLogger";
 import { Toast } from "../components/Toast";
 import RecordPaymentSheet from "../components/RecordPaymentSheet";
-import { Pencil } from "lucide-react";
+import { Pencil, HelpCircle } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
+import { useAuth } from "../contexts/AuthContext";
 import { colors, radius, spacing, shadows, gradients, typography } from "../styles/designTokens";
 
 const STATUS_META = {
@@ -143,6 +145,32 @@ export default function InventoryPage() {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ msg: "", type: "info" });
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('InventoryManagement')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'Track your materials, labour, and equipment inventory.', disableBeacon: true },
+    { target: '.tour-project-context', content: 'Select which project\'s inventory to view.' },
+    { target: '.tour-filters', content: 'Search and filter inventory by status or date.' },
+    { target: '.tour-tabs', content: 'Switch between Materials, Labour, and Equipment views.' },
+    { target: '.tour-kpis', content: 'Key performance indicators for your current view.' }
+  ];
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState(0);
@@ -436,6 +464,7 @@ export default function InventoryPage() {
       fontFamily: typography.fontFamily, background: "transparent",
     }}>
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "info" })} />
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="InventoryManagement" />
 
       <RecordPaymentSheet
         open={recordPaymentOpen}
@@ -449,18 +478,24 @@ export default function InventoryPage() {
         }}
       />
 
-      <div style={{
+      <div className="tour-header" style={{
         padding: "16px 24px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12
       }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Inventory</h1>
-        <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>
-          {loading ? "Loading..." : `${totalItems} ${labelPlural}${labelSuffix}`}
-        </p>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Inventory</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>
+            {loading ? "Loading..." : `${totalItems} ${labelPlural}${labelSuffix}`}
+          </p>
+        </div>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+          <HelpCircle size={16} color={colors.textLight} />
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
 
-        <div style={{
+        <div className="tour-project-context" style={{
           display: "flex", alignItems: "center", gap: 10,
           background: colors.cardBg, borderRadius: radius.md,
           border: `1px solid #E0E5FF`, boxShadow: shadows.card,
@@ -501,7 +536,7 @@ export default function InventoryPage() {
           </select>
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <div className="tour-filters" style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 2, minWidth: 200, display: "flex", alignItems: "center", gap: 10, background: colors.cardBg, borderRadius: radius.md, border: `1px solid #E8E5F6`, padding: "0 14px", boxShadow: shadows.card }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.textLight} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -550,7 +585,7 @@ export default function InventoryPage() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 5, padding: 5, marginBottom: 12, background: colors.cardBg, borderRadius: radius.md, border: `1px solid #E8E5F6`, boxShadow: shadows.card }}>
+        <div className="tour-tabs" style={{ display: "flex", gap: 5, padding: 5, marginBottom: 12, background: colors.cardBg, borderRadius: radius.md, border: `1px solid #E8E5F6`, boxShadow: shadows.card }}>
           {TABS.map((tab, i) => {
             const active = i === activeTab;
             return (
@@ -587,7 +622,7 @@ export default function InventoryPage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
+        <div className="tour-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 16 }}>
           {kpiData.map((kpi, i) => (
             <div key={i} style={{
               background: colors.cardBg, borderRadius: radius.lg,

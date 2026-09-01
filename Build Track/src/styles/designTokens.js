@@ -71,14 +71,11 @@ export const inputStyles = {
 };
 
 colors.primaryBlue = colors.primary;
-colors.primaryHover = colors.primaryHover;
-colors.primaryLight = colors.primaryLight;
 colors.background = colors.bg;
 colors.cardBg = colors.card;
 colors.cardBorder = colors.border;
 colors.textLight = colors.textSecondary;
 colors.textMedium = colors.textSecondary;
-colors.textPrimary = colors.textPrimary;
 colors.inputBorder = colors.border;
 colors.divider = colors.border;
 colors.gradientStart = '#6366f1';

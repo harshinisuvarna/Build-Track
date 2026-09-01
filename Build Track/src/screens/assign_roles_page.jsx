@@ -4,8 +4,9 @@ import { colors, radius, typography } from '../styles/designTokens';
 import { Card, Badge, Button, Input, Spinner, EmptyState, Toast } from '../components/ui';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { authAPI, projectAPI, subscriptionAPI } from '../api';
-import { Users, User, Info } from 'lucide-react';
+import { Users, User, Info, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import ModuleTour from '../components/ModuleTour';
 
 const _featureRows = [
   { section: 'Project' },
@@ -69,6 +70,30 @@ export default function AssignRolesPage() {
   const [selectedProjects, setSelectedProjects] = useState([]);
   const [selectedOverseesRoles, setSelectedOverseesRoles] = useState([]);
   const [customOverseesInput, setCustomOverseesInput] = useState('');
+
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.onboarding) {
+      const visited = currentUser.onboarding.visitedModules || [];
+      if (!visited.includes('AssignRole')) {
+        setRunTour(true);
+      }
+    }
+  }, [currentUser]);
+
+  const tourSteps = showForm ? [
+    { target: '.tour-user-details', content: 'Enter the full name, email, and a temporary password for the new team member.', disableBeacon: true },
+    { target: '.tour-role-select', content: 'Select their role: Supervisors can oversee projects and approve entries. Labour/Masons can submit daily progress and expenses. Custom Role lets you build from scratch.' },
+    { target: '.tour-oversees-roles', content: 'Specify which roles this user is allowed to oversee or approve.' },
+    { target: '.tour-permissions', content: 'Fine-tune the exact features and actions they can access.' },
+    { target: '.tour-project-access', content: 'Restrict their access to specific projects, or leave blank for all.' }
+  ] : [
+    { target: '.tour-header', content: 'Manage team access and roles.', disableBeacon: true },
+    { target: '.tour-add-btn', content: 'Click here to add a new team member and assign their role.' },
+    { target: '.tour-admin-alert', content: 'See your current plan limits and info.' },
+    { target: '.tour-user-list', content: 'Click on any user to edit their permissions and project access.' }
+  ];
 
   const currentPlan = subscription?.plan?.toLowerCase() || 'free';
   const limitMaxUsers = subscription?.maxUsers !== undefined ? subscription.maxUsers : (currentPlan.includes('free') ? 2 : currentPlan.includes('starter') ? 5 : currentPlan.includes('growth') ? 8 : -1);
@@ -303,12 +328,13 @@ export default function AssignRolesPage() {
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 800, margin: '0 auto' }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="AssignRole" />
       <Toast key={toast.key} message={toast.message} type={toast.type} onClose={() => setToast((prev) => ({ ...prev, message: '' }))} />
       {confirmDlg && (
         <ConfirmDialog message={confirmDlg.message} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="tour-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => showForm ? setShowForm(false) : navigate(-1)} style={{ border: 'none', background: colors.iconBg, cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: colors.textPrimary }}>
             ←
@@ -317,11 +343,16 @@ export default function AssignRolesPage() {
             {showForm ? (isEditMode ? 'Edit User' : 'Assign Role') : 'Team Access'}
           </h2>
         </div>
-        {!showForm && isAdmin && <Button onClick={handleCreateClick}>+ Add User</Button>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color={colors.textLight} />
+          </button>
+          {!showForm && isAdmin && <span className="tour-add-btn"><Button onClick={handleCreateClick}>+ Add User</Button></span>}
+        </div>
       </div>
 
       {!showForm && isAdmin && (
-        <div style={{ padding: '12px', background: colors.primary + '15', borderRadius: radius.md, border: `1px solid ${colors.primary}40`, display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div className="tour-admin-alert" style={{ padding: '12px', background: colors.primary + '15', borderRadius: radius.md, border: `1px solid ${colors.primary}40`, display: 'flex', gap: 8, marginBottom: 20 }}>
           <Info size={20} color={colors.primary} style={{ flexShrink: 0 }} />
           <div style={{ fontSize: 13, color: colors.textDark }}>
             <strong>Admin Access Only:</strong> Only Admins can assign roles and manage team access.
@@ -341,11 +372,13 @@ export default function AssignRolesPage() {
 
       {showForm ? (
         <Card style={{ marginBottom: 24, padding: 20 }}>
-          <Input label="Full Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter full name" />
-          <Input label="Email Address" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Enter email address" />
-          <Input label={isEditMode ? "New Password (optional)" : "Temporary Password"} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter password" />
+          <div className="tour-user-details">
+            <Input label="Full Name" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Enter full name" />
+            <Input label="Email Address" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Enter email address" />
+            <Input label={isEditMode ? "New Password (optional)" : "Temporary Password"} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Enter password" />
+          </div>
 
-          <div style={{ marginBottom: 16 }}>
+          <div className="tour-role-select" style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, marginBottom: 6, display: 'block', textTransform: 'uppercase' }}>Role</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {roleOptions.map((r) => (
@@ -358,13 +391,13 @@ export default function AssignRolesPage() {
           </div>
 
           {isCustomRole && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="tour-custom-role" style={{ marginBottom: 16 }}>
               <Input label="Custom Role Name" value={customRoleName} onChange={e => setCustomRoleName(e.target.value)} placeholder="Type new role name" />
             </div>
           )}
 
           {(selectedRole === 'Supervisor' || isCustomRole) && (
-            <div style={{ marginBottom: 20 }}>
+            <div className="tour-oversees-roles" style={{ marginBottom: 20 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, marginBottom: 6, display: 'block', textTransform: 'uppercase' }}>Roles to Oversee</label>
               <div style={{ fontSize: 11, color: colors.textLight, marginBottom: 10 }}>Select the roles this user can approve entries for.</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
@@ -387,13 +420,13 @@ export default function AssignRolesPage() {
             </div>
           )}
 
-          <div style={{ marginBottom: 20 }}>
+          <div className="tour-permissions" style={{ marginBottom: 20 }}>
             <label style={{ fontSize: 14, fontWeight: 700, color: colors.textDark, display: 'block' }}>Permissions</label>
             <div style={{ fontSize: 12, color: colors.textLight, marginBottom: 12 }}>Configure what this user can see and do.</div>
             {renderPermissionsTable()}
           </div>
 
-          <div style={{ marginBottom: 24 }}>
+          <div className="tour-project-access" style={{ marginBottom: 24 }}>
             <label style={{ fontSize: 14, fontWeight: 700, color: colors.textDark, display: 'block' }}>Project Access <span style={{fontSize: 12, fontWeight: 400, color: colors.textLight}}>(Optional)</span></label>
             <div style={{ fontSize: 12, color: colors.textLight, marginBottom: 10 }}>Select one or more projects. Leave all unchecked for org-wide access.</div>
             {projects.length === 0 ? (
@@ -429,7 +462,7 @@ export default function AssignRolesPage() {
       ) : users.length === 0 ? (
         <EmptyState icon={<Users size={48} />} title="No Users" description="Create your first team member to get started." />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="tour-user-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {users.map((user) => {
             const uid = user._id || user.id;
             const currentRole = user.role || 'user';

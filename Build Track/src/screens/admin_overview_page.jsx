@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { colors, radius } from '../styles/designTokens';
 import { Card, Badge, Button, Spinner, EmptyState, ErrorState, SkeletonCard } from '../components/ui';
 import { authAPI, projectAPI, transactionAPI } from '../api';
-import { Users, User, ClipboardList, Building2 } from 'lucide-react';
+import { Users, User, ClipboardList, Building2, HelpCircle } from 'lucide-react';
+import ModuleTour from '../components/ModuleTour';
+import { useAuth } from '../contexts/AuthContext';
 
 function formatCurrency(amount) {
   return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -19,6 +21,24 @@ export default function AdminOverviewPage() {
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [error, setError] = useState(null);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('AdminDashboard')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'Overview of your team, projects, and entries.', disableBeacon: true },
+    { target: '.tour-stats', content: 'Quick summary of key metrics.' },
+    { target: '.tour-tabs', content: 'Switch between team members, recent entries, and projects.' }
+  ];
 
   const fetchAll = useCallback(async () => {
     setError(null);
@@ -69,11 +89,17 @@ export default function AdminOverviewPage() {
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1000, margin: '0 auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, marginBottom: 24 }}>
-        Admin Overview
-      </h2>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="AdminDashboard" />
+      <div className="tour-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>
+          Admin Overview
+        </h2>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+          <HelpCircle size={16} color={colors.textLight} />
+        </button>
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
+      <div className="tour-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Team Members', value: stats.totalUsers, color: colors.primaryBlue, bg: '#ECEBFF' },
           { label: 'Active Projects', value: stats.activeProjects, color: colors.success, bg: '#E6F9F0' },
@@ -103,7 +129,7 @@ export default function AdminOverviewPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div className="tour-tabs" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {[
           { id: 'team', label: 'Team', count: users.length },
           { id: 'entries', label: 'Recent Entries', count: allEntries.length },

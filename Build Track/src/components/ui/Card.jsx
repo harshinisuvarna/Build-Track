@@ -1,10 +1,11 @@
 import { colors, radius, shadows, glass } from '../../styles/designTokens';
 
-export default function Card({ children, style, onClick, hoverable, padding }) {
+export default function Card({ children, style, onClick, hoverable, padding, className }) {
   const isInteractive = hoverable || onClick;
 
   return (
     <div
+      className={className}
       onClick={onClick}
       style={{
         background: glass.background,

@@ -4,6 +4,7 @@ const PDFDocument = require("pdfkit");
 const Transaction = require("../models/Transaction");
 const Worker = require("../models/Worker");
 const Project = require("../models/Project");
+const User = require("../models/User");
 const { protect, getAdminId, canAccessProjectFilter } = require("../middleware/auth");
 router.use(protect);
 function getDateRange(query) {
@@ -190,6 +191,14 @@ router.get("/financial", async (req, res) => {
       project: t.project?.projectName || "N/A",
       worker: t.worker?.name || "N/A",
     }));
+
+    // Update onboarding flag
+    if (req.user) {
+      await User.findByIdAndUpdate(req.user._id, {
+        $set: { "onboarding.hasViewedReports": true }
+      });
+    }
+
     res.json({
       success: true,
       income,

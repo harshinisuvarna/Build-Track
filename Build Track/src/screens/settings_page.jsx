@@ -8,8 +8,10 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   User, Mail, Shield, Bell, Globe, ChevronDown, Camera, Pencil, Lock,
   LogOut, Trash2, Users, FileText, KeyRound, Eye, EyeOff, ArrowLeft,
-  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle,
+  CreditCard, Palette, Moon, Monitor, Smartphone, Download, AlertTriangle, HelpCircle,
+  Save, Check
 } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 import perfLogger from "../utils/performanceLogger";
 
@@ -22,9 +24,9 @@ function Toggle({ on, onToggle }) {
   );
 }
 
-function SectionCard({ title, children, style, gradient }) {
+function SectionCard({ title, children, style, gradient, className }) {
   return (
-    <Card style={{ background: gradient, padding: "24px 28px", marginBottom: 16, border: gradient ? "none" : undefined, ...style }}>
+    <Card className={className} style={{ background: gradient, padding: "24px 28px", marginBottom: 16, border: gradient ? "none" : undefined, ...style }}>
       {title && <h3 style={{ fontSize: 16, fontWeight: 700, color: gradient ? "#fff" : "#111827", margin: "0 0 20px", letterSpacing: "-0.02em" }}>{title}</h3>}
       {children}
     </Card>
@@ -78,7 +80,29 @@ export default function SettingsPage() {
   const [toast, setToast] = useState({ msg: "", type: "info" });
   const [confirmDlg, setConfirmDlg] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [runTour, setRunTour] = useState(false);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
+
+  const isDirty = Boolean(
+    user && (
+      fullName !== (user.name || "") ||
+      email !== (user.email || "") ||
+      role !== (user.role || "Site Supervisor")
+    )
+  );
+
+  const tourSteps = [
+    { target: '.tour-profile', content: 'Update your personal information and profile picture here.', disableBeacon: true },
+    { target: '.tour-notifications', content: 'Toggle email and push notifications on or off.' },
+    { target: '.tour-security', content: 'Change your password and manage account security.' },
+    { target: '.tour-logout', content: 'Log out securely when you are done.' }
+  ];
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
 
   useEffect(() => {
     subscriptionAPI.getStatus()
@@ -93,6 +117,7 @@ export default function SettingsPage() {
       setRole(user.role || "Site Supervisor");
       if (user.twoFactorEnabled !== undefined) setTwoFA(user.twoFactorEnabled);
       if (user.profilePhoto) setProfileImage(resolveImageUrl(user.profilePhoto));
+      else setProfileImage(null);
     }
   }, [user]);
 
@@ -110,25 +135,53 @@ export default function SettingsPage() {
       const fd = new FormData();
       fd.append("photo", file);
       const { data } = await userAPI.updatePhoto(fd);
-      updateUser({ profilePhoto: data.profilePhoto });
+      const updatedUser = data.user || { ...user, profilePhoto: data.profilePhoto };
+      updateUser(updatedUser);
+      if (data.profilePhoto || updatedUser.profilePhoto) {
+        setProfileImage(resolveImageUrl(data.profilePhoto || updatedUser.profilePhoto));
+      }
+      setToast({ msg: "Profile photo updated successfully!", type: "success" });
       window.dispatchEvent(new Event("userUpdated"));
-    } catch {
-      setToast({ msg: "Failed to upload photo.", type: "error" });
+    } catch (err) {
+      setToast({ msg: err.response?.data?.message || "Failed to upload photo.", type: "error" });
     }
   };
 
   const handleSaveProfile = async () => {
-    if (!fullName.trim() || !email.trim()) { setToast({ msg: "Name and email cannot be empty.", type: "error" }); return; }
+    if (saving) return;
+    if (!fullName.trim() || !email.trim()) {
+      setToast({ msg: "Name and email cannot be empty.", type: "error" });
+      return;
+    }
     try {
       setSaving(true);
-      const { data } = await userAPI.updateProfile({ name: fullName, email, role });
-      updateUser(data.user);
+      const { data } = await userAPI.updateProfile({
+        name: fullName.trim(),
+        email: email.trim(),
+        role
+      });
+      const updatedUser = data.user || {
+        ...user,
+        name: fullName.trim(),
+        email: email.trim(),
+        role
+      };
+      updateUser(updatedUser);
+      setFullName(updatedUser.name || "");
+      setEmail(updatedUser.email || "");
+      setRole(updatedUser.role || "Site Supervisor");
+      if (updatedUser.profilePhoto) {
+        setProfileImage(resolveImageUrl(updatedUser.profilePhoto));
+      }
       window.dispatchEvent(new Event("userUpdated"));
+      setToast({ msg: "Profile details saved successfully!", type: "success" });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       setToast({ msg: err.response?.data?.message || "Failed to save profile.", type: "error" });
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -180,25 +233,31 @@ export default function SettingsPage() {
       },
     });
   };
-
   const baseInput = { width: "100%", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 14, color: "#111827", outline: "none", fontFamily: "inherit", boxSizing: "border-box" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", fontFamily: "Inter, 'Segoe UI', sans-serif", background: "transparent" }}>
-      <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
-      {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
-
-      <div style={{ padding: "14px 24px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>Settings</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748B" }}>Manage your account preferences and security</p>
+      <div style={{ padding: "24px 28px", maxWidth: 900, margin: "0 auto", paddingBottom: 100 }}>
+        <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="Settings" />
+        <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
+        {confirmDlg && <ConfirmDialog message={confirmDlg.message} danger={confirmDlg.danger} confirmLabel={confirmDlg.confirmLabel} onConfirm={confirmDlg.onConfirm} onCancel={() => setConfirmDlg(null)} />}
+        
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {isMobile && (
+              <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 12, cursor: "pointer", color: "#64748B", flexShrink: 0 }}>
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: "#111827", margin: 0 }}>Settings</h1>
+          </div>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color={'#94A3B8'} />
+          </button>
         </div>
-      </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
-
-          <SectionCard title="Profile Settings">
+          <SectionCard title="Profile Settings" style={{}} className="tour-profile">
             <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: isMobile ? "wrap" : "nowrap" }}>
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <input ref={profileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImageUpload} />
@@ -224,19 +283,37 @@ export default function SettingsPage() {
                   <label style={{ fontSize: 12, fontWeight: 600, color: "#64748B", display: "block", marginBottom: 4 }}>ROLE</label>
                   <input value={role} onChange={e => setRole(e.target.value)} style={{ ...baseInput, maxWidth: isMobile ? "100%" : "50%" }} />
                 </div>
-                <Button variant={saved ? "success" : "primary"} size="md" onClick={handleSaveProfile} disabled={saving}>
-                  {saving ? "Saving\u2026" : saved ? "\u2713 Profile Saved!" : "Edit Profile Details"}
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleSaveProfile}
+                  disabled={saving || (!isDirty && !saved)}
+                  style={saved ? { background: "#10B981", color: "#fff", boxShadow: "0 4px 10px rgba(16, 185, 129, 0.25)" } : undefined}
+                >
+                  {saving ? (
+                    <>
+                      <Save size={16} /> Saving…
+                    </>
+                  ) : saved ? (
+                    <>
+                      <Check size={16} /> ✓ Saved!
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} /> Save Changes
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="Notifications">
+          <SectionCard title="Notifications" className="tour-notifications">
             <SettingsRow icon={<Bell size={14} />} title="Notifications" subtitle="Receive project updates and alerts" border={false}
               action={<Toggle on={emailNotif} onToggle={() => setEmailNotif(v => !v)} />} />
           </SectionCard>
 
-          <SectionCard title="Security">
+          <SectionCard title="Security" className="tour-security">
             <SettingsRow icon={<Lock size={14} />} title="Account Password" subtitle="Manage your account password"
               action={<Button variant="secondary" size="sm" onClick={() => setShowPwForm(v => !v)}>{showPwForm ? "Cancel" : "Change Password"}</Button>} />
 
@@ -291,7 +368,7 @@ export default function SettingsPage() {
             </SectionCard>
           )}
 
-          <SectionCard>
+          <SectionCard className="tour-logout">
             <Button variant="danger" size="md" fullWidth onClick={() => setConfirmDlg({
               message: "Are you sure you want to log out?",
               onConfirm: () => { setConfirmDlg(null); logout(); navigate("/login"); },

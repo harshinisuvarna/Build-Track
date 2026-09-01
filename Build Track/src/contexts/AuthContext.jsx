@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { authAPI } from '../api';
+import { authAPI, projectAPI, transactionAPI } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -17,8 +17,25 @@ export function AuthProvider({ children }) {
     const storedToken = localStorage.getItem('bt_token');
     if (storedToken) {
       authAPI.me()
-        .then((res) => {
-          const userData = res.data?.user || res.data;
+        .then(async (res) => {
+          let userData = res.data?.user || res.data;
+          
+          if (userData && (!userData.onboarding || !userData.onboarding.visitedModules || userData.onboarding.visitedModules.length === 0)) {
+            try {
+              const [pRes, tRes] = await Promise.all([
+                projectAPI.getAll().catch(() => ({ data: [] })),
+                transactionAPI.getAll().catch(() => ({ data: [] }))
+              ]);
+              const pList = pRes.data?.projects || pRes.data || [];
+              const tList = tRes.data?.transactions || tRes.data?.data || tRes.data || [];
+              
+              if (pList.length > 0 || tList.length > 0) {
+                if (!userData.onboarding) userData.onboarding = {};
+                userData.onboarding.visitedModules = ['AdminDashboard', 'Settings', 'AssignRole', 'AddEntryPage', 'ApprovalDashboard', 'AssignTaskPage', 'InventoryPage', 'VoiceAssistant', 'AuditLogsPage', 'ProjectDetailPage', 'FinancialReport', 'SubscriptionPage', 'HomeScreen'];
+              }
+            } catch (e) {}
+          }
+
           setUser(userData);
           localStorage.setItem('bt_user', JSON.stringify(userData));
         })
@@ -38,8 +55,27 @@ export function AuthProvider({ children }) {
     const res = await authAPI.login({ email, password });
     const data = res.data;
     const t = data.token || data.accessToken;
-    const u = data.user || data;
+    let u = data.user || data;
+    
+    // Set token immediately so subsequent API calls use the new token
     localStorage.setItem('bt_token', t);
+
+    if (u && (!u.onboarding || !u.onboarding.visitedModules || u.onboarding.visitedModules.length === 0)) {
+      try {
+        const [pRes, tRes] = await Promise.all([
+          projectAPI.getAll().catch(() => ({ data: [] })),
+          transactionAPI.getAll().catch(() => ({ data: [] }))
+        ]);
+        const pList = pRes.data?.projects || pRes.data || [];
+        const tList = tRes.data?.transactions || tRes.data?.data || tRes.data || [];
+        
+        if (pList.length > 0 || tList.length > 0) {
+          if (!u.onboarding) u.onboarding = {};
+          u.onboarding.visitedModules = ['AdminDashboard', 'Settings', 'AssignRole', 'AddEntryPage', 'ApprovalDashboard', 'AssignTaskPage', 'InventoryPage', 'VoiceAssistant', 'AuditLogsPage', 'ProjectDetailPage', 'FinancialReport', 'SubscriptionPage', 'HomeScreen'];
+        }
+      } catch (e) {}
+    }
+
     localStorage.setItem('bt_user', JSON.stringify(u));
     setToken(t);
     setUser(u);
@@ -49,6 +85,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (name, email, password) => {
+    localStorage.clear(); // Clear any stale data from previous accounts
     const res = await authAPI.register({ name, email, password });
     const data = res.data;
     const t = data.token || data.accessToken;
@@ -63,11 +100,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('bt_token');
-    localStorage.removeItem('bt_user');
-    setToken(null);
-    setUser(null);
-    window.dispatchEvent(new Event('userUpdated'));
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = '/login';
   }, []);
 
   const updateUser = useCallback((updates) => {

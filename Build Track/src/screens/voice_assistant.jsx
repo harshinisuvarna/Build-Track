@@ -8,8 +8,10 @@ import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import { parseTranscript, computeAmount } from '../utils/voiceParser';
 import { createElement } from 'react';
 import { colors, radius, shadows, typography, gradients } from '../styles/designTokens';
-import { Package, User, Wrench, Building2, MapPin, ClipboardList, Hammer, ArrowLeft, Mic, Sparkles, CheckCircle2, ChevronRight, AlertTriangle, Clock } from 'lucide-react';
+import { Package, User, Wrench, Building2, MapPin, ClipboardList, Hammer, ArrowLeft, Mic, Sparkles, CheckCircle2, ChevronRight, AlertTriangle, Clock, HelpCircle } from 'lucide-react';
 import ExecutionContextStep from '../components/ExecutionContextStep';
+import ModuleTour from '../components/ModuleTour';
+import { useAuth } from '../contexts/AuthContext';
 import VoiceReviewSheet from '../components/VoiceReviewSheet';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -70,6 +72,32 @@ export default function VoiceAssistantPage() {
 
   const processTimerRef = useRef(null);
   const autoResetTimerRef = useRef(null);
+
+  const { user } = useAuth();
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('VoiceEntry')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleTour = () => setRunTour(true);
+    window.addEventListener('trigger-dashboard-tour', handleTour);
+    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
+  }, []);
+
+  const tourSteps = [
+    { target: '.tour-header', content: 'Use the Voice Assistant to quickly record entries by speaking.', disableBeacon: true },
+    { target: '.tour-entry-types', content: 'Select the type of entry before speaking.' },
+    { target: '.tour-context', content: 'Set the project, floor, and phase context here.' },
+    { target: '.tour-mic', content: 'Tap the microphone and describe your entry naturally.' },
+    { target: '.tour-recent', content: 'Recently added entries appear here.' }
+  ];
 
   const {
     interimTranscript,
@@ -197,6 +225,32 @@ export default function VoiceAssistantPage() {
     }, 800);
   }, [executionContext, projects, setSpeechProcessing]);
 
+  const resetAll = useCallback(() => {
+    if (autoResetTimerRef.current) {
+      clearTimeout(autoResetTimerRef.current);
+      autoResetTimerRef.current = null;
+    }
+    resetSpeech();
+    setParsedData(null);
+    setTranscript('');
+    setSaveError('');
+    setSavedEntryId(null);
+    setShowReview(false);
+    setProcessingStage(0);
+    setStatus(STATUS.idle);
+  }, [resetSpeech]);
+
+  const fetchRecentEntries = useCallback(() => {
+    setRecentLoading(true);
+    transactionAPI.getAll()
+      .then(({ data }) => {
+        const all = data.transactions || [];
+        setRecentEntries(all.slice(0, 5));
+      })
+      .catch(() => setRecentEntries([]))
+      .finally(() => setRecentLoading(false));
+  }, []);
+
   const handleReviewSave = useCallback(async (reviewData) => {
     setShowReview(false);
     setStatus(STATUS.saving);
@@ -258,33 +312,7 @@ export default function VoiceAssistantPage() {
       setStatus(STATUS.summary);
       setShowReview(true);
     }
-  }, [transcript, executionContext]);
-
-  const fetchRecentEntries = useCallback(() => {
-    setRecentLoading(true);
-    transactionAPI.getAll()
-      .then(({ data }) => {
-        const all = data.transactions || [];
-        setRecentEntries(all.slice(0, 5));
-      })
-      .catch(() => setRecentEntries([]))
-      .finally(() => setRecentLoading(false));
-  }, []);
-
-  const resetAll = useCallback(() => {
-    if (autoResetTimerRef.current) {
-      clearTimeout(autoResetTimerRef.current);
-      autoResetTimerRef.current = null;
-    }
-    resetSpeech();
-    setParsedData(null);
-    setTranscript('');
-    setSaveError('');
-    setSavedEntryId(null);
-    setShowReview(false);
-    setProcessingStage(0);
-    setStatus(STATUS.idle);
-  }, [resetSpeech]);
+  }, [transcript, executionContext, fetchRecentEntries, resetAll]);
 
   const viewEntries = useCallback(() => {
     navigate('/transaction');
@@ -341,7 +369,9 @@ export default function VoiceAssistantPage() {
         }
       `}</style>
 
-      <div style={{
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="VoiceEntry" />
+
+      <div className="tour-header" style={{
         padding: '14px 24px', display: 'flex', alignItems: 'center',
         gap: 16, flexShrink: 0, zIndex: 10,
       }}>
@@ -370,6 +400,9 @@ export default function VoiceAssistantPage() {
               : 'AI Voice Entry'}
           </div>
         </div>
+        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>
+          <HelpCircle size={16} color={colors.textLight} />
+        </button>
         {isListening && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -399,7 +432,7 @@ export default function VoiceAssistantPage() {
 
         {(isIdle || isListening) && (
           <>
-            <div className="voice-card" style={{
+            <div className="voice-card tour-entry-types" style={{
               background: colors.card, borderRadius: '14px',
               border: `1px solid ${colors.border}`, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02)',
               padding: '8px', maxWidth: 440, width: '100%',
@@ -424,7 +457,7 @@ export default function VoiceAssistantPage() {
             </div>
 
             {(executionContext.project || executionContext.floor || executionContext.activity) && (
-              <div className="voice-card" style={{
+              <div className="voice-card tour-context" style={{
                 background: colors.primarySubtle, borderRadius: '12px',
                 border: `1px solid ${colors.border}`,
                 padding: '12px 18px', maxWidth: 600, width: '100%',
@@ -458,7 +491,7 @@ export default function VoiceAssistantPage() {
               </div>
             )}
 
-            <div className="voice-card" style={{
+            <div className="voice-card tour-mic" style={{
               background: colors.card, borderRadius: '14px',
               border: `1px solid ${colors.border}`, boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
               padding: '32px 24px', textAlign: 'center', maxWidth: 600, width: '100%',
@@ -476,10 +509,11 @@ export default function VoiceAssistantPage() {
                           height: `${Math.max(4, soundLevel * 36)}px`,
                           background: gradients.primaryGradient,
                           animationDelay: `${i * 0.04}s`,
-                          animationDuration: `${0.5 + Math.random() * 0.4}s`,
+                          animationDuration: `${0.5 + (i % 5) * 0.1}s`,
                         }} />
                     ))}
                   </div>
+
                   <div style={{
                     background: 'rgba(23, 62, 234, 0.03)',
                     borderRadius: '12px', border: `1px solid ${colors.border}`,
@@ -737,7 +771,7 @@ export default function VoiceAssistantPage() {
         )}
 
         {(isIdle || isContext) && (
-          <div style={{ width: '100%', maxWidth: 600 }}>
+          <div className="tour-recent" style={{ width: '100%', maxWidth: 600 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: colors.textPrimary }}>Recent Entries</h3>
               <span onClick={viewEntries}
@@ -822,7 +856,7 @@ export default function VoiceAssistantPage() {
       )}
 
       <VoiceReviewSheet
-        key={showReview ? `review-${Date.now()}` : 'review-closed'}
+        key={showReview ? 'review-open' : 'review-closed'}
         isOpen={showReview}
         onClose={() => { setShowReview(false); setStatus(STATUS.summary); }}
         initialData={parsedData || {}}

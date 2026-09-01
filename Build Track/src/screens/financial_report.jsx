@@ -42,8 +42,10 @@ import {
   User,
   Package,
   Wrench,
-  IndianRupee
+  IndianRupee,
+  HelpCircle
 } from "lucide-react";
+import ModuleTour from "../components/ModuleTour";
 
 const primaryBlue = "#173EEA";
 const primaryPurple = "#8B5CF6";
@@ -79,13 +81,23 @@ function formatDateLong(dt) {
   return `${day} ${month} ${year} ${hour}:${minute} ${ampm}`;
 }
 
-function getPaymentStatusLabel(status) {
+function getPaymentStatusLabel(status, tx = null) {
+  if (tx && typeof tx === 'object') {
+    const rawAmt = tx.amount || 0;
+    const rawPaid = tx.paidAmount || 0;
+    if (rawAmt > 0) {
+      if (rawPaid >= rawAmt) return 'Fully Paid';
+      if (rawPaid > 0) return 'Partial';
+    }
+  }
   switch ((status || '').toLowerCase().trim()) {
     case 'paid':
     case 'fully paid':
     case 'fullypaid':
       return 'Fully Paid';
     case 'partial':
+    case 'partially paid':
+    case 'partially':
       return 'Partial';
     case 'pending':
     case 'not paid':
@@ -262,6 +274,23 @@ export default function FinancialReportPage() {
 
   const { projects: projStore, fetchProjects: storeFetchProjects } = useProjectStore();
   const { transactions: txStore, fetchTransactions: storeFetchTransactions } = useTransactionStore();
+
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    if (user?.onboarding) {
+      const visited = user.onboarding.visitedModules || [];
+      if (!visited.includes('FinancialReportPage')) {
+        setRunTour(true);
+      }
+    }
+  }, [user]);
+
+  const tourSteps = [
+    { target: '.tour-project-filter', content: 'Filter reports by Project, Floor, Phase, Activity, and Date.', disableBeacon: true },
+    { target: '.tour-report-tabs', content: 'Switch between All, Materials, Labour, and Equipment categories.' },
+    { target: '.tour-export-btns', content: 'Customize columns and export the report to CSV.' }
+  ];
 
   useEffect(() => {
     perfLogger.endRoute('/reports');
@@ -802,6 +831,7 @@ export default function FinancialReportPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", minHeight: "100vh", background: colors.bgBase4, fontFamily: typography.fontFamily }}>
+      <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="FinancialReportPage" />
       <Toast message={toast.msg} type={toast.type} onClose={clearToast} />
 
       <div style={{ background: colors.cardBg, borderBottom: `1px solid ${colors.cardBorder}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
@@ -809,7 +839,10 @@ export default function FinancialReportPage() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Reports</h1>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>Financial analytics &amp; transaction log audit</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="tour-export-btns" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: `1.5px solid ${colors.cardBorder}`, borderRadius: radius.md, cursor: 'pointer', flexShrink: 0, boxShadow: shadows.card }}>
+            <HelpCircle size={16} color={colors.textLight} />
+          </button>
           <button
             onClick={() => openCustomizeModal()}
             style={{
@@ -886,7 +919,7 @@ export default function FinancialReportPage() {
           <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
         </div>
 
-        <div style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
+        <div className="tour-project-filter" style={{ background: colors.cardBg, borderRadius: radius.lg, border: `1px solid ${colors.cardBorder}`, padding: 20, marginBottom: 24, boxShadow: shadows.card }}>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ width: 34, height: 34, background: "rgba(23, 62, 234, 0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: primaryBlue, flexShrink: 0 }}>
@@ -1082,7 +1115,7 @@ export default function FinancialReportPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", background: colors.cardBg, borderRadius: radius.md, border: `1.2px solid ${colors.cardBorder}`, padding: 4, marginBottom: 20, boxShadow: shadows.card }}>
+        <div className="tour-report-tabs" style={{ display: "flex", background: colors.cardBg, borderRadius: radius.md, border: `1.2px solid ${colors.cardBorder}`, padding: 4, marginBottom: 20, boxShadow: shadows.card }}>
           {["All", "Materials", "Labour", "Equipment"].map(tab => {
             const active = activeTab === tab;
             return (
@@ -1602,8 +1635,10 @@ export default function FinancialReportPage() {
                 { label: "Project", val: getProjectName(detailsEntry.projectId) },
                 { label: "Type", val: detailsEntry.type.toUpperCase() },
                 { label: "Date", val: formatDateLong(detailsEntry.date) },
-                { label: "Amount", val: formatINR(detailsEntry.amount), bold: true },
-                { label: "Status", val: getPaymentStatusLabel(detailsEntry.paymentStatus) },
+                { label: "Total Amount", val: formatINR(detailsEntry.rawTx?.amount || detailsEntry.amount), bold: true },
+                { label: "Paid Amount", val: formatINR(detailsEntry.rawTx?.paidAmount || 0), bold: true, textColor: "#166534" },
+                { label: "Balance", val: formatINR(detailsEntry.rawTx?.remainingAmount ?? ((detailsEntry.rawTx?.amount || detailsEntry.amount) - (detailsEntry.rawTx?.paidAmount || 0))), bold: true, textColor: "#dc2626" },
+                { label: "Status", val: getPaymentStatusLabel(detailsEntry.paymentStatus, detailsEntry.rawTx) },
                 { label: "Description", val: detailsEntry.description || "—" },
                 { label: "Brand", val: detailsEntry.brand || "—" },
                 { label: "Floor", val: detailsEntry.floor || "—" },
@@ -1611,11 +1646,11 @@ export default function FinancialReportPage() {
                 { label: "Unit", val: detailsEntry.unit || "—" },
                 { label: "Rejection Reason", val: detailsEntry.rejectionReason, isWarning: true }
               ].map((row) => {
-                if (!row.val) return null;
+                if (!row.val && row.val !== 0 && row.val !== "₹0") return null;
                 return (
                   <div key={row.label} style={{ display: "flex", fontSize: 12.5 }}>
                     <span style={{ width: 110, fontWeight: "600", color: colors.textSecondary }}>{row.label}</span>
-                    <span style={{ flex: 1, fontWeight: row.bold ? "800" : "700", color: row.isWarning ? "#dc2626" : colors.textPrimary }}>{row.val}</span>
+                    <span style={{ flex: 1, fontWeight: row.bold ? "800" : "700", color: row.textColor ? row.textColor : (row.isWarning ? "#dc2626" : colors.textPrimary) }}>{row.val}</span>
                   </div>
                 );
               })}
@@ -1638,20 +1673,34 @@ export default function FinancialReportPage() {
                         borderRadius: 8,
                         background: colors.bgBase4,
                         border: `1px solid ${colors.cardBorder}`,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontSize: 12.5, fontWeight: 700, color: colors.textPrimary }}>
                           {formatINR(ph.amount)}
                         </span>
-                        <span style={{ fontSize: 11, color: colors.textLight }}>
-                          {ph.method || "—"}
-                        </span>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, padding: "2px 6px", background: "#e0e7ff", color: "#3730a3", borderRadius: 4, fontWeight: 600 }}>
+                            {ph.method || "—"}
+                          </span>
+                          {ph.receipt && (
+                            <a href={ph.receipt} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#4F46E5", fontWeight: 600, textDecoration: "none" }}>
+                              Receipt ↗
+                            </a>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10.5, color: colors.textLight, marginTop: 2 }}>
-                        {formatDateShort(ph.date)}
-                        {ph.note ? ` — ${ph.note}` : ""}
+                      <div style={{ fontSize: 10, color: colors.textLight }}>
+                        {formatDateLong(ph.date)}
                       </div>
+                      {ph.note && (
+                        <div style={{ fontSize: 11, color: colors.textSecondary, fontStyle: "italic", marginTop: 2 }}>
+                          Note: {ph.note}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
