@@ -133,11 +133,6 @@ export default function SubscriptionPage() {
     { target: '.tour-restore-purchases', content: 'If you have upgraded on another device, use this to sync your purchases.' }
   ];
 
-  useEffect(() => {
-    const handleTour = () => setRunTour(true);
-    window.addEventListener('trigger-dashboard-tour', handleTour);
-    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
-  }, []);
 
   useEffect(() => {
     const onResize = () => setIsNarrow(window.innerWidth < 768);

@@ -6,7 +6,6 @@ import perfLogger from "../utils/performanceLogger";
 import { Toast, ConfirmDialog } from "../components/Toast";
 import { Card, Badge, Button, EmptyState } from "../components/ui";
 import ModuleTour from "../components/ModuleTour";
-import { useAuth } from "../contexts/AuthContext";
 import { colors, radius, shadows, typography, gradients } from "../styles/designTokens";
 import {
   Search,
@@ -80,17 +79,8 @@ export default function TransactionLog() {
   const [confirmDlg, setConfirmDlg] = useState(null);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('TransactionLog')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-header', content: 'View a detailed log of all project transactions.', disableBeacon: true },

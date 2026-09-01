@@ -5,7 +5,6 @@ import { Card, Badge, Button, Spinner, EmptyState, ErrorState, SkeletonCard } fr
 import { authAPI, projectAPI, transactionAPI } from '../api';
 import { Users, User, ClipboardList, Building2, HelpCircle } from 'lucide-react';
 import ModuleTour from '../components/ModuleTour';
-import { useAuth } from '../contexts/AuthContext';
 
 function formatCurrency(amount) {
   return '₹' + Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
@@ -22,17 +21,8 @@ export default function AdminOverviewPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [error, setError] = useState(null);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('AdminDashboard')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-header', content: 'Overview of your team, projects, and entries.', disableBeacon: true },

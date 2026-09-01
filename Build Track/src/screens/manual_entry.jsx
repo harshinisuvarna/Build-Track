@@ -4,9 +4,9 @@ import { transactionAPI } from "../api";
 import useProjectStore from "../stores/projectStore";
 import { Toast } from "../components/Toast";
 import { colors, radius, shadows, gradients, typography } from "../styles/designTokens";
-import { Building, ChevronDown, HelpCircle } from "lucide-react";
+import { Building, ChevronDown, HelpCircle, CheckCircle, X } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
-import { useAuth } from "../contexts/AuthContext";
+import PayNowSheet from "../components/PayNowSheet";
 
 const ENTRY_TYPES = [
   { key: "material", label: "Material", color: colors.primaryBlue },
@@ -74,17 +74,8 @@ export default function ManualEntryPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('ManualEntry')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-header', content: 'Here you can manually log materials, labour, or equipment.', disableBeacon: true },
@@ -133,12 +124,10 @@ export default function ManualEntryPage() {
   const [isWithGst, setIsWithGst] = useState(false);
   const [gstPercentage, setGstPercentage] = useState(18);
 
-  const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentHistory, setPaymentHistory] = useState([]);
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
-  const [receiptFile, setReceiptFile] = useState(null);
-  const receiptInputRef = useRef(null);
+  const [showPayNow, setShowPayNow] = useState(false);
+  const [paymentResult, setPaymentResult] = useState(null);
 
   const [attachments, setAttachments] = useState([]);
   const attachmentInputRef = useRef(null);
@@ -178,7 +167,6 @@ export default function ManualEntryPage() {
       setLoadedActivityIdValue(tx.activityId || "");
       setIsWithGst(tx.isWithGst || false);
       setGstPercentage(tx.gstPercentage || 18);
-      setIsPaid(tx.isPaid || false);
       setPaymentMethod(tx.paymentMethod || "Cash");
       setPaymentHistory(tx.paymentHistory || []);
 
@@ -262,7 +250,6 @@ export default function ManualEntryPage() {
         setLoadedActivityIdValue(tx.activityId || "");
         setIsWithGst(tx.isWithGst || false);
         setGstPercentage(tx.gstPercentage || 18);
-        setIsPaid(tx.isPaid || false);
         setPaymentMethod(tx.paymentMethod || "Cash");
         const nameVal = tx.title || tx.materialName || tx.workerName || tx.equipmentName || "";
         if (eType === "material") {
@@ -352,13 +339,6 @@ export default function ManualEntryPage() {
     }
   };
 
-  const handleReceiptChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setReceiptFile(file);
-    }
-  };
-
   const handleAttachmentChange = (e) => {
     const files = Array.from(e.target.files || []);
     setAttachments(prev => [...prev, ...files].slice(0, 5));
@@ -384,8 +364,8 @@ export default function ManualEntryPage() {
       setErrMsg("Amount must be greater than 0.");
       return false;
     }
-    if (isPaid && !paymentMethod) {
-      setErrMsg("Please select a payment method.");
+    if (paymentResult && paymentResult.requestEsign && !paymentResult.clientEmail) {
+      setErrMsg("Please enter the client email for E-Signature.");
       return false;
     }
     setErrMsg("");
@@ -435,13 +415,34 @@ export default function ManualEntryPage() {
         totalAmount: totalAmount,
         overtime: overtime,
         overtimeAmount: overtimeAmount,
-        isPaid: isPaid,
-        paymentMethod: paymentMethod,
-        paymentDate: paymentDate,
-        paymentHistory: paymentHistory
+        isPaid: !!paymentResult,
+        paymentMethod: paymentResult?.method || paymentMethod,
+        paymentDate: paymentResult?.paymentDate ? paymentResult.paymentDate.split("T")[0] : new Date().toISOString().split("T")[0],
+        paymentHistory: paymentHistory,
+        ...(paymentResult ? {
+          paidAmount: paymentResult.amount,
+          paymentMode: paymentResult.apiMode,
+          paymentStatus: paymentResult.status,
+          notes: notes || paymentResult.note || "",
+          ...(paymentResult.note ? { paymentNote: paymentResult.note } : {}),
+        } : {}),
+        ...(paymentResult?.requestEsign ? {
+          requestEsign: true,
+          clientEmail: paymentResult.clientEmail,
+        } : {}),
       };
 
-      const hasFiles = receiptFile != null || attachments.length > 0;
+      const hasFiles = attachments.length > 0 || paymentResult?.receiptFile != null;
+
+      if (paymentResult?.receiptFile) {
+        const reader = new FileReader();
+        payload.paymentReceipt = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(paymentResult.receiptFile);
+        });
+      }
+
       let finalData = payload;
 
       if (hasFiles) {
@@ -453,10 +454,7 @@ export default function ManualEntryPage() {
              formData.append(key, payload[key]);
           }
         });
-        
-        if (receiptFile) {
-          formData.append("receipt", receiptFile);
-        }
+
         attachments.forEach((file, idx) => {
           formData.append(`attachment_${idx}`, file);
         });
@@ -478,9 +476,8 @@ export default function ManualEntryPage() {
         setSelectedPhaseId("");
           setSelectedActivityName("");
           setIsWithGst(false);
-          setIsPaid(false);
           setPaymentHistory([]);
-          setReceiptFile(null);
+          setPaymentResult(null);
         setAttachments([]);
         setTimeout(() => setSuccessMsg(""), 3000);
       }
@@ -493,6 +490,7 @@ export default function ManualEntryPage() {
 
   const currentFields = FIELDS[entryType];
   const units = UNIT_OPTIONS[entryType] || [];
+  const nameKey = entryType === "material" ? "itemName" : entryType === "labour" ? "workerName" : "equipmentName";
 
   const inputStyle = {
     width: "100%", padding: "12px 14px", borderRadius: radius.sm,
@@ -815,16 +813,22 @@ export default function ManualEntryPage() {
             </div>
             {!isEditing && (
               <button
-                onClick={() => setIsPaid(!isPaid)}
+                onClick={() => {
+                  if (paymentResult) {
+                    setPaymentResult(null);
+                  } else {
+                    setShowPayNow(true);
+                  }
+                }}
                 style={{
                   width: 48, height: 26, borderRadius: 13, border: "none", cursor: "pointer",
-                  background: isPaid ? "#10B981" : "#E5E7EB",
+                  background: paymentResult ? "#10B981" : "#E5E7EB",
                   position: "relative", transition: "background 0.2s",
                 }}
               >
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%", background: "#FFF",
-                  position: "absolute", top: 2, left: isPaid ? 24 : 2,
+                  position: "absolute", top: 2, left: paymentResult ? 24 : 2,
                   transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 }} />
               </button>
@@ -860,38 +864,45 @@ export default function ManualEntryPage() {
                 Add Payment
               </button>
             </div>
-          ) : isPaid && (
-            <div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div>
-                  <div style={labelStyle}>PAYMENT METHOD</div>
-                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={inputStyle}>
-                    {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+          ) : paymentResult && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: radius.sm, padding: "14px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <CheckCircle size={16} color="#16A34A" />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#15803D" }}>Payment Recorded</span>
                 </div>
-                <div>
-                  <div style={labelStyle}>PAYMENT DATE</div>
-                  <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={inputStyle} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 13 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", marginBottom: 2 }}>AMOUNT</div>
+                    <div style={{ fontWeight: 800, color: "#15803D" }}>
+                      ₹{Number(paymentResult.amount || 0).toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", marginBottom: 2 }}>METHOD</div>
+                    <div style={{ fontWeight: 700, color: colors.textPrimary }}>{paymentResult.method}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", marginBottom: 2 }}>STATUS</div>
+                    <div style={{ fontWeight: 700, color: colors.textPrimary }}>{paymentResult.status}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", letterSpacing: "0.05em", marginBottom: 2 }}>DATE</div>
+                    <div style={{ fontWeight: 700, color: colors.textPrimary }}>
+                      {paymentResult.paymentDate ? new Date(paymentResult.paymentDate).toLocaleDateString("en-IN") : ""}
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <div style={labelStyle}>RECEIPT (OPTIONAL)</div>
-                <input ref={receiptInputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
-                  onChange={handleReceiptChange} />
-                <button onClick={() => receiptInputRef.current?.click()}
-                  style={{
-                    width: "100%", padding: "12px", borderRadius: radius.sm,
-                    border: `1px dashed ${colors.cardBorder}`, background: colors.bgBase4,
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    fontSize: 13, color: colors.textSecondary,
-                  }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  {receiptFile ? receiptFile.name : "Upload Receipt"}
+                {paymentResult.receiptFile && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: "#15803D", fontWeight: 600 }}>
+                    <CheckCircle size={14} color="#16A34A" /> {paymentResult.receiptFile.name}
+                  </div>
+                )}
+                <button
+                  onClick={() => setPaymentResult(null)}
+                  style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "1px solid #86EFAC", borderRadius: radius.sm, padding: "6px 12px", color: "#166534", fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                >
+                  <X size={14} /> Remove payment
                 </button>
               </div>
             </div>
@@ -1000,6 +1011,22 @@ export default function ManualEntryPage() {
           ) : isEditing ? "Update Entry" : `Save ${entryType.charAt(0).toUpperCase() + entryType.slice(1)} Entry`}
         </button>
       </div>
+
+      <PayNowSheet
+        open={showPayNow}
+        entryTitle={values[nameKey] || `${entryType} entry`}
+        typeLabel={entryType === "material" ? "Material" : entryType === "labour" ? "Labour" : "Equipment"}
+        vendorName={values.supplier || values.operator || ""}
+        totalAmount={grandTotal}
+        alreadyPaid={0}
+        onClose={() => setShowPayNow(false)}
+        onConfirm={(result) => {
+          setPaymentResult(result);
+          setShowPayNow(false);
+          setToast({ msg: "Payment added — confirm to save entry", type: "success" });
+          setTimeout(clearToast, 2500);
+        }}
+      />
     </div>
   );
 }

@@ -31,6 +31,7 @@ export function AuthProvider({ children }) {
               
               if (pList.length > 0 || tList.length > 0) {
                 if (!userData.onboarding) userData.onboarding = {};
+                userData.onboarding.hasSkippedTour = true;
                 userData.onboarding.visitedModules = ['AdminDashboard', 'Settings', 'AssignRole', 'AddEntryPage', 'ApprovalDashboard', 'AssignTaskPage', 'InventoryPage', 'VoiceAssistant', 'AuditLogsPage', 'ProjectDetailPage', 'FinancialReport', 'SubscriptionPage', 'HomeScreen'];
               }
             } catch (e) {}
@@ -71,6 +72,7 @@ export function AuthProvider({ children }) {
         
         if (pList.length > 0 || tList.length > 0) {
           if (!u.onboarding) u.onboarding = {};
+          u.onboarding.hasSkippedTour = true;
           u.onboarding.visitedModules = ['AdminDashboard', 'Settings', 'AssignRole', 'AddEntryPage', 'ApprovalDashboard', 'AssignTaskPage', 'InventoryPage', 'VoiceAssistant', 'AuditLogsPage', 'ProjectDetailPage', 'FinancialReport', 'SubscriptionPage', 'HomeScreen'];
         }
       } catch (e) {}

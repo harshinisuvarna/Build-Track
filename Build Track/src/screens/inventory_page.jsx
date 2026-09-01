@@ -9,7 +9,6 @@ import { Toast } from "../components/Toast";
 import RecordPaymentSheet from "../components/RecordPaymentSheet";
 import { Pencil, HelpCircle } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
-import { useAuth } from "../contexts/AuthContext";
 import { colors, radius, spacing, shadows, gradients, typography } from "../styles/designTokens";
 
 const STATUS_META = {
@@ -146,23 +145,8 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ msg: "", type: "info" });
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('InventoryManagement')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const handleTour = () => setRunTour(true);
-    window.addEventListener('trigger-dashboard-tour', handleTour);
-    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
-  }, []);
 
   const tourSteps = [
     { target: '.tour-header', content: 'Track your materials, labour, and equipment inventory.', disableBeacon: true },

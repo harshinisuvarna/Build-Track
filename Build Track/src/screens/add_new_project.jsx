@@ -6,7 +6,6 @@ import useProjectStore from "../stores/projectStore";
 import { buildDefaultPhases, addCustomPhase, addActivityToPhase, mergePhasesWithDefaults } from "../utils/constructionPhases";
 import { Badge, Button } from "../components/ui";
 import ModuleTour from "../components/ModuleTour";
-import { useAuth } from "../contexts/AuthContext";
 import {
   ChevronDown, Plus, X, Check, Camera, MapPin, Calendar, User, Phone,
   Building2, Home, Layers, Bed, Bath, Settings, Zap, Flame, ChefHat, Sun,
@@ -142,17 +141,8 @@ export default function NewProjectPage() {
   const location = useLocation();
   const fileInputRef = useRef(null);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('AddNewProject')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-project-name', content: 'Enter the title of the project here.' },

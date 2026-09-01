@@ -11,7 +11,6 @@ import { colors, radius, shadows, typography, gradients } from '../styles/design
 import { Package, User, Wrench, Building2, MapPin, ClipboardList, Hammer, ArrowLeft, Mic, Sparkles, CheckCircle2, ChevronRight, AlertTriangle, Clock, HelpCircle } from 'lucide-react';
 import ExecutionContextStep from '../components/ExecutionContextStep';
 import ModuleTour from '../components/ModuleTour';
-import { useAuth } from '../contexts/AuthContext';
 import VoiceReviewSheet from '../components/VoiceReviewSheet';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -73,23 +72,8 @@ export default function VoiceAssistantPage() {
   const processTimerRef = useRef(null);
   const autoResetTimerRef = useRef(null);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('VoiceEntry')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const handleTour = () => setRunTour(true);
-    window.addEventListener('trigger-dashboard-tour', handleTour);
-    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
-  }, []);
 
   const tourSteps = [
     { target: '.tour-header', content: 'Use the Voice Assistant to quickly record entries by speaking.', disableBeacon: true },

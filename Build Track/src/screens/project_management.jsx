@@ -46,14 +46,6 @@ export default function ProjectsPage() {
 
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('ProjectManagement')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-header', content: 'Here you can view and manage all your projects.', disableBeacon: true },

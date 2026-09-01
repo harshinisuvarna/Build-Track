@@ -8,7 +8,6 @@ import ProjectMemberModal from "../components/ProjectMemberModal";
 import DocumentGallery from "../components/DocumentGallery";
 import CsvImportExportCard from "../components/CsvImportExportCard";
 import ModuleTour from "../components/ModuleTour";
-import { useAuth } from "../contexts/AuthContext";
 import {
   ChevronDown, ArrowLeft, Building2, MapPin, Calendar, User, Phone,
   DollarSign, Target, ClipboardCheck, Package, TrendingUp, PieChart,
@@ -45,17 +44,8 @@ export default function ProjectDetailPage() {
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('ProjectDetailPage')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-project-header', content: 'View the current project status and name.', disableBeacon: true },
@@ -496,4 +486,3 @@ function CatRow({ label, amount, color }) {
     </div>
   );
 }
-
