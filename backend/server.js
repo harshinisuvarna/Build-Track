@@ -112,7 +112,7 @@ const limiter = rateLimit({
 app.use("/api/", limiter);
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProd ? 10 : 50,
+  max: isProd ? 100 : 200,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
