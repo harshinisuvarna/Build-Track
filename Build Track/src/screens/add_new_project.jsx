@@ -376,6 +376,20 @@ export default function NewProjectPage() {
     setPhasesExpanded(prev => ({ ...prev, [phaseId]: true }));
   };
 
+  const handleRenamePhase = (phaseId) => {
+    const phase = phases.find(p => p.id === phaseId);
+    if (!phase) return;
+    const newName = prompt("Edit phase name:", phase.phaseName);
+    if (!newName || !newName.trim()) return;
+    const phaseName = newName.trim();
+    const duplicate = phases.some(p => p.id !== phaseId && p.phaseName.trim().toLowerCase() === phaseName.toLowerCase());
+    if (duplicate) {
+      alert("A phase with this name already exists.");
+      return;
+    }
+    setPhases(prev => prev.map(p => p.id === phaseId ? { ...p, phaseName, isCustom: true } : p));
+  };
+
   const handleAddCustomActivity = (phaseId) => {
     const name = prompt("Enter custom activity name:");
     if (!name || !name.trim()) return;
@@ -1040,6 +1054,7 @@ export default function NewProjectPage() {
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{phase.phaseName}</div>
                       </div>
                       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        <button onClick={(e) => { e.stopPropagation(); handleRenamePhase(phase.id); }} style={{ padding: "2px 6px", fontSize: 11, background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 4, cursor: "pointer", color: "#475569" }}>✎</button>
                         <button onClick={(e) => { e.stopPropagation(); movePhase(idx, -1); }} disabled={idx === 0} style={{ padding: "2px 6px", fontSize: 11, background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 4, cursor: idx === 0 ? "not-allowed" : "pointer", opacity: idx === 0 ? 0.4 : 1 }}>▲</button>
                         <button onClick={(e) => { e.stopPropagation(); movePhase(idx, 1); }} disabled={idx === phases.length - 1} style={{ padding: "2px 6px", fontSize: 11, background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 4, cursor: idx === phases.length - 1 ? "not-allowed" : "pointer", opacity: idx === phases.length - 1 ? 0.4 : 1 }}>▼</button>
                       </div>
