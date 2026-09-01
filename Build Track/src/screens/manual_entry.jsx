@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { projectAPI, transactionAPI } from "../api";
+import { transactionAPI } from "../api";
+import useProjectStore from "../stores/projectStore";
 import { Toast } from "../components/Toast";
 import { colors, radius, shadows, gradients, typography } from "../styles/designTokens";
 import { Building, ChevronDown, HelpCircle } from "lucide-react";
@@ -148,8 +149,8 @@ export default function ManualEntryPage() {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
   useEffect(() => {
-    projectAPI.getContext()
-      .then(({ data }) => setProjects(data.projects || []))
+    useProjectStore.getState().fetchContext()
+      .then(list => setProjects(list || []))
       .catch(() => {});
   }, []);
 

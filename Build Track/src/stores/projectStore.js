@@ -6,10 +6,28 @@ const useProjectStore = create(
   persist(
     (set, get) => ({
       projects: [],
+      contextProjects: [],
+      contextLoadedAt: 0,
       selectedProject: null,
       loading: false,
       error: null,
       stats: {},
+
+      async fetchContext(force = false) {
+        const CONTEXT_TTL = 5 * 60 * 1000;
+        const state = get();
+        if (!force && state.contextProjects.length > 0 && Date.now() - state.contextLoadedAt < CONTEXT_TTL) {
+          return state.contextProjects;
+        }
+        try {
+          const { data } = await projectAPI.getContext();
+          const list = data.projects || [];
+          set({ contextProjects: list, contextLoadedAt: Date.now() });
+          return list;
+        } catch {
+          return state.contextProjects || [];
+        }
+      },
 
       async fetchProjects(params = {}, force = false) {
         const state = get();
@@ -66,7 +84,7 @@ const useProjectStore = create(
         try {
           const { data } = await projectAPI.create(projectData);
           const newProject = data.project || data;
-          set((state) => ({ projects: [newProject, ...state.projects] }));
+          set((state) => ({ projects: [newProject, ...state.projects], contextProjects: [], contextLoadedAt: 0 }));
           return newProject;
         } catch (err) {
           set({ error: err.message || "Failed to create project" });
@@ -82,6 +100,8 @@ const useProjectStore = create(
             projects: state.projects.map((p) =>
               (p._id || p.id) === id ? updated : p
             ),
+            contextProjects: [],
+            contextLoadedAt: 0,
             selectedProject: (state.selectedProject?._id || state.selectedProject?.id) === id
               ? updated
               : state.selectedProject,
@@ -98,6 +118,8 @@ const useProjectStore = create(
           await projectAPI.delete(id);
           set((state) => ({
             projects: state.projects.filter((p) => (p._id || p.id) !== id),
+            contextProjects: state.contextProjects.filter((p) => (p._id || p.id) !== id),
+            contextLoadedAt: 0,
             selectedProject: (state.selectedProject?._id || state.selectedProject?.id) === id
               ? null
               : state.selectedProject,

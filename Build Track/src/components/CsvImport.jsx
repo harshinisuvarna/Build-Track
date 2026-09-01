@@ -471,7 +471,7 @@ export default function CsvImport({ onComplete }) {
         setLoadingProjects(true);
         const currentUser = localStorage.getItem("bt_user");
         console.log("[CSV Import] Currently logged-in user in localStorage:", currentUser);
-        const res = await projectAPI.getAll();
+        const res = await projectAPI.getContext();
         const data = res.data?.projects || res.data || [];
         const projectList = Array.isArray(data) ? data : [];
         console.log("[CSV Import] Fetched projects for matching:", projectList);

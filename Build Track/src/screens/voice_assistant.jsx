@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { transactionAPI, projectAPI, voiceAPI } from '../api';
+import { transactionAPI, voiceAPI } from '../api';
+import useProjectStore from '../stores/projectStore';
 import useTransactionStore from '../stores/transactionStore';
 import perfLogger from '../utils/performanceLogger';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
@@ -122,9 +123,7 @@ export default function VoiceAssistantPage() {
   }, []);
 
   useEffect(() => {
-    projectAPI.getContext().then(({ data }) => {
-      setProjects(data.projects || []);
-    }).catch(() => {});
+    useProjectStore.getState().fetchContext().then(list => setProjects(list || [])).catch(() => {});
     storeFetchTx().then(list => {
       const all = list || txStore || [];
       setRecentEntries(all.slice(0, 5));
