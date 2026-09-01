@@ -665,7 +665,13 @@ router.put("/:id", protect, async (req, res) => {
       updateData.completedActivityKeys = safeParse(body.completedActivityKeys);
     }
     if (body.selectedPhases !== undefined) {
-      updateData.selectedPhases = safeParse(body.selectedPhases);
+      const parsedPhases = safeParse(body.selectedPhases);
+      updateData.selectedPhases = parsedPhases;
+      if (body.selectedPhaseNames === undefined && Array.isArray(parsedPhases)) {
+        updateData.selectedPhaseNames = parsedPhases
+          .map((p) => p?.phaseName)
+          .filter((n) => n);
+      }
     }
     const photoFile = req.files?.find((f) => f.fieldname === "photo");
     if (photoFile) {
