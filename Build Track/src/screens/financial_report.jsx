@@ -277,14 +277,6 @@ export default function FinancialReportPage() {
 
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('FinancialReportPage')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-project-filter', content: 'Filter reports by Project, Floor, Phase, Activity, and Date.', disableBeacon: true },

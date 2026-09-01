@@ -12,7 +12,7 @@ class GroqProvider extends AIProvider {
   constructor() {
     super();
     this.apiKey = process.env.GROQ_API_KEY || "";
-    this.modelName = "llama-3.3-70b-versatile";
+    this.modelName = "openai/gpt-oss-120b";
     this.baseUrl = "https://api.groq.com/openai/v1/chat/completions";
     if (this.apiKey.length >= 12) {
       console.log(`[GroqProvider] Loaded GROQ_API_KEY: ${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}`);

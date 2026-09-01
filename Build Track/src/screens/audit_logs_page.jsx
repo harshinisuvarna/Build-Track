@@ -146,11 +146,6 @@ export default function AuditLogsPage() {
     { target: '.tour-log-list', content: 'The chronological list of all audit events.' }
   ];
 
-  useEffect(() => {
-    const handleTour = () => setRunTour(true);
-    window.addEventListener('trigger-dashboard-tour', handleTour);
-    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
-  }, []);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);

@@ -1,27 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, typography } from '../styles/designTokens';
 import Card from '../components/ui/Card';
 import CsvImport from '../components/CsvImport';
 import ModuleTour from '../components/ModuleTour';
-import { useAuth } from '../contexts/AuthContext';
 import { HelpCircle } from 'lucide-react';
 
 export default function AddEntryPage() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(null);
 
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('AddEntryPage')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-entry-selection', content: 'Select whether you are logging materials, labour, or equipment.', disableBeacon: true },

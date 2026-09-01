@@ -9,7 +9,6 @@ import {
   BarChart3, Layers, DollarSign, Users, TrendingUp, Sparkles, HelpCircle
 } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
-import { useAuth } from "../contexts/AuthContext";
 
 const TYPE_COLORS = {
   Materials: { bg: "#EEF0FF", color: "#5B5CEB" },
@@ -63,17 +62,8 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('ReportDashboard')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-header', content: 'View analytics and export reports for your projects.', disableBeacon: true },
@@ -362,5 +352,4 @@ export default function ReportsPage() {
     </div>
   );
 }
-
 

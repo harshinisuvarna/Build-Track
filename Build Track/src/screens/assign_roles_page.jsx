@@ -73,15 +73,6 @@ export default function AssignRolesPage() {
 
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (currentUser?.onboarding) {
-      const visited = currentUser.onboarding.visitedModules || [];
-      if (!visited.includes('AssignRole')) {
-        setRunTour(true);
-      }
-    }
-  }, [currentUser]);
-
   const tourSteps = showForm ? [
     { target: '.tour-user-details', content: 'Enter the full name, email, and a temporary password for the new team member.', disableBeacon: true },
     { target: '.tour-role-select', content: 'Select their role: Supervisors can oversee projects and approve entries. Labour/Masons can submit daily progress and expenses. Custom Role lets you build from scratch.' },

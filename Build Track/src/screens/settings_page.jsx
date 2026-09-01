@@ -98,11 +98,6 @@ export default function SettingsPage() {
     { target: '.tour-logout', content: 'Log out securely when you are done.' }
   ];
 
-  useEffect(() => {
-    const handleTour = () => setRunTour(true);
-    window.addEventListener('trigger-dashboard-tour', handleTour);
-    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
-  }, []);
 
   useEffect(() => {
     subscriptionAPI.getStatus()

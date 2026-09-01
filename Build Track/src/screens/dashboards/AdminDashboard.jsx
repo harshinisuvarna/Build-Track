@@ -80,13 +80,6 @@ export default function AdminDashboard() {
     { target: '.tour-approvals-history', content: 'Keep track of approvals or rejections of expenses.' },
   ];
 
-  useEffect(() => {
-    const handleTour = () => setRunTour(true);
-    window.addEventListener('trigger-dashboard-tour', handleTour);
-    return () => window.removeEventListener('trigger-dashboard-tour', handleTour);
-  }, []);
-
-
 
   useEffect(() => {
     perfLogger.endRoute('/');

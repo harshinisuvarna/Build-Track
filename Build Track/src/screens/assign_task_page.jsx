@@ -5,22 +5,12 @@ import { projectAPI, workerAPI, taskAPI } from '../api';
 import { ArrowLeft, CheckCircle, HelpCircle } from 'lucide-react';
 import { colors, gradients } from '../styles/designTokens';
 import ModuleTour from '../components/ModuleTour';
-import { useAuth } from '../contexts/AuthContext';
 
 export default function AssignTaskPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
   const [runTour, setRunTour] = useState(false);
 
-  useEffect(() => {
-    if (user?.onboarding) {
-      const visited = user.onboarding.visitedModules || [];
-      if (!visited.includes('AssignTaskPage')) {
-        setRunTour(true);
-      }
-    }
-  }, [user]);
 
   const tourSteps = [
     { target: '.tour-project', content: 'Select the project this task belongs to.' },
