@@ -148,7 +148,7 @@ export default function ManualEntryPage() {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
   useEffect(() => {
-    projectAPI.getAll()
+    projectAPI.getContext()
       .then(({ data }) => setProjects(data.projects || []))
       .catch(() => {});
   }, []);

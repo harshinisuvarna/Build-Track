@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { transactionAPI, projectAPI, voiceAPI } from '../api';
-import useProjectStore from '../stores/projectStore';
 import useTransactionStore from '../stores/transactionStore';
 import perfLogger from '../utils/performanceLogger';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
@@ -115,7 +114,6 @@ export default function VoiceAssistantPage() {
     setProcessing: setSpeechProcessing,
   } = useSpeechRecognition();
 
-  const { projects: projStore, fetchProjects: storeFetchProjects } = useProjectStore();
   const { transactions: txStore, fetchTransactions: storeFetchTx } = useTransactionStore();
 
   useEffect(() => {
@@ -124,12 +122,14 @@ export default function VoiceAssistantPage() {
   }, []);
 
   useEffect(() => {
-    storeFetchProjects().then(list => setProjects(list || projStore || [])).catch(() => {});
+    projectAPI.getContext().then(({ data }) => {
+      setProjects(data.projects || []);
+    }).catch(() => {});
     storeFetchTx().then(list => {
       const all = list || txStore || [];
       setRecentEntries(all.slice(0, 5));
     }).catch(() => setRecentEntries([])).finally(() => setRecentLoading(false));
-  }, [projStore, txStore, storeFetchProjects, storeFetchTx]);
+  }, [txStore, storeFetchTx]);
 
   useEffect(() => {
     return () => {

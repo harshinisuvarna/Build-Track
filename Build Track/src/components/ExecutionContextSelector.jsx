@@ -21,7 +21,7 @@ export default function ExecutionContextSelector({ value, onChange, compact }) {
 
   useEffect(() => {
     let cancel = false;
-    projectAPI.getAll()
+    projectAPI.getContext()
       .then(({ data }) => { if (!cancel) setProjects(data.projects || []); })
       .catch(() => { if (!cancel) setProjects([]); })
       .finally(() => { if (!cancel) setLoading(false); });
