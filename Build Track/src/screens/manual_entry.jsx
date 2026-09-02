@@ -73,6 +73,8 @@ export default function ManualEntryPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [sourceTransactionId, setSourceTransactionId] = useState(null);
 
   const [runTour, setRunTour] = useState(false);
 
@@ -131,6 +133,7 @@ export default function ManualEntryPage() {
 
   const [attachments, setAttachments] = useState([]);
   const attachmentInputRef = useRef(null);
+  const appendedPaymentRef = useRef(null);
 
   const [recentEntries, setRecentEntries] = useState([]);
 
@@ -204,6 +207,12 @@ export default function ManualEntryPage() {
       const qName = params.get("name");
       const qUnit = params.get("unit");
       const qBrand = params.get("brand");
+      const qIsDuplicate = params.get("isDuplicate") === "true";
+      const qSourceTxId = params.get("sourceTransactionId");
+
+      setIsEditing(false);
+      setIsDuplicate(qIsDuplicate);
+      setSourceTransactionId(qIsDuplicate ? qSourceTxId : null);
 
       if (qType && ["material", "labour", "equipment"].includes(qType)) {
         setEntryType(qType);
@@ -222,8 +231,71 @@ export default function ManualEntryPage() {
           brand: qBrand || "",
         }));
       }
+
+      if (qIsDuplicate && qSourceTxId) {
+        transactionAPI.getById(qSourceTxId)
+          .then(({ data }) => {
+            const tx = data.transaction || data;
+            const typeMapRev = { "Materials": "material", "Wages": "labour", "Expense": "equipment" };
+            const eType = typeMapRev[tx.type] || qType || "material";
+            setEntryType(eType);
+            setSelectedProject(tx.project?._id || tx.project || qProject || "");
+            if (tx.date || tx.createdAt) {
+              setDate(new Date(tx.date || tx.createdAt).toISOString().split("T")[0]);
+            }
+            setNotes(tx.notes || "");
+            setUnit(tx.unit || qUnit || "");
+            setSelectedFloor(tx.floor || "");
+            setSelectedPhaseId(tx.phaseId || tx.phase || "");
+            setSelectedActivityName(tx.activity || "");
+            setLoadedPhaseValue(tx.phase || "");
+            setLoadedPhaseIdValue(tx.phaseId || "");
+            setLoadedActivityValue(tx.activity || "");
+            setLoadedActivityIdValue(tx.activityId || "");
+            setIsWithGst(tx.isWithGst || false);
+            setGstPercentage(tx.gstPercentage || 18);
+            setPaymentMethod(tx.paymentMethod || "Cash");
+            setPaymentHistory(tx.paymentHistory || []);
+
+            const nameVal = tx.title || tx.materialName || tx.workerName || tx.equipmentName || "";
+            if (eType === "material") {
+              setValues({
+                itemName: nameVal || qName || "",
+                quantity: tx.quantity || "",
+                rate: tx.rate || "",
+                brand: tx.brand || "",
+                supplier: tx.supplier || "",
+              });
+            } else if (eType === "labour") {
+              setValues({
+                workerName: nameVal || qName || "",
+                quantity: tx.quantity || "",
+                rate: tx.rate || "",
+                workType: tx.workType || "",
+                contractor: tx.contractor || "",
+                overtime: tx.overtime || "",
+              });
+            } else if (eType === "equipment") {
+              setValues({
+                equipmentName: nameVal || qName || "",
+                quantity: tx.quantity || "",
+                rate: tx.rate || "",
+                model: tx.model || "",
+                operator: tx.operator || "",
+              });
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [location]);
+
+  useEffect(() => {
+    if (isDuplicate && sourceTransactionId) {
+      setIsEditing(false);
+      setEditingId(null);
+    }
+  }, [isDuplicate, sourceTransactionId]);
 
   useEffect(() => {
     if (!isEditing || !editingId) return;
@@ -296,11 +368,14 @@ export default function ManualEntryPage() {
   }, [projects, selectedProject, loadedPhaseValue, loadedPhaseIdValue, loadedActivityValue, loadedActivityIdValue]);
 
   useEffect(() => {
-    if (!isEditing) {
+    if (!isEditing && !isDuplicate) {
       setValues({});
       setUnit(UNIT_OPTIONS[entryType]?.[0] || "");
+      setPaymentResult(null);
+      appendedPaymentRef.current = null;
+      setPaymentHistory([]);
     }
-  }, [entryType, isEditing]);
+  }, [entryType, isEditing, isDuplicate]);
 
   useEffect(() => {
     if (selectedProject) {
@@ -419,6 +494,7 @@ export default function ManualEntryPage() {
         paymentMethod: paymentResult?.method || paymentMethod,
         paymentDate: paymentResult?.paymentDate ? paymentResult.paymentDate.split("T")[0] : new Date().toISOString().split("T")[0],
         paymentHistory: paymentHistory,
+        ...(isDuplicate && sourceTransactionId ? { sourceTransactionId: sourceTransactionId } : {}),
         ...(paymentResult ? {
           paidAmount: paymentResult.amount,
           paymentMode: paymentResult.apiMode,
@@ -492,6 +568,14 @@ export default function ManualEntryPage() {
   const units = UNIT_OPTIONS[entryType] || [];
   const nameKey = entryType === "material" ? "itemName" : entryType === "labour" ? "workerName" : "equipmentName";
 
+  const removePaymentResult = () => {
+    if (isEditing && appendedPaymentRef.current) {
+      setPaymentHistory(prev => prev.filter(p => p !== appendedPaymentRef.current));
+      appendedPaymentRef.current = null;
+    }
+    setPaymentResult(null);
+  };
+
   const inputStyle = {
     width: "100%", padding: "12px 14px", borderRadius: radius.sm,
     border: `1px solid ${colors.cardBorder}`, fontSize: 14, color: colors.textPrimary,
@@ -518,8 +602,8 @@ export default function ManualEntryPage() {
           &larr;
         </button>
         <div style={{ flex: 1 }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>{isEditing ? "Edit Entry" : "New Entry"}</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>{isEditing ? "Modify this transaction" : "Record a material, labour, or equipment entry"}</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>{isEditing ? "Edit Entry" : isDuplicate ? "Repeat Entry" : "New Entry"}</h1>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>{isEditing ? "Modify this transaction" : isDuplicate ? "Add another entry with similar details" : "Record a material, labour, or equipment entry"}</p>
         </div>
         <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
           <HelpCircle size={16} color={colors.textLight} />
@@ -529,15 +613,15 @@ export default function ManualEntryPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 100px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
         <div className="tour-entry-types" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           {ENTRY_TYPES.map(t => (
-            <button key={t.key} onClick={() => !isEditing && setEntryType(t.key)}
+            <button key={t.key} onClick={() => !isEditing && !isDuplicate && setEntryType(t.key)}
               style={{
                 flex: 1, padding: "12px 0", borderRadius: radius.sm, border: "none",
-                fontWeight: 700, fontSize: 14, cursor: isEditing ? "not-allowed" : "pointer",
+                fontWeight: 700, fontSize: 14, cursor: (isEditing || isDuplicate) ? "not-allowed" : "pointer",
                 background: entryType === t.key ? gradients.primaryButton : colors.cardBg,
                 color: entryType === t.key ? "#FFF" : colors.textSecondary,
                 boxShadow: entryType === t.key ? "none" : shadows.card,
                 transition: "all 0.15s",
-                opacity: isEditing && entryType !== t.key ? 0.5 : 1,
+                opacity: (isEditing || isDuplicate) && entryType !== t.key ? 0.5 : 1,
               }}>
               {t.label}
             </button>
@@ -811,60 +895,29 @@ export default function ManualEntryPage() {
               </svg>
               <span style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary }}>Payment</span>
             </div>
-            {!isEditing && (
-              <button
-                onClick={() => {
-                  if (paymentResult) {
-                    setPaymentResult(null);
-                  } else {
-                    setShowPayNow(true);
-                  }
-                }}
-                style={{
-                  width: 48, height: 26, borderRadius: 13, border: "none", cursor: "pointer",
-                  background: paymentResult ? "#10B981" : "#E5E7EB",
-                  position: "relative", transition: "background 0.2s",
-                }}
-              >
-                <div style={{
-                  width: 22, height: 22, borderRadius: "50%", background: "#FFF",
-                  position: "absolute", top: 2, left: paymentResult ? 24 : 2,
-                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }} />
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (paymentResult) {
+                  removePaymentResult();
+                } else {
+                  setShowPayNow(true);
+                }
+              }}
+              style={{
+                width: 48, height: 26, borderRadius: 13, border: "none", cursor: "pointer",
+                background: paymentResult ? "#10B981" : "#E5E7EB",
+                position: "relative", transition: "background 0.2s",
+              }}
+            >
+              <div style={{
+                width: 22, height: 22, borderRadius: "50%", background: "#FFF",
+                position: "absolute", top: 2, left: paymentResult ? 24 : 2,
+                transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }} />
+            </button>
           </div>
 
-          {isEditing ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-              {paymentHistory.map((p, index) => (
-                <div key={index} style={{ background: "#DCFCE7", border: "1px solid #16A34A", borderRadius: radius.sm, padding: "16px 12px", position: "relative", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>AMOUNT</div>
-                    <input type="number" value={p.amount} onChange={e => { const newH = [...paymentHistory]; newH[index].amount = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}} />
-                  </div>
-                  <div>
-                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>METHOD</div>
-                    <select value={p.method} onChange={e => { const newH = [...paymentHistory]; newH[index].method = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}}>
-                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div style={{gridColumn: "span 2"}}>
-                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>DATE</div>
-                    <input type="date" value={p.date ? new Date(p.date).toISOString().split("T")[0] : ""} onChange={e => { const newH = [...paymentHistory]; newH[index].date = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}} />
-                  </div>
-                  <button onClick={(e) => { e.preventDefault(); setPaymentHistory(paymentHistory.filter((_, i) => i !== index)); }} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#DC2626", cursor: "pointer" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                </div>
-              ))}
-              <button onClick={(e) => { e.preventDefault(); setPaymentHistory([...paymentHistory, { amount: "", method: "Cash", date: new Date().toISOString().split("T")[0] }]); }} 
-                      style={{ width: "100%", padding: 12, border: "1px dashed #16A34A", borderRadius: radius.sm, background: "#F0FDF4", color: "#166534", fontWeight: 600, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Payment
-              </button>
-            </div>
-          ) : paymentResult && (
+          {paymentResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: radius.sm, padding: "14px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -899,12 +952,38 @@ export default function ManualEntryPage() {
                   </div>
                 )}
                 <button
-                  onClick={() => setPaymentResult(null)}
+                  onClick={() => removePaymentResult()}
                   style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "1px solid #86EFAC", borderRadius: radius.sm, padding: "6px 12px", color: "#166534", fontWeight: 600, fontSize: 12, cursor: "pointer" }}
                 >
                   <X size={14} /> Remove payment
                 </button>
               </div>
+            </div>
+          )}
+
+          {isEditing && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+              {paymentHistory.map((p, index) => (
+                <div key={index} style={{ background: "#DCFCE7", border: "1px solid #16A34A", borderRadius: radius.sm, padding: "16px 12px", position: "relative", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>AMOUNT</div>
+                    <input type="number" value={p.amount} onChange={e => { const newH = [...paymentHistory]; newH[index].amount = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}} />
+                  </div>
+                  <div>
+                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>METHOD</div>
+                    <select value={p.method} onChange={e => { const newH = [...paymentHistory]; newH[index].method = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}}>
+                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div style={{gridColumn: "span 2"}}>
+                    <div style={{fontSize: 11, color: "#166534", fontWeight: 600, marginBottom: 4}}>DATE</div>
+                    <input type="date" value={p.date ? new Date(p.date).toISOString().split("T")[0] : ""} onChange={e => { const newH = [...paymentHistory]; newH[index].date = e.target.value; setPaymentHistory(newH); }} style={{...inputStyle, borderColor: "#16A34A", background: "#F0FDF4"}} />
+                  </div>
+                  <button onClick={(e) => { e.preventDefault(); setPaymentHistory(paymentHistory.filter((_, i) => i !== index)); }} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#DC2626", cursor: "pointer" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -956,7 +1035,7 @@ export default function ManualEntryPage() {
           )}
         </div>
 
-        {recentEntries.length > 0 && !isEditing && (
+        {recentEntries.length > 0 && !isEditing && !isDuplicate && (
           <div style={cardStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.textSecondary} strokeWidth="2">
@@ -1018,10 +1097,20 @@ export default function ManualEntryPage() {
         typeLabel={entryType === "material" ? "Material" : entryType === "labour" ? "Labour" : "Equipment"}
         vendorName={values.supplier || values.operator || ""}
         totalAmount={grandTotal}
-        alreadyPaid={0}
+        alreadyPaid={paymentHistory.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)}
         onClose={() => setShowPayNow(false)}
         onConfirm={(result) => {
           setPaymentResult(result);
+          if (isEditing) {
+            const histEntry = {
+              amount: result.amount,
+              method: result.method,
+              date: result.paymentDate,
+              note: result.note || "",
+            };
+            appendedPaymentRef.current = histEntry;
+            setPaymentHistory(prev => [...prev, histEntry]);
+          }
           setShowPayNow(false);
           setToast({ msg: "Payment added — confirm to save entry", type: "success" });
           setTimeout(clearToast, 2500);

@@ -37,7 +37,6 @@ import {
   Check,
   RotateCcw,
   Search,
-  Eye,
   FileText,
   User,
   Package,
@@ -615,7 +614,8 @@ export default function FinancialReportPage() {
 
   const handleAddMore = (entry) => {
     const activeKey = entry.type === "material" ? "material" : entry.type === "labour" ? "labour" : "equipment";
-    navigate(`/manualentry?type=${activeKey}&project=${entry.projectId}&name=${entry.description}&unit=${entry.unit}&brand=${entry.brand || ""}`);
+    const sourceId = entry.id || (entry.rawTx ? (entry.rawTx._id || entry.rawTx.id) : "");
+    navigate(`/manualentry?type=${activeKey}&project=${entry.projectId}&name=${entry.description}&unit=${entry.unit}&brand=${entry.brand || ""}&isDuplicate=true&sourceTransactionId=${sourceId}`);
   };
 
   const handleEditEntry = (entry) => {
@@ -1460,16 +1460,9 @@ export default function FinancialReportPage() {
                                 </td>
                               );
                             } else if (colName === "Actions") {
-                              const raw = entry.rawTx || {};
                               return (
                                 <td key={colName} style={valStyle}>
                                   <div style={{ display: "flex", gap: 6 }}>
-                                    <button
-                                      onClick={() => navigate('/entry-details', { state: { entry: raw._id ? raw : entry } })}
-                                      style={{ padding: "6px 10px", border: "1.2px solid #6366f1", background: "#fff", borderRadius: 8, fontSize: 11.5, fontWeight: "700", color: "#6366f1", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                                    >
-                                      <Eye size={12} /> Details
-                                    </button>
                                     {canAddEdit && (
                                       <button
                                         onClick={() => handleEditEntry(entry)}
