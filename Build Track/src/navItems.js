@@ -14,6 +14,7 @@ import {
   Bell,
   ScrollText,
   CreditCard,
+  ListTodo
 } from 'lucide-react';
 
 export const navItems = [
@@ -23,6 +24,8 @@ export const navItems = [
   { label: "Log", path: "/transaction", icon: ClipboardList },
   { label: "Projects", path: "/projects", icon: Building2 },
   { label: "Inventory", path: "/inventory", icon: Package },
+  { label: "Assign Task", path: "/assign-task", icon: ListTodo },
+  { label: "Notifications", path: "/notifications", icon: Bell },
   { label: "Reports", path: "/reports", icon: BarChart3 },
   { label: "Subscription", path: "/subscription", icon: CreditCard },
   { label: "Settings", path: "/settings", icon: Settings },
@@ -33,6 +36,5 @@ export const adminNavItems = [
   { label: "Approvals", path: "/approvals", icon: CheckSquare },
   { label: "Assign Roles", path: "/assign-role", icon: KeyRound },
   { label: "AI Chat", path: "/ai-chat", icon: Bot },
-  { label: "Notifications", path: "/notifications", icon: Bell },
   { label: "Audit Logs", path: "/audit-logs", icon: ScrollText },
 ];

@@ -134,7 +134,6 @@ export const ACTIVITY_OPTIONS = [
   'Fitting', 'Pipe Fitting', 'Electrical Fitting',
 ];
 
-export const PHASE_OPTIONS = [
-  'Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5',
-  'Pre-construction', 'Structural', 'Finishing', 'Handover',
-];
+import { buildDefaultPhases } from './constructionPhases';
+
+export const PHASE_OPTIONS = buildDefaultPhases().map(p => p.phaseName);

@@ -199,7 +199,7 @@ const AppTour = () => {
             boxShadow: '0 8px 20px -4px rgba(220, 38, 38, 0.45)',
           }}
         >
-          ✕ End Tour
+          ✕ Skip Tour
         </button>
       )}
 
@@ -213,12 +213,10 @@ const AppTour = () => {
         showSkipButton={true}
         locale={{ skip: 'Skip', next: 'Next', back: 'Back', last: 'Finish' }}
         steps={dynamicSteps.map((s) => ({ ...s, disableBeacon: true }))}
-        styles={{
-          options: {
+        styles={{ options: {
             zIndex: 10000,
             primaryColor: '#5B5CEB',
-          },
-        }}
+            }, beacon: { display: 'none' } }}
       />
     </>
   );

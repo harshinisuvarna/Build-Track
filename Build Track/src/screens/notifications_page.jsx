@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, radius } from '../styles/designTokens';
 import { Card, Badge, Button, EmptyState } from '../components/ui';
 import { Bell, CheckCheck, Trash2, ArrowLeft, CheckCircle, DollarSign, Package, Building2, User, Shield } from 'lucide-react';
+import { notificationAPI } from '../api';
 
 function formatTimeAgo(dateStr) {
   if (!dateStr) return '';
@@ -18,14 +19,6 @@ function formatTimeAgo(dateStr) {
   if (diffDays < 7) return `${diffDays}d ago`;
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
-
-const sampleNotifications = [
-  { id: 1, type: 'approval', title: 'New Entry Pending Approval', message: 'Ravi Kumar added a Material entry for Greenwood Heights. \u20B945,000 pending your review.', time: '2026-07-14T10:30:00', read: false },
-  { id: 2, type: 'payment', title: 'Payment Received', message: 'Payment of \u20B91,20,000 has been received for Riverside Project - Phase 2.', time: '2026-07-14T08:15:00', read: false },
-  { id: 3, type: 'inventory', title: 'Low Stock Alert', message: 'Cement (PPC 43 Grade) is running low at Oakwood Extension. Current stock: 12 bags.', time: '2026-07-13T16:45:00', read: true },
-  { id: 4, type: 'project', title: 'Project Milestone Reached', message: 'Greenwood Heights has reached 60% completion - MEP Works phase started.', time: '2026-07-13T11:20:00', read: true },
-  { id: 5, type: 'worker', title: 'Worker Attendance Updated', message: 'Weekly attendance report for Greenwood Heights is now available.', time: '2026-07-12T09:00:00', read: true },
-];
 
 const typeIcons = {
   approval: <CheckCircle size={18} />,
@@ -48,13 +41,34 @@ const typeColors = {
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
-  const [notifications, setNotifications] = useState(sampleNotifications);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    notificationAPI.getAll().then(res => {
+      setNotifications(res.data || []);
+    }).catch(err => console.error(err));
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const filtered = filter === 'all' ? notifications : filter === 'unread' ? notifications.filter((n) => !n.read) : notifications;
 
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  const clearAll = () => setNotifications([]);
+  const markAllRead = () => {
+    notificationAPI.markAllAsRead().then(() => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    });
+  };
+
+  const clearAll = () => {
+    notificationAPI.clearAll().then(() => {
+      setNotifications([]);
+    });
+  };
+
+  const markAsRead = (id) => {
+    notificationAPI.markAsRead(id).then(() => {
+      setNotifications((prev) => prev.map((item) => (item._id || item.id) === id ? { ...item, read: true } : item));
+    });
+  };
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 680, margin: '0 auto' }}>
@@ -116,8 +130,8 @@ export default function NotificationsPage() {
           {filtered.map((n) => {
             const tc = typeColors[n.type] || typeColors.system;
             return (
-              <Card key={n.id} padding="16px 20px" hoverable
-                onClick={() => setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item))}
+              <Card key={n._id || n.id} padding="16px 20px" hoverable
+                onClick={() => markAsRead(n._id || n.id)}
                 style={{ opacity: n.read ? 0.7 : 1, borderLeft: n.read ? `1px solid #E5E7EB` : `3px solid #5B5CEB` }}>
                 <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                   <div style={{ width: 38, height: 38, borderRadius: 10, background: n.read ? '#F1F5F9' : tc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: n.read ? '#94A3B8' : tc.color, flexShrink: 0 }}>
@@ -129,7 +143,7 @@ export default function NotificationsPage() {
                         {n.title}
                       </h4>
                       <span style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0, marginLeft: 8 }}>
-                        {formatTimeAgo(n.time)}
+                        {formatTimeAgo(n.createdAt || n.time)}
                       </span>
                     </div>
                     <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0 }}>

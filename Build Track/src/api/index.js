@@ -6,7 +6,7 @@ function normalizeOrigin(url) {
   return url.replace(/\/+$/, "");
 }
 
-const API_ORIGIN = import.meta.env.VITE_API_URL || "https://build-track.onrender.com";
+const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 const BASE = API_ORIGIN.endsWith("/api") ? API_ORIGIN : `${API_ORIGIN}/api`;
 
 const api = axios.create({ baseURL: BASE });
@@ -110,6 +110,13 @@ export const dashboardAPI = {
   getSummary: () => api.get("/dashboard/summary"),
 };
 
+export const notificationAPI = {
+  getAll: () => api.get("/notifications"),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put("/notifications/read-all"),
+  clearAll: () => api.delete("/notifications/all"),
+};
+
 export const reportAPI = {
   getFinancial: (params) => api.get("/reports/financial", { params }),
   exportCSV:    (params) => api.get("/reports/financial/export-csv", { params, responseType: "blob" }),
@@ -126,6 +133,7 @@ export const aiDashboardAPI = {
 
 export const taskAPI = {
   getDaily: () => api.get("/tasks/daily"),
+  createTask: (data) => api.post("/tasks", data),
 };
 
 export const subscriptionAPI = {

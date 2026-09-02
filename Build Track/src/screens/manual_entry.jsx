@@ -7,6 +7,7 @@ import { colors, radius, shadows, gradients, typography } from "../styles/design
 import { Building, ChevronDown, HelpCircle, CheckCircle, X } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
 import PayNowSheet from "../components/PayNowSheet";
+import { useAuth } from "../contexts/AuthContext";
 
 const ENTRY_TYPES = [
   { key: "material", label: "Material", color: colors.primaryBlue },
@@ -58,7 +59,17 @@ const AUTOCOMPLETE_FIELDS = {
 export default function ManualEntryPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [entryType, setEntryType] = useState("material");
+  const { can, isAdmin } = useAuth();
+  
+  const allowedTypes = useMemo(() => {
+    const types = [];
+    if (isAdmin || can('manage_expenses')) types.push("material");
+    if (isAdmin || can('add_entries') || can('submit_daily_update')) types.push("labour");
+    if (isAdmin || can('manage_equipment_master')) types.push("equipment");
+    return types;
+  }, [can, isAdmin]);
+
+  const [entryType, setEntryType] = useState(() => allowedTypes.length > 0 ? allowedTypes[0] : "material");
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -142,6 +153,14 @@ export default function ManualEntryPage() {
       .then(list => setProjects(list || []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (allowedTypes.length === 0) {
+      navigate("/");
+    } else if (!isEditing && !allowedTypes.includes(entryType)) {
+      setEntryType(allowedTypes[0]);
+    }
+  }, [allowedTypes, entryType, isEditing, navigate]);
 
   useEffect(() => {
     if (location.state && location.state.transaction) {
@@ -395,14 +414,22 @@ export default function ManualEntryPage() {
         quantity: qty,
         rate: rate,
         unit: unit,
-        brand: values.brand || "",
-        supplier: values.supplier || values.operator || "",
-        workerName: values.workerName || "",
-        equipmentName: values.equipmentName || "",
-        workType: values.workType || "",
-        contractor: values.contractor || "",
-        model: values.model || "",
-        operator: values.operator || "",
+      };
+
+      if (entryType === 'material') {
+        payload.subType = "Purchase";
+        payload.category = ""; // Web UI doesn't have material category
+        payload.brand = values.brand || "";
+        payload.supplier = values.supplier || "";
+      } else if (entryType === 'labour') {
+        payload.category = values.contractor || "";
+        payload.remarks = values.workType || "";
+      } else if (entryType === 'equipment') {
+        payload.category = values.equipmentName || "";
+        payload.supplier = values.operator || "";
+      }
+
+      Object.assign(payload, {
         floor: selectedFloor,
         floorId: "",
         phase: phaseName,
@@ -430,7 +457,7 @@ export default function ManualEntryPage() {
           requestEsign: true,
           clientEmail: paymentResult.clientEmail,
         } : {}),
-      };
+      });
 
       const hasFiles = attachments.length > 0 || paymentResult?.receiptFile != null;
 
@@ -528,7 +555,7 @@ export default function ManualEntryPage() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 100px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
         <div className="tour-entry-types" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          {ENTRY_TYPES.map(t => (
+          {ENTRY_TYPES.filter(t => allowedTypes.includes(t.key)).map(t => (
             <button key={t.key} onClick={() => !isEditing && setEntryType(t.key)}
               style={{
                 flex: 1, padding: "12px 0", borderRadius: radius.sm, border: "none",

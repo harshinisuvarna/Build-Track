@@ -56,7 +56,7 @@ export default function ModuleTour({ steps, run, setRun, moduleName }) {
             boxShadow: '0 8px 20px -4px rgba(220, 38, 38, 0.45)',
           }}
         >
-          ✕ End Tour
+          ✕ Skip Tour
         </button>
       )}
       <Joyride
@@ -67,12 +67,10 @@ export default function ModuleTour({ steps, run, setRun, moduleName }) {
         showSkipButton={true}
         locale={{ skip: 'Skip', next: 'Next', back: 'Back', last: 'Finish' }}
         callback={handleJoyrideCallback}
-        styles={{
-          options: {
+        styles={{ options: {
             primaryColor: '#0066cc',
             zIndex: 10000,
-          },
-        }}
+            }, beacon: { display: 'none' } }}
       />
     </>
   );

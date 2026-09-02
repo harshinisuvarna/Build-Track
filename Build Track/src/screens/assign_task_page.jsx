@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '../components/ui';
-import { projectAPI, workerAPI, taskAPI } from '../api';
+import { projectAPI, authAPI, workerAPI, taskAPI } from '../api';
 import { ArrowLeft, CheckCircle, HelpCircle } from 'lucide-react';
 import { colors, gradients } from '../styles/designTokens';
 import ModuleTour from '../components/ModuleTour';
@@ -29,17 +29,21 @@ export default function AssignTaskPage() {
     title: '',
     description: '',
     assignedTo: '',
+    floorId: '',
+    floorName: '',
+    phaseId: '',
     phaseName: '',
+    activityId: '',
     activityName: '',
   });
 
   useEffect(() => {
     Promise.all([
       projectAPI.getAll().catch(() => ({ data: { projects: [] } })),
-      workerAPI.getAll().catch(() => ({ data: { workers: [] } }))
+      authAPI.getUsers().catch(() => ({ data: [] }))
     ]).then(([projRes, userRes]) => {
       setProjects(projRes.data?.projects || projRes.data || []);
-      setUsers(userRes.data?.workers || userRes.data || []);
+      setUsers(userRes.data?.users || userRes.data || []);
     });
   }, []);
 
@@ -47,10 +51,60 @@ export default function AssignTaskPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleProjectChange = (e) => {
+    setFormData({
+      ...formData,
+      project: e.target.value,
+      floorId: '',
+      floorName: '',
+      phaseId: '',
+      phaseName: '',
+      activityId: '',
+      activityName: '',
+    });
+  };
+
+  const handleFloorChange = (e) => {
+    setFormData({
+      ...formData,
+      floorId: e.target.value,
+      floorName: e.target.value,
+      phaseId: '',
+      phaseName: '',
+      activityId: '',
+      activityName: '',
+    });
+  };
+
+  const handlePhaseChange = (e) => {
+    const pId = e.target.value;
+    const selectedProject = projects.find(p => p._id === formData.project || p.id === formData.project);
+    const phase = selectedProject?.selectedPhases?.find(p => p._id === pId || p.id === pId);
+    setFormData({
+      ...formData,
+      phaseId: pId,
+      phaseName: phase?.phaseName || phase?.name || '',
+      activityId: '',
+      activityName: '',
+    });
+  };
+
+  const handleActivityChange = (e) => {
+    const aId = e.target.value;
+    const selectedProject = projects.find(p => p._id === formData.project || p.id === formData.project);
+    const phase = selectedProject?.selectedPhases?.find(p => p._id === formData.phaseId || p.id === formData.phaseId);
+    const activity = phase?.activities?.find(a => a._id === aId || a.id === aId);
+    setFormData({
+      ...formData,
+      activityId: aId,
+      activityName: activity?.name || '',
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.project || !formData.title || !formData.assignedTo) {
-      alert('Please fill all required fields');
+    if (!formData.project || !formData.floorId || !formData.phaseId || !formData.activityId || !formData.title || !formData.assignedTo) {
+      alert('Please fill all required fields (Project, Floor, Phase, Activity, Title, Assignee)');
       return;
     }
 
@@ -65,6 +119,12 @@ export default function AssignTaskPage() {
       setLoading(false);
     }
   };
+
+  const selectedProject = projects.find(p => p._id === formData.project || p.id === formData.project);
+  const floors = selectedProject?.floors || [];
+  const phases = selectedProject?.selectedPhases || [];
+  const selectedPhaseObj = phases.find(p => p._id === formData.phaseId || p.id === formData.phaseId);
+  const activities = selectedPhaseObj?.activities || [];
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: 800, margin: '0 auto', animation: 'fadeUp 300ms ease' }}>
@@ -94,7 +154,7 @@ export default function AssignTaskPage() {
             <select
               name="project"
               value={formData.project}
-              onChange={handleChange}
+              onChange={handleProjectChange}
               style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
             >
               <option value="">Select Project</option>
@@ -104,20 +164,48 @@ export default function AssignTaskPage() {
             </select>
           </div>
 
+          <div className="tour-floor">
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Floor *</label>
+            <select
+              name="floorId"
+              value={formData.floorId}
+              onChange={handleFloorChange}
+              style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
+              disabled={!formData.project}
+            >
+              <option value="">Select Floor</option>
+              {floors.map((f, i) => (
+                <option key={i} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="tour-phase-activity" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Phase</label>
-              <input
-                name="phaseName" value={formData.phaseName} onChange={handleChange} placeholder="e.g. Foundation"
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Phase *</label>
+              <select
+                name="phaseId" value={formData.phaseId} onChange={handlePhaseChange}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
-              />
+                disabled={!formData.project}
+              >
+                <option value="">Select Phase</option>
+                {phases.map(p => (
+                  <option key={p._id || p.id} value={p._id || p.id}>{p.phaseName || p.name}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Activity</label>
-              <input
-                name="activityName" value={formData.activityName} onChange={handleChange} placeholder="e.g. Concrete Pour"
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>Activity *</label>
+              <select
+                name="activityId" value={formData.activityId} onChange={handleActivityChange}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.border}`, fontSize: 15 }}
-              />
+                disabled={!formData.phaseId}
+              >
+                <option value="">Select Activity</option>
+                {activities.map(a => (
+                  <option key={a._id || a.id} value={a._id || a.id}>{a.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 

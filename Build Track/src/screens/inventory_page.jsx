@@ -9,6 +9,7 @@ import { Toast } from "../components/Toast";
 import RecordPaymentSheet from "../components/RecordPaymentSheet";
 import { Pencil, HelpCircle } from "lucide-react";
 import ModuleTour from "../components/ModuleTour";
+import Button from "../components/ui/Button";
 import { colors, radius, spacing, shadows, gradients, typography } from "../styles/designTokens";
 
 const STATUS_META = {
@@ -462,20 +463,21 @@ export default function InventoryPage() {
         }}
       />
 
-      <div className="tour-header" style={{
-        padding: "16px 24px",
-        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12
-      }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Inventory</h1>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>
-            {loading ? "Loading..." : `${totalItems} ${labelPlural}${labelSuffix}`}
-          </p>
+        <div className="tour-header" style={{
+          padding: "18px 24px 14px", borderBottom: `1px solid ${colors.border}`,
+          background: "#fff", zIndex: 10,
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12
+        }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>Inventory</h1>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.textLight }}>
+              {loading ? "Loading..." : `${totalItems} ${labelPlural}${labelSuffix}`}
+            </p>
+          </div>
+          <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
+            <HelpCircle size={16} color={colors.textLight} />
+          </button>
         </div>
-        <button onClick={() => setRunTour(true)} title="Help" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer' }}>
-          <HelpCircle size={16} color={colors.textLight} />
-        </button>
-      </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
 

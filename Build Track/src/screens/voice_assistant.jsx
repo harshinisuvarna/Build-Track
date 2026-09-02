@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { transactionAPI, voiceAPI } from '../api';
 import useProjectStore from '../stores/projectStore';
@@ -14,6 +14,7 @@ import ModuleTour from '../components/ModuleTour';
 import VoiceReviewSheet from '../components/VoiceReviewSheet';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { useAuth } from '../contexts/AuthContext';
 
 const STATUS = {
   context: 'context',
@@ -50,9 +51,27 @@ export default function VoiceAssistantPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const preselectedProject = location.state?.project || null;
+  const { can, isAdmin } = useAuth();
+  
+  const allowedTypes = useMemo(() => {
+    const types = [];
+    if (isAdmin || can('manage_expenses')) types.push("material");
+    if (isAdmin || can('add_entries') || can('submit_daily_update')) types.push("labor");
+    if (isAdmin || can('manage_equipment_master')) types.push("equipment");
+    return types;
+  }, [can, isAdmin]);
 
   const [status, setStatus] = useState(preselectedProject ? STATUS.idle : STATUS.context);
-  const [entryType, setEntryType] = useState('material');
+  const [entryType, setEntryType] = useState(() => allowedTypes.length > 0 ? allowedTypes[0] : 'material');
+  
+  useEffect(() => {
+    if (allowedTypes.length === 0) {
+      navigate("/");
+    } else if (!allowedTypes.includes(entryType)) {
+      setEntryType(allowedTypes[0]);
+    }
+  }, [allowedTypes, entryType, navigate]);
+
   const [executionContext, setExecutionContext] = useState({
     project: preselectedProject,
     floor: null,
@@ -110,9 +129,22 @@ export default function VoiceAssistantPage() {
     useProjectStore.getState().fetchContext().then(list => setProjects(list || [])).catch(() => {});
     storeFetchTx().then(list => {
       const all = list || txStore || [];
-      setRecentEntries(all.slice(0, 5));
+      const typeMap = { material: 'Materials', labor: 'Wages', equipment: 'Expense' };
+      const currentType = typeMap[entryType];
+      const filtered = all.filter(t => {
+        if (t.type === 'Income' || t.type === 'Revenue') return false;
+        if (currentType && t.type !== currentType) return false;
+          if (executionContext.project) {
+             const getProjName = (p) => typeof p === 'object' && p ? (p.projectName || p.name || '') : (p || '');
+             const projName = getProjName(executionContext.project);
+             const tProj = getProjName(t.project) || t.projectName || '';
+             if (projName && tProj && tProj !== projName) return false;
+          }
+        return true;
+      });
+      setRecentEntries(filtered.slice(0, 5));
     }).catch(() => setRecentEntries([])).finally(() => setRecentLoading(false));
-  }, [txStore, storeFetchTx]);
+  }, [txStore, storeFetchTx, entryType, executionContext.project]);
 
   useEffect(() => {
     return () => {
@@ -197,6 +229,14 @@ export default function VoiceAssistantPage() {
     }
 
     parsed.amount = computeAmount(parsed);
+
+    if (!allowedTypes.includes(parsed.entryType)) {
+      setSpeechProcessing(false);
+      setStatus(STATUS.error);
+      setSaveError(`You do not have permission to log ${parsed.entryType} entries.`);
+      return;
+    }
+
     setParsedData(parsed);
     setEntryType(parsed.entryType);
     setSpeechProcessing(false);
@@ -228,11 +268,24 @@ export default function VoiceAssistantPage() {
     transactionAPI.getAll()
       .then(({ data }) => {
         const all = data.transactions || [];
-        setRecentEntries(all.slice(0, 5));
+        const typeMap = { material: 'Materials', labor: 'Wages', equipment: 'Expense' };
+        const currentType = typeMap[entryType];
+        const filtered = all.filter(t => {
+          if (t.type === 'Income' || t.type === 'Revenue') return false;
+          if (currentType && t.type !== currentType) return false;
+          if (executionContext.project) {
+         const getProjName = (p) => typeof p === 'object' && p ? (p.projectName || p.name || '') : (p || '');
+         const projName = getProjName(executionContext.project);
+         const tProj = getProjName(t.project) || t.projectName || '';
+         if (projName && tProj && tProj !== projName) return false;
+          }
+          return true;
+        });
+        setRecentEntries(filtered.slice(0, 5));
       })
       .catch(() => setRecentEntries([]))
       .finally(() => setRecentLoading(false));
-  }, []);
+  }, [entryType, executionContext.project]);
 
   const handleReviewSave = useCallback(async (reviewData) => {
     setShowReview(false);
@@ -279,6 +332,17 @@ export default function VoiceAssistantPage() {
         rawTranscript: transcript,
       };
 
+      if (reviewData.entryType === 'material') {
+        payload.subType = "Purchase";
+        payload.category = ""; 
+      } else if (reviewData.entryType === 'labour') {
+        payload.category = reviewData.contractor || "";
+        payload.remarks = reviewData.labourType || "";
+      } else if (reviewData.entryType === 'equipment') {
+        payload.category = reviewData.equipmentName || "";
+        payload.supplier = reviewData.operatorName || reviewData.supplier || "";
+      }
+
       Object.keys(payload).forEach(k => {
         if (payload[k] === undefined) delete payload[k];
       });
@@ -298,8 +362,16 @@ export default function VoiceAssistantPage() {
   }, [transcript, executionContext, fetchRecentEntries, resetAll]);
 
   const viewEntries = useCallback(() => {
-    navigate('/transaction');
-  }, [navigate]);
+    const p = new URLSearchParams();
+    if (executionContext?.project) {
+      const proj = typeof executionContext.project === 'string' ? executionContext.project : (executionContext.project.projectName || executionContext.project.name || '');
+      if (proj) p.set("search", proj);
+    }
+    if (entryType === 'material') p.set("type", "Materials");
+    else if (entryType === 'labor') p.set("type", "Wages");
+    else if (entryType === 'equipment') p.set("type", "Expense");
+    navigate(`/transaction?${p.toString()}`);
+  }, [navigate, executionContext, entryType]);
 
   const isListening = status === STATUS.listening;
   const isIdle = status === STATUS.idle;
@@ -421,7 +493,7 @@ export default function VoiceAssistantPage() {
               padding: '8px', maxWidth: 440, width: '100%',
               display: 'flex', gap: 4,
             }}>
-              {ENTRY_TYPES.map(t => (
+              {ENTRY_TYPES.filter(t => allowedTypes.includes(t.id)).map(t => (
                 <button key={t.id} onClick={() => !isListening && setEntryType(t.id)}
                   style={{
                     flex: 1, padding: '10px 0', borderRadius: '10px', border: 'none',

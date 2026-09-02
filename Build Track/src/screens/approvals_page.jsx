@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { colors, radius, typography } from '../styles/designTokens';
 import { Card, Badge, Button, Spinner, EmptyState, ErrorState, Toast, ConfirmDialog } from '../components/ui';
 import { approvalAPI, transactionAPI } from '../api';
-import { CheckCircle, ClipboardCheck, User, Building2, Package, HelpCircle } from 'lucide-react';
+import { CheckCircle, ClipboardCheck, User, Building2, Package, HelpCircle, Image as ImageIcon, X } from 'lucide-react';
 import ModuleTour from '../components/ModuleTour';
 
 function formatCurrency(amount) {
@@ -34,6 +34,7 @@ export default function ApprovalsPage() {
   const [rejecting, setRejecting] = useState(null);
   const [toast, setToast] = useState({ message: '', type: 'info', key: 0 });
   const [confirmDlg, setConfirmDlg] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
 
   const [runTour, setRunTour] = useState(false);
 
@@ -161,9 +162,11 @@ export default function ApprovalsPage() {
             const type = typeStyles[entry.type] || typeStyles.Materials;
             const amount = Number(entry.amount || entry.totalAmount || 0);
             const isPending = tab === 'pending';
+            const photos = Array.isArray(entry.photos) ? entry.photos : (entry.photo ? [entry.photo] : (entry.images || []));
+            const hasPhotos = photos.length > 0;
 
             return (
-              <Card key={id} hoverable onClick={() => navigate('/entry-detail', { state: { entry } })}>
+              <Card key={id} hoverable onClick={() => navigate('/entry-detail', { state: { entry, isPending } })}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{
                     width: 44, height: 44, borderRadius: 12,
@@ -185,6 +188,11 @@ export default function ApprovalsPage() {
                     <div style={{ display: 'flex', gap: 16, fontSize: 13, color: colors.textSecondary }}>
                       <span>{formatDate(entry.date || entry.createdAt)}</span>
                       <span>{entry.projectName || entry.project || '—'}</span>
+                      {hasPhotos && (
+                        <span onClick={(e) => { e.stopPropagation(); setLightbox({ photos, index: 0 }); }} style={{ color: '#5B5CEB', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontWeight: 600 }}>
+                          <ImageIcon size={14} /> View Proof
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -224,6 +232,22 @@ export default function ApprovalsPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {lightbox && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setLightbox(null)}>
+          <div style={{ position: 'absolute', top: 20, right: 20, cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: '50%' }} onClick={() => setLightbox(null)}>
+            <X color="#FFF" size={24} />
+          </div>
+          <img src={lightbox.photos[lightbox.index]} alt="Proof" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }} onClick={e => e.stopPropagation()} />
+          {lightbox.photos.length > 1 && (
+            <div style={{ display: 'flex', gap: 12, marginTop: 16 }} onClick={e => e.stopPropagation()}>
+              {lightbox.photos.map((p, i) => (
+                <div key={i} onClick={() => setLightbox({ ...lightbox, index: i })} style={{ width: 60, height: 60, borderRadius: 8, border: lightbox.index === i ? '2px solid #5B5CEB' : '2px solid transparent', cursor: 'pointer', backgroundImage: `url(${p})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

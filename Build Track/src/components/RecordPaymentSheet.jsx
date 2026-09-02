@@ -287,6 +287,10 @@ export default function RecordPaymentSheet({ open, entry, projects, onClose, onS
         paymentDate: new Date(paymentDate).toISOString(),
       };
 
+      if (requestEsign) {
+        payload.eSignStatus = esignCompleted ? "Signed" : "Requested";
+      }
+
       if (receiptFile) {
         const reader = new FileReader();
         const dataUri = await new Promise((resolve, reject) => {

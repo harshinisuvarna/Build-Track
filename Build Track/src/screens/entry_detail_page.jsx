@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, Badge, Button, Spinner } from '../components/ui';
-import { transactionAPI } from '../api';
+import { Card, Badge, Button, Spinner, Toast, ConfirmDialog } from '../components/ui';
+import { transactionAPI, approvalAPI } from '../api';
 import RecordPaymentSheet from '../components/RecordPaymentSheet';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -35,6 +35,9 @@ export default function EntryDetailPage() {
   const location = useLocation();
   const { user, can } = useAuth();
   const [entry, setEntry] = useState(location.state?.entry);
+  const [isPending, setIsPending] = useState(location.state?.isPending);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -97,6 +100,27 @@ export default function EntryDetailPage() {
     { icon: <DollarSign size={14} />, label: 'Total Amount', value: formatCurrency(entry.amount), highlight: true },
     { icon: <CheckCircle size={14} />, label: 'Payment Status', value: entry.paymentStatus || '\u2014' },
   ];
+
+  const handleApprove = async () => {
+    setApproving(true);
+    try {
+      await approvalAPI.approve(entry._id || entry.id);
+      setToastMsg("Entry approved successfully");
+      setIsPending(false);
+    } catch { setToastMsg("Failed to approve"); }
+    finally { setApproving(false); }
+  };
+
+  const handleReject = async () => {
+    setRejecting(true);
+    try {
+      await approvalAPI.reject(entry._id || entry.id, "Rejected by manager");
+      setToastMsg("Entry rejected");
+      setIsPending(false);
+      navigate(-1);
+    } catch { setToastMsg("Failed to reject"); }
+    finally { setRejecting(false); }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -278,10 +302,48 @@ export default function EntryDetailPage() {
         </Card>
       )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <Button variant="secondary" size="md" fullWidth onClick={() => navigate('/manualentry', { state: { transaction: { ...entry, isEditing: true } } })}>
-          <FileText size={14} /> Edit Entry
-        </Button>
+      {((entry.eSignStatus && entry.eSignStatus !== 'Not requested') || entry.signatureData) && (
+        <Card padding="20px" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FileCheck size={16} color="#10B981" /> E-Signature Verification
+            </h3>
+            <Badge variant={entry.eSignStatus === 'Signed' || entry.signatureData ? 'success' : 'warning'} size="sm">
+              {entry.eSignStatus || (entry.signatureData ? 'Signed' : 'Pending')}
+            </Badge>
+          </div>
+          {entry.signatureData ? (
+            <div style={{ background: '#F8FAFC', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'center', border: '1px dashed #CBD5E1' }}>
+              <img 
+                src={entry.signatureData.startsWith('data:image') ? entry.signatureData : `data:image/png;base64,${entry.signatureData}`} 
+                alt="E-Signature" 
+                style={{ maxHeight: 120, maxWidth: '100%', objectFit: 'contain' }} 
+              />
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: '#64748B', fontStyle: 'italic', padding: '12px 0', textAlign: 'center' }}>
+              Signature pending from field agent.
+            </div>
+          )}
+        </Card>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {isPending && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button variant="danger" size="md" fullWidth onClick={handleReject} disabled={rejecting}>
+              <XCircle size={14} /> {rejecting ? '...' : 'Reject'}
+            </Button>
+            <Button variant="primary" size="md" fullWidth onClick={handleApprove} disabled={approving}>
+              <CheckCircle size={14} /> {approving ? '...' : 'Approve'}
+            </Button>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="secondary" size="md" fullWidth onClick={() => navigate('/manualentry', { state: { transaction: { ...entry, isEditing: true } } })}>
+            <FileText size={14} /> Edit Entry
+          </Button>
+        </div>
       </div>
 
       {showDelete && (

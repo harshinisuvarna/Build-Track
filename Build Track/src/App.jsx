@@ -102,14 +102,22 @@ function AppRoutes() {
 
         <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
           <Route path="/"            element={<Dashboard />} />
-          <Route path="/add-entry"    element={<AddEntry />} />
+          <Route path="/add-entry" element={
+            <RequireRole permission="add_entries" route="/add-entry">
+              <AddEntry />
+            </RequireRole>
+          } />
           <Route path="/manualentry" element={
-            <RequireRole permission="add_entries">
+            <RequireRole permission="add_entries" route="/manualentry">
               <ManualEntryPage />
             </RequireRole>
           } />
           <Route path="/entry-detail" element={<EntryDetail />} />
-          <Route path="/voice"       element={<VoiceAssistant />} />
+          <Route path="/voice" element={
+            <RequireRole permission="add_entries" route="/voice">
+              <VoiceAssistant />
+            </RequireRole>
+          } />
           <Route path="/transaction" element={<TransactionLog />} />
           <Route path="/projects"    element={<Projects />} />
           <Route path="/newproject"  element={
