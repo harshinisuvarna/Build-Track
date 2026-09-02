@@ -648,6 +648,16 @@ if (req.body.paymentReceipt) {
       );
     }
     await session.commitTransaction();
+    if (transaction.approvalStatus === "Pending") {
+      const NotificationService = require("../services/NotificationService");
+      await NotificationService.notifyAdminsAndSupervisors(req.user._id, {
+        title: "New Entry Pending Approval",
+        message: `A new ${type} entry for Rs. ${finalAmount} requires your approval.`,
+        type: "approval",
+        relatedId: transaction._id,
+        relatedModel: "Transaction"
+      });
+    }
     if (transaction.eSignToken) {
       const signUrl = `${req.protocol}://${req.get('host')}/api/esign/sign/${transaction.eSignToken}`;
       if (process.env.AWS_ACCESS_KEY_ID && process.env.SES_FROM_EMAIL) {
@@ -920,6 +930,12 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       tx.rate = newRt;
     if (overtime !== undefined)
       tx.overtime = newOt;
+    if (eSignStatus !== undefined)
+      tx.eSignStatus = eSignStatus;
+    if (clientEmail !== undefined)
+      tx.clientEmail = clientEmail;
+    if (eSignature !== undefined)
+      tx.eSignature = eSignature;
     if (
       materialType !==
       undefined ||
@@ -1107,6 +1123,14 @@ router.put("/:id/approve", requirePermission(["approve_payments", "add_entries",
     }
     await tx.save({ session });
     await session.commitTransaction();
+    const NotificationService = require("../services/NotificationService");
+    await NotificationService.send(tx.createdBy, {
+      title: "Entry Approved",
+      message: `Your ${tx.type} entry "${tx.title}" has been approved.`,
+      type: "approval",
+      relatedId: tx._id,
+      relatedModel: "Transaction"
+    });
     res.json({ message: "Transaction approved successfully", transaction: tx });
   } catch (err) {
     await session.abortTransaction();
@@ -1129,6 +1153,14 @@ router.put("/:id/reject", requirePermission(["approve_payments", "add_entries", 
     tx.approvedAt = new Date();
     tx.rejectionReason = rejectionReason || "";
     await tx.save();
+    const NotificationService = require("../services/NotificationService");
+    await NotificationService.send(tx.createdBy, {
+      title: "Entry Rejected",
+      message: `Your ${tx.type} entry "${tx.title}" was rejected. Reason: ${rejectionReason || "None"}`,
+      type: "approval",
+      relatedId: tx._id,
+      relatedModel: "Transaction"
+    });
     res.json({ message: "Transaction rejected", transaction: tx });
   } catch (err) {
     console.error("Reject transaction error:", err);
@@ -1184,7 +1216,7 @@ router.post("/bulk", requirePermission(["manage_expenses", "add_entries"]), asyn
         category, brand, subType, unit, quantity, rate,
         materialType, paymentStatus, paymentMode, paymentDate, paidAmount: _paidAmount,
         remarks, amount: rawAmount, floor, floorId, phase, phaseId, activity, activityId,
-        supplier, gst, isWithGst, overtime
+        supplier, gst, isWithGst, overtime, eSignStatus, clientEmail
       } = payload;
       if (!title || !title.trim()) throw new Error("Title is required");
       if (!type) throw new Error("Transaction type is required");

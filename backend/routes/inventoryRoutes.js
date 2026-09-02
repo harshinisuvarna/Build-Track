@@ -87,6 +87,18 @@ router.post("/use", async (req, res) => {
     item.used = newUsedQty;
     item.closingStock = item.purchased - item.used;
     await item.save();
+    
+    if (item.closingStock <= item.threshold) {
+      const NotificationService = require("../services/NotificationService");
+      await NotificationService.send(adminId, {
+        title: "Low Stock Alert",
+        message: `${item.materialName} is running low. Current stock: ${item.closingStock} ${item.unit}`,
+        type: "inventory",
+        relatedId: item._id,
+        relatedModel: "Inventory"
+      });
+    }
+
     res.json({ message: "Inventory updated", item });
   } catch (err) {
     res.status(500).json({ message: "Failed to update inventory" });
