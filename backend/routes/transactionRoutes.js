@@ -791,6 +791,10 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       gst,
       isWithGst,
       overtime,
+      requestEsign,
+      eSignStatus,
+      clientEmail,
+      eSignature,
     } = req.body;
     const adminId = await getAdminId(req.user);
     let workerId = parseId(worker ?? tx.worker);
@@ -920,6 +924,20 @@ router.put("/:id", requirePermission(["manage_expenses", "add_entries"]), async 
       tx.gst = gst;
     if (isWithGst !== undefined)
       tx.isWithGst = isWithGst;
+
+    if (requestEsign === true) {
+      if (!tx.eSignToken) {
+        tx.eSignToken = require('crypto').randomBytes(20).toString("hex");
+      }
+      tx.eSignStatus = "Requested";
+      if (clientEmail !== undefined) tx.clientEmail = clientEmail;
+    } else if (requestEsign === false) {
+      tx.eSignStatus = "Not Requested";
+      tx.clientEmail = "";
+    } else if (eSignStatus !== undefined) {
+      tx.eSignStatus = eSignStatus;
+    }
+
     if (subType !== undefined)
       tx.subType = subType;
     if (unit !== undefined)
