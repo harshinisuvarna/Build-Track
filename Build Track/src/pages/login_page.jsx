@@ -13,6 +13,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import LightPremiumInput from "../components/ui/LightPremiumInput";
+import nurofinLogo from "../assets/nurofin-black.svg";
 
 const GoogleIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
@@ -131,6 +132,7 @@ export default function LoginPage() {
 
   return (
     <div
+      className="animated-orange-bg"
       style={{
         display: "flex",
         width: "100vw",
@@ -140,7 +142,6 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        background: "linear-gradient(135deg, #EA580C 0%, #F97316 50%, #FB923C 100%)",
         boxSizing: "border-box"
       }}
     >
@@ -168,22 +169,58 @@ export default function LoginPage() {
         {isDesktop && (
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
 
-            <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(249, 115, 22, 0.15)" }}>
-                <Building size={19} color="#FFF" />
-              </div>
-              <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 23, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#EA580C" }}>Track</span>
-              </div>
+            <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 20, animationDelay: "0.1s" }}>
+              <img
+                src="/buildtrack-logo.png"
+                alt="BuildTrack"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 18,
+                  objectFit: "contain",
+                  boxShadow: "0 12px 32px rgba(249, 115, 22, 0.25)"
+                }}
+              />
+              <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 42, fontWeight: "800", color: "#0F172A", letterSpacing: "-1px", lineHeight: 1 }}>
+                BuildTrack
+              </span>
             </div>
 
-            <div style={{ marginTop: 36 }}>
-              <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
+            <div
+              className="animate-fade-up"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 14,
+                padding: "6px 14px",
+                background: "rgba(255, 255, 255, 0.88)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid rgba(255, 255, 255, 0.9)",
+                borderRadius: "20px",
+                boxShadow: "0 4px 16px rgba(234, 88, 12, 0.12)",
+                width: "fit-content",
+                animationDelay: "0.15s"
+              }}
+            >
+              <span style={{ fontSize: "11px", fontWeight: "700", color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>
+                Powered by
+              </span>
+              <img
+                src={nurofinLogo}
+                alt="Nurofin"
+                style={{ height: 18, width: "auto", objectFit: "contain", display: "block" }}
+              />
+            </div>
+
+            <div style={{ marginTop: 28 }}>
+              <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#0F172A", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
                 The Platform for<br />
                 <span style={{ background: "linear-gradient(135deg, #EA580C 0%, #F97316 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Modern Construction.</span>
               </h1>
 
-              <p className="animate-fade-up" style={{ fontSize: "16px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
+              <p className="animate-fade-up" style={{ fontSize: "16px", color: "#334155", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s", fontWeight: "500" }}>
                 From real-time budgets to field inventory tracking — everything your construction team needs to deliver projects on time and under budget.
               </p>
 
@@ -194,12 +231,12 @@ export default function LoginPage() {
                   { title: "Automated Reports", desc: "Instantly export visual cost reports, invoices, and audit summaries." }
                 ].map((item, idx) => (
                   <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#FFF5F0", border: "1px solid #FDE8D8", display: "flex", alignItems: "center", justifyContent: "center", color: "#EA580C", flexShrink: 0, marginTop: "2px" }}>
-                      <CheckCircle size={12} />
+                    <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#FFFFFF", border: "1.5px solid rgba(249, 115, 22, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#EA580C", flexShrink: 0, marginTop: "1px", boxShadow: "0 2px 8px rgba(234, 88, 12, 0.12)" }}>
+                      <CheckCircle size={14} />
                     </div>
                     <div>
-                      <h4 style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: "700", color: "#1F2937" }}>{item.title}</h4>
-                      <p style={{ margin: 0, fontSize: "13px", color: "#8E9AA8", lineHeight: 1.45 }}>{item.desc}</p>
+                      <h4 style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: "700", color: "#0F172A" }}>{item.title}</h4>
+                      <p style={{ margin: 0, fontSize: "13px", color: "#475569", lineHeight: 1.45, fontWeight: "500" }}>{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -212,7 +249,7 @@ export default function LoginPage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
           <div
-            className={`glass-card animate-fade-up ${shake ? "shake-trigger" : ""}`}
+            className={`login-glass-card animate-fade-up ${shake ? "shake-trigger" : ""}`}
             style={{
               width: "100%",
               maxWidth: 440,
@@ -226,19 +263,53 @@ export default function LoginPage() {
           >
 
             {!isDesktop && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Building size={16} color="#FFF" />
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, justifyContent: "center" }}>
+                  <img
+                    src="/buildtrack-logo.png"
+                    alt="BuildTrack"
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 14,
+                      objectFit: "contain",
+                      boxShadow: "0 10px 26px rgba(249, 115, 22, 0.22)"
+                    }}
+                  />
+                  <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: 32, fontWeight: "800", color: "#111827", letterSpacing: "-0.8px", lineHeight: 1 }}>
+                    BuildTrack
+                  </span>
                 </div>
-                <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                  <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#EA580C" }}>Track</span>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    marginTop: 10,
+                    padding: "5px 12px",
+                    background: "rgba(255, 255, 255, 0.75)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    border: "1px solid rgba(255, 255, 255, 0.8)",
+                    borderRadius: "20px",
+                    boxShadow: "0 2px 8px rgba(15, 23, 42, 0.04)"
+                  }}
+                >
+                  <span style={{ fontSize: "10.5px", fontWeight: "700", color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>
+                    Powered by
+                  </span>
+                  <img
+                    src={nurofinLogo}
+                    alt="Nurofin"
+                    style={{ height: 16, width: "auto", objectFit: "contain", display: "block" }}
+                  />
                 </div>
               </div>
             )}
 
             <div style={{ marginBottom: 32, textAlign: isDesktop ? "left" : "center" }}>
-              <h2 style={{ fontSize: "23px", fontWeight: "800", color: "#1F2937", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Welcome back</h2>
-              <p style={{ margin: 0, fontSize: "13.5px", color: "#8E9AA8", fontWeight: "500" }}>Sign in to your BuildTrack account.</p>
+              <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#111827", margin: "0 0 6px", letterSpacing: "-0.5px" }}>Welcome back</h2>
+              <p style={{ margin: 0, fontSize: "14px", color: "#64748B", fontWeight: "500" }}>Sign in to your BuildTrack account.</p>
             </div>
 
             {serverErr && (
@@ -276,38 +347,37 @@ export default function LoginPage() {
                 autoComplete="email"
               />
 
-              <div style={{ position: "relative" }}>
-                <LightPremiumInput
-                  type={showPass ? "text" : "password"}
-                  label="Password"
-                  icon={Lock}
-                  value={password}
-                  onChange={e => {
-                    setPassword(e.target.value);
-                    setPassErr("");
-                    setServerErr("");
-                  }}
-                  error={passErr}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: 17,
-                    background: "none",
-                    border: "none",
-                    color: "#8E9AA8",
-                    cursor: "pointer",
-                    padding: 4,
-                    zIndex: 30
-                  }}
-                >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
+              <LightPremiumInput
+                type={showPass ? "text" : "password"}
+                label="Password"
+                icon={Lock}
+                value={password}
+                onChange={e => {
+                  setPassword(e.target.value);
+                  setPassErr("");
+                  setServerErr("");
+                }}
+                error={passErr}
+                autoComplete="current-password"
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#94A3B8",
+                      cursor: "pointer",
+                      padding: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
+              />
 
               <div style={{ textAlign: "right", margin: "-10px 0 26px" }}>
                 <span
@@ -454,9 +524,9 @@ export default function LoginPage() {
             </form>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0" }}>
-              <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
-              <span style={{ fontSize: "11px", color: "#8E9AA8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em" }}>or connect</span>
-              <div style={{ flex: 1, height: 1, background: "#EAEAEF" }} />
+              <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+              <span style={{ fontSize: "11px", color: "#64748B", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.06em" }}>or connect</span>
+              <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
             </div>
 
             <button
@@ -467,25 +537,26 @@ export default function LoginPage() {
               className="login-google-btn"
               style={{
                 width: "100%",
-                padding: "12px",
+                padding: "13px",
                 borderRadius: 12,
-                border: "1.2px solid #E4E4E7",
-                background: "rgba(255, 255, 255, 0.6)",
-                color: "#1F2937",
+                border: "1.2px solid #E2E8F0",
+                background: "#FFFFFF",
+                color: "#1E293B",
                 fontWeight: "700",
-                fontSize: "13px",
+                fontSize: "13.5px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 10,
+                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.03)"
               }}
             >
               <GoogleIcon /> Continue with Google
             </button>
 
             <div style={{ textAlign: "center", marginTop: 28 }}>
-              <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#8E9AA8", fontWeight: "500" }}>
+              <p style={{ margin: "0 0 20px", fontSize: "13.5px", color: "#64748B", fontWeight: "500" }}>
                 New to BuildTrack?{" "}
                 <button
                   type="button"
@@ -497,14 +568,15 @@ export default function LoginPage() {
                     padding: 0,
                     cursor: "pointer",
                     color: "#EA580C",
-                    fontWeight: "700"
+                    fontWeight: "700",
+                    fontSize: "13.5px"
                   }}
                 >
                   Create account free
                 </button>
               </p>
 
-              <div className="login-footer-links" style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 12, fontSize: "11px", color: "#8E9AA8", fontWeight: "600" }}>
+              <div className="login-footer-links" style={{ display: "flex", justifyItems: "center", justifyContent: "center", gap: 12, fontSize: "11px", color: "#94A3B8", fontWeight: "600" }}>
                 <span className="login-footer-link">Privacy Policy</span>
                 <span>·</span>
                 <span className="login-footer-link">Terms</span>
