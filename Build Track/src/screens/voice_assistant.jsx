@@ -30,9 +30,9 @@ const STATUS = {
 };
 
 const ENTRY_TYPES = [
-  { id: 'material', label: 'Material', icon: 'material', color: '#173EEA' },
-  { id: 'labor', label: 'Labor', icon: 'labor', color: '#B137FF' },
-  { id: 'equipment', label: 'Equipment', icon: 'equipment', color: '#67C8FF' },
+  { id: 'material', label: 'Material', icon: 'material', color: '#F97316' },
+  { id: 'labor', label: 'Labor', icon: 'labor', color: '#EA580C' },
+  { id: 'equipment', label: 'Equipment', icon: 'equipment', color: '#FB923C' },
 ];
 
 const typeIcons = {
@@ -413,8 +413,8 @@ export default function VoiceAssistantPage() {
           to { transform: rotate(360deg); }
         }
         @keyframes orbPulse {
-          0%, 100% { box-shadow: 0 0 0 0px rgba(23, 62, 234, 0.2), 0 0 0 0px rgba(23, 62, 234, 0.1); }
-          50% { box-shadow: 0 0 0 10px rgba(23, 62, 234, 0.15), 0 0 0 20px rgba(23, 62, 234, 0.08); }
+          0%, 100% { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0.2), 0 0 0 0px rgba(249, 115, 22, 0.1); }
+          50% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0.15), 0 0 0 20px rgba(249, 115, 22, 0.08); }
         }
         .voice-card { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
         .fade-in { animation: fadeIn 0.3s ease; }
@@ -570,7 +570,7 @@ export default function VoiceAssistantPage() {
                   </div>
 
                   <div style={{
-                    background: 'rgba(23, 62, 234, 0.03)',
+                    background: 'rgba(249, 115, 22, 0.03)',
                     borderRadius: '12px', border: `1px solid ${colors.border}`,
                     padding: '18px', fontSize: 15, color: colors.textPrimary, fontWeight: 500,
                     lineHeight: 1.6, minHeight: 64, textAlign: 'left',
@@ -597,7 +597,7 @@ export default function VoiceAssistantPage() {
                       background: gradients.primaryGradient,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer',
-                      boxShadow: '0 10px 24px rgba(23, 62, 234, 0.25)',
+                      boxShadow: '0 10px 24px rgba(249, 115, 22, 0.25)',
                       transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                     className="hover-scale"
@@ -753,7 +753,7 @@ export default function VoiceAssistantPage() {
               width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
               background: gradients.primaryGradient,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 20px rgba(23, 62, 234, 0.25)',
+              boxShadow: '0 8px 20px rgba(249, 115, 22, 0.25)',
             }}>
               <CheckCircle2 size={32} color="white" />
             </div>
@@ -894,7 +894,7 @@ export default function VoiceAssistantPage() {
               cursor: 'pointer',
               boxShadow: isListening
                 ? '0 6px 20px rgba(239,68,68,0.4)'
-                : '0 8px 30px rgba(23, 62, 234, 0.3)',
+                : '0 8px 30px rgba(249, 115, 22, 0.3)',
               transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             className="hover-scale"

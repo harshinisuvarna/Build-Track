@@ -140,7 +140,7 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        background: "linear-gradient(135deg, #C7D2FE 0%, #EDE9FE 50%, #BAE6FD 100%)",
+        background: "linear-gradient(135deg, #EA580C 0%, #F97316 50%, #FB923C 100%)",
         boxSizing: "border-box"
       }}
     >
@@ -169,18 +169,18 @@ export default function LoginPage() {
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
 
             <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(249, 115, 22, 0.15)" }}>
                 <Building size={19} color="#FFF" />
               </div>
               <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 23, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
+                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#EA580C" }}>Track</span>
               </div>
             </div>
 
             <div style={{ marginTop: 36 }}>
               <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
                 The Platform for<br />
-                <span style={{ background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Modern Construction.</span>
+                <span style={{ background: "linear-gradient(135deg, #EA580C 0%, #F97316 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Modern Construction.</span>
               </h1>
 
               <p className="animate-fade-up" style={{ fontSize: "16px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
@@ -194,7 +194,7 @@ export default function LoginPage() {
                   { title: "Automated Reports", desc: "Instantly export visual cost reports, invoices, and audit summaries." }
                 ].map((item, idx) => (
                   <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#EEF2FF", border: "1px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", color: "#4F46E5", flexShrink: 0, marginTop: "2px" }}>
+                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#FFF5F0", border: "1px solid #FDE8D8", display: "flex", alignItems: "center", justifyContent: "center", color: "#EA580C", flexShrink: 0, marginTop: "2px" }}>
                       <CheckCircle size={12} />
                     </div>
                     <div>
@@ -227,11 +227,11 @@ export default function LoginPage() {
 
             {!isDesktop && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Building size={16} color="#FFF" />
                 </div>
                 <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                  <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
+                  <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#EA580C" }}>Track</span>
                 </div>
               </div>
             )}
@@ -317,19 +317,19 @@ export default function LoginPage() {
                     setForgotErr("");
                   }}
                   className="login-link-btn"
-                  style={{ fontSize: "12.5px", fontWeight: "700", color: "#4F46E5", cursor: "pointer" }}
+                        style={{ fontSize: "12.5px", fontWeight: "700", color: "#EA580C", cursor: "pointer" }}
                 >
                   {showForgot ? "← Back to login" : "Forgot password?"}
                 </span>
               </div>
 
-              <style>{`.login-submit-btn { transition: transform 0.15s ease, box-shadow 0.15s ease; } .login-submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3); } .login-submit-btn:active:not(:disabled) { transform: translateY(0); }`}</style>
+              <style>{`.login-submit-btn { transition: transform 0.15s ease, box-shadow 0.15s ease; } .login-submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(249, 115, 22, 0.3); } .login-submit-btn:active:not(:disabled) { transform: translateY(0); }`}</style>
 
               {showForgot && (
                 <div
                   style={{
-                    background: "#F5F3FF",
-                    border: "1px solid #DDD6FE",
+                    background: "#FFF5F0",
+                    border: "1px solid #FDE8D8",
                     borderRadius: 14,
                     padding: "18px",
                     marginBottom: 24,
@@ -360,7 +360,7 @@ export default function LoginPage() {
                       padding: "12px",
                       borderRadius: 10,
                       border: "none",
-                  background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
+                  background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
                       color: "#FFF",
                       fontWeight: "700",
                       fontSize: "13px",
@@ -370,7 +370,7 @@ export default function LoginPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 8,
-                      boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)"
+                      boxShadow: "0 4px 12px rgba(249, 115, 22, 0.15)"
                     }}
                   >
                     {forgotLoading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
@@ -382,7 +382,7 @@ export default function LoginPage() {
                     {!showReset && (
                       <span
                         onClick={() => setShowReset(true)}
-                        style={{ fontSize: "12.5px", fontWeight: "700", color: "#4F46E5", cursor: "pointer" }}
+                  style={{ fontSize: "12.5px", fontWeight: "700", color: "#EA580C", cursor: "pointer" }}
                       >
                         Already have a token?
                       </span>
@@ -391,7 +391,7 @@ export default function LoginPage() {
 
                   {showReset && (
 
-                    <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 14, padding: "18px", marginBottom: 24, marginTop: 16 }}>
+                    <div style={{ background: "#FFF5F0", border: "1px solid #FDE8D8", borderRadius: 14, padding: "18px", marginBottom: 24, marginTop: 16 }}>
                       <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", fontWeight: "700", color: "#1F2937" }}>Enter Reset Token</h4>
                       <LightPremiumInput type="text" label="Reset Token" icon={Lock} value={resetToken} onChange={e => setResetToken(e.target.value)} />
                       <LightPremiumInput type="password" label="New Password" icon={Lock} value={newPassword} onChange={e => setNewPassword(e.target.value)} />
@@ -408,7 +408,7 @@ export default function LoginPage() {
                         } finally { 
                           setResetLoading(false); 
                         }
-                      }} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", color: "#FFF", fontWeight: "700", border: "none", cursor: resetLoading ? "not-allowed" : "pointer", opacity: resetLoading ? 0.6 : 1 }}>
+                      }} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", color: "#FFF", fontWeight: "700", border: "none", cursor: resetLoading ? "not-allowed" : "pointer", opacity: resetLoading ? 0.6 : 1 }}>
                         {resetLoading ? "Resetting..." : "Reset Password"}
                       </button>
                     </div>
@@ -432,7 +432,7 @@ export default function LoginPage() {
                   padding: "14px",
                   borderRadius: 12,
                   border: "none",
-                  background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
+                  background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
                   color: "#FFF",
                   fontWeight: "800",
                   fontSize: "13.5px",
@@ -443,7 +443,7 @@ export default function LoginPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 8,
-                  boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
+                  boxShadow: "0 4px 14px rgba(249, 115, 22, 0.18)",
                 }}
               >
                 {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
@@ -496,7 +496,7 @@ export default function LoginPage() {
                     border: "none",
                     padding: 0,
                     cursor: "pointer",
-                    color: "#4F46E5",
+                    color: "#EA580C",
                     fontWeight: "700"
                   }}
                 >

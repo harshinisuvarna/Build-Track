@@ -10,7 +10,7 @@ export default function LightPremiumInput({ icon: Icon, label, error, ...props }
       <div
         className={`premium-input-wrapper ${error ? "error" : focused ? "focused" : ""}`}
       >
-        {Icon && <Icon size={16} style={{ color: focused ? "#6366F1" : "#8E9AA8", marginRight: 10, flexShrink: 0 }} />}
+        {Icon && <Icon size={16} style={{ color: focused ? "#F97316" : "#8E9AA8", marginRight: 10, flexShrink: 0 }} />}
 
         <input
           {...props}
@@ -44,7 +44,7 @@ export default function LightPremiumInput({ icon: Icon, label, error, ...props }
             left: Icon ? 38 : 14,
             top: (focused || hasValue || props.value) ? "3.5px" : "15px",
             fontSize: (focused || hasValue || props.value) ? "9px" : "13.5px",
-            color: error ? "#EF4444" : (focused ? "#6366F1" : "#71717A"),
+            color: error ? "#EF4444" : (focused ? "#F97316" : "#71717A"),
             fontWeight: "700",
             pointerEvents: "none",
             transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
