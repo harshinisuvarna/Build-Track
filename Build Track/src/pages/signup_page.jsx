@@ -155,7 +155,7 @@ export default function SignUpPage() {
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        background: "linear-gradient(135deg, #C7D2FE 0%, #EDE9FE 50%, #BAE6FD 100%)",
+        background: "linear-gradient(135deg, #EA580C 0%, #F97316 50%, #FB923C 100%)",
         boxSizing: "border-box"
       }}
     >
@@ -184,18 +184,18 @@ export default function SignUpPage() {
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
 
             <div className="animate-fade-up" style={{ display: "flex", alignItems: "center", gap: 10, animationDelay: "0.1s" }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.15)" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(249, 115, 22, 0.15)" }}>
                 <Building size={19} color="#FFF" />
               </div>
               <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 23, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
+                <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#EA580C" }}>Track</span>
               </div>
             </div>
 
             <div style={{ marginTop: 36 }}>
               <h1 className="animate-fade-up" style={{ fontFamily: "'Outfit', sans-serif", fontSize: "44px", fontWeight: "900", color: "#1F2937", lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-1.5px", animationDelay: "0.2s" }}>
                 Build smarter.<br />
-                <span style={{ background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Track everything.</span>
+                <span style={{ background: "linear-gradient(135deg, #EA580C 0%, #F97316 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Track everything.</span>
               </h1>
 
               <p className="animate-fade-up" style={{ fontSize: "16px", color: "#6F7C8F", lineHeight: 1.7, margin: "0 0 44px", animationDelay: "0.3s" }}>
@@ -205,7 +205,7 @@ export default function SignUpPage() {
               <div className="animate-fade-up" style={{ display: "flex", flexDirection: "column", gap: "24px", animationDelay: "0.4s" }}>
                 {features.map((item, idx) => (
                   <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#EEF2FF", border: "1px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", color: "#4F46E5", flexShrink: 0, marginTop: "2px" }}>
+                    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#FFF5F0", border: "1px solid #FDE8D8", display: "flex", alignItems: "center", justifyContent: "center", color: "#EA580C", flexShrink: 0, marginTop: "2px" }}>
                       <CheckCircle size={12} />
                     </div>
                     <div>
@@ -238,11 +238,11 @@ export default function SignUpPage() {
 
             {!isDesktop && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28, justifyContent: "center" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Building size={16} color="#FFF" />
                 </div>
                 <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: 20, fontWeight: "800", letterSpacing: "-0.5px" }}>
-                  <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#4F46E5" }}>Track</span>
+                  <span style={{ color: "#1F2937" }}>Build</span><span style={{ color: "#EA580C" }}>Track</span>
                 </div>
               </div>
             )}
@@ -311,7 +311,7 @@ export default function SignUpPage() {
                     onClick={handleSendOtp}
                     disabled={otpLoading || !email.trim()}
                     style={{
-                      background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
+                      background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
                       color: "#fff",
                       border: "none",
                       borderRadius: 8,
@@ -321,7 +321,7 @@ export default function SignUpPage() {
                       fontWeight: "700",
                       cursor: (otpLoading || !email.trim()) ? "not-allowed" : "pointer",
                       opacity: (otpLoading || !email.trim()) ? 0.6 : 1,
-                      boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)"
+                      boxShadow: "0 4px 14px rgba(249, 115, 22, 0.18)"
                     }}
                   >
                     {otpLoading ? "SENDING..." : "VERIFY"}
@@ -381,7 +381,7 @@ export default function SignUpPage() {
                     </button>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: -14, marginBottom: 14 }}>
-                    <button type="button" onClick={handleSendOtp} style={{ background: 'none', border: 'none', color: '#6366F1', fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Resend Code</button>
+                    <button type="button" onClick={handleSendOtp} style={{ background: 'none', border: 'none', color: '#F97316', fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Resend Code</button>
                   </div>
                 </div>
               )}
@@ -460,8 +460,8 @@ export default function SignUpPage() {
                         onClick={() => { setAgreed(v => !v); setErrors(p => ({...p, agreed: ""})); }}
                         style={{
                           width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
-                          border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#6366F1" : "#d0d0d0"}`,
-                          background: agreed ? "#6366F1" : "#fff",
+                          border: `2px solid ${errors.agreed ? "#dc2626" : agreed ? "#F97316" : "#d0d0d0"}`,
+                          background: agreed ? "#F97316" : "#fff",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           transition: "all 0.15s", cursor: "pointer",
                         }}>
@@ -473,9 +473,9 @@ export default function SignUpPage() {
                       </div>
                       <span style={{ fontSize: "13px", color: "#71717A", lineHeight: 1.6, fontWeight: "500" }}>
                         By creating an account, you agree to our{" "}
-                        <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Terms</span>
+                        <span style={{ color: "#F97316", fontWeight: "700", cursor: "pointer" }}>Terms</span>
                         {" "}and{" "}
-                        <span style={{ color: "#6366F1", fontWeight: "700", cursor: "pointer" }}>Privacy Policy</span>.
+                        <span style={{ color: "#F97316", fontWeight: "700", cursor: "pointer" }}>Privacy Policy</span>.
                       </span>
                     </label>
                     {errors.agreed && (
@@ -495,7 +495,7 @@ export default function SignUpPage() {
                       padding: "14px",
                       borderRadius: 12,
                       border: "none",
-                      background: "linear-gradient(90deg, #6366f1 0%, #a855f7 100%)",
+                      background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
                       color: "#FFF",
                       fontWeight: "800",
                       fontSize: "13.5px",
@@ -506,7 +506,7 @@ export default function SignUpPage() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 8,
-                      boxShadow: "0 4px 14px rgba(99, 102, 241, 0.18)",
+                      boxShadow: "0 4px 14px rgba(249, 115, 22, 0.18)",
                     }}
                   >
                     {loading && <span className="spinner-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#FFF", borderRadius: "50%" }} />}
@@ -530,7 +530,7 @@ export default function SignUpPage() {
                     border: "none",
                     padding: 0,
                     cursor: "pointer",
-                    color: "#4F46E5",
+                    color: "#EA580C",
                     fontWeight: "700"
                   }}
                 >

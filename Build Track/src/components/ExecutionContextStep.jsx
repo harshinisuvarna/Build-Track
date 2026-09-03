@@ -38,13 +38,13 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
           width: 64,
           height: 64,
           borderRadius: 16,
-          background: 'linear-gradient(135deg, #ECEBFF 0%, #EEF2FF 100%)',
+          background: 'linear-gradient(135deg, #FFF5F0 0%, #FFF7F0 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 16px',
         }}>
-          <Building size={28} color="#6C63FF" />
+          <Building size={28} color="#F97316" />
         </div>
         <h2 style={{
           fontSize: 20,
@@ -86,7 +86,7 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
                   onClick={() => { setSelectedProject(p); setShowProjectDropdown(false); }}
                   style={{
                     ...dropdownItemStyle,
-                    background: selectedProject?._id === p._id ? '#ECEBFF' : 'transparent',
+                    background: selectedProject?._id === p._id ? '#FFF5F0' : 'transparent',
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: 13, color: '#1F2937' }}>
@@ -135,7 +135,7 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
                   onClick={() => { setFloor(f); setShowFloorDropdown(false); }}
                   style={{
                     ...dropdownItemStyle,
-                    background: floor === f ? '#ECEBFF' : 'transparent',
+                    background: floor === f ? '#FFF5F0' : 'transparent',
                   }}
                 >
                   {f}
@@ -174,7 +174,7 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
                   onClick={() => { setPhase(p); setShowPhaseDropdown(false); }}
                   style={{
                     ...dropdownItemStyle,
-                    background: phase === p ? '#ECEBFF' : 'transparent',
+                    background: phase === p ? '#FFF5F0' : 'transparent',
                   }}
                 >
                   {p}
@@ -213,7 +213,7 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
                   onClick={() => { setActivity(a); setShowActivityDropdown(false); }}
                   style={{
                     ...dropdownItemStyle,
-                    background: activity === a ? '#ECEBFF' : 'transparent',
+                    background: activity === a ? '#FFF5F0' : 'transparent',
                   }}
                 >
                   {a}
@@ -252,7 +252,7 @@ export default function ExecutionContextStep({ projects, onComplete, onCancel })
             borderRadius: 12,
             border: 'none',
             background: selectedProject
-              ? 'linear-gradient(135deg, #6C63FF 0%, #5B55E8 100%)'
+              ? 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)'
               : '#E5E7EB',
             color: selectedProject ? '#FFFFFF' : '#9CA3AF',
             fontSize: 14,
