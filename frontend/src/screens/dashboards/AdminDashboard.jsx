@@ -54,6 +54,7 @@ import useProjectStore from '../../stores/projectStore';
 import useTransactionStore from '../../stores/transactionStore';
 import AddRevenueModal from '../../components/AddRevenueModal';
 import ModuleTour from '../../components/ModuleTour';
+import { ConfirmDialog } from '../../components/Toast';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -70,6 +71,7 @@ export default function AdminDashboard() {
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [addRevenueModalOpen, setAddRevenueModalOpen] = useState(false);
   const [runTour, setRunTour] = useState(false);
+  const [showTourPopup, setShowTourPopup] = useState(false);
 
   const tourSteps = [
     ...(projects.length === 0 ? [{ target: '.tour-new-project', content: 'You have no projects yet. Click here to create one.' }] : []),
@@ -95,6 +97,13 @@ export default function AdminDashboard() {
       if (projList && projList.length > 0 && !selectedProjectId) {
         setSelectedProjectId(projList[0]._id || projList[0].id);
       }
+      
+      if (projList && projList.length === 0) {
+        if (!localStorage.getItem('appTourPrompted')) {
+          setShowTourPopup(true);
+        }
+      }
+
       setDashData(dashRes?.data || null);
       setWorkers(workerRes?.data?.workers || workerRes?.data || []);
 
@@ -172,6 +181,24 @@ export default function AdminDashboard() {
   return (
     <div style={{ padding: '40px 24px', maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 32, animation: 'fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}>
       <ModuleTour steps={tourSteps} run={runTour} setRun={setRunTour} moduleName="admin_dashboard" />
+      
+      {showTourPopup && (
+        <ConfirmDialog
+          message="Welcome to BuildTrack! Do you want an app tour to help you get started?"
+          confirmLabel="Yes"
+          cancelLabel="No"
+          onConfirm={() => {
+            localStorage.setItem('appTourPrompted', 'true');
+            localStorage.setItem('globalTourActive', 'true');
+            setShowTourPopup(false);
+            setRunTour(true);
+          }}
+          onCancel={() => {
+            localStorage.setItem('appTourPrompted', 'true');
+            setShowTourPopup(false);
+          }}
+        />
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>

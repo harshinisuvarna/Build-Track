@@ -47,6 +47,11 @@ export default function ProjectsPage() {
   const [runTour, setRunTour] = useState(false);
 
 
+  const isAdmin = user?.role?.toLowerCase() === "admin";
+  const canCreate = isAdmin || can("create_project") || can("manage_team");
+  const canEdit = isAdmin || can("edit_project") || can("manage_team");
+  const canDelete = isAdmin || can("delete_project") || can("manage_team");
+
   const tourSteps = [
     { target: '.tour-header', content: 'Here you can view and manage all your projects.', disableBeacon: true },
     { target: '.tour-search', content: 'Use this to search for specific projects by name, location, or manager.' },
@@ -54,11 +59,6 @@ export default function ProjectsPage() {
     { target: '.tour-tabs', content: 'Filter projects by their current status.' },
     { target: '.tour-project-list', content: 'This is your project list. Click any project to manage it.' }
   ];
-
-  const isAdmin = user?.role?.toLowerCase() === "admin";
-  const canCreate = isAdmin || can("create_project") || can("manage_team");
-  const canEdit = isAdmin || can("edit_project") || can("manage_team");
-  const canDelete = isAdmin || can("delete_project") || can("manage_team");
 
   const clearToast = useCallback(() => setToast({ msg: "", type: "info" }), []);
 
