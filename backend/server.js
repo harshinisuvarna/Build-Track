@@ -76,8 +76,8 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:5174",
-  "https://build-track.onrender.com",
-  "https://build-track-web.onrender.com",
+  "https://buildtrack-api.nurofin.com",
+  
   ...(process.env.NGROK_URL ? [process.env.NGROK_URL] : []),
 ]
   .filter(Boolean)
@@ -135,8 +135,8 @@ const limiter = rateLimit({
   }
 });
 app.use("/api/", limiter);
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(morgan(isProd ? "combined" : "dev"));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use(passport.initialize());
@@ -213,10 +213,7 @@ app.use((err, _req, res, _next) => {
     return res.status(413).json({ success: false, message: "File too large. Maximum size is 2 MB." });
   }
   const status = err.status || 500;
-  let message = err.message || "Internal server error";
-  if (isProd && (status >= 500 || err.name === "MongoServerError" || err.name === "CastError" || err.name === "ValidationError")) {
-    message = "An error occurred while processing your request.";
-  }
+  const message = err.message || "Internal server error";
   res.status(status).json({ success: false, message, stack: !isProd ? err.stack : undefined });
 });
 let server;
