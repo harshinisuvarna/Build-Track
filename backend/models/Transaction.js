@@ -305,7 +305,8 @@ transactionSchema.pre("save", function () {
   ) {
     this.amount = this.quantity * this.rate;
   }
-  if (Math.abs(this.paidAmount || 0) > Math.abs(this.amount || 0)) {
+  // Allow a small epsilon for floating point inaccuracies
+  if (Math.abs(this.paidAmount || 0) - Math.abs(this.amount || 0) > 0.01) {
     throw Object.assign(
       new Error("Paid amount cannot exceed total amount"),
       { status: 400 }
